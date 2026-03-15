@@ -92,19 +92,27 @@ public class BeatBlockUIManager {
 
 		if (dockspaceId == -1) return;
 
-		// 3. 各停靠面板：显式不透明背景，确保文字与控件可见（参考 ChronoBlocks 面板风格）
-		ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.18f, 0.18f, 0.2f, 1f);
+		// 3. 各停靠面板：背景 + 文字色 + 标题栏（参考 ChronoBlocks UITheme，否则面板黑底黑字看不见）
+		ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.09f, 0.09f, 0.1f, 1f);           // 深灰背景
+		ImGui.pushStyleColor(ImGuiCol.Text, 0.86f, 0.86f, 0.86f, 1f);              // 浅灰文字
+		ImGui.pushStyleColor(ImGuiCol.TitleBg, 0.125f, 0.125f, 0.14f, 1f);         // 标题栏
+		ImGui.pushStyleColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.18f, 1f);
+		ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, 0.11f, 0.11f, 0.12f, 1f);
 		toolPanel.render();
 		eventPropertiesPanel.render();
 		timelinePanel.render();
 		centralViewPanel.render();
-		ImGui.popStyleColor();
+		ImGui.popStyleColor(5);
 
 		// 4. 动画库（可选）
 		if (animationLibraryVisible) {
-			ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.18f, 0.18f, 0.2f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.09f, 0.09f, 0.1f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.Text, 0.86f, 0.86f, 0.86f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.TitleBg, 0.125f, 0.125f, 0.14f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.18f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, 0.11f, 0.11f, 0.12f, 1f);
 			animationLibraryPanel.render();
-			ImGui.popStyleColor();
+			ImGui.popStyleColor(5);
 		}
 	}
 

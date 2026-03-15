@@ -1,5 +1,6 @@
 package com.beatblock.client.imgui;
 
+import com.beatblock.client.imgui.gl.ImGuiGLStateGuard;
 import com.mojang.blaze3d.systems.RenderSystem;
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -10,7 +11,10 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL21;
+import org.lwjgl.opengl.GL30;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,12 +77,19 @@ public class ImGuiRenderer {
 		LOGGER.info("BeatBlock ImGui 初始化完成");
 	}
 
+	/** 参考 MasterPlanner：避免 MC 遗留的 PBO/像素存储状态把字体图集上传写花。 */
 	private static void resetPixelStoreState() {
 		RenderSystem.assertOnRenderThread();
+		GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
+		GL15.glBindBuffer(GL21.GL_PIXEL_PACK_BUFFER, 0);
 		GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
 		GL11.glPixelStorei(GL12.GL_UNPACK_ROW_LENGTH, 0);
+		GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_PIXELS, 0);
+		GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_ROWS, 0);
 		GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
 		GL11.glPixelStorei(GL12.GL_PACK_ROW_LENGTH, 0);
+		GL11.glPixelStorei(GL12.GL_PACK_SKIP_PIXELS, 0);
+		GL11.glPixelStorei(GL12.GL_PACK_SKIP_ROWS, 0);
 	}
 
 	/** 参考 ChronoBlocks：GLSL 版本过高在部分环境会导致 shader 编译失败，界面全黑。 */
@@ -126,6 +137,7 @@ public class ImGuiRenderer {
 	public void beginFrame() {
 		if (!initialized || frameInProgress) return;
 		try {
+			updateDisplaySize();
 			imGuiGlfw.newFrame();
 			ImGui.newFrame();
 			frameInProgress = true;
@@ -147,18 +159,28 @@ public class ImGuiRenderer {
 		}
 	}
 
-	/** 在 swap 前由 Mixin 调用；参考 ChronoBlocks 保存/恢复 viewport 与 scissor。 */
+	/**
+	 * 在 swap 前由 Mixin 调用。
+	 * 参考 NodeCraft/MasterPlanner：绑定默认 FBO、设置 viewport、用 ImGuiGLStateGuard 保证 ColorMask/Sampler/Blend，
+	 * 否则 MC 1.21+ 渲染管线污染会导致“面板全黑、文字不可见”。
+	 */
 	public void renderPendingDrawData() {
 		if (!initialized || !drawDataReady || imGuiGl3 == null) return;
 		try {
 			RenderSystem.assertOnRenderThread();
-			int[] vp = new int[4];
-			GL11.glGetIntegerv(GL11.GL_VIEWPORT, vp);
-			boolean scissor = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
-			GL11.glDisable(GL11.GL_SCISSOR_TEST);
-			imGuiGl3.renderDrawData(ImGui.getDrawData());
-			GL11.glViewport(vp[0], vp[1], vp[2], vp[3]);
-			if (scissor) GL11.glEnable(GL11.GL_SCISSOR_TEST);
+			MinecraftClient mc = MinecraftClient.getInstance();
+			if (mc != null && mc.getWindow() != null) {
+				GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, 0);
+				int fw = Math.max(1, mc.getWindow().getFramebufferWidth());
+				int fh = Math.max(1, mc.getWindow().getFramebufferHeight());
+				GL11.glViewport(0, 0, fw, fh);
+			}
+			imgui.ImDrawData drawData = ImGui.getDrawData();
+			if (drawData != null && drawData.getCmdListsCount() > 0) {
+				try (ImGuiGLStateGuard ignored = ImGuiGLStateGuard.enter()) {
+					imGuiGl3.renderDrawData(drawData);
+				}
+			}
 		} catch (Exception e) {
 			LOGGER.error("ImGui renderDrawData failed", e);
 		} finally {
