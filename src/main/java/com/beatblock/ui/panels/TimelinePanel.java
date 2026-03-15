@@ -3,15 +3,17 @@ package com.beatblock.ui.panels;
 import com.beatblock.BeatBlock;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.timeline.TimelineEditor;
+import com.beatblock.timeline.rendering.TimelineToolbar;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
 /**
- * 底部通栏时间线面板：只负责窗口与标题区，实际绘制与交互由 TimelineEditor（rendering + interaction）完成。
+ * 底部通栏时间线面板：顶部工具栏 + 标题/时间 + 时间线主体（由 TimelineEditor 渲染）。
  */
 public class TimelinePanel {
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
+	private final TimelineToolbar toolbar = new TimelineToolbar();
 
 	public void render() {
 		if (!ImGui.begin(BeatBlockDockSpaceLayoutBuilder.TIMELINE_PANEL_WINDOW, WINDOW_FLAGS)) {
@@ -26,6 +28,14 @@ public class TimelinePanel {
 		}
 
 		TimelineEditor editor = BeatBlock.timelineEditor;
+
+		// ----- 顶部工具栏 -----
+		if (editor != null) {
+			toolbar.render(editor, editor.getToolbarState());
+		}
+		ImGui.separator();
+
+		// ----- 标题与当前时间 -----
 		double duration = editor != null && BeatBlock.timeline.getDurationSeconds() > 0
 			? BeatBlock.timeline.getDurationSeconds()
 			: (BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.getDurationSeconds() > 0 ? BeatBlock.musicPlayer.getDurationSeconds() : 60.0);

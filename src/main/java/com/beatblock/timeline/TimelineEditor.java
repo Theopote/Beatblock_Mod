@@ -6,6 +6,7 @@ import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.interaction.TimelineInteraction;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineRenderer;
+import com.beatblock.timeline.rendering.TimelineToolbarState;
 import imgui.ImGui;
 
 /**
@@ -19,6 +20,7 @@ public final class TimelineEditor {
 	private final TimelineRenderer renderer;
 	private final TimelineInteraction interactionSystem;
 	private final CommandManager commandManager;
+	private final TimelineToolbarState toolbarState = new TimelineToolbarState();
 
 	public TimelineEditor(Timeline timeline) {
 		this.timeline = timeline;
@@ -58,6 +60,10 @@ public final class TimelineEditor {
 
 	public CommandManager getCommandManager() {
 		return commandManager;
+	}
+
+	public TimelineToolbarState getToolbarState() {
+		return toolbarState;
 	}
 
 	/** 同步时钟时长与 Timeline 一致 */
