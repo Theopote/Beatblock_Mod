@@ -1,6 +1,9 @@
 package com.beatblock.audio;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.audio.analysis.AudioAnalysisEngine;
+import com.beatblock.audio.analysis.AudioBuffer;
+import com.beatblock.audio.analysis.AudioDecoder;
 import com.beatblock.timeline.Timeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +37,18 @@ public class AudioLoader {
 
 		Timeline timeline = BeatBlock.timeline;
 		if (timeline != null) {
-			AudioAnalyzer.analyzeAndFillTimeline(audio, timeline);
+			// 优先使用 Audio Analysis Engine（节拍检测、BPM、频段、波形）
+			AudioAnalysisEngine engine = BeatBlock.audioAnalysisEngine;
+			if (engine != null) {
+				AudioBuffer buffer = AudioDecoder.fromDecodedAudio(audio);
+				if (buffer != null && engine.analyzeBuffer(buffer) != null) {
+					engine.fillTimeline(timeline);
+				} else {
+					AudioAnalyzer.analyzeAndFillTimeline(audio, timeline);
+				}
+			} else {
+				AudioAnalyzer.analyzeAndFillTimeline(audio, timeline);
+			}
 		}
 		if (BeatBlock.musicPlayer != null) {
 			BeatBlock.musicPlayer.setDurationSeconds(audio.getDurationSeconds());

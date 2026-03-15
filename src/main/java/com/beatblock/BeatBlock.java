@@ -15,6 +15,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.visual.BlockDisplayPool;
 import com.beatblock.visual.BlockSpawner;
 import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.audio.analysis.AudioAnalysisEngine;
 import com.beatblock.visual.TransformUpdater;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
@@ -46,6 +47,7 @@ public class BeatBlock implements ModInitializer {
 	public static Timeline timeline;
 	public static TimelineEditor timelineEditor;
 	public static BlockAnimationEngine blockAnimationEngine;
+	public static AudioAnalysisEngine audioAnalysisEngine;
 
 	@Override
 	public void onInitialize() {
@@ -62,6 +64,7 @@ public class BeatBlock implements ModInitializer {
 		timeline = Timeline.createDefault();
 		timelineEditor = new TimelineEditor(timeline);
 		blockAnimationEngine = new BlockAnimationEngine();
+		audioAnalysisEngine = new AudioAnalysisEngine();
 
 		// 注册默认动画模板
 		animationRegistry.register(new AnimationTemplate("bounce", 0.5, AnimationTemplate.Easing.EASE_OUT, AnimationTemplate.TransformType.SCALE));
