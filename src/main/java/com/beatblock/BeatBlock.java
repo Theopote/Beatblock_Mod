@@ -10,6 +10,7 @@ import com.beatblock.audio.MusicPlayer;
 import com.beatblock.beat.BeatEvent;
 import com.beatblock.beat.BeatScheduler;
 import com.beatblock.stage.StageManager;
+import com.beatblock.timeline.TimelineModel;
 import com.beatblock.visual.BlockDisplayPool;
 import com.beatblock.visual.BlockSpawner;
 import com.beatblock.visual.TransformUpdater;
@@ -40,6 +41,7 @@ public class BeatBlock implements ModInitializer {
 	public static BlockSpawner blockSpawner;
 	public static TransformUpdater transformUpdater;
 	public static StageManager stageManager;
+	public static TimelineModel timelineModel;
 
 	@Override
 	public void onInitialize() {
@@ -53,6 +55,7 @@ public class BeatBlock implements ModInitializer {
 		blockSpawner = new BlockSpawner();
 		transformUpdater = new TransformUpdater();
 		stageManager = new StageManager();
+		timelineModel = new TimelineModel();
 
 		// 注册默认动画模板
 		animationRegistry.register(new AnimationTemplate("bounce", 0.5, AnimationTemplate.Easing.EASE_OUT, AnimationTemplate.TransformType.SCALE));
