@@ -64,6 +64,11 @@ public final class TimelineModel {
 		if (e != null) blockAnimationEvents.add(e);
 	}
 
+	/** 清空方块动画事件（与 v2 同步时使用）。 */
+	public void clearBlockAnimationEvents() {
+		blockAnimationEvents.clear();
+	}
+
 	public List<TimelineAnimationEvent> getAutoAnimationEvents() {
 		return Collections.unmodifiableList(autoAnimationEvents);
 	}
@@ -85,12 +90,20 @@ public final class TimelineModel {
 		if (k != null) cameraKeyframes.add(k);
 	}
 
+	public void clearCameraKeyframes() {
+		cameraKeyframes.clear();
+	}
+
 	public List<GlobalEvent> getGlobalEvents() {
 		return Collections.unmodifiableList(globalEvents);
 	}
 
 	public void addGlobalEvent(GlobalEvent e) {
 		if (e != null) globalEvents.add(e);
+	}
+
+	public void clearGlobalEvents() {
+		globalEvents.clear();
 	}
 
 	public void sortAll() {
