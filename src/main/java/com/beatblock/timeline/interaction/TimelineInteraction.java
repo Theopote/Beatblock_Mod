@@ -1,5 +1,6 @@
 package com.beatblock.timeline.interaction;
 
+import com.beatblock.BeatBlock;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.rendering.TimelineLayout;
@@ -7,10 +8,13 @@ import imgui.ImGui;
 
 /**
  * 时间线输入：鼠标按下/拖拽/释放，使用 TimelineLayout 四区域做 HitTest，驱动状态与 Clock。
+ * 支持：标尺/播放头拖动（SCRUB）、事件拖拽、框选。
  */
 public final class TimelineInteraction {
 
 	private static final float DRAG_THRESHOLD_PX = 4f;
+	/** 播放头竖线两侧的命中宽度（像素），便于拖动 */
+	private static final float PLAYHEAD_HIT_PX = 6f;
 
 	private static final String[] INTERACTIVE_TRACK_IDS = {
 		Timeline.TRACK_ID_ANIMATION_BLOCK,
@@ -55,7 +59,7 @@ public final class TimelineInteraction {
 		if (ImGui.isMouseDown(0) && interactionState.getMode() != InteractionMode.NONE) {
 			if (interactionState.getMode() == InteractionMode.SCRUB_TIME && clock != null) {
 				double t = viewState.screenToTime(mx - layout.contentLeft);
-				clock.seek(Math.max(0, Math.min(t, duration)));
+				seekClockAndMusic(clock, Math.max(0, Math.min(t, duration)));
 				return;
 			}
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT && interactionState.getActiveEventId() != null
@@ -73,7 +77,15 @@ public final class TimelineInteraction {
 				double t = viewState.screenToTime(mx - layout.contentLeft);
 				interactionState.setMode(InteractionMode.SCRUB_TIME);
 				interactionState.setMouseStart(mx, my);
-				if (clock != null) clock.seek(Math.max(0, Math.min(t, duration)));
+				if (clock != null) seekClockAndMusic(clock, Math.max(0, Math.min(t, duration)));
+				return;
+			}
+			// 点击播放头竖线也可拖动（与标尺一致的 SCRUB 行为）
+			if (clock != null && isMouseOverPlayhead(mx, my, layout, viewState, clock)) {
+				double t = viewState.screenToTime(mx - layout.contentLeft);
+				interactionState.setMode(InteractionMode.SCRUB_TIME);
+				interactionState.setMouseStart(mx, my);
+				seekClockAndMusic(clock, Math.max(0, Math.min(t, duration)));
 				return;
 			}
 			for (int i = 0; i < layout.getInteractiveRowCount() && i < INTERACTIVE_TRACK_IDS.length; i++) {
@@ -106,5 +118,22 @@ public final class TimelineInteraction {
 		if (interactionState.getMode() == InteractionMode.BOX_SELECT && ImGui.isMouseDown(0) && selectionBox != null) {
 			selectionBox.setEnd(mx, my);
 		}
+	}
+
+	/** 拖动/点击标尺或播放头时，同时更新时钟和音乐进度 */
+	private static void seekClockAndMusic(TimelineClock clock, double timeSeconds) {
+		clock.seek(timeSeconds);
+		if (BeatBlock.musicPlayer != null) {
+			BeatBlock.musicPlayer.setCurrentTimeSeconds(clock.getCurrentTimeSeconds());
+		}
+	}
+
+	/** 鼠标是否在播放头竖线附近（轨道内容区 Y 内） */
+	private static boolean isMouseOverPlayhead(float mouseX, float mouseY, TimelineLayout layout,
+		TimelineViewState viewState, TimelineClock clock) {
+		if (clock == null) return false;
+		float playheadX = layout.contentLeft + viewState.timeToScreen(clock.getCurrentTimeSeconds());
+		if (mouseX < playheadX - PLAYHEAD_HIT_PX || mouseX > playheadX + PLAYHEAD_HIT_PX) return false;
+		return mouseY >= layout.contentTop && mouseY < layout.contentTop + layout.contentHeight;
 	}
 }

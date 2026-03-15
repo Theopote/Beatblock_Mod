@@ -58,12 +58,12 @@ public final class TimelineRenderer {
 		// 网格竖线（底层）
 		gridRenderer.render(viewState, layout, layout.contentHeight);
 
-		// 轨道名 + 内容区，每行后画分隔线，使轨道看起来一行一行
+		// 轨道名 + 内容区，每行后画分隔线；轨道名来自元数据（可自定义），音频为一级、波形/低中高频为子轨道
 		for (int i = 0; i < TimelineLayout.CONTENT_ROW_COUNT; i++) {
 			float rowY = layout.getRowCursorY(i);
-			boolean isGroup = (i == 0 || i == 5);
-			String label = rowLabel(i);
-			trackRenderer.drawTrackLabel(rowY, i, label, isGroup, trackListState);
+			boolean isGroup = TimelineTrackMeta.isGroupRow(i);
+			String displayName = trackListState != null ? trackListState.getDisplayName(i) : TimelineTrackMeta.getDefaultName(i);
+			trackRenderer.drawTrackLabel(rowY, i, displayName, isGroup, trackListState);
 			drawRowContent(i, rowY, timeline, viewState, selectionState, layout);
 			// 行底分隔线
 			float lineY = layout.getRowScreenY(i) + layout.rowHeight;
@@ -87,22 +87,6 @@ public final class TimelineRenderer {
 		// 框选矩形
 		if (selectionBox != null && selectionBox.isActive()) {
 			ImGui.getWindowDrawList().addRect(selectionBox.getMinX(), selectionBox.getMinY(), selectionBox.getMaxX(), selectionBox.getMaxY(), SELECTED_BORDER_COLOR, 0f, 0, 1.5f);
-		}
-	}
-
-	private static String rowLabel(int rowIndex) {
-		switch (rowIndex) {
-			case 0: return "音频";
-			case 1: return "波形";
-			case 2: return "低频";
-			case 3: return "中频";
-			case 4: return "高频";
-			case 5: return "动画";
-			case 6: return "方块动画";
-			case 7: return "自动动画";
-			case 8: return "关键帧";
-			case 9: return "事件";
-			default: return "";
 		}
 	}
 

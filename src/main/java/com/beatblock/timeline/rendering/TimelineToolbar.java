@@ -3,6 +3,7 @@ package com.beatblock.timeline.rendering;
 import com.beatblock.BeatBlock;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapGenerator;
+import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.TimelineEditor;
 import imgui.ImGui;
 
@@ -39,7 +40,11 @@ public final class TimelineToolbar {
 			if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_PAUSE);
 		} else {
 			if (ImGui.button("\u25B6 Play")) {
-				if (BeatBlock.musicPlayer != null) BeatBlock.musicPlayer.play();
+				if (BeatBlock.musicPlayer != null) {
+					BeatBlock.musicPlayer.play();
+					// 启动驱动以便每帧推进时间，播放头随音乐移动
+					if (!BeatBlockClientDriver.isDriving()) BeatBlockClientDriver.startDriving();
+				}
 			}
 			if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_PLAY);
 		}
