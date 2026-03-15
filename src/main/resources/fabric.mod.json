@@ -3,15 +3,15 @@
 	"id": "beatblock",
 	"version": "${version}",
 	"name": "BeatBlock",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "音乐驱动的方块动画引擎 — 让 Minecraft 随音乐起舞的视觉秀平台。",
 	"authors": [
-		"Me!"
+		"BeatBlock Team"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "https://github.com/beatblock",
+		"sources": "https://github.com/beatblock/beatblock"
 	},
-	"license": "CC0-1.0",
+	"license": "MIT",
 	"icon": "assets/beatblock/icon.png",
 	"environment": "*",
 	"entrypoints": {

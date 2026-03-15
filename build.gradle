@@ -12,10 +12,9 @@ base {
 
 repositories {
 	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
+	// Loom adds the essential maven repositories automatically.
+	// ImGUI (optional, for UI):
+	// maven { url "https://maven.deftu.dev/snapshots" }
 }
 
 loom {
@@ -36,9 +35,11 @@ dependencies {
 	mappings loom.officialMojangMappings()
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-	// Fabric API. This is technically optional, but you probably want it anyway.
+	// Fabric API
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
-	
+
+	// ImGUI for UI (uncomment when implementing EditorScreen/ImportScreen/HUD)
+	// modImplementation "dev.deftu:dearimguimc-1.21-fabric:${project.dearimgui_version}"
 }
 
 processResources {
