@@ -167,7 +167,7 @@ public class Timeline {
 				String animId = (String) p.getOrDefault("animationType", "bounce");
 				String target = (String) p.getOrDefault("targetObject", "");
 				float energy = p.get("energy") instanceof Number ? ((Number) p.get("energy")).floatValue() : 1f;
-				out.add(new TimelineAnimationEvent(e.getTimeSeconds(), dur, animId, target, energy, new HashMap<>(p)));
+				out.add(new TimelineAnimationEvent(e.getId(), e.getTimeSeconds(), dur, animId, target, energy, new HashMap<>(p)));
 			}
 		out.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
 		return out;

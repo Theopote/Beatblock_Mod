@@ -4,7 +4,15 @@ import com.beatblock.BeatBlock;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.*;
+import com.beatblock.timeline.Clip;
+import com.beatblock.timeline.TimelineEvent;
+import com.beatblock.timeline.Track;
+import com.beatblock.timeline.editor.HitResult;
+import com.beatblock.timeline.editor.HitType;
+import com.beatblock.timeline.editor.InteractionMode;
 import com.beatblock.timeline.editor.TimelineEditor;
+import com.beatblock.timeline.editor.SelectionState;
+import com.beatblock.timeline.editor.TimelineHitTest;
 import com.beatblock.timeline.editor.TimelineViewState;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -29,6 +37,16 @@ public class TimelinePanel {
 	private static final int EVENT_DOT_COLOR = 0xFF_AA_CC_FF;
 	private static final int KEYFRAME_COLOR = 0xFF_FF_CC_66;
 	private static final int GLOBAL_EVENT_COLOR = 0xFF_AA_FF_AA;
+	private static final int SELECTED_BORDER_COLOR = 0xFF_FF_FF_00;
+	private static final float DRAG_THRESHOLD_PX = 4f;
+
+	/** 可交互轨道行（内容区）：动画块、自动动画、摄像机、全局。与下方 rowY 计算对应。 */
+	private static final String[] INTERACTIVE_TRACK_IDS = {
+		Timeline.TRACK_ID_ANIMATION_BLOCK,
+		Timeline.TRACK_ID_ANIMATION_AUTO,
+		Timeline.TRACK_ID_CAMERA,
+		Timeline.TRACK_ID_GLOBAL
+	};
 
 	public void render() {
 		if (!ImGui.begin(BeatBlockDockSpaceLayoutBuilder.TIMELINE_PANEL_WINDOW, WINDOW_FLAGS)) {
@@ -97,9 +115,9 @@ public class TimelinePanel {
 
 		rowY = drawTrackLabel(rowY, "动画", true);
 		drawTrackLabel(rowY, "方块动画", false);
-		rowY = drawAnimationEventBlocks(rowY, model.getBlockAnimationEvents(), timelineWidth, zoom, viewStart, viewEnd);
+		rowY = drawAnimationEventBlocks(rowY, model.getBlockAnimationEvents(), timelineWidth, zoom, viewStart, viewEnd, editor != null ? editor.getSelectionState() : null);
 		drawTrackLabel(rowY, "自动动画", false);
-		rowY = drawAnimationEventBlocks(rowY, model.getAutoAnimationEvents(), timelineWidth, zoom, viewStart, viewEnd);
+		rowY = drawAnimationEventBlocks(rowY, model.getAutoAnimationEvents(), timelineWidth, zoom, viewStart, viewEnd, editor != null ? editor.getSelectionState() : null);
 
 		rowY = drawTrackLabel(rowY, "摄像机", false);
 		drawTrackLabel(rowY, "关键帧", false);
@@ -117,7 +135,127 @@ public class TimelinePanel {
 			ImGui.getWindowDrawList().addLine(padX + playheadX, py0, padX + playheadX, py1, PLAYHEAD_COLOR, 2f);
 		}
 
+		// 框选矩形
+		if (editor != null && editor.getSelectionBox().isActive()) {
+			var box = editor.getSelectionBox();
+			ImGui.getWindowDrawList().addRect(box.getMinX(), box.getMinY(), box.getMaxX(), box.getMaxY(), SELECTED_BORDER_COLOR, 0f, 0, 1.5f);
+		}
+
+		// Step2: 鼠标交互（Scrub / 拖拽事件 / 选择）
+		if (editor != null && viewState != null) {
+			float contentLeft = ImGui.getWindowPosX() + ImGui.getScrollX() + TRACK_LABEL_WIDTH;
+			float scrollY = ImGui.getScrollY();
+			float winY = ImGui.getWindowPosY();
+			float rulerScreenTop = winY + scrollY + startY;
+			float rulerScreenBottom = rulerScreenTop + RULER_HEIGHT;
+			float baseContentScreenY = rulerScreenTop + RULER_HEIGHT;
+			// 四行可交互轨道在内容区的行偏移（相对 baseContentScreenY）
+			float[] rowOffsets = { 5 * ROW_HEIGHT, 6 * ROW_HEIGHT, 8 * ROW_HEIGHT, 10 * ROW_HEIGHT };
+			handleTimelineInput(editor, model, duration, contentLeft, rulerScreenTop, rulerScreenBottom,
+				baseContentScreenY, rowOffsets, timelineWidth, viewState, viewStart, zoom);
+		}
+
 		ImGui.end();
+	}
+
+	/**
+	 * 处理时间线鼠标：时间标尺 Scrub、轨道内 Event/Clip 拖拽、点击选择。
+	 */
+	private void handleTimelineInput(TimelineEditor editor, Timeline timeline, double duration,
+	                                float contentLeft, float rulerScreenTop, float rulerScreenBottom,
+	                                float baseContentScreenY, float[] rowOffsets, float contentWidth,
+	                                TimelineViewState viewState, double viewStart, float zoom) {
+		if (!ImGui.isWindowHovered()) return;
+		float mx = ImGui.getMousePosX();
+		float my = ImGui.getMousePosY();
+		var ist = editor.getInteractionState();
+		var sel = editor.getSelectionState();
+
+		// 鼠标释放：结束当前操作
+		if (ImGui.isMouseReleased(0)) {
+			if (ist.getMode() == InteractionMode.DRAG_EVENT && ist.getActiveEventId() != null) {
+				float dx = mx - ist.getMouseStartX();
+				float dy = my - ist.getMouseStartY();
+				if (dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
+					sel.clearEvents();
+					sel.selectEvent(ist.getActiveEventId());
+				}
+			}
+			if (ist.getMode() == InteractionMode.BOX_SELECT) {
+				// 框选占位：可在此解析框内事件并加入 selection
+			}
+			ist.setMode(InteractionMode.NONE);
+			ist.clearActive();
+			editor.getSelectionBox().setActive(false);
+			return;
+		}
+
+		// 拖拽中
+		if (ImGui.isMouseDown(0) && ist.getMode() != InteractionMode.NONE) {
+			if (ist.getMode() == InteractionMode.SCRUB_TIME) {
+				double t = viewState.screenToTime(mx - contentLeft);
+				editor.getClock().seek(Math.max(0, Math.min(t, duration)));
+				return;
+			}
+			if (ist.getMode() == InteractionMode.DRAG_EVENT && ist.getActiveEventId() != null && ist.getActiveTrackId() != null && ist.getActiveClipId() != null) {
+				double t = viewState.screenToTime(mx - contentLeft);
+				t = Math.max(0, Math.min(t, duration));
+				applyEventTime(timeline, ist.getActiveTrackId(), ist.getActiveClipId(), ist.getActiveEventId(), t);
+				return;
+			}
+			return;
+		}
+
+		// 鼠标按下：HitTest 并进入模式
+		if (ImGui.isMouseClicked(0)) {
+			boolean ctrl = ImGui.getIO().getKeyCtrl();
+			// 时间标尺 → Scrub
+			HitResult rulerHit = TimelineHitTest.hitTestTimeRuler(mx, my, contentLeft, rulerScreenTop, RULER_HEIGHT, contentWidth, viewState);
+			if (!rulerHit.isEmpty() && rulerHit.getHitType() == HitType.TIME_HEADER) {
+				ist.setMode(InteractionMode.SCRUB_TIME);
+				ist.setMouseStart(mx, my);
+				editor.getClock().seek(Math.max(0, Math.min(rulerHit.getTimeSeconds(), duration)));
+				return;
+			}
+			// 轨道内容 → Event / Clip
+			for (int i = 0; i < INTERACTIVE_TRACK_IDS.length && i < rowOffsets.length; i++) {
+				float rowScreenY = baseContentScreenY + rowOffsets[i];
+				HitResult hit = TimelineHitTest.hitTestTrackContent(timeline, INTERACTIVE_TRACK_IDS[i], mx, my, contentLeft, rowScreenY, ROW_HEIGHT, contentWidth, viewState);
+				if (hit.isEmpty()) continue;
+				if (hit.getHitType() == HitType.EVENT || hit.getHitType() == HitType.CLIP) {
+					ist.setMode(InteractionMode.DRAG_EVENT);
+					ist.setMouseStart(mx, my);
+					ist.setActiveEventId(hit.getEventId());
+					ist.setActiveClipId(hit.getClipId());
+					ist.setActiveTrackId(hit.getTrackId());
+					if (!ctrl) sel.clearEvents();
+					if (hit.getEventId() != null) sel.selectEvent(hit.getEventId());
+					else if (hit.getClipId() != null) sel.selectClip(hit.getClipId());
+					return;
+				}
+			}
+			// 点击空白：开始框选，并清空当前选择
+			sel.clearEvents();
+			sel.clearClips();
+			editor.getSelectionBox().setStart(mx, my);
+			editor.getSelectionBox().setEnd(mx, my);
+			editor.getSelectionBox().setActive(true);
+			ist.setMode(InteractionMode.BOX_SELECT);
+			ist.setMouseStart(mx, my);
+		}
+		// 框选拖拽中：更新框终点
+		if (ist.getMode() == InteractionMode.BOX_SELECT && ImGui.isMouseDown(0)) {
+			editor.getSelectionBox().setEnd(mx, my);
+		}
+	}
+
+	private void applyEventTime(Timeline timeline, String trackId, String clipId, String eventId, double timeSeconds) {
+		Track t = timeline.getTrack(trackId);
+		if (t == null) return;
+		Clip c = t.getClip(clipId);
+		if (c == null) return;
+		TimelineEvent e = c.getEvent(eventId);
+		if (e != null) e.setTimeSeconds(timeSeconds);
 	}
 
 	private double getDuration() {
@@ -234,7 +372,7 @@ public class TimelinePanel {
 		return rowY + ROW_HEIGHT;
 	}
 
-	private float drawAnimationEventBlocks(float rowY, List<TimelineAnimationEvent> events, float width, float zoom, double viewStart, double viewEnd) {
+	private float drawAnimationEventBlocks(float rowY, List<TimelineAnimationEvent> events, float width, float zoom, double viewStart, double viewEnd, SelectionState selection) {
 		ImGui.setCursorPosY(rowY);
 		ImGui.setCursorPosX(TRACK_LABEL_WIDTH);
 		float baseX = ImGui.getCursorScreenPosX();
@@ -247,11 +385,12 @@ public class TimelinePanel {
 			float w = (float) (e.getDurationSeconds() * zoom);
 			w = Math.max(8f, Math.min(w, width - x + 1));
 			if (x + w >= -2 && x <= width + 2) {
-				ImGui.getWindowDrawList().addRectFilled(
-					baseX + x, baseY - ROW_HEIGHT * 0.35f,
-					baseX + x + w, baseY + ROW_HEIGHT * 0.35f,
-					KEYFRAME_COLOR, 2f
-				);
+				float y0 = baseY - ROW_HEIGHT * 0.35f;
+				float y1 = baseY + ROW_HEIGHT * 0.35f;
+				ImGui.getWindowDrawList().addRectFilled(baseX + x, y0, baseX + x + w, y1, KEYFRAME_COLOR, 2f);
+				if (selection != null && selection.isEventSelected(e.getEventId())) {
+					ImGui.getWindowDrawList().addRect(baseX + x, y0, baseX + x + w, y1, SELECTED_BORDER_COLOR, 0f, 0, 2f);
+				}
 			}
 		}
 		ImGui.setCursorPosY(rowY + ROW_HEIGHT);

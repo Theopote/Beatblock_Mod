@@ -64,6 +64,7 @@ public final class AutoMapGenerator {
 			params.put("energy", e.getEnergy());
 
 			TimelineAnimationEvent ev = new TimelineAnimationEvent(
+				"",
 				e.getTimeSeconds(),
 				rule.getDurationSeconds(),
 				rule.getAnimationTypeId(),

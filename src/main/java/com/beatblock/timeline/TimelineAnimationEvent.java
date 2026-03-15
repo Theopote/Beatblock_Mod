@@ -9,6 +9,7 @@ import java.util.Map;
  */
 public final class TimelineAnimationEvent {
 
+	private final String eventId;
 	private final double timeSeconds;
 	private final double durationSeconds;
 	private final String animationTypeId;
@@ -16,15 +17,20 @@ public final class TimelineAnimationEvent {
 	private final float energy;
 	private final Map<String, Object> parameters;
 
-	public TimelineAnimationEvent(double timeSeconds, double durationSeconds,
+	public TimelineAnimationEvent(String eventId, double timeSeconds, double durationSeconds,
 	                             String animationTypeId, String targetObjectId,
 	                             float energy, Map<String, Object> parameters) {
+		this.eventId = eventId != null ? eventId : "";
 		this.timeSeconds = timeSeconds;
 		this.durationSeconds = Math.max(0.01, durationSeconds);
 		this.animationTypeId = animationTypeId != null ? animationTypeId : "";
 		this.targetObjectId = targetObjectId != null ? targetObjectId : "";
 		this.energy = Math.max(0f, Math.min(1f, energy));
 		this.parameters = parameters != null ? Map.copyOf(parameters) : Collections.emptyMap();
+	}
+
+	public String getEventId() {
+		return eventId;
 	}
 
 	public double getTimeSeconds() {
