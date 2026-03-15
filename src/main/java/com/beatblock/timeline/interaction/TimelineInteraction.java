@@ -4,7 +4,9 @@ import com.beatblock.BeatBlock;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.rendering.TimelineLayout;
+import com.beatblock.timeline.rendering.TimelineTrackListState;
 import imgui.ImGui;
+import imgui.flag.ImGuiMouseCursor;
 
 /**
  * 时间线输入：鼠标按下/拖拽/释放，使用 TimelineLayout 四区域做 HitTest，驱动状态与 Clock。
@@ -15,6 +17,8 @@ public final class TimelineInteraction {
 	private static final float DRAG_THRESHOLD_PX = 4f;
 	/** 播放头竖线两侧的命中宽度（像素），便于拖动 */
 	private static final float PLAYHEAD_HIT_PX = 6f;
+	/** 轨道头与内容区分割线可拖动区域宽度（像素） */
+	private static final float DIVIDER_HIT_PX = 5f;
 
 	private static final String[] INTERACTIVE_TRACK_IDS = {
 		Timeline.TRACK_ID_ANIMATION_BLOCK,
@@ -30,6 +34,7 @@ public final class TimelineInteraction {
 		SelectionState selectionState,
 		TimelineClock clock,
 		SelectionBox selectionBox,
+		TimelineTrackListState trackListState,
 		TimelineLayout layout
 	) {
 		if (timeline == null || viewState == null || interactionState == null || selectionState == null || layout == null) return;
@@ -39,6 +44,23 @@ public final class TimelineInteraction {
 		float my = ImGui.getMousePosY();
 		double duration = timeline.getDurationSeconds();
 		if (duration <= 0) duration = 60.0;
+
+		// 分割线拖动：在轨道区内检测并更新宽度
+		if (trackListState != null) {
+			boolean overDivider = isMouseOverDivider(mx, my, layout);
+			if (overDivider && interactionState.getMode() == InteractionMode.NONE) {
+				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+			}
+			if (interactionState.getMode() == InteractionMode.RESIZE_HEADER) {
+				float startW = interactionState.getResizeStartHeaderWidth();
+				float delta = mx - interactionState.getMouseStartX();
+				trackListState.setTrackHeaderWidth(startW + delta);
+				if (ImGui.isMouseReleased(0)) {
+					interactionState.setMode(InteractionMode.NONE);
+				}
+				return;
+			}
+		}
 
 		if (ImGui.isMouseReleased(0)) {
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT && interactionState.getActiveEventId() != null) {
@@ -73,6 +95,12 @@ public final class TimelineInteraction {
 
 		if (ImGui.isMouseClicked(0)) {
 			boolean ctrl = ImGui.getIO().getKeyCtrl();
+			if (trackListState != null && isMouseOverDivider(mx, my, layout)) {
+				interactionState.setMode(InteractionMode.RESIZE_HEADER);
+				interactionState.setMouseStart(mx, my);
+				interactionState.setResizeStartHeaderWidth(trackListState.getTrackHeaderWidth());
+				return;
+			}
 			if (layout.rulerContains(mx, my)) {
 				double t = viewState.screenToTime(mx - layout.contentLeft);
 				interactionState.setMode(InteractionMode.SCRUB_TIME);
@@ -134,6 +162,13 @@ public final class TimelineInteraction {
 		if (clock == null) return false;
 		float playheadX = layout.contentLeft + viewState.timeToScreen(clock.getCurrentTimeSeconds());
 		if (mouseX < playheadX - PLAYHEAD_HIT_PX || mouseX > playheadX + PLAYHEAD_HIT_PX) return false;
+		return mouseY >= layout.contentTop && mouseY < layout.contentTop + layout.contentHeight;
+	}
+
+	/** 鼠标是否在轨道头与内容区之间的分割线上（可拖动） */
+	private static boolean isMouseOverDivider(float mouseX, float mouseY, TimelineLayout layout) {
+		float divX = layout.trackHeaderLeft + layout.trackHeaderWidth;
+		if (mouseX < divX - DIVIDER_HIT_PX || mouseX > divX + DIVIDER_HIT_PX) return false;
 		return mouseY >= layout.contentTop && mouseY < layout.contentTop + layout.contentHeight;
 	}
 }

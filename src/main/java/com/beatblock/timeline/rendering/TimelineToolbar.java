@@ -6,6 +6,7 @@ import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.TimelineEditor;
 import imgui.ImGui;
+import imgui.type.ImInt;
 
 /**
  * 时间线顶部工具栏：播放控制、吸附选项、Beat 网格、Auto Map。
@@ -22,9 +23,17 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_AUTO_MAP = "根据频段事件自动生成动画事件（需先导入音乐）";
 	private static final String TOOLTIP_LOOP = "循环播放";
 	private static final String TOOLTIP_FIT = "缩放至整段时长可见";
+	private static final String TOOLTIP_ZOOM = "时间线横向缩放";
+
+	/** Zoom 预设：显示名与对应的缩放倍数（相对基准 1x） */
+	private static final String[] ZOOM_PRESET_LABELS = { "0.25x", "0.5x", "1x", "2x", "3x", "4x" };
+	private static final float ZOOM_BASE = 10f; // 1x 对应的像素/秒
+	private static final float[] ZOOM_PRESET_VALUES = { 0.25f * ZOOM_BASE, 0.5f * ZOOM_BASE, 1f * ZOOM_BASE, 2f * ZOOM_BASE, 3f * ZOOM_BASE, 4f * ZOOM_BASE };
 
 	/** 上次 Auto Map 生成数量，用于提示 */
 	private int lastAutoMapCount = -1;
+	/** Zoom 下拉当前选中索引（由 Combo 更新） */
+	private final ImInt zoomComboIndex = new ImInt(2); // 默认 1x
 
 	public void render(TimelineEditor editor, TimelineToolbarState toolbarState) {
 		if (editor == null) return;
@@ -93,7 +102,16 @@ public final class TimelineToolbar {
 			ImGui.sameLine();
 		}
 
-		// ----- 3. 视图 -----
+		// ----- 3. 视图：Zoom 下拉 + Fit -----
+		zoomComboIndex.set(indexOfClosestZoom(editor.getViewState().getZoom()));
+		if (ImGui.combo("Zoom", zoomComboIndex, ZOOM_PRESET_LABELS)) {
+			int idx = zoomComboIndex.get();
+			if (idx >= 0 && idx < ZOOM_PRESET_VALUES.length) {
+				editor.getViewState().setZoom(ZOOM_PRESET_VALUES[idx]);
+			}
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_ZOOM);
+		ImGui.sameLine();
 		if (ImGui.button("Fit")) {
 			double dur = BeatBlock.timeline != null ? BeatBlock.timeline.getDurationSeconds() : 60;
 			float w = ImGui.getContentRegionAvailX() - 130f;
@@ -119,5 +137,18 @@ public final class TimelineToolbar {
 			ImGui.sameLine();
 			ImGui.textDisabled("(" + lastAutoMapCount + " events)");
 		}
+	}
+
+	private static int indexOfClosestZoom(float zoom) {
+		int best = 0;
+		float bestDiff = Math.abs(zoom - ZOOM_PRESET_VALUES[0]);
+		for (int i = 1; i < ZOOM_PRESET_VALUES.length; i++) {
+			float d = Math.abs(zoom - ZOOM_PRESET_VALUES[i]);
+			if (d < bestDiff) {
+				bestDiff = d;
+				best = i;
+			}
+		}
+		return best;
 	}
 }

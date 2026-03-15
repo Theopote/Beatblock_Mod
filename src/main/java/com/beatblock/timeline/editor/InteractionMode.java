@@ -10,5 +10,7 @@ public enum InteractionMode {
 	RESIZE_CLIP,
 	PAN_VIEW,
 	BOX_SELECT,
-	SCRUB_TIME
+	SCRUB_TIME,
+	/** 拖动轨道头与内容区之间的分割线 */
+	RESIZE_HEADER
 }

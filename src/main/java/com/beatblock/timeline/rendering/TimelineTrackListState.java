@@ -18,6 +18,11 @@ public final class TimelineTrackListState {
 	private int editingRowIndex = -1;
 	private final ImString renameBuffer = new ImString(RENAME_BUFFER_SIZE);
 
+	/** 轨道头区域宽度（可拖动分割线调整），像素 */
+	private float trackHeaderWidthPx = 130f;
+	private static final float TRACK_HEADER_WIDTH_MIN = 80f;
+	private static final float TRACK_HEADER_WIDTH_MAX = 380f;
+
 	public TimelineTrackListState() {
 		for (int i = 0; i < visible.length; i++) {
 			visible[i] = true;
@@ -87,4 +92,12 @@ public final class TimelineTrackListState {
 	}
 
 	public ImString getRenameBuffer() { return renameBuffer; }
+
+	public float getTrackHeaderWidth() {
+		return trackHeaderWidthPx;
+	}
+
+	public void setTrackHeaderWidth(float width) {
+		trackHeaderWidthPx = Math.max(TRACK_HEADER_WIDTH_MIN, Math.min(TRACK_HEADER_WIDTH_MAX, width));
+	}
 }

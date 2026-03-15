@@ -87,12 +87,12 @@ public final class TimelineEditor {
 			state.getClock().setCurrentTimeSeconds(BeatBlock.musicPlayer.getCurrentTimeSeconds());
 		}
 		TimelineLayout layout = new TimelineLayout();
-		layout.build();
+		layout.build(false, trackListState.getTrackHeaderWidth());
 		double duration = timeline.getDurationSeconds() > 0 ? timeline.getDurationSeconds() : 60.0;
 		TimelineViewState viewState = state.getViewState();
 		if (viewState.getViewEndTimeSeconds() >= 59 && viewState.getViewEndTimeSeconds() <= 61 && duration > 0 && layout.contentWidth > 0) {
 			viewState.fitToDuration(duration, layout.contentWidth);
-			layout.build();
+			layout.build(false, trackListState.getTrackHeaderWidth());
 		}
 		renderer.renderRulerRow(layout, viewState);
 	}
@@ -103,7 +103,7 @@ public final class TimelineEditor {
 	public void renderTrackArea() {
 		if (timeline == null) return;
 		TimelineLayout layout = new TimelineLayout();
-		layout.build(true); // 在可滚动子窗口内，无标尺行
+		layout.build(true, trackListState.getTrackHeaderWidth()); // 在可滚动子窗口内，无标尺行
 		TimelineViewState viewState = state.getViewState();
 		renderer.renderTrackArea(
 			timeline,
@@ -121,6 +121,7 @@ public final class TimelineEditor {
 			state.getSelectionState(),
 			state.getClock(),
 			state.getSelectionBox(),
+			trackListState,
 			layout
 		);
 	}

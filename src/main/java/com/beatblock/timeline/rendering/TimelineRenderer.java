@@ -15,7 +15,9 @@ public final class TimelineRenderer {
 
 	private static final int PLAYHEAD_COLOR = 0xFF_FF_66_66;
 	private static final int SELECTED_BORDER_COLOR = 0xFF_FF_FF_00;
-	private static final int ROW_SEPARATOR_COLOR = 0x33_88_88_88;
+	/** 轨道槽交替背景（深色），使轨道行更明显 */
+	private static final int ROW_BG_EVEN = 0xFF_28_28_2A;
+	private static final int ROW_BG_ODD = 0xFF_1E_1E_20;
 	/** 左侧轨道列表与右侧内容区的竖线分隔 */
 	private static final int DIVIDER_COLOR = 0x66_88_88_88;
 
@@ -51,25 +53,30 @@ public final class TimelineRenderer {
 		// 预留轨道区总高度，使子窗口滚动范围正确
 		ImGui.dummy(0, layout.contentHeight);
 
-		// 左侧轨道列表与右侧内容区的竖线分隔（与标尺分界对齐）
+		// 轨道槽交替背景（间隔色），轨道与轨道之间靠 ROW_GAP 留白，不用线
+		float x0 = layout.trackHeaderLeft;
+		float x1 = layout.contentLeft + layout.contentWidth;
+		for (int i = 0; i < TimelineLayout.CONTENT_ROW_COUNT; i++) {
+			float rowScreenY = layout.getRowScreenY(i);
+			float rowH = layout.rowHeight;
+			int bg = (i % 2 == 0) ? ROW_BG_EVEN : ROW_BG_ODD;
+			ImGui.getWindowDrawList().addRectFilled(x0, rowScreenY, x1, rowScreenY + rowH, bg);
+		}
+
+		// 左侧轨道列表与右侧内容区的竖线分隔（可拖动调整宽度）
 		float divX = layout.trackHeaderLeft + layout.trackHeaderWidth;
 		ImGui.getWindowDrawList().addLine(divX, layout.contentTop, divX, layout.contentTop + layout.contentHeight, DIVIDER_COLOR, 1f);
 
-		// 网格竖线（底层）
+		// 网格竖线（仅时间轴方向，不画行间线）
 		gridRenderer.render(viewState, layout, layout.contentHeight);
 
-		// 轨道名 + 内容区，每行后画分隔线；轨道名来自元数据（可自定义），音频为一级、波形/低中高频为子轨道
+		// 轨道名 + 内容区；轨道名来自元数据（可自定义），音频为一级、波形/低中高频为子轨道
 		for (int i = 0; i < TimelineLayout.CONTENT_ROW_COUNT; i++) {
 			float rowY = layout.getRowCursorY(i);
 			boolean isGroup = TimelineTrackMeta.isGroupRow(i);
 			String displayName = trackListState != null ? trackListState.getDisplayName(i) : TimelineTrackMeta.getDefaultName(i);
 			trackRenderer.drawTrackLabel(rowY, i, displayName, isGroup, trackListState);
 			drawRowContent(i, rowY, timeline, viewState, selectionState, layout);
-			// 行底分隔线
-			float lineY = layout.getRowScreenY(i) + layout.rowHeight;
-			float x0 = layout.trackHeaderLeft;
-			float x1 = layout.contentLeft + layout.contentWidth;
-			ImGui.getWindowDrawList().addLine(x0, lineY, x1, lineY, ROW_SEPARATOR_COLOR, 1f);
 		}
 
 		// 播放头（仅限轨道区高度）

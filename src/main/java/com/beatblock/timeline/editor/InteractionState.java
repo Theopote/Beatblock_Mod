@@ -12,6 +12,7 @@ public class InteractionState {
 	private String activeClipId;
 	private String activeTrackId;
 	private boolean resizeLeft; // RESIZE_CLIP 时 true=左边缘
+	private float resizeStartHeaderWidth; // RESIZE_HEADER 时按下时的轨道头宽度
 
 	public InteractionMode getMode() {
 		return mode;
@@ -37,6 +38,9 @@ public class InteractionState {
 
 	public boolean isResizeLeft() { return resizeLeft; }
 	public void setResizeLeft(boolean left) { resizeLeft = left; }
+
+	public float getResizeStartHeaderWidth() { return resizeStartHeaderWidth; }
+	public void setResizeStartHeaderWidth(float w) { resizeStartHeaderWidth = w; }
 
 	public void clearActive() {
 		activeEventId = null;

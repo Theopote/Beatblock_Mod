@@ -13,9 +13,14 @@ import imgui.ImGui;
  */
 public final class TimelineLayout {
 
-	/** 左侧轨道列表区宽度（含可见/锁定图标 + 轨道名），与时间刻度分界线对齐 */
+	/** 左侧轨道列表区默认宽度（可拖动分割线改变，见 TimelineTrackListState） */
 	public static final float TRACK_LABEL_WIDTH = 130f;
+	/** 单行轨道内容高度 */
 	public static final float ROW_HEIGHT = 22f;
+	/** 轨道与轨道之间的间距（不用线，用留白） */
+	public static final float ROW_GAP = 3f;
+	/** 单行占位总高 = ROW_HEIGHT + ROW_GAP */
+	public static final float ROW_STRIDE = ROW_HEIGHT + ROW_GAP;
 	public static final float RULER_HEIGHT = 20f;
 
 	/** 内容区行数（不含标尺）：音频组+波形+低中高频+动画组+方块/自动+摄像机+全局 */
@@ -74,38 +79,45 @@ public final class TimelineLayout {
 	/**
 	 * 根据当前 ImGui 窗口状态填充布局（在 begin 之后、绘制前调用）。
 	 * @param trackAreaOnly 若为 true，表示在可滚动的轨道区子窗口内，无标尺行，行从 0 开始。
+	 * @param trackHeaderWidthPx 轨道头区域宽度（可拖动分割线调整），若 &lt;= 0 则用 TRACK_LABEL_WIDTH。
 	 */
-	public void build(boolean trackAreaOnly) {
+	public void build(boolean trackAreaOnly, float trackHeaderWidthPx) {
 		this.trackAreaOnly = trackAreaOnly;
+		float headerW = trackHeaderWidthPx > 0 ? trackHeaderWidthPx : TRACK_LABEL_WIDTH;
 		float winX = ImGui.getWindowPosX();
 		float scrollX = ImGui.getScrollX();
 		float scrollY = ImGui.getScrollY();
 		float winY = ImGui.getWindowPosY();
 		startY = ImGui.getCursorPosY();
 		float availX = ImGui.getContentRegionAvailX();
-		contentWidth = Math.max(200f, availX - TRACK_LABEL_WIDTH - 20f);
+		contentWidth = Math.max(200f, availX - headerW - 20f);
 
 		float rulerOffset = trackAreaOnly ? 0f : RULER_HEIGHT;
-		rulerLeft = winX + scrollX + TRACK_LABEL_WIDTH;
+		rulerLeft = winX + scrollX + headerW;
 		rulerTop = winY + scrollY + startY;
 		rulerWidth = contentWidth;
 
 		trackHeaderLeft = winX + scrollX;
 		trackHeaderTop = winY + scrollY + startY + (trackAreaOnly ? 0f : RULER_HEIGHT);
-		trackHeaderWidth = TRACK_LABEL_WIDTH;
-		trackHeaderHeight = CONTENT_ROW_COUNT * ROW_HEIGHT;
+		trackHeaderWidth = headerW;
+		trackHeaderHeight = CONTENT_ROW_COUNT * ROW_STRIDE;
 
 		contentLeft = rulerLeft;
 		contentTop = trackHeaderTop;
 		this.contentWidth = contentWidth;
 		contentHeight = trackHeaderHeight;
 		timelineWidth = contentWidth;
-		trackLabelWidth = TRACK_LABEL_WIDTH;
+		trackLabelWidth = headerW;
 		rowHeight = ROW_HEIGHT;
 
 		for (int i = 0; i < CONTENT_ROW_COUNT; i++) {
-			rowScreenY[i] = contentTop + i * ROW_HEIGHT;
+			rowScreenY[i] = contentTop + i * ROW_STRIDE;
 		}
+	}
+
+	/** 兼容旧调用：按「含标尺」、默认轨道头宽度构建。 */
+	public void build(boolean trackAreaOnly) {
+		build(trackAreaOnly, TRACK_LABEL_WIDTH);
 	}
 
 	/** 兼容旧调用：按「含标尺」模式构建。 */
@@ -122,7 +134,7 @@ public final class TimelineLayout {
 	/** 第 i 行内容区的光标 Y（用于 ImGui.setCursorPosY），i 从 0 到 CONTENT_ROW_COUNT-1 */
 	public float getRowCursorY(int rowIndex) {
 		float rulerOffset = trackAreaOnly ? 0f : RULER_HEIGHT;
-		return startY + rulerOffset + rowIndex * ROW_HEIGHT;
+		return startY + rulerOffset + rowIndex * ROW_STRIDE;
 	}
 
 	/** 第 i 个可交互轨道的屏幕 Y（与 INTERACTIVE_TRACK_IDS[i] 对应） */
