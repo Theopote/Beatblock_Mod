@@ -97,7 +97,7 @@ public final class ImGuiFontManager {
 			// 只补标点/假名等小块，不补整块 0x4E00-0x9FFF（已在 Common/Full 里，再补会重复且撑爆图集）
 			builder.addRanges(CJK_PUNCT_AND_KANA);
 			// 强制包含模组 UI 用字，避免漏字
-			builder.addText("工具时间线事件属性动画库导入音乐智能映射设置确定取消打开保存新建编辑删除复制粘贴撤销重做播放暂停");
+			builder.addText("工具时间线事件属性动画库导入音乐智能映射设置确定取消打开保存新建编辑删除复制粘贴撤销重做播放暂停频段低频中频高频");
 			tryAddRanges(builder, a, "getGlyphRangesJapanese");
 			tryAddRanges(builder, a, "getGlyphRangesKorean");
 			tryAddRanges(builder, a, "getGlyphRangesCyrillic");
