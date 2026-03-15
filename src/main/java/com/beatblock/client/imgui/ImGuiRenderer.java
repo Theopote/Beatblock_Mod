@@ -57,10 +57,9 @@ public class ImGuiRenderer {
 		ImGuiIO io = ImGui.getIO();
 		int configFlags = ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable;
 		io.setConfigFlags(configFlags);
-		io.getFonts().addFontDefault();
-		io.getFonts().build();
 		io.setIniFilename("config/beatblock/imgui.ini");
 
+		ImGuiFontManager.initializeFonts(io);
 		ImGui.styleColorsDark();
 		resetPixelStoreState();
 		String glsl = pickGlslVersion();
