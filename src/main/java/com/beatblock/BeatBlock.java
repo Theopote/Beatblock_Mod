@@ -2,9 +2,11 @@ package com.beatblock;
 
 import com.beatblock.animation.AnimationManager;
 import com.beatblock.animation.AnimationRegistry;
+import com.beatblock.animation.AnimationTemplate;
 import com.beatblock.audio.AudioLoader;
 import com.beatblock.audio.BeatmapGenerator;
 import com.beatblock.audio.MusicPlayer;
+import com.beatblock.beat.BeatEvent;
 import com.beatblock.beat.BeatScheduler;
 import com.beatblock.stage.StageManager;
 import com.beatblock.visual.BlockDisplayPool;
@@ -42,6 +44,14 @@ public class BeatBlock implements ModInitializer {
 		blockSpawner = new BlockSpawner();
 		transformUpdater = new TransformUpdater();
 		stageManager = new StageManager();
+
+		// 注册默认动画模板
+		animationRegistry.register(new AnimationTemplate("bounce", 0.5, AnimationTemplate.Easing.EASE_OUT, AnimationTemplate.TransformType.SCALE));
+		animationRegistry.register(new AnimationTemplate("slide", 0.4, AnimationTemplate.Easing.LINEAR, AnimationTemplate.TransformType.TRANSLATE));
+		animationRegistry.register(new AnimationTemplate("pulse", 0.3, AnimationTemplate.Easing.EASE_IN_OUT, AnimationTemplate.TransformType.TRANSLATE_AND_SCALE));
+
+		// 将 BeatScheduler 与 AnimationManager 连接（具体根据 BeatEvent 创建实例的逻辑可在客户端/游戏层实现）
+		animationManager.setBeatScheduler(beatScheduler);
 
 		LOGGER.info("BeatBlock 模组已加载 — 音乐驱动方块动画引擎");
 	}
