@@ -45,6 +45,11 @@ public class BeatBlockUIScreen extends Screen {
 	}
 
 	@Override
+	public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+		// 不绘制半透明模糊背景，保持场景完全可见
+	}
+
+	@Override
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		if (initFailed) {
 			super.render(context, mouseX, mouseY, delta);
