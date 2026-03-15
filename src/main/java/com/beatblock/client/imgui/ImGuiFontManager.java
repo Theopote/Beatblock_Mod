@@ -42,7 +42,7 @@ public final class ImGuiFontManager {
 	private static final String BUNDLED_FONT_PATH = "/assets/beatblock/fonts/NotoSansSC-Regular.ttf";
 
 	/**
-	 * 初始化多语言字体：合并 Default + 中文全量，并尝试加入日/韩/西里尔（若 API 存在）。
+	 * 初始化多语言字体：合并 Default + 中文常用字 + 标点/假名小块，避免图集过大导致部分字显示为问号。
 	 */
 	public static void initializeFonts(ImGuiIO io) {
 		ImFontAtlas atlas = io.getFonts();
@@ -79,13 +79,25 @@ public final class ImGuiFontManager {
 		LOGGER.info("[BeatBlock] ImGui fonts initialized (multi-language support)");
 	}
 
-	/** 合并 Default + ChineseFull，并尽量加入 Japanese/Korean/Cyrillic */
+	/**
+	 * 使用「常用字」范围而非「全量」，避免请求字形过多导致字体图集溢出，未烘焙的字显示为 ?。
+	 * 图集纹理有上限（如 2048×2048），ChineseFull + 整块 0x4E00-0x9FFF 会超出，只补标点+addText。
+	 */
 	private static short[] buildMultiLanguageGlyphRanges(ImGuiIO io) {
 		ImFontAtlas a = io.getFonts();
 		try {
 			imgui.ImFontGlyphRangesBuilder builder = new imgui.ImFontGlyphRangesBuilder();
 			builder.addRanges(a.getGlyphRangesDefault());
-			builder.addRanges(a.getGlyphRangesChineseFull());
+			// 用常用字范围，保证能全部进图集，减少问号
+			try {
+				builder.addRanges(a.getGlyphRangesChineseSimplifiedCommon());
+			} catch (Throwable ignored) {
+				builder.addRanges(a.getGlyphRangesChineseFull());
+			}
+			// 只补标点/假名等小块，不补整块 0x4E00-0x9FFF（已在 Common/Full 里，再补会重复且撑爆图集）
+			builder.addRanges(CJK_PUNCT_AND_KANA);
+			// 强制包含模组 UI 用字，避免漏字
+			builder.addText("工具时间线事件属性动画库导入音乐智能映射设置确定取消打开保存新建编辑删除复制粘贴撤销重做播放暂停");
 			tryAddRanges(builder, a, "getGlyphRangesJapanese");
 			tryAddRanges(builder, a, "getGlyphRangesKorean");
 			tryAddRanges(builder, a, "getGlyphRangesCyrillic");
@@ -93,7 +105,33 @@ public final class ImGuiFontManager {
 			tryAddRanges(builder, a, "getGlyphRangesVietnamese");
 			return builder.buildRanges();
 		} catch (Throwable t) {
-			LOGGER.debug("[BeatBlock] GlyphRangesBuilder fallback: ChineseFull only");
+			LOGGER.debug("[BeatBlock] GlyphRangesBuilder fallback");
+			return buildFallbackRanges(a);
+		}
+	}
+
+	/** 仅标点与假名等小块，不包含整块汉字（避免图集过大）。 */
+	private static final short[] CJK_PUNCT_AND_KANA = {
+		(short) 0x2000, (short) 0x206F,  // 通用标点
+		(short) 0x3000, (short) 0x303F,  // CJK 符号与标点（、。「」…—）
+		(short) 0x3040, (short) 0x309F,  // 平假名
+		(short) 0x30A0, (short) 0x30FF,  // 片假名
+		(short) 0xFF00, (short) 0xFFEF,  // 全角
+		0
+	};
+
+	private static short[] buildFallbackRanges(ImFontAtlas a) {
+		try {
+			imgui.ImFontGlyphRangesBuilder b = new imgui.ImFontGlyphRangesBuilder();
+			b.addRanges(a.getGlyphRangesDefault());
+			try {
+				b.addRanges(a.getGlyphRangesChineseSimplifiedCommon());
+			} catch (Throwable ignored) {
+				b.addRanges(a.getGlyphRangesChineseFull());
+			}
+			b.addRanges(CJK_PUNCT_AND_KANA);
+			return b.buildRanges();
+		} catch (Throwable t2) {
 			return a.getGlyphRangesChineseFull();
 		}
 	}
