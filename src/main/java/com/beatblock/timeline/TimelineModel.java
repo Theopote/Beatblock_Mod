@@ -72,6 +72,11 @@ public final class TimelineModel {
 		if (e != null) autoAnimationEvents.add(e);
 	}
 
+	/** 清空自动编排生成的动画事件（Smart Auto Map 可先清空再生成）。 */
+	public void clearAutoAnimationEvents() {
+		autoAnimationEvents.clear();
+	}
+
 	public List<CameraKeyframe> getCameraKeyframes() {
 		return Collections.unmodifiableList(cameraKeyframes);
 	}
