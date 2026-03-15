@@ -3,8 +3,8 @@ package com.beatblock.automap;
 import com.beatblock.BeatBlock;
 import com.beatblock.timeline.FrequencyBand;
 import com.beatblock.timeline.FrequencyEvent;
+import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
-import com.beatblock.timeline.TimelineModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 根据频段事件与规则生成时间线动画事件，写入 TimelineModel.autoAnimationEvents。
+ * 根据频段事件与规则生成时间线动画事件，写入 Timeline 自动动画轨道。
  * 流程：Audio → Beatmap/Frequency → Energy Curve → Animation Generator → Timeline Events。
  */
 public final class AutoMapGenerator {
@@ -32,7 +32,7 @@ public final class AutoMapGenerator {
 	 * @param replace  若 true 先清空 autoAnimationEvents 再生成，否则追加
 	 * @return 本次生成的事件数量
 	 */
-	public static int generate(TimelineModel timeline, AutoMapConfig config, boolean replace) {
+	public static int generate(Timeline timeline, AutoMapConfig config, boolean replace) {
 		if (timeline == null || config == null) return 0;
 
 		if (replace) {
@@ -84,11 +84,8 @@ public final class AutoMapGenerator {
 	/**
 	 * 清空时间线的自动动画事件（仅 autoAnimationEvents，不影响 blockAnimationEvents）。
 	 */
-	public static void clearAutoAnimationEvents(TimelineModel timeline) {
+	public static void clearAutoAnimationEvents(Timeline timeline) {
 		if (timeline == null) return;
-		// TimelineModel 没有 clearAutoAnimationEvents，需要加
-		// 先读取现有接口：只有 addAutoAnimationEvent。所以需要在 TimelineModel 里加 clear 方法。
-		// 我稍后加。这里先调用 timeline 的新方法。
 		timeline.clearAutoAnimationEvents();
 	}
 

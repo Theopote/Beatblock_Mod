@@ -2,6 +2,7 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.*;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -35,7 +36,7 @@ public class TimelinePanel {
 
 		double duration = getDuration();
 		double currentTime = getCurrentTime();
-		TimelineModel model = BeatBlock.timelineModel;
+		Timeline model = BeatBlock.timeline;
 		if (model == null) {
 			ImGui.text("时间线（未加载模型）");
 			ImGui.end();
@@ -100,8 +101,8 @@ public class TimelinePanel {
 	}
 
 	private double getDuration() {
-		if (BeatBlock.timelineModel != null && BeatBlock.timelineModel.getDurationSeconds() > 0) {
-			return BeatBlock.timelineModel.getDurationSeconds();
+		if (BeatBlock.timeline != null && BeatBlock.timeline.getDurationSeconds() > 0) {
+			return BeatBlock.timeline.getDurationSeconds();
 		}
 		if (BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.getDurationSeconds() > 0) {
 			return BeatBlock.musicPlayer.getDurationSeconds();
@@ -142,7 +143,7 @@ public class TimelinePanel {
 		return isGroup ? rowY + ROW_HEIGHT : rowY;
 	}
 
-	private float drawAudioWaveformRow(float rowY, TimelineModel model, float width, float pixelsPerSecond) {
+	private float drawAudioWaveformRow(float rowY, Timeline model, float width, float pixelsPerSecond) {
 		ImGui.setCursorPosY(rowY);
 		ImGui.setCursorPosX(TRACK_LABEL_WIDTH);
 		float minX = ImGui.getCursorScreenPosX();

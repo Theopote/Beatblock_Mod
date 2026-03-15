@@ -26,9 +26,9 @@ public class ToolPanel {
 		ImGui.separator();
 
 		if (ImGui.button("Smart Auto Map")) {
-			if (BeatBlock.timelineModel != null) {
+			if (BeatBlock.timeline != null) {
 				AutoMapConfig config = AutoMapConfig.createDefault();
-				lastAutoMapCount = AutoMapGenerator.generate(BeatBlock.timelineModel, config, true);
+				lastAutoMapCount = AutoMapGenerator.generate(BeatBlock.timeline, config, true);
 			} else {
 				lastAutoMapCount = -1;
 			}

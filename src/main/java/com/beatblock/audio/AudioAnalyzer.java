@@ -2,7 +2,7 @@ package com.beatblock.audio;
 
 import com.beatblock.timeline.FrequencyBand;
 import com.beatblock.timeline.FrequencyEvent;
-import com.beatblock.timeline.TimelineModel;
+import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.WaveformData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 音频分析：从解码后的 PCM 生成波形数据与频段事件，写入 TimelineModel。
+ * 音频分析：从解码后的 PCM 生成波形数据与频段事件，写入 Timeline。
  * 波形为预计算下采样；频段为 FFT 窗内低/中/高能量。
  */
 public final class AudioAnalyzer {
@@ -32,7 +32,7 @@ public final class AudioAnalyzer {
 	public static final int MID_BIN_END = 93;
 	/** 高频为其余 bin */
 
-	public static void analyzeAndFillTimeline(DecodedAudio audio, TimelineModel timeline) {
+	public static void analyzeAndFillTimeline(DecodedAudio audio, Timeline timeline) {
 		if (audio == null || timeline == null) return;
 		double duration = audio.getDurationSeconds();
 		int sampleRate = audio.getSampleRate();
