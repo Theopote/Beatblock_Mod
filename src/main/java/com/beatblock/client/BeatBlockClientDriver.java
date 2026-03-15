@@ -39,7 +39,7 @@ public final class BeatBlockClientDriver {
 
 		Vec3d base = BeatBlock.stageManager.getCurrentStage()
 			.map(s -> new Vec3d(s.getCenterX(), s.getCenterY(), s.getCenterZ()))
-			.orElse(mc.player != null ? mc.player.getPos() : Vec3d.ZERO);
+			.orElse(mc.player != null ? new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()) : Vec3d.ZERO);
 		BeatBlock.transformUpdater.setBasePosition(base);
 		BeatBlock.transformUpdater.tick(BeatBlock.animationManager.getActiveInstances(), currentTime);
 	}
@@ -65,7 +65,7 @@ public final class BeatBlockClientDriver {
 
 			StageZone stage = BeatBlock.stageManager.getCurrentStage().orElse(null);
 			if (stage == null) {
-				Vec3d pos = mc.player != null ? mc.player.getPos() : Vec3d.ZERO;
+				Vec3d pos = mc.player != null ? new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()) : Vec3d.ZERO;
 				Vec3d look = mc.player != null ? mc.player.getRotationVec(1f) : Vec3d.ZERO;
 				double x = pos.getX() + look.getX() * 5;
 				double y = pos.getY();
@@ -120,7 +120,7 @@ public final class BeatBlockClientDriver {
 		if (BeatBlock.stageManager.getCurrentStage().isEmpty()) {
 			MinecraftClient mc = MinecraftClient.getInstance();
 			if (mc.player != null) {
-				Vec3d pos = mc.player.getPos();
+				Vec3d pos = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
 				Vec3d look = mc.player.getRotationVec(1f);
 				double x = pos.getX() + look.getX() * 5;
 				double y = pos.getY();

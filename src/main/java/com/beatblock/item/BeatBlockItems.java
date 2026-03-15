@@ -28,7 +28,7 @@ public final class BeatBlockItems {
 		BEATBLOCK_CONTROLLER = new BeatBlockControllerItem(new Item.Settings().registryKey(key).maxCount(1));
 		Registry.register(Registries.ITEM, id, BEATBLOCK_CONTROLLER);
 
-		ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS_AND_UTILITIES)
+		ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS)
 			.register(entries -> entries.add(BEATBLOCK_CONTROLLER));
 	}
 }
