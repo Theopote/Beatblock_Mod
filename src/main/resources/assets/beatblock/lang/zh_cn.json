@@ -1,4 +1,7 @@
 {
   "category.beatblock": "BeatBlock",
-  "key.beatblock.toggle_playback": "切换节拍播放"
+  "key.beatblock.toggle_playback": "切换节拍播放",
+  "item.beatblock.beatblock_controller": "BeatBlock 控制器",
+  "gui.beatblock.title": "BeatBlock",
+  "gui.beatblock.close": "关闭"
 }

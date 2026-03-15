@@ -1,6 +1,6 @@
 package com.beatblock.stage;
 
-import net.minecraft.world.phys.AABB;
+import net.minecraft.util.math.Box;
 
 /**
  * 舞台区域：世界内空间范围，用于生成与限制 BlockDisplay。
@@ -8,26 +8,26 @@ import net.minecraft.world.phys.AABB;
 public class StageZone {
 
 	private final String id;
-	private final AABB bounds;
+	private final Box bounds;
 	private final double centerX, centerY, centerZ;
 
-	public StageZone(String id, AABB bounds) {
+	public StageZone(String id, Box bounds) {
 		this.id = id != null ? id : "default";
-		this.bounds = bounds != null ? bounds : new AABB(0, 0, 0, 1, 1, 1);
-		this.centerX = (this.bounds.minX + this.bounds.maxX) * 0.5;
-		this.centerY = (this.bounds.minY + this.bounds.maxY) * 0.5;
-		this.centerZ = (this.bounds.minZ + this.bounds.maxZ) * 0.5;
+		this.bounds = bounds != null ? bounds : new Box(0, 0, 0, 1, 1, 1);
+		this.centerX = (this.bounds.getMinX() + this.bounds.getMaxX()) * 0.5;
+		this.centerY = (this.bounds.getMinY() + this.bounds.getMaxY()) * 0.5;
+		this.centerZ = (this.bounds.getMinZ() + this.bounds.getMaxZ()) * 0.5;
 	}
 
 	public StageZone(String id, double x1, double y1, double z1, double x2, double y2, double z2) {
-		this(id, new AABB(x1, y1, z1, x2, y2, z2));
+		this(id, new Box(x1, y1, z1, x2, y2, z2));
 	}
 
 	public String getId() {
 		return id;
 	}
 
-	public AABB getBounds() {
+	public Box getBounds() {
 		return bounds;
 	}
 
@@ -36,8 +36,8 @@ public class StageZone {
 	public double getCenterZ() { return centerZ; }
 
 	public boolean contains(double x, double y, double z) {
-		return x >= bounds.minX && x <= bounds.maxX
-			&& y >= bounds.minY && y <= bounds.maxY
-			&& z >= bounds.minZ && z <= bounds.maxZ;
+		return x >= bounds.getMinX() && x <= bounds.getMaxX()
+			&& y >= bounds.getMinY() && y <= bounds.getMaxY()
+			&& z >= bounds.getMinZ() && z <= bounds.getMaxZ();
 	}
 }

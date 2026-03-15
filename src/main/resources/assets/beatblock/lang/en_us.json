@@ -1,4 +1,7 @@
 {
   "category.beatblock": "BeatBlock",
-  "key.beatblock.toggle_playback": "Toggle Beat Playback"
+  "key.beatblock.toggle_playback": "Toggle Beat Playback",
+  "item.beatblock.beatblock_controller": "BeatBlock Controller",
+  "gui.beatblock.title": "BeatBlock",
+  "gui.beatblock.close": "Close"
 }
