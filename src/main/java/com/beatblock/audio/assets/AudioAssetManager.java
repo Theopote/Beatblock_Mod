@@ -1,13 +1,11 @@
 package com.beatblock.audio.assets;
 
 import com.beatblock.BeatBlock;
-import com.beatblock.audio.DecodedAudio;
-import com.beatblock.audio.WavDecoder;
-import com.beatblock.audio.analysis.AudioAnalysisEngine;
-import com.beatblock.audio.analysis.AudioFeatureTimeline;
-import com.beatblock.audio.analysis.DetectedBeat;
-import com.beatblock.audio.analysis.FrequencyBands;
-import com.beatblock.audio.analysis.WaveformExtractor;
+import com.beatblock.audio.AudioAnalysisService;
+import com.beatblock.audio.beatmap.Beatmap;
+import com.beatblock.audio.beatmap.BeatEvent;
+import com.beatblock.audio.beatmap.BeatmapMeta;
+import com.beatblock.audio.beatmap.FrequencyBand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,8 +67,7 @@ public final class AudioAssetManager {
 	}
 
 	/**
-	 * 同步执行完整音频解析，更新 asset 状态与统计信息。
-	 * 目前仅支持 WAV（通过 WavDecoder + AudioAnalysisEngine）；后续可扩展 MP3/OGG。
+	 * 异步执行完整音频解析（Python + librosa），更新 asset 状态与统计信息。
 	 */
 	public void startAnalysis(AudioAsset asset) {
 		if (asset == null) return;
@@ -80,70 +77,56 @@ public final class AudioAssetManager {
 		asset.getFinishedSteps().clear();
 		asset.setErrorMessage(null);
 
-		try {
-			// 先用 WavDecoder 获取基础信息
-			DecodedAudio decoded = WavDecoder.loadFromPath(path.toString());
-			if (decoded == null) {
-				asset.setStatus(AudioAssetStatus.FAILED);
-				asset.setErrorMessage("无法解码音频（目前仅支持 WAV）");
-				return;
-			}
-			asset.setDurationSeconds(decoded.getDurationSeconds());
-			asset.setSampleRate(decoded.getSampleRate());
-
-			// BPM + 节拍 + 频段分离 + 段落识别 + Beatmap 写入 全部由 AudioAnalysisEngine 负责
-			AudioAnalysisEngine engine = BeatBlock.audioAnalysisEngine;
-			if (engine == null) {
-				engine = new AudioAnalysisEngine();
-				BeatBlock.audioAnalysisEngine = engine;
-			}
-
-			// AudioBuffer 构造与 engine.analyzeBuffer 已经执行了 FFT/Band/Energy/Beat/BPM
-			asset.markStepFinished(AudioAnalysisStep.BPM_DETECTION);
-
-			AudioFeatureTimeline ft = engine.analyze(Paths.get(path.toString()));
-			if (ft == null) {
-				asset.setStatus(AudioAssetStatus.FAILED);
-				asset.setErrorMessage("分析失败");
-				return;
-			}
-			asset.setFeatureTimeline(ft);
-
-			// 解析结果统计
-			List<DetectedBeat> beats = ft.getBeats();
-			List<FrequencyBands> bands = ft.getBands();
-			WaveformExtractor.WaveformFrame[] wf = ft.getWaveformFrames();
-
-			asset.markStepFinished(AudioAnalysisStep.BEAT_DETECTION);
-			asset.markStepFinished(AudioAnalysisStep.BAND_SPLIT);
-			asset.markStepFinished(AudioAnalysisStep.SECTION_DETECTION);
-			asset.markStepFinished(AudioAnalysisStep.WRITE_BEATMAP);
-
-			asset.setBpm(ft.getBpm());
-			asset.setBeatCount(beats.size());
-			asset.setDurationSeconds(ft.getDurationSeconds());
-
-			int low = 0, mid = 0, high = 0;
-			for (FrequencyBands fb : bands) {
-				if (fb.getLow() > 0) low++;
-				if (fb.getMid() > 0) mid++;
-				if (fb.getHigh() > 0) high++;
-			}
-			asset.setLowCount(low);
-			asset.setMidCount(mid);
-			asset.setHighCount(high);
-
-			// 简单用 waveform 数量推断段落数（后续可接 MusicStructureAnalyzer 结果）
-			if (wf != null) {
-				asset.setSectionCount(Math.max(1, wf.length / 256));
-			}
-
-			asset.setStatus(AudioAssetStatus.COMPLETED);
-		} catch (Exception e) {
-			LOGGER.warn("BeatBlock AudioAssetManager: 解析音频失败: {}", path, e);
+		AudioAnalysisService service = BeatBlock.externalAudioAnalyzer;
+		if (service == null) {
 			asset.setStatus(AudioAssetStatus.FAILED);
-			asset.setErrorMessage("解析过程中发生异常");
+			asset.setErrorMessage("外部音频分析器未初始化");
+			return;
 		}
+
+		service.analyze(
+			path,
+			(step, pct) -> {
+				// 解析 Python 步骤名映射到 UI 步骤
+				switch (step) {
+					case "BPM_DETECTION" -> asset.markStepFinished(AudioAnalysisStep.BPM_DETECTION);
+					case "BEAT_DETECTION" -> {
+						asset.markStepFinished(AudioAnalysisStep.BEAT_DETECTION);
+						asset.markStepFinished(AudioAnalysisStep.BAND_SPLIT);
+					}
+					case "SECTION_DETECTION" -> asset.markStepFinished(AudioAnalysisStep.SECTION_DETECTION);
+					case "WRITE_BEATMAP" -> asset.markStepFinished(AudioAnalysisStep.WRITE_BEATMAP);
+					default -> {
+					}
+				}
+			},
+			(Beatmap beatmap) -> {
+				asset.setBeatmap(beatmap);
+				BeatmapMeta meta = beatmap.meta;
+				asset.setDurationSeconds(meta.durationMs() / 1000.0);
+				asset.setSampleRate(meta.sampleRate());
+				asset.setBpm((float) meta.bpm());
+				asset.setBeatCount(beatmap.beats.size());
+				asset.setSectionCount(beatmap.sections.size());
+
+				int low = 0, mid = 0, high = 0;
+				for (BeatEvent e : beatmap.beats) {
+					if (e.band() == FrequencyBand.LOW) low++;
+					else if (e.band() == FrequencyBand.MID) mid++;
+					else if (e.band() == FrequencyBand.HIGH) high++;
+				}
+				asset.setLowCount(low);
+				asset.setMidCount(mid);
+				asset.setHighCount(high);
+
+				asset.setStatus(AudioAssetStatus.COMPLETED);
+			},
+			err -> {
+				LOGGER.warn("BeatBlock AudioAssetManager: 外部解析失败: {}", err);
+				asset.setStatus(AudioAssetStatus.FAILED);
+				asset.setErrorMessage(err);
+			}
+		);
 	}
 }
 

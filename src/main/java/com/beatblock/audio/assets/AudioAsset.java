@@ -1,6 +1,7 @@
 package com.beatblock.audio.assets;
 
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
+import com.beatblock.audio.beatmap.Beatmap;
 
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -30,6 +31,7 @@ public final class AudioAsset {
 	private String errorMessage;
 
 	private AudioFeatureTimeline featureTimeline;
+	private Beatmap beatmap;
 
 	public AudioAsset(Path path) {
 		this.id = UUID.randomUUID().toString();
@@ -79,5 +81,8 @@ public final class AudioAsset {
 
 	public AudioFeatureTimeline getFeatureTimeline() { return featureTimeline; }
 	public void setFeatureTimeline(AudioFeatureTimeline featureTimeline) { this.featureTimeline = featureTimeline; }
+
+	public Beatmap getBeatmap() { return beatmap; }
+	public void setBeatmap(Beatmap beatmap) { this.beatmap = beatmap; }
 }
 

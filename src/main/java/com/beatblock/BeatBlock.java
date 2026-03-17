@@ -7,6 +7,7 @@ import com.beatblock.animation.AnimationTemplate;
 import com.beatblock.audio.AudioLoader;
 import com.beatblock.audio.BeatmapGenerator;
 import com.beatblock.audio.MusicPlayer;
+import com.beatblock.audio.AudioAnalysisService;
 import com.beatblock.beat.BeatEvent;
 import com.beatblock.beat.BeatScheduler;
 import com.beatblock.stage.StageManager;
@@ -48,6 +49,7 @@ public class BeatBlock implements ModInitializer {
 	public static TimelineEditor timelineEditor;
 	public static BlockAnimationEngine blockAnimationEngine;
 	public static AudioAnalysisEngine audioAnalysisEngine;
+	public static AudioAnalysisService externalAudioAnalyzer;
 
 	@Override
 	public void onInitialize() {
@@ -65,6 +67,11 @@ public class BeatBlock implements ModInitializer {
 		timelineEditor = new TimelineEditor(timeline);
 		blockAnimationEngine = new BlockAnimationEngine();
 		audioAnalysisEngine = new AudioAnalysisEngine();
+		externalAudioAnalyzer = new AudioAnalysisService(
+			"python",
+			java.nio.file.Paths.get("config/beatblock/analyzer/analyze.py"),
+			java.nio.file.Paths.get("config/beatblock/beatmaps")
+		);
 
 		// 注册默认动画模板
 		animationRegistry.register(new AnimationTemplate("bounce", 0.5, AnimationTemplate.Easing.EASE_OUT, AnimationTemplate.TransformType.SCALE));
