@@ -1,7 +1,0 @@
-<!-- bb-action-unlock.svg | 解锁 | 开锁 -->
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" fill="white" fill-opacity="0"/>
-  <rect x="10" y="16" width="12" height="10" rx="3" fill="#888780"/>
-  <path d="M16 16v-4a4 4 0 0 1 8 0" stroke="#888780" stroke-width="2" fill="none"/>
-  <circle cx="16" cy="21" r="1.5" fill="#fff" stroke="#888780" stroke-width="2"/>
-</svg>

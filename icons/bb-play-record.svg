@@ -1,5 +1,0 @@
-<!-- bb-play-record.svg | 录制 | 实心圆，红色语义 -->
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" fill="white" fill-opacity="0"/>
-  <circle cx="16" cy="16" r="8" fill="#E53935"/>
-</svg>

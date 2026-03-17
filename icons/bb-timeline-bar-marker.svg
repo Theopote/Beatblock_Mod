@@ -1,6 +1,0 @@
-<!-- bb-timeline-bar-marker.svg | 小节标记 | 粗竖线 + 数字框 -->
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="12" y="10" width="4" height="12" rx="2" fill="#378ADD"/>
-  <rect x="18" y="14" width="6" height="6" rx="2" fill="#fff" stroke="#378ADD" stroke-width="2"/>
-  <text x="21" y="19" text-anchor="middle" font-size="6" fill="#378ADD" font-family="Arial" font-weight="bold">1</text>
-</svg>
