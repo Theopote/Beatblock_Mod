@@ -1,0 +1,5 @@
+<!-- bb-play-play.svg | 播放 | 三角形，右向实心 -->
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" fill="white" fill-opacity="0"/>
+  <polygon points="10,6 26,16 10,26" fill="#7F77DD"/>
+</svg>

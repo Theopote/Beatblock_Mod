@@ -1,0 +1,6 @@
+<!-- bb-action-redo.svg | 重做 | 右弧形箭头 -->
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" fill="white" fill-opacity="0"/>
+  <path d="M10 24c4-4 10-4 14 0" stroke="#888780" stroke-width="2.2" fill="none"/>
+  <polygon points="24,24 20,20 20,28" fill="#888780"/>
+</svg>

@@ -1,0 +1,6 @@
+<!-- bb-play-pause.svg | 暂停 | 两根竖条 -->
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" fill="white" fill-opacity="0"/>
+  <rect x="10" y="8" width="4" height="16" rx="1.5" fill="#7F77DD"/>
+  <rect x="18" y="8" width="4" height="16" rx="1.5" fill="#7F77DD"/>
+</svg>

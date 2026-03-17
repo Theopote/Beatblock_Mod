@@ -1,0 +1,6 @@
+<!-- bb-play-forward-end.svg | 跳到结尾 | 右向三角 + 竖线 -->
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" fill="white" fill-opacity="0"/>
+  <polygon points="11,8 21,16 11,24" fill="#7F77DD"/>
+  <rect x="21" y="8" width="3" height="16" rx="1.5" fill="#7F77DD"/>
+</svg>

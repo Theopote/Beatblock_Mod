@@ -1,0 +1,6 @@
+<!-- bb-action-close.svg | 关闭 | × 叉号 -->
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" fill="white" fill-opacity="0"/>
+  <rect x="9.17" y="7" width="4" height="24" rx="2" transform="rotate(45 9.17 7)" fill="#888780"/>
+  <rect x="7" y="22.83" width="4" height="24" rx="2" transform="rotate(-45 7 22.83)" fill="#888780"/>
+</svg>

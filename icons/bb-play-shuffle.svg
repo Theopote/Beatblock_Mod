@@ -1,0 +1,6 @@
+<!-- bb-play-shuffle.svg | 随机 | 交叉的两条路径 -->
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" fill="white" fill-opacity="0"/>
+  <path d="M8 8c8 0 8 16 16 16" stroke="#7F77DD" stroke-width="2.2" fill="none"/>
+  <path d="M8 24c8 0 8-16 16-16" stroke="#7F77DD" stroke-width="2.2" fill="none"/>
+</svg>
