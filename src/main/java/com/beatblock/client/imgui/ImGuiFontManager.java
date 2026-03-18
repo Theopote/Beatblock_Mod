@@ -2,7 +2,6 @@ package com.beatblock.client.imgui;
 
 import imgui.ImFontAtlas;
 import imgui.ImFontConfig;
-import imgui.ImGui;
 import imgui.ImGuiIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +40,12 @@ public final class ImGuiFontManager {
 	/** 模组内置字体（可选）：放入 assets/beatblock/fonts/ 即可生效 */
 	private static final String BUNDLED_FONT_PATH = "/assets/beatblock/fonts/NotoSansSC-Regular.ttf";
 
+	/** 模组内置图标字体（替代 emoji）：放入 assets/beatblock/fonts/ 即可生效 */
+	private static final String ICON_FONT_PATH = "/assets/beatblock/fonts/BeatBlock.ttf";
+
+	/** 图标字体私用区范围（BeatBlock.ttf）：U+F000 ~ U+F500 */
+	private static final short[] ICON_GLYPH_RANGES = { (short) 0xF000, (short) 0xF500, 0 };
+
 	/**
 	 * 初始化多语言字体：合并 Default + 中文常用字 + 标点/假名小块，避免图集过大导致部分字显示为问号。
 	 */
@@ -71,6 +76,9 @@ public final class ImGuiFontManager {
 			LOGGER.warn("[BeatBlock] No CJK system/bundled font found; UI will show ? for Chinese etc.");
 			atlas.addFontDefault();
 		}
+
+		// 关键：合并自定义图标字体，避免依赖系统 emoji。
+		tryLoadIconFont(atlas);
 
 		if (!atlas.isBuilt()) {
 			atlas.build();
@@ -171,6 +179,31 @@ public final class ImGuiFontManager {
 			return true;
 		} catch (Throwable e) {
 			LOGGER.debug("[BeatBlock] No bundled font: {}", e.getMessage());
+			return false;
+		}
+	}
+
+	private static boolean tryLoadIconFont(ImFontAtlas atlas) {
+		try (InputStream in = ImGuiFontManager.class.getResourceAsStream(ICON_FONT_PATH)) {
+			if (in == null) {
+				LOGGER.debug("[BeatBlock] No icon font found: {}", ICON_FONT_PATH);
+				return false;
+			}
+			byte[] data = in.readAllBytes();
+			if (data.length == 0) return false;
+
+			ImFontConfig iconConfig = new ImFontConfig();
+			// MergeMode=true：把图标 glyph 合并到当前已加载的默认字体中（与 chronoblocks 的做法一致）。
+			iconConfig.setMergeMode(true);
+			iconConfig.setPixelSnapH(true);
+			iconConfig.setOversampleH(2);
+			iconConfig.setOversampleV(2);
+
+			atlas.addFontFromMemoryTTF(data, FONT_SIZE, iconConfig, ICON_GLYPH_RANGES);
+			LOGGER.info("[BeatBlock] Loaded icon font: {} ({} bytes)", ICON_FONT_PATH, data.length);
+			return true;
+		} catch (Throwable e) {
+			LOGGER.debug("[BeatBlock] Load icon font failed: {}", e.getMessage());
 			return false;
 		}
 	}

@@ -5,18 +5,18 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 
 /**
- * 绘制轨道列表左侧：轨道名称（开头、可自定义）、子轨道缩进；可见 👁、锁定 🔒；与右侧内容区有分界线。
+	 * 绘制轨道列表左侧：轨道名称（开头、可自定义）、子轨道缩进；可见(眼睛图标 U+F067)、锁定(锁图标 U+F095)；与右侧内容区有分界线。
  */
 public final class TrackRenderer {
 
 	private static final float CHILD_INDENT_PX = 14f;
 
 	/** 可见、锁定图标（与其他软件时间线一致） */
-	private static final String ICON_VISIBLE = "\uD83D\uDC41";
-	private static final String ICON_LOCK = "\uD83D\uDD12";
+	private static final String ICON_VISIBLE = "\uF067";
+	private static final String ICON_LOCK = "\uF095";
 
 	/**
-	 * 绘制一行：开头为轨道名称（可自定义，子轨道缩进），然后 [👁][🔒]。
+	 * 绘制一行：开头为轨道名称（可自定义，子轨道缩进），然后 [眼睛][锁]。
 	 * @param listState 可为 null，为 null 时不绘制可见/锁定及自定义名。
 	 */
 	public float drawTrackLabel(float rowY, int rowIndex, String displayName, boolean isGroup, TimelineTrackListState listState) {

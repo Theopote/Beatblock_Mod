@@ -347,7 +347,7 @@ public final class AudioAnalysisPanel {
             if (done) {
                 ImGui.pushStyleColor(ImGuiCol.Text,
                         COLOR_MID.x, COLOR_MID.y, COLOR_MID.z, COLOR_MID.w); // 绿色完成
-                ImGui.text("✔ " + stepLabel);
+                ImGui.text("\uF054 " + stepLabel);
                 ImGui.popStyleColor();
             } else if (active) {
                 ImGui.pushStyleColor(ImGuiCol.Text,
@@ -376,7 +376,7 @@ public final class AudioAnalysisPanel {
 
         // 拖拽提示文字（也是拖拽源的触发区域）
         ImGui.spacing();
-        ImGui.textDisabled("☰ 拖动到时间线音频轨道");
+        ImGui.textDisabled("\uF102 拖动到时间线音频轨道");
 
         // 整个 child window 作为拖拽源
         if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
@@ -386,7 +386,7 @@ public final class AudioAnalysisPanel {
                     ImGuiCond.Once
             );
             // 拖拽预览浮窗
-            ImGui.text("♪ " + asset.getFileName());
+            ImGui.text("\uF0ED " + asset.getFileName());
             ImGui.textDisabled(String.format("%.1f BPM · %d 踩点",
                     asset.getBpm(), asset.getBeatCount()));
             ImGui.endDragDropSource();
@@ -516,7 +516,7 @@ public final class AudioAnalysisPanel {
         ImGui.pushStyleColor(ImGuiCol.Button,        0.28f, 0.26f, 0.45f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.35f, 0.33f, 0.55f, 1f);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive,  0.45f, 0.43f, 0.65f, 1f);
-        ImGui.button("☰  拖动到时间线##dragBtn", btnW, 28f);
+        ImGui.button("\uF102  拖动到时间线##dragBtn", btnW, 28f);
         ImGui.popStyleColor(3);
 
         if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
@@ -525,7 +525,7 @@ public final class AudioAnalysisPanel {
                     asset.getId().getBytes(),
                     ImGuiCond.Once
             );
-            ImGui.text("♪ " + asset.getFileName());
+            ImGui.text("\uF0ED " + asset.getFileName());
             ImGui.textDisabled(String.format("%.1f BPM · %d 踩点",
                     asset.getBpm(), asset.getBeatCount()));
             ImGui.endDragDropSource();
@@ -552,7 +552,7 @@ public final class AudioAnalysisPanel {
             if (done) {
                 ImGui.pushStyleColor(ImGuiCol.Text,
                         COLOR_MID.x, COLOR_MID.y, COLOR_MID.z, COLOR_MID.w);
-                ImGui.text("✔  " + label);
+                ImGui.text("\uF054  " + label);
                 ImGui.popStyleColor();
             } else if (active) {
                 ImGui.pushStyleColor(ImGuiCol.Text,
@@ -632,7 +632,6 @@ public final class AudioAnalysisPanel {
 
         float lowW  = barW * (asset.getLowCount()  / total);
         float midW  = barW * (asset.getMidCount()  / total);
-        float highW = barW - lowW - midW;
 
         var dl = ImGui.getWindowDrawList();
         float r = 3f; // 圆角
