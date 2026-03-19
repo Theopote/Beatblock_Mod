@@ -55,4 +55,16 @@ public final class TimelineTrackMeta {
 		if (rowIndex < 0 || rowIndex >= PARENT_ROW.length) return NO_PARENT;
 		return PARENT_ROW[rowIndex];
 	}
+
+	/**
+	 * 轨道「类型」列文案：音频组与子轨、动画组与子轨、摄像机、事件（用于时间线左侧表头）。
+	 */
+	public static String getCategoryTypeLabel(int rowIndex) {
+		if (rowIndex < 0 || rowIndex >= DEFAULT_NAMES.length) return "";
+		if (rowIndex <= 4) return "音频";
+		if (rowIndex <= 7) return "动画";
+		if (rowIndex == 8) return "摄像机";
+		if (rowIndex == 9) return "事件";
+		return "";
+	}
 }

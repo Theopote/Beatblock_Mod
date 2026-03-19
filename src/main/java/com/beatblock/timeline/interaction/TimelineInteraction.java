@@ -38,19 +38,14 @@ public final class TimelineInteraction {
 		TimelineLayout layout
 	) {
 		if (timeline == null || viewState == null || interactionState == null || selectionState == null || layout == null) return;
-		if (!ImGui.isWindowHovered()) return;
 
 		float mx = ImGui.getMousePosX();
 		float my = ImGui.getMousePosY();
 		double duration = timeline.getDurationSeconds();
 		if (duration <= 0) duration = 60.0;
 
-		// 分割线拖动：在轨道区内检测并更新宽度
+		// 分割线拖动：允许在拖动手势中移出子窗口，仍继续调整宽度
 		if (trackListState != null) {
-			boolean overDivider = isMouseOverDivider(mx, my, layout);
-			if (overDivider && interactionState.getMode() == InteractionMode.NONE) {
-				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
-			}
 			if (interactionState.getMode() == InteractionMode.RESIZE_HEADER) {
 				float startW = interactionState.getResizeStartHeaderWidth();
 				float delta = mx - interactionState.getMouseStartX();
@@ -59,6 +54,16 @@ public final class TimelineInteraction {
 					interactionState.setMode(InteractionMode.NONE);
 				}
 				return;
+			}
+		}
+
+		if (!ImGui.isWindowHovered()) return;
+
+		// 轨道子窗口内：分割线悬停光标
+		if (trackListState != null) {
+			boolean overDivider = isMouseOverDivider(mx, my, layout);
+			if (overDivider && interactionState.getMode() == InteractionMode.NONE) {
+				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
 			}
 		}
 
@@ -172,5 +177,33 @@ public final class TimelineInteraction {
 		float divX = layout.trackHeaderLeft + layout.trackHeaderWidth;
 		if (mouseX < divX - DIVIDER_HIT_PX || mouseX > divX + DIVIDER_HIT_PX) return false;
 		return mouseY >= layout.contentTop && mouseY < layout.contentTop + layout.contentHeight;
+	}
+
+	private static boolean isMouseOverRulerDivider(float mouseX, float mouseY, TimelineLayout parentLayout) {
+		float divX = parentLayout.trackHeaderLeft + parentLayout.trackHeaderWidth;
+		if (mouseX < divX - DIVIDER_HIT_PX || mouseX > divX + DIVIDER_HIT_PX) return false;
+		return mouseY >= parentLayout.rulerTop && mouseY < parentLayout.rulerTop + parentLayout.rulerHeight;
+	}
+
+	/**
+	 * 时间线主窗口内、标尺行上的分割线：按下开始拖动轨道头宽度。应在 {@code renderRulerOnly} 之后、{@code beginChild} 之前调用。
+	 */
+	public void tryBeginDividerDragOnRuler(
+			TimelineTrackListState trackListState,
+			InteractionState interactionState,
+			TimelineLayout parentLayout) {
+		if (trackListState == null || interactionState == null || parentLayout == null) return;
+		if (!ImGui.isWindowHovered()) return;
+		float mx = ImGui.getMousePosX();
+		float my = ImGui.getMousePosY();
+		if (!isMouseOverRulerDivider(mx, my, parentLayout)) return;
+		if (interactionState.getMode() == InteractionMode.NONE) {
+			ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+		}
+		if (ImGui.isMouseClicked(0) && interactionState.getMode() == InteractionMode.NONE) {
+			interactionState.setMode(InteractionMode.RESIZE_HEADER);
+			interactionState.setMouseStart(mx, my);
+			interactionState.setResizeStartHeaderWidth(trackListState.getTrackHeaderWidth());
+		}
 	}
 }

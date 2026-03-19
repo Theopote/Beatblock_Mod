@@ -113,7 +113,9 @@ public final class ImGuiFontManager {
 				// 兼容：如果 UI 实际文案是“子选项”而非“子轨道”
 				"展开子选项折叠子选项" +
 				// 音频解析面板：详情区折叠/展开（按钮 Tooltip）
-				"展开详情面板折叠详情展开详情"
+				"展开详情面板折叠详情展开详情" +
+				// 时间线轨道类型列 + 默认轨道名
+				"音频波形低频中频高频方块自动摄像机"
 			);
 			tryAddRanges(builder, a, "getGlyphRangesJapanese");
 			tryAddRanges(builder, a, "getGlyphRangesKorean");

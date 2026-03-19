@@ -21,8 +21,8 @@ public final class TimelineRenderer {
 	/** 轨道槽交替背景（深色），使轨道行更明显 */
 	private static final int ROW_BG_EVEN = 0xFF_28_28_2A;
 	private static final int ROW_BG_ODD = 0xFF_1E_1E_20;
-	/** 左侧轨道列表与右侧内容区的竖线分隔 */
-	private static final int DIVIDER_COLOR = 0x66_88_88_88;
+	/** 左侧轨道列表与右侧内容区的竖线分隔（ABGR，供面板贯通绘制） */
+	public static final int TIMELINE_DIVIDER_COLOR = 0x66_88_88_88;
 
 	private final GridRenderer gridRenderer = new GridRenderer();
 	private final TrackRenderer trackRenderer = new TrackRenderer();
@@ -35,9 +35,7 @@ public final class TimelineRenderer {
 		ImGui.setCursorPosX(4);
 		ImGui.textDisabled("时间");
 		gridRenderer.renderRuler(layout.startY, viewState, layout);
-		// 分区竖线：时间刻度与轨道区在同一分界处开始
-		float divX = layout.trackHeaderLeft + layout.trackHeaderWidth;
-		ImGui.getWindowDrawList().addLine(divX, layout.rulerTop, divX, layout.rulerTop + layout.rulerHeight, DIVIDER_COLOR, 1f);
+		// 竖向分割线在 TimelinePanel 中自标尺顶贯通画到子窗口底，避免与滚动区重复/断层
 		ImGui.setCursorPosY(layout.startY + TimelineLayout.RULER_HEIGHT);
 	}
 
@@ -68,9 +66,7 @@ public final class TimelineRenderer {
 			ImGui.getWindowDrawList().addRectFilled(x0, rowScreenY, x1, rowScreenY + rowH, bg);
 		}
 
-		// 左侧轨道列表与右侧内容区的竖线分隔（可拖动调整宽度）
-		float divX = layout.trackHeaderLeft + layout.trackHeaderWidth;
-		ImGui.getWindowDrawList().addLine(divX, layout.contentTop, divX, layout.contentTop + layout.contentHeight, DIVIDER_COLOR, 1f);
+		// 竖向分割线由 TimelinePanel 统一绘制（标尺—轨道区贯通）
 
 		// 网格竖线（仅时间轴方向，不画行间线）
 		gridRenderer.render(viewState, layout, layout.contentHeight);
@@ -81,7 +77,7 @@ public final class TimelineRenderer {
 			float rowY = layout.getRowCursorY(i);
 			boolean isGroup = TimelineTrackMeta.isGroupRow(i);
 			String displayName = trackListState != null ? trackListState.getDisplayName(i) : TimelineTrackMeta.getDefaultName(i);
-			trackRenderer.drawTrackLabel(rowY, i, displayName, isGroup, trackListState);
+			trackRenderer.drawTrackLabel(rowY, i, displayName, isGroup, trackListState, layout.trackHeaderWidth);
 			drawRowContent(i, rowY, timeline, viewState, selectionState, layout);
 		}
 

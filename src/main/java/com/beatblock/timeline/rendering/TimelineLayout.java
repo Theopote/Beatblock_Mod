@@ -14,7 +14,7 @@ import imgui.ImGui;
 public final class TimelineLayout {
 
 	/** 左侧轨道列表区默认宽度（可拖动分割线改变，见 TimelineTrackListState） */
-	public static final float TRACK_LABEL_WIDTH = 130f;
+	public static final float TRACK_LABEL_WIDTH = 220f;
 	/** 单行轨道内容高度 */
 	public static final float ROW_HEIGHT = 22f;
 	/** 轨道与轨道之间的间距（不用线，用留白） */

@@ -3,7 +3,7 @@ package com.beatblock.ui.panels;
 import com.beatblock.BeatBlock;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.timeline.TimelineEditor;
-import com.beatblock.timeline.rendering.TimelineLayout;
+import com.beatblock.timeline.rendering.TimelineRenderer;
 import com.beatblock.timeline.rendering.TimelineToolbar;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -45,6 +45,7 @@ public class TimelinePanel {
 		ImGui.separator();
 		if (editor != null) {
 			editor.renderRulerOnly();
+			editor.tryBeginTimelineDividerDragOnRuler();
 		}
 
 		// ----- 可滚动区域：轨道区（无外边框），仅此处出现滚动条；高度取剩余空间 -----
@@ -54,6 +55,16 @@ public class TimelinePanel {
 			}
 		}
 		ImGui.endChild();
+
+		// 轨道头 / 时间轴 竖向分割线：自标尺顶贯通到子窗口底（与拖动宽度一致）
+		if (editor != null) {
+			float divX = editor.getCachedDividerScreenX();
+			float y0 = editor.getCachedDividerTopScreenY();
+			float y1 = ImGui.getItemRectMaxY();
+			if (y1 > y0) {
+				ImGui.getWindowDrawList().addLine(divX, y0, divX, y1, TimelineRenderer.TIMELINE_DIVIDER_COLOR, 1f);
+			}
+		}
 
 		ImGui.end();
 	}

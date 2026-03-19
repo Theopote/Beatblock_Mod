@@ -21,9 +21,9 @@ public final class TimelineTrackListState {
 	private final ImString renameBuffer = new ImString(RENAME_BUFFER_SIZE);
 
 	/** 轨道头区域宽度（可拖动分割线调整），像素 */
-	private float trackHeaderWidthPx = 130f;
-	private static final float TRACK_HEADER_WIDTH_MIN = 80f;
-	private static final float TRACK_HEADER_WIDTH_MAX = 380f;
+	private float trackHeaderWidthPx = 220f;
+	private static final float TRACK_HEADER_WIDTH_MIN = 160f;
+	private static final float TRACK_HEADER_WIDTH_MAX = 420f;
 
 	/** 已折叠的组轨道行号（0=音频，5=动画），折叠后其子轨道不显示 */
 	private final Set<Integer> collapsedGroupRows = new HashSet<>();

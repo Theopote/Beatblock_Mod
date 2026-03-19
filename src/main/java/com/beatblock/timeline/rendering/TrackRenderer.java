@@ -3,46 +3,65 @@ package com.beatblock.timeline.rendering;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
+import imgui.flag.ImGuiStyleVar;
 
 import com.beatblock.ui.icons.Icons;
 
 /**
-	 * 绘制轨道列表左侧：轨道名称（开头、可自定义）、子轨道缩进；可见(眼睛图标 U+F067)、锁定(锁图标 U+F095)；与右侧内容区有分界线。
+ * 绘制轨道列表左侧表头：折叠（组轨道）→ 类型 → 名称（可双击改名、预留宽度）→ 右对齐可见/锁定图标按钮 → 与内容区分界由 {@link TimelineRenderer} 统一竖线。
  */
 public final class TrackRenderer {
 
 	private static final float CHILD_INDENT_PX = 14f;
+	private static final float PAD = 4f;
+	private static final float FOLD_BTN = 18f;
+	/** 「音频/动画/摄像机/事件」等类型列宽 */
+	private static final float TYPE_COL_W = 50f;
+	private static final float ICON_BTN = 20f;
+	private static final float ICON_GAP = 2f;
 
 	/**
-	 * 绘制一行：开头为轨道名称（可自定义，子轨道缩进），然后 [眼睛][锁]。
-	 * @param listState 可为 null，为 null 时不绘制可见/锁定及自定义名。
+	 * @param trackHeaderWidth 左侧轨道头总宽（与可拖动分割线一致）
 	 */
-	public float drawTrackLabel(float rowY, int rowIndex, String displayName, boolean isGroup, TimelineTrackListState listState) {
+	public float drawTrackLabel(float rowY, int rowIndex, String displayName, boolean isGroup, TimelineTrackListState listState, float trackHeaderWidth) {
 		ImGui.setCursorPosY(rowY);
-		float nameStartX = 4f;
-		// 组轨道：左侧折叠/展开 — demo.html: icon-bb-track-expand U+F079, icon-bb-track-collapse U+F07C
-		// 与 IcoMoon 命名一致：glyph 表示「当前展开/折叠态」的视觉，不是「点击后将执行的动作」
+		float headW = trackHeaderWidth > 0 ? trackHeaderWidth : TimelineLayout.TRACK_LABEL_WIDTH;
+
+		float cursorX = PAD;
+
+		// —— 折叠（仅音频/动画组）——
 		if (isGroup && listState != null) {
 			boolean collapsed = listState.isGroupCollapsed(rowIndex);
-			ImGui.setCursorPosX(4f);
-			ImGui.text(collapsed ? Icons.Timeline.TRACK_COLLAPSE : Icons.Timeline.TRACK_EXPAND);
-			if (ImGui.isItemClicked(0)) {
+			ImGui.setCursorPosX(cursorX);
+			ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 2f, 2f);
+			if (ImGui.button((collapsed ? Icons.Timeline.TRACK_COLLAPSE : Icons.Timeline.TRACK_EXPAND) + "##fold" + rowIndex, FOLD_BTN, FOLD_BTN)) {
 				listState.toggleGroupCollapsed(rowIndex);
 			}
+			ImGui.popStyleVar();
 			if (ImGui.isItemHovered()) {
-				// Tooltip 用英文，避免部分环境 CJK 未进 ImGui 图集时出现 “?”
 				ImGui.setTooltip(collapsed ? "Expand sub-tracks" : "Collapse sub-tracks");
 			}
-			ImGui.sameLine();
-			nameStartX = ImGui.getCursorPosX();
+			cursorX += FOLD_BTN + 4f;
 		} else if (TimelineTrackMeta.hasParent(rowIndex)) {
-			nameStartX += CHILD_INDENT_PX;
+			cursorX += CHILD_INDENT_PX;
 		}
-		ImGui.setCursorPosX(nameStartX);
+
+		// —— 类型 ——
+		ImGui.setCursorPos(cursorX, rowY);
+		ImGui.pushStyleColor(ImGuiCol.Text, 0.55f, 0.52f, 0.62f, 1f);
+		ImGui.text(TimelineTrackMeta.getCategoryTypeLabel(rowIndex));
+		ImGui.popStyleColor();
+		float nameX = cursorX + TYPE_COL_W;
+
+		float rightBlock = (listState != null) ? (ICON_BTN * 2 + ICON_GAP + PAD) : PAD;
+		float nameW = Math.max(48f, headW - nameX - rightBlock);
 
 		boolean isEditing = listState != null && listState.getEditingRowIndex() == rowIndex;
+
+		// —— 轨道名称 ——
+		ImGui.setCursorPos(nameX, rowY);
 		if (isEditing && listState != null) {
-			ImGui.setNextItemWidth(-1);
+			ImGui.setNextItemWidth(nameW);
 			if (ImGui.inputText("##name" + rowIndex, listState.getRenameBuffer(), ImGuiInputTextFlags.EnterReturnsTrue)) {
 				listState.finishEditing(true);
 			}
@@ -50,6 +69,12 @@ public final class TrackRenderer {
 				listState.finishEditing(true);
 			}
 		} else {
+			ImGui.invisibleButton("##nameHit" + rowIndex, nameW, TimelineLayout.ROW_HEIGHT);
+			boolean nameHovered = ImGui.isItemHovered();
+			ImGui.setCursorPos(nameX, rowY);
+			float clipX1 = ImGui.getCursorScreenPosX();
+			float clipY1 = ImGui.getCursorScreenPosY();
+			ImGui.pushClipRect(clipX1, clipY1, clipX1 + nameW, clipY1 + TimelineLayout.ROW_HEIGHT, true);
 			if (isGroup) {
 				ImGui.pushStyleColor(ImGuiCol.Text, 0.9f, 0.85f, 0.7f, 1f);
 			}
@@ -57,37 +82,44 @@ public final class TrackRenderer {
 			if (isGroup) {
 				ImGui.popStyleColor();
 			}
-			if (listState != null && ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+			ImGui.popClipRect();
+			if (listState != null && nameHovered && ImGui.isMouseDoubleClicked(0)) {
 				listState.startEditing(rowIndex);
 			}
-			if (listState != null && ImGui.isItemHovered()) {
+			if (listState != null && nameHovered) {
 				ImGui.setTooltip("双击可修改轨道名称");
 			}
 		}
 
-		// 可见、锁定在名称右侧
+		// —— 可见 / 锁定：右对齐，纯图标按钮 ——
 		if (listState != null && !isEditing) {
-			ImGui.sameLine();
+			float lockRight = headW - PAD;
+			float lockX = lockRight - ICON_BTN;
+			float visX = lockX - ICON_GAP - ICON_BTN;
+
+			ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 2f, 2f);
+
+			ImGui.setCursorPos(visX, rowY);
 			boolean vis = listState.isVisible(rowIndex);
-			ImGui.pushStyleColor(ImGuiCol.Text, vis ? 0.9f : 0.45f, vis ? 0.9f : 0.45f, vis ? 0.9f : 0.45f, 1f);
-			if (ImGui.checkbox(Icons.EYE + "##vis" + rowIndex, vis)) {
+			if (ImGui.button((vis ? Icons.EYE : Icons.Action.HIDDEN) + "##vis" + rowIndex, ICON_BTN, ICON_BTN)) {
 				listState.toggleVisible(rowIndex);
 			}
-			ImGui.popStyleColor();
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip(vis ? "可见 (点击隐藏)" : "隐藏 (点击显示)");
 			}
-			ImGui.sameLine();
+
+			ImGui.setCursorPos(lockX, rowY);
 			boolean lock = listState.isLocked(rowIndex);
-			ImGui.pushStyleColor(ImGuiCol.Text, lock ? 0.95f : 0.5f, lock ? 0.6f : 0.5f, lock ? 0.6f : 0.5f, 1f);
-			if (ImGui.checkbox(Icons.LOCK + "##lock" + rowIndex, lock)) {
+			if (ImGui.button((lock ? Icons.Action.LOCK : Icons.Action.UNLOCK) + "##lock" + rowIndex, ICON_BTN, ICON_BTN)) {
 				listState.toggleLocked(rowIndex);
 			}
-			ImGui.popStyleColor();
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip(lock ? "已锁定 (点击解锁)" : "未锁定 (点击锁定)");
 			}
+
+			ImGui.popStyleVar();
 		}
+
 		return isGroup ? rowY + 22f : rowY;
 	}
 }
