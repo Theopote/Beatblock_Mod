@@ -27,9 +27,9 @@ public final class TrackRenderer {
 	private static final int TREE_GUIDE_COLOR = 0x44_55_55_55;
 
 	/**
-	 * @param trackHeaderWidth 左侧轨道头总宽（与可拖动分割线一致）
-	 */
-	public float drawTrackLabel(float rowY, int rowIndex, String displayName, boolean isGroup, TimelineTrackListState listState, float trackHeaderWidth) {
+     * @param trackHeaderWidth 左侧轨道头总宽（与可拖动分割线一致）
+     */
+	public void drawTrackLabel(float rowY, int rowIndex, String displayName, boolean isGroup, TimelineTrackListState listState, float trackHeaderWidth) {
 		ImGui.setCursorPosY(rowY);
 		float headW = trackHeaderWidth > 0 ? trackHeaderWidth : TimelineLayout.TRACK_LABEL_WIDTH;
 
@@ -45,26 +45,9 @@ public final class TrackRenderer {
 		}
 
 		ImGui.setCursorPos(0f, rowY);
-		final float rowOriginScreenX = ImGui.getCursorScreenPosX();
-		final float rowOriginScreenY = ImGui.getCursorScreenPosY();
-		final float rowH = TimelineLayout.ROW_HEIGHT;
-		var dl = ImGui.getWindowDrawList();
+        final float rowH = getRowH(rowIndex, nameRight);
 
-		// —— 微竖线：折叠槽右缘 | 类型列右缘（名称左缘）| 名称区右缘（图标左）——
-		float sep1 = rowOriginScreenX + PAD + FOLD_COL_W;
-		float sep2 = rowOriginScreenX + nameX;
-		float sep3 = rowOriginScreenX + nameRight;
-		dl.addLine(sep1, rowOriginScreenY, sep1, rowOriginScreenY + rowH, MICRO_SEP_COLOR, 1f);
-		dl.addLine(sep2, rowOriginScreenY, sep2, rowOriginScreenY + rowH, MICRO_SEP_COLOR, 1f);
-		dl.addLine(sep3, rowOriginScreenY, sep3, rowOriginScreenY + rowH, MICRO_SEP_COLOR, 1f);
-
-		// 二级轨道：树引导竖线（折叠槽内靠左）
-		if (TimelineTrackMeta.hasParent(rowIndex)) {
-			float gx = rowOriginScreenX + PAD + FOLD_COL_W * 0.5f;
-			dl.addLine(gx, rowOriginScreenY + 3f, gx, rowOriginScreenY + rowH - 3f, TREE_GUIDE_COLOR, 1f);
-		}
-
-		float vbtn = (rowH - FOLD_BTN) * 0.5f;
+        float vbtn = (rowH - FOLD_BTN) * 0.5f;
 
 		// —— 折叠槽：组显示按钮，其余留空 ——
 		if (isGroup && listState != null) {
@@ -91,7 +74,7 @@ public final class TrackRenderer {
 
 		// —— 名称：固定左 nameX、右 nameRight ——
 		ImGui.setCursorPos(nameX, rowY);
-		if (isEditing && listState != null) {
+		if (isEditing) {
 			ImGui.setNextItemWidth(nameW);
 			if (ImGui.inputText("##name" + rowIndex, listState.getRenameBuffer(), ImGuiInputTextFlags.EnterReturnsTrue)) {
 				listState.finishEditing(true);
@@ -151,6 +134,27 @@ public final class TrackRenderer {
 			ImGui.popStyleVar();
 		}
 
-		return isGroup ? rowY + 22f : rowY;
-	}
+    }
+
+    private static float getRowH(int rowIndex, float nameRight) {
+        final float rowOriginScreenX = ImGui.getCursorScreenPosX();
+        final float rowOriginScreenY = ImGui.getCursorScreenPosY();
+        final float rowH = TimelineLayout.ROW_HEIGHT;
+        var dl = ImGui.getWindowDrawList();
+
+        // —— 微竖线：折叠槽右缘 | 类型列右缘（名称左缘）| 名称区右缘（图标左）——
+        float sep1 = rowOriginScreenX + PAD + FOLD_COL_W;
+        float sep2 = rowOriginScreenX + (float) 90.0;
+        float sep3 = rowOriginScreenX + nameRight;
+        dl.addLine(sep1, rowOriginScreenY, sep1, rowOriginScreenY + rowH, MICRO_SEP_COLOR, 1f);
+        dl.addLine(sep2, rowOriginScreenY, sep2, rowOriginScreenY + rowH, MICRO_SEP_COLOR, 1f);
+        dl.addLine(sep3, rowOriginScreenY, sep3, rowOriginScreenY + rowH, MICRO_SEP_COLOR, 1f);
+
+        // 二级轨道：树引导竖线（折叠槽内靠左）
+        if (TimelineTrackMeta.hasParent(rowIndex)) {
+            float gx = rowOriginScreenX + PAD + FOLD_COL_W * 0.5f;
+            dl.addLine(gx, rowOriginScreenY + 3f, gx, rowOriginScreenY + rowH - 3f, TREE_GUIDE_COLOR, 1f);
+        }
+        return rowH;
+    }
 }
