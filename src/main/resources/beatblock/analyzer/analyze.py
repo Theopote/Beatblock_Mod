@@ -31,8 +31,9 @@ try:
     import numpy as np
     import librosa
     import soundfile as sf
+    import scipy
 except ImportError as e:
-    print(f"ERROR 缺少依赖：{e}，请运行 pip install librosa soundfile numpy", file=sys.stderr)
+    print(f"ERROR 缺少依赖：{e}，请运行 pip install librosa soundfile numpy scipy", file=sys.stderr)
     sys.exit(1)
 
 ANALYZER_VERSION = "1.0.0"

@@ -92,6 +92,14 @@ public final class AudioAnalysisService {
 			return;
 		}
 
+		// 预检并补齐依赖（librosa / numpy / soundfile / scipy）
+		Path requirementsPath = scriptPath.getParent().resolve("requirements.txt");
+		String dependencyError = ensurePythonDependencies(pythonExe, requirementsPath);
+		if (dependencyError != null) {
+			onError.accept(dependencyError);
+			return;
+		}
+
 		// 构建 Python 命令
 		List<String> cmd = new ArrayList<>();
 		cmd.add(pythonExe);
@@ -124,15 +132,14 @@ public final class AudioAnalysisService {
 			return;
 		}
 
-		// 读取 stderr（异常栈）
+		// 读取 stderr（异常栈 / 依赖缺失等）
+		String stderrText = "";
 		try (BufferedReader errReader = new BufferedReader(
 			new InputStreamReader(process.getErrorStream()))) {
 			StringBuilder sb = new StringBuilder();
 			String line;
 			while ((line = errReader.readLine()) != null) sb.append(line).append('\n');
-			if (!sb.isEmpty()) {
-				// 这里暂不处理，必要时可以写入日志
-			}
+			stderrText = sb.toString();
 		} catch (IOException ignored) {}
 
 		int exitCode;
@@ -146,7 +153,15 @@ public final class AudioAnalysisService {
 		}
 
 		if (exitCode != 0) {
-			onError.accept("Python 分析脚本退出码：" + exitCode);
+			String detail = sanitizeProcessOutput(stderrText);
+			if (detail.isEmpty() && resultJson != null && !resultJson.isBlank()) {
+				detail = sanitizeProcessOutput(resultJson);
+			}
+			if (!detail.isEmpty()) {
+				onError.accept("Python 分析脚本退出码：" + exitCode + "\n" + detail);
+			} else {
+				onError.accept("Python 分析脚本退出码：" + exitCode);
+			}
 			return;
 		}
 
@@ -218,6 +233,70 @@ public final class AudioAnalysisService {
 		} catch (Exception e) {
 			return false;
 		}
+	}
+
+	private String ensurePythonDependencies(String pythonExe, Path requirementsPath) {
+		try {
+			Process check = new ProcessBuilder(
+				pythonExe,
+				"-c",
+				"import numpy, librosa, soundfile, scipy"
+			).redirectErrorStream(true).start();
+			String checkOut = readProcessOutput(check);
+			int checkCode = waitProcess(check);
+			if (checkCode == 0) return null;
+
+			if (!Files.isRegularFile(requirementsPath)) {
+				return "Python 依赖缺失，且找不到 requirements.txt：" + requirementsPath;
+			}
+
+			Process install = new ProcessBuilder(
+				pythonExe,
+				"-m",
+				"pip",
+				"install",
+				"-r",
+				requirementsPath.toAbsolutePath().toString()
+			).redirectErrorStream(true).start();
+			String installOut = readProcessOutput(install);
+			int installCode = waitProcess(install);
+			if (installCode == 0) return null;
+
+			String detail = sanitizeProcessOutput(installOut);
+			if (detail.isEmpty()) detail = sanitizeProcessOutput(checkOut);
+			return "Python 依赖安装失败，请手动执行：\n"
+				+ pythonExe + " -m pip install -r \"" + requirementsPath.toAbsolutePath() + "\"\n"
+				+ detail;
+		} catch (IOException e) {
+			return "检查 Python 依赖失败：" + e.getMessage();
+		}
+	}
+
+	private String readProcessOutput(Process process) throws IOException {
+		StringBuilder sb = new StringBuilder();
+		try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+			String line;
+			while ((line = br.readLine()) != null) sb.append(line).append('\n');
+		}
+		return sb.toString();
+	}
+
+	private int waitProcess(Process process) {
+		try {
+			return process.waitFor();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			process.destroyForcibly();
+			return -1;
+		}
+	}
+
+	private String sanitizeProcessOutput(String raw) {
+		if (raw == null) return "";
+		String text = raw.trim();
+		if (text.isEmpty()) return "";
+		if (text.length() <= 1200) return text;
+		return text.substring(text.length() - 1200);
 	}
 
 	@FunctionalInterface
