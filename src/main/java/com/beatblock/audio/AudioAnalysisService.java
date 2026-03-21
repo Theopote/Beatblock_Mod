@@ -91,6 +91,11 @@ public final class AudioAnalysisService {
 				请确认已安装 Python，或在 config/beatblock/python_path.txt 中指定完整路径。""");
 			return;
 		}
+		if (!isSupportedPythonVersion(pythonExe)) {
+			onError.accept("检测到 Python 版本过新（>=3.13），当前音频分析依赖在该版本上可能无预编译包。\n"
+				+ "请在 config/beatblock/python_path.txt 指定 Python 3.10~3.12 路径后重试。");
+			return;
+		}
 
 		// 预检并补齐依赖（librosa / numpy / soundfile / scipy）
 		Path requirementsPath = scriptPath.getParent().resolve("requirements.txt");
@@ -226,7 +231,7 @@ public final class AudioAnalysisService {
 				if (!txt.isEmpty() && isExecutable(txt)) return txt;
 			} catch (IOException ignored) {}
 		}
-		for (String cand : List.of("python3", "python")) {
+		for (String cand : List.of("python", "python3")) {
 			if (isExecutable(cand)) return cand;
 		}
 		return null;
@@ -241,6 +246,28 @@ public final class AudioAnalysisService {
 			return p.exitValue() == 0;
 		} catch (Exception e) {
 			return false;
+		}
+	}
+
+	private boolean isSupportedPythonVersion(String pythonExe) {
+		try {
+			Process p = new ProcessBuilder(
+				pythonExe,
+				"-c",
+				"import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+			).redirectErrorStream(true).start();
+			String out = readProcessOutput(p).trim();
+			int code = waitProcess(p);
+			if (code != 0 || out.isBlank()) return true;
+
+			String[] parts = out.split("\\.");
+			if (parts.length < 2) return true;
+			int major = Integer.parseInt(parts[0]);
+			int minor = Integer.parseInt(parts[1]);
+			if (major != 3) return false;
+			return minor <= 12;
+		} catch (Exception e) {
+			return true;
 		}
 	}
 

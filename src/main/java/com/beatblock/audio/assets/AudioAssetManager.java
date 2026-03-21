@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 音频资产管理器：维护「音频解析」面板的数据源，并串联 AudioAnalysisEngine。
@@ -33,7 +34,7 @@ public final class AudioAssetManager {
 		return INSTANCE;
 	}
 
-	private final List<AudioAsset> assets = new ArrayList<>();
+	private final List<AudioAsset> assets = new CopyOnWriteArrayList<>();
 	private AudioAsset currentDragAsset;
 	private ConversionRequestHandler conversionRequestHandler;
 	private static final String[] SUPPORTED_AUDIO_EXTENSIONS = {"mp3", "wav", "ogg", "flac"};
