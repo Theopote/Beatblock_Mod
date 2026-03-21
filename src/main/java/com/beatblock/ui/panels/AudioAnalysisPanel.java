@@ -183,7 +183,10 @@ public final class AudioAnalysisPanel {
     // ── 拖放区 ────────────────────────────────────────────────────────────
 
     private void renderDropZone() {
+        prunePanelHint();
         float availX = ImGui.getContentRegionAvailX();
+        boolean hasHint = panelHintText != null && !panelHintText.isBlank();
+        float zoneH = hasHint ? 92f : 72f;
 
         // 用一个带边框的 child window 作为视觉容器
         ImGui.pushStyleColor(ImGuiCol.ChildBg,    0.12f, 0.11f, 0.18f, 1f);
@@ -191,16 +194,27 @@ public final class AudioAnalysisPanel {
         ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding,  6f);
         ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
 
-        ImGui.beginChild("##DropZone", availX, 72f, true);
+        ImGui.beginChild("##DropZone", availX, zoneH, true);
         ImGui.popStyleVar(2);
         ImGui.popStyleColor(2);
 
         // 文字垂直居中
         float textH = ImGui.getTextLineHeightWithSpacing() * 2f + ImGui.getTextLineHeight();
-        ImGui.setCursorPosY((72f - textH) * 0.5f);
+        ImGui.setCursorPosY((zoneH - textH) * 0.5f - (hasHint ? 6f : 0f));
 
         centerText("拖入音频文件 / 点击 + 添加");
         centerText("MP3 · WAV · OGG · FLAC");
+
+        if (hasHint) {
+            ImGui.spacing();
+            if (panelHintError) {
+                ImGui.pushStyleColor(ImGuiCol.Text, 0.92f, 0.36f, 0.36f, 1f);
+                centerText(panelHintText);
+                ImGui.popStyleColor();
+            } else {
+                centerText(panelHintText);
+            }
+        }
 
         // ── 接收系统文件拖放（OS → ImGui window）──────────────────────────
         // imgui-java 通过 ImGui.acceptDragDropPayload 接收来自操作系统的文件路径，
