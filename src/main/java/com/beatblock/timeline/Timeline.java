@@ -85,6 +85,19 @@ public class Timeline {
 		}
 	}
 
+	public boolean removeMarker(int index) {
+		if (index < 0 || index >= markers.size()) return false;
+		markers.remove(index);
+		return true;
+	}
+
+	public boolean updateMarker(int index, double timeSeconds, String name) {
+		if (index < 0 || index >= markers.size()) return false;
+		markers.set(index, new TimelineMarker(timeSeconds, name));
+		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
+		return true;
+	}
+
 	// ----- 便捷 API（兼容原 TimelineModel 读写） -----
 
 	public WaveformData getWaveform() {
