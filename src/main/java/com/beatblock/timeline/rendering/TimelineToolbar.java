@@ -4,12 +4,20 @@ import com.beatblock.BeatBlock;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.client.BeatBlockClientDriver;
+import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.IAudioPlayer;
+import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
+import com.beatblock.timeline.TimelineEvent;
+import com.beatblock.timeline.Track;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
 import imgui.ImGui;
 import imgui.type.ImInt;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 时间线顶部工具栏：播放控制、吸附选项、Beat 网格、Auto Map。
@@ -24,6 +32,10 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_TO_END = "跳到结尾";
 	private static final String TOOLTIP_BACK_BEAT = "后退 1 拍（无 BPM 时后退 1 秒）";
 	private static final String TOOLTIP_FWD_BEAT = "前进 1 拍（无 BPM 时前进 1 秒）";
+	private static final String TOOLTIP_BACK_5S = "后退 5 秒";
+	private static final String TOOLTIP_FWD_5S = "前进 5 秒";
+	private static final String TOOLTIP_PREV_EVENT = "跳到上一事件点";
+	private static final String TOOLTIP_NEXT_EVENT = "跳到下一事件点";
 	private static final String TOOLTIP_SNAP = "拖拽事件时吸附到网格";
 	private static final String TOOLTIP_BEAT_GRID = "显示节拍网格线";
 	private static final String TOOLTIP_MAGNET = "吸附到其他事件/关键帧";
@@ -64,6 +76,16 @@ public final class TimelineToolbar {
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BACK_BEAT);
 		ImGui.sameLine();
+		if (ImGui.button("-5##tlBack5", tBtn + 8f, tBtn)) {
+			seekBy(editor, -5.0);
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BACK_5S);
+		ImGui.sameLine();
+		if (ImGui.button(Icons.Action.ARROW_LEFT + "##tlPrevEvt", tBtn, tBtn)) {
+			jumpToNearbyEvent(editor, false);
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_PREV_EVENT);
+		ImGui.sameLine();
 		// 使用 BeatBlock.ttf（Icons），避免 ▶⏸■ 等未进 ImGui 图集显示为 ?
 		if (playing) {
 			if (ImGui.button(Icons.Play.PAUSE + "##tlPause", tBtn, tBtn)) {
@@ -91,6 +113,16 @@ public final class TimelineToolbar {
 			seekBy(editor, seekStep);
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_FWD_BEAT);
+		ImGui.sameLine();
+		if (ImGui.button("+5##tlFwd5", tBtn + 8f, tBtn)) {
+			seekBy(editor, 5.0);
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_FWD_5S);
+		ImGui.sameLine();
+		if (ImGui.button(Icons.Action.ARROW_RIGHT + "##tlNextEvt", tBtn, tBtn)) {
+			jumpToNearbyEvent(editor, true);
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_NEXT_EVENT);
 		ImGui.sameLine();
 		if (ImGui.button(Icons.Play.FORWARD_END + "##tlToEnd", tBtn, tBtn)) {
 			seekTo(editor, getDuration(editor));
@@ -210,5 +242,49 @@ public final class TimelineToolbar {
 		double clockDur = editor.getClock().getDurationSeconds();
 		if (clockDur > 0) return clockDur;
 		return 60.0;
+	}
+
+	private static void jumpToNearbyEvent(TimelineEditor editor, boolean forward) {
+		if (editor == null || BeatBlock.timeline == null) return;
+		List<Double> marks = collectEventTimes(BeatBlock.timeline);
+		if (marks.isEmpty()) return;
+
+		double current = editor.getClock().getCurrentTimeSeconds();
+		double eps = 1e-6;
+		double target = current;
+		if (forward) {
+			for (double t : marks) {
+				if (t > current + eps) {
+					target = t;
+					break;
+				}
+			}
+		} else {
+			for (int i = marks.size() - 1; i >= 0; i--) {
+				double t = marks.get(i);
+				if (t < current - eps) {
+					target = t;
+					break;
+				}
+			}
+		}
+		seekTo(editor, target);
+	}
+
+	private static List<Double> collectEventTimes(Timeline timeline) {
+		if (timeline == null) return List.of();
+		List<Double> out = new ArrayList<>();
+		for (Track track : timeline.getTracks()) {
+			if (track == null) continue;
+			for (Clip clip : track.getClips()) {
+				if (clip == null) continue;
+				for (TimelineEvent e : clip.getEvents()) {
+					if (e == null) continue;
+					out.add(e.getTimeSeconds());
+				}
+			}
+		}
+		Collections.sort(out);
+		return out;
 	}
 }

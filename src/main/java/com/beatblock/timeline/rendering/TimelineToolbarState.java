@@ -15,6 +15,10 @@ public final class TimelineToolbarState {
 	private boolean beatGridVisible = true;
 	/** 循环播放 */
 	private boolean loop = false;
+	/** 循环起点（秒） */
+	private double loopInSeconds = 0;
+	/** 循环终点（秒），0 表示未设置 */
+	private double loopOutSeconds = 0;
 
 	public boolean isSnapToGrid() { return snapToGrid; }
 	public void setSnapToGrid(boolean v) { snapToGrid = v; }
@@ -30,4 +34,21 @@ public final class TimelineToolbarState {
 
 	public boolean isLoop() { return loop; }
 	public void setLoop(boolean v) { loop = v; }
+
+	public double getLoopInSeconds() { return loopInSeconds; }
+	public void setLoopInSeconds(double v) { loopInSeconds = Math.max(0, v); }
+
+	public double getLoopOutSeconds() { return loopOutSeconds; }
+	public void setLoopOutSeconds(double v) { loopOutSeconds = Math.max(0, v); }
+
+	/** 是否存在有效循环区间（Out > In）。 */
+	public boolean hasLoopRange() {
+		return loopOutSeconds > loopInSeconds;
+	}
+
+	/** 清空循环区，保留 loop 开关状态。 */
+	public void clearLoopRange() {
+		loopInSeconds = 0;
+		loopOutSeconds = 0;
+	}
 }
