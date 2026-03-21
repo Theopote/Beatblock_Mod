@@ -3,7 +3,6 @@ package com.beatblock.timeline.rendering;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.WaveformData;
 import com.beatblock.timeline.editor.TimelineViewState;
-import com.beatblock.timeline.util.TimeUtils;
 import imgui.ImGui;
 
 /**
@@ -31,7 +30,7 @@ public final class WaveformRenderer {
 				if (t < 0 || t > dur) continue;
 				int idx = wf.timeToIndex(t);
 				float s = wf.getSample(idx);
-				float x = TimeUtils.timeToScreen(t, viewStart, view.getZoom());
+				float x = view.timeToScreen(t);
 				if (x < -1 || x > layout.timelineWidth + 1) continue;
 				float y0 = minY + layout.rowHeight * 0.5f;
 				float y1 = y0 - s * halfH;
