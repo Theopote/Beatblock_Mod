@@ -134,6 +134,7 @@ public final class TimelineInteraction {
 		}
 
 		if (!ImGui.isWindowHovered()) return;
+		boolean alt = ImGui.getIO().getKeyAlt();
 
 		if (ImGui.isKeyPressed(ImGuiKey.Delete)) {
 			deleteSelectedEvents(timeline, selectionState);
@@ -170,6 +171,13 @@ public final class TimelineInteraction {
 			if (overDivider && interactionState.getMode() == InteractionMode.NONE) {
 				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
 			}
+		}
+
+		if (alt && toolbarState != null && layout.rulerContains(mx, my) && ImGui.isMouseClicked(1)) {
+			double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+			double loopIn = toolbarState.getLoopInSeconds();
+			toolbarState.setLoopOutSeconds(Math.max(t, loopIn + 0.1));
+			return;
 		}
 
 		if (ImGui.isMouseClicked(1) && layout.contentContains(mx, my)) {
@@ -248,6 +256,14 @@ public final class TimelineInteraction {
 				return;
 			}
 			if (layout.rulerContains(mx, my)) {
+				if (alt && toolbarState != null) {
+					double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+					toolbarState.setLoopInSeconds(t);
+					if (toolbarState.getLoopOutSeconds() > 0 && toolbarState.getLoopOutSeconds() <= t) {
+						toolbarState.setLoopOutSeconds(t + 0.1);
+					}
+					return;
+				}
 				double t = viewState.screenToTime(mx - layout.contentLeft);
 				interactionState.setMode(InteractionMode.SCRUB_TIME);
 				interactionState.setMouseStart(mx, my);

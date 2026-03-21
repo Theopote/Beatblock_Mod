@@ -35,6 +35,13 @@ public final class GridRenderer {
 	private static final int LABEL_TIME_COLOR = 0xFF_CC_CC_CC;
 	/** 小节号副标签 */
 	private static final int LABEL_BAR_COLOR  = 0xFF_88_BB_FF;
+	/** 循环区标签 */
+	private static final int LABEL_LOOP_COLOR = 0xFF_FF_DD_88;
+
+	// ── 循环区颜色 ──
+	private static final int LOOP_RANGE_FILL  = 0x33_FF_D0_66;
+	private static final int LOOP_IN_COLOR    = 0xEE_FF_BB_44;
+	private static final int LOOP_OUT_COLOR   = 0xEE_FF_88_66;
 
 	// ── 刻度高度比例（占 rulerHeight） ──
 	private static final float MAJOR_TICK_FRAC = 0.55f;
@@ -53,7 +60,7 @@ public final class GridRenderer {
 	 * @param layout 布局（提供标尺区坐标）
 	 * @param bpm    来自 Timeline.getBpm()；≤ 0 表示无 BPM 信息，只显示 mm:ss
 	 */
-	public void renderRuler(float startY, TimelineViewState view, TimelineLayout layout, double bpm) {
+	public void renderRuler(float startY, TimelineViewState view, TimelineLayout layout, double bpm, TimelineToolbarState toolbarState) {
 		if (view == null || layout == null) return;
 
 		float rTop   = layout.rulerTop;
@@ -80,13 +87,19 @@ public final class GridRenderer {
 					rTop, rBot, rLeft);
 		}
 
+		renderLoopOverlay(view, layout, toolbarState, rTop, rBot, rLeft);
+
 		// 3. 底部分隔线
 		ImGui.getWindowDrawList().addLine(rLeft, rBot - 1, rRight, rBot - 1, MAJOR_TICK_COLOR, 1f);
 	}
 
+	public void renderRuler(float startY, TimelineViewState view, TimelineLayout layout, double bpm) {
+		renderRuler(startY, view, layout, bpm, null);
+	}
+
 	/** 兼容旧调用（无 BPM）。 */
 	public void renderRuler(float startY, TimelineViewState view, TimelineLayout layout) {
-		renderRuler(startY, view, layout, 0);
+		renderRuler(startY, view, layout, 0, null);
 	}
 
 	/**
@@ -261,6 +274,40 @@ public final class GridRenderer {
 				float sx = rLeft + xOff;
 				ImGui.getWindowDrawList().addLine(sx, rBot - subTickH, sx, rBot, MINOR_TICK_COLOR, 1f);
 			}
+		}
+	}
+
+	private void renderLoopOverlay(
+		TimelineViewState view,
+		TimelineLayout layout,
+		TimelineToolbarState toolbarState,
+		float rTop,
+		float rBot,
+		float rLeft
+	) {
+		if (view == null || layout == null || toolbarState == null || !toolbarState.hasLoopRange()) return;
+
+		double loopIn = toolbarState.getLoopInSeconds();
+		double loopOut = toolbarState.getLoopOutSeconds();
+		if (loopOut <= loopIn) return;
+
+		float xIn = rLeft + view.timeToScreen(loopIn);
+		float xOut = rLeft + view.timeToScreen(loopOut);
+		float clipLeft = rLeft;
+		float clipRight = rLeft + layout.rulerWidth;
+		float fillLeft = Math.max(clipLeft, Math.min(xIn, xOut));
+		float fillRight = Math.min(clipRight, Math.max(xIn, xOut));
+		if (fillRight > fillLeft) {
+			ImGui.getWindowDrawList().addRectFilled(fillLeft, rTop + 1, fillRight, rBot - 1, LOOP_RANGE_FILL);
+		}
+
+		if (xIn >= clipLeft - 2 && xIn <= clipRight + 2) {
+			ImGui.getWindowDrawList().addLine(xIn, rTop, xIn, rBot, LOOP_IN_COLOR, 2f);
+			ImGui.getWindowDrawList().addText(xIn + 3, rTop + 2, LABEL_LOOP_COLOR, "IN");
+		}
+		if (xOut >= clipLeft - 2 && xOut <= clipRight + 2) {
+			ImGui.getWindowDrawList().addLine(xOut, rTop, xOut, rBot, LOOP_OUT_COLOR, 2f);
+			ImGui.getWindowDrawList().addText(xOut + 3, rTop + 12, LABEL_LOOP_COLOR, "OUT");
 		}
 	}
 }
