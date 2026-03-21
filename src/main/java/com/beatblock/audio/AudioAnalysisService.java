@@ -157,10 +157,19 @@ public final class AudioAnalysisService {
 			if (detail.isEmpty() && resultJson != null && !resultJson.isBlank()) {
 				detail = sanitizeProcessOutput(resultJson);
 			}
+			String hint = explainPythonError(detail);
 			if (!detail.isEmpty()) {
-				onError.accept("Python 分析脚本退出码：" + exitCode + "\n" + detail);
+				if (!hint.isEmpty()) {
+					onError.accept("Python 分析脚本退出码：" + exitCode + "\n" + hint + "\n\n" + detail);
+				} else {
+					onError.accept("Python 分析脚本退出码：" + exitCode + "\n" + detail);
+				}
 			} else {
-				onError.accept("Python 分析脚本退出码：" + exitCode);
+				if (!hint.isEmpty()) {
+					onError.accept("Python 分析脚本退出码：" + exitCode + "\n" + hint);
+				} else {
+					onError.accept("Python 分析脚本退出码：" + exitCode);
+				}
 			}
 			return;
 		}
@@ -264,8 +273,10 @@ public final class AudioAnalysisService {
 
 			String detail = sanitizeProcessOutput(installOut);
 			if (detail.isEmpty()) detail = sanitizeProcessOutput(checkOut);
+			String hint = explainPythonError(detail);
 			return "Python 依赖安装失败，请手动执行：\n"
 				+ pythonExe + " -m pip install -r \"" + requirementsPath.toAbsolutePath() + "\"\n"
+				+ (hint.isEmpty() ? "" : ("\n" + hint + "\n"))
 				+ detail;
 		} catch (IOException e) {
 			return "检查 Python 依赖失败：" + e.getMessage();
@@ -297,6 +308,34 @@ public final class AudioAnalysisService {
 		if (text.isEmpty()) return "";
 		if (text.length() <= 1200) return text;
 		return text.substring(text.length() - 1200);
+	}
+
+	private String explainPythonError(String detail) {
+		if (detail == null || detail.isBlank()) return "";
+		String s = detail.toLowerCase();
+
+		if (s.contains("no module named") || s.contains("modulenotfounderror")) {
+			return "检测到 Python 依赖缺失。请确认当前 Python 环境已安装 librosa/numpy/soundfile/scipy。";
+		}
+		if (s.contains("dll load failed") || s.contains("winerror 126") || s.contains("winerror 193")) {
+			return "检测到 Python 二进制依赖加载失败。请检查 Python 位数与系统匹配，并安装 Microsoft Visual C++ Redistributable。";
+		}
+		if (s.contains("permission denied") || s.contains("access is denied") || s.contains("errno 13")) {
+			return "检测到权限不足。请用有权限的目录运行，或检查防病毒软件是否拦截 Python/pip 写入。";
+		}
+		if (s.contains("could not find a version that satisfies") || s.contains("no matching distribution found")) {
+			return "pip 未找到可安装版本。请检查 Python 版本是否过旧，或切换可用的 pip 镜像源。";
+		}
+		if (s.contains("ssl") || s.contains("certificate verify failed")) {
+			return "检测到网络证书/SSL 问题。请检查网络代理与证书环境，必要时更换 pip 源。";
+		}
+		if (s.contains("pip is not recognized") || s.contains("no module named pip")) {
+			return "当前 Python 没有可用 pip。请先执行 python -m ensurepip --upgrade。";
+		}
+		if (s.contains("ffmpeg") && (s.contains("not found") || s.contains("no such file"))) {
+			return "检测到 ffmpeg 不可用。请将 ffmpeg.exe 放在 Minecraft 目录，或在 config/beatblock/ffmpeg_path.txt 指定路径。";
+		}
+		return "";
 	}
 
 	@FunctionalInterface
