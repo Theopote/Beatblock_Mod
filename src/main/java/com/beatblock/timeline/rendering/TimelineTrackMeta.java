@@ -7,33 +7,46 @@ package com.beatblock.timeline.rendering;
 public final class TimelineTrackMeta {
 
 	public static final int NO_PARENT = -1;
+	public static final int ROW_AUDIO_GROUP = 0;
+	public static final int ROW_WAVEFORM = 1;
+	public static final int ROW_FREQ_LOW = 2;
+	public static final int ROW_FREQ_MID = 3;
+	public static final int ROW_FREQ_HIGH = 4;
+	public static final int ROW_ANIMATION_GROUP = 5;
+	public static final int ROW_ANIM_BLOCK = 6;
+	public static final int ROW_ANIM_AUTO = 7;
+	public static final int ROW_CAMERA = 8;
+	public static final int ROW_GLOBAL_EVENT = 9;
+	private static final int ROW_COUNT = ROW_GLOBAL_EVENT + 1;
 
-	private static final String[] DEFAULT_NAMES = {
-		"音频",   // 0 一级
-		"波形",   // 1 音频子轨道
-		"低频",   // 2 音频子轨道
-		"中频",   // 3 音频子轨道
-		"高频",   // 4 音频子轨道
-		"动画",   // 5 一级
-		"方块动画", // 6 动画子轨道
-		"自动动画", // 7 动画子轨道
-		"摄像机",  // 8 一级
-		"事件"    // 9 一级
-	};
+	private static final String[] DEFAULT_NAMES = new String[ROW_COUNT];
 
 	/** 父行索引，NO_PARENT 表示一级轨道（或组标题） */
-	private static final int[] PARENT_ROW = {
-		NO_PARENT, // 0 音频
-		0,         // 1 波形
-		0,         // 2 低频
-		0,         // 3 中频
-		0,         // 4 高频
-		NO_PARENT, // 5 动画
-		5,         // 6 方块动画
-		5,         // 7 自动动画
-		NO_PARENT, // 8 摄像机
-		NO_PARENT  // 9 事件
-	};
+	private static final int[] PARENT_ROW = new int[ROW_COUNT];
+
+	static {
+		DEFAULT_NAMES[ROW_AUDIO_GROUP] = "音频";
+		DEFAULT_NAMES[ROW_WAVEFORM] = "波形";
+		DEFAULT_NAMES[ROW_FREQ_LOW] = "低频";
+		DEFAULT_NAMES[ROW_FREQ_MID] = "中频";
+		DEFAULT_NAMES[ROW_FREQ_HIGH] = "高频";
+		DEFAULT_NAMES[ROW_ANIMATION_GROUP] = "动画";
+		DEFAULT_NAMES[ROW_ANIM_BLOCK] = "方块动画";
+		DEFAULT_NAMES[ROW_ANIM_AUTO] = "自动动画";
+		DEFAULT_NAMES[ROW_CAMERA] = "摄像机";
+		DEFAULT_NAMES[ROW_GLOBAL_EVENT] = "事件";
+
+		PARENT_ROW[ROW_AUDIO_GROUP] = NO_PARENT;
+		PARENT_ROW[ROW_WAVEFORM] = ROW_AUDIO_GROUP;
+		PARENT_ROW[ROW_FREQ_LOW] = ROW_AUDIO_GROUP;
+		PARENT_ROW[ROW_FREQ_MID] = ROW_AUDIO_GROUP;
+		PARENT_ROW[ROW_FREQ_HIGH] = ROW_AUDIO_GROUP;
+		PARENT_ROW[ROW_ANIMATION_GROUP] = NO_PARENT;
+		PARENT_ROW[ROW_ANIM_BLOCK] = ROW_ANIMATION_GROUP;
+		PARENT_ROW[ROW_ANIM_AUTO] = ROW_ANIMATION_GROUP;
+		PARENT_ROW[ROW_CAMERA] = NO_PARENT;
+		PARENT_ROW[ROW_GLOBAL_EVENT] = NO_PARENT;
+	}
 
 	public static String getDefaultName(int rowIndex) {
 		if (rowIndex < 0 || rowIndex >= DEFAULT_NAMES.length) return "";
@@ -42,7 +55,8 @@ public final class TimelineTrackMeta {
 
 	public static boolean isGroupRow(int rowIndex) {
 		if (rowIndex < 0 || rowIndex >= PARENT_ROW.length) return false;
-		return PARENT_ROW[rowIndex] == NO_PARENT && (rowIndex == 0 || rowIndex == 5);
+		return PARENT_ROW[rowIndex] == NO_PARENT
+			&& (rowIndex == ROW_AUDIO_GROUP || rowIndex == ROW_ANIMATION_GROUP);
 	}
 
 	/** 是否有父轨道（是否为子轨道，需要缩进显示） */
@@ -61,10 +75,10 @@ public final class TimelineTrackMeta {
 	 */
 	public static String getCategoryTypeLabel(int rowIndex) {
 		if (rowIndex < 0 || rowIndex >= DEFAULT_NAMES.length) return "";
-		if (rowIndex <= 4) return "音频";
-		if (rowIndex <= 7) return "动画";
-		if (rowIndex == 8) return "摄像机";
-		if (rowIndex == 9) return "事件";
+		if (rowIndex >= ROW_AUDIO_GROUP && rowIndex <= ROW_FREQ_HIGH) return "音频";
+		if (rowIndex >= ROW_ANIMATION_GROUP && rowIndex <= ROW_ANIM_AUTO) return "动画";
+		if (rowIndex == ROW_CAMERA) return "摄像机";
+		if (rowIndex == ROW_GLOBAL_EVENT) return "事件";
 		return "";
 	}
 }

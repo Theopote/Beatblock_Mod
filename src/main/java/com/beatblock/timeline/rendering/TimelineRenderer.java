@@ -101,7 +101,7 @@ public final class TimelineRenderer {
 
 	private void drawRowContent(int rowIndex, float rowY, Timeline timeline, TimelineViewState viewState, SelectionState selectionState, TimelineLayout layout) {
 		switch (rowIndex) {
-			case 1: {
+			case TimelineTrackMeta.ROW_WAVEFORM: {
 				// Audio 轨：支持从「音频解析」面板拖拽资产到此处
 				float dropX = layout.contentLeft;
 				float dropY = rowY;
@@ -122,25 +122,25 @@ public final class TimelineRenderer {
 				waveformRenderer.render(rowY, timeline, layout, viewState);
 				break;
 			}
-			case 2:
+			case TimelineTrackMeta.ROW_FREQ_LOW:
 				eventRenderer.renderFrequencyDots(rowY, timeline.getFrequencyEventsByBand(FrequencyBand.LOW), layout, viewState);
 				break;
-			case 3:
+			case TimelineTrackMeta.ROW_FREQ_MID:
 				eventRenderer.renderFrequencyDots(rowY, timeline.getFrequencyEventsByBand(FrequencyBand.MID), layout, viewState);
 				break;
-			case 4:
+			case TimelineTrackMeta.ROW_FREQ_HIGH:
 				eventRenderer.renderFrequencyDots(rowY, timeline.getFrequencyEventsByBand(FrequencyBand.HIGH), layout, viewState);
 				break;
-			case 6:
+			case TimelineTrackMeta.ROW_ANIM_BLOCK:
 				eventRenderer.renderAnimationEventBlocks(rowY, timeline.getBlockAnimationEvents(), layout, viewState, selectionState);
 				break;
-			case 7:
+			case TimelineTrackMeta.ROW_ANIM_AUTO:
 				eventRenderer.renderAnimationEventBlocks(rowY, timeline.getAutoAnimationEvents(), layout, viewState, selectionState);
 				break;
-			case 8:
+			case TimelineTrackMeta.ROW_CAMERA:
 				eventRenderer.renderCameraKeyframeRow(rowY, timeline.getCameraKeyframes(), layout, viewState);
 				break;
-			case 9:
+			case TimelineTrackMeta.ROW_GLOBAL_EVENT:
 				eventRenderer.renderGlobalEventRow(rowY, timeline.getGlobalEvents(), layout, viewState);
 				break;
 			default:
