@@ -14,6 +14,7 @@ import imgui.flag.ImGuiInputTextFlags;
 public final class TrackRenderer {
 
 	// 紧凑布局参数（图标按钮边长 = 轨道行高，与行对齐）
+	/** 轨道头右侧留白（可见/锁定与右缘）；折叠列左侧为 0，与内容区左缘对齐 */
 	private static final float PAD = 3f;
 
 	private static final float TYPE_COL_RIGHT_PAD = 6f;
@@ -53,8 +54,8 @@ public final class TrackRenderer {
 		}
 		float typeColW = Math.max(MIN_TYPE_COL_W, maxTypeW + TYPE_COL_RIGHT_PAD);
 
-		// 列边界（内部坐标：以“轨道头内部局部 X=0”为基准）
-		float foldColLeft = PAD;
+		// 列边界（内部坐标：以“轨道头内部局部 X=0”为基准）；折叠槽贴左，不留左侧空隙
+		float foldColLeft = 0f;
 		float typeStartX = foldColLeft + foldColW;
 		float nameX = typeStartX + typeColW;
 
