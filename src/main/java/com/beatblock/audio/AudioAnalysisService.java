@@ -276,10 +276,6 @@ public final class AudioAnalysisService {
 			return cand;
 		}
 
-		// 最后兜底：即使不满足 pip 条件，也返回一个可执行 python，后续会给出更具体错误。
-		for (String cand : candidates) {
-			if (isExecutable(cand)) return cand;
-		}
 		return null;
 	}
 
