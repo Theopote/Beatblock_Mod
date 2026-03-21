@@ -90,6 +90,7 @@ public final class TrackRenderer {
 		if (isGroup && listState != null) {
 			float btnX = baseX + foldColLeft;
 			float btnY = rowOriginScreenY;
+			String foldTooltip = null;
 
 			IconButtonStyle.pushBeatBlockIconButton();
 			ImGui.setCursorScreenPos(btnX, btnY);
@@ -98,10 +99,12 @@ public final class TrackRenderer {
 			if (ImGui.button((collapsed ? Icons.Timeline.TRACK_COLLAPSE : Icons.Action.COLLAPSE) + "##fold" + rowIndex, rowH, rowH)) {
 				listState.toggleGroupCollapsed(rowIndex);
 			}
-			IconButtonStyle.popBeatBlockIconButton();
-
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(collapsed ? "Expand sub-tracks" : "Collapse sub-tracks");
+				foldTooltip = collapsed ? "Expand sub-tracks" : "Collapse sub-tracks";
+			}
+			IconButtonStyle.popBeatBlockIconButton();
+			if (foldTooltip != null) {
+				ImGui.setTooltip(foldTooltip);
 			}
 		}
 
@@ -156,6 +159,8 @@ public final class TrackRenderer {
 		if (listState != null && !isEditing) {
 			float lockRight = headW - PAD - iconBtn;
 			float visX = lockRight - ICON_GAP - iconBtn;
+			String visTooltip = null;
+			String lockTooltip = null;
 
 			IconButtonStyle.pushBeatBlockIconButton();
 
@@ -165,7 +170,7 @@ public final class TrackRenderer {
 				listState.toggleVisible(rowIndex);
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(vis ? "可见 (点击隐藏)" : "隐藏 (点击显示)");
+				visTooltip = vis ? "可见 (点击隐藏)" : "隐藏 (点击显示)";
 			}
 
 			boolean lock = listState.isLocked(rowIndex);
@@ -174,10 +179,12 @@ public final class TrackRenderer {
 				listState.toggleLocked(rowIndex);
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(lock ? "已锁定 (点击解锁)" : "未锁定 (点击锁定)");
+				lockTooltip = lock ? "已锁定 (点击解锁)" : "未锁定 (点击锁定)";
 			}
 
 			IconButtonStyle.popBeatBlockIconButton();
+			if (visTooltip != null) ImGui.setTooltip(visTooltip);
+			if (lockTooltip != null) ImGui.setTooltip(lockTooltip);
 		}
 
 		return rowY + rowH;

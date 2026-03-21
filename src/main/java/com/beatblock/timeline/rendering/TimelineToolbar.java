@@ -31,10 +31,8 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_STOP = "停止并回到起点";
 	private static final String TOOLTIP_TO_START = "回到开头";
 	private static final String TOOLTIP_TO_END = "跳到结尾";
-	private static final String TOOLTIP_BACK_BEAT = "后退 1 拍（无 BPM 时后退 1 秒）";
-	private static final String TOOLTIP_FWD_BEAT = "前进 1 拍（无 BPM 时前进 1 秒）";
-	private static final String TOOLTIP_BACK_5S = "后退 5 秒";
-	private static final String TOOLTIP_FWD_5S = "前进 5 秒";
+	private static final String TOOLTIP_BACK_BEAT = "后退 1 拍（无 BPM 时后退 1 秒）；按住 Shift 后退 5 秒";
+	private static final String TOOLTIP_FWD_BEAT = "前进 1 拍（无 BPM 时前进 1 秒）；按住 Shift 前进 5 秒";
 	private static final String TOOLTIP_PREV_EVENT = "跳到上一事件点";
 	private static final String TOOLTIP_NEXT_EVENT = "跳到下一事件点";
 	private static final String TOOLTIP_ADD_MARKER = "在当前时间创建 Marker；也可双击标尺空白处";
@@ -73,37 +71,29 @@ public final class TimelineToolbar {
 		boolean playing = hasMusic && BeatBlock.musicPlayer.isPlaying();
 		double bpm = BeatBlock.timeline != null ? BeatBlock.timeline.getBpm() : 0;
 		double seekStep = bpm > 0 ? 60.0 / bpm : 1.0;
+		double stepSeek = ImGui.getIO().getKeyShift() ? 5.0 : seekStep;
 
 		// 图标按钮：与轨道行同高、零内边距，字形尽量铺满并居中
 		final float tBtn = TimelineLayout.ROW_HEIGHT;
 		boolean compactToolbar = shouldUseCompactToolbar(tBtn);
+		String transportTooltip = null;
 		IconButtonStyle.pushBeatBlockIconButton();
 		if (ImGui.button(Icons.Play.REWIND_START + "##tlToStart", tBtn, tBtn)) {
 			seekTo(editor, 0);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TO_START);
+		transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_TO_START);
 		nextItemInGroup();
 		if (ImGui.button(Icons.Play.REWIND + "##tlBackBeat", tBtn, tBtn)) {
-			seekBy(editor, -seekStep);
+			seekBy(editor, -stepSeek);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BACK_BEAT);
-		nextItemInGroup();
-		if (compactTextButton("-5", "##tlBack5", tBtn)) {
-			seekBy(editor, -5.0);
-		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BACK_5S);
-		nextItemInGroup();
-		if (ImGui.button(Icons.Action.ARROW_LEFT + "##tlPrevEvt", tBtn, tBtn)) {
-			jumpToNearbyEvent(editor, false);
-		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_PREV_EVENT);
+		transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_BACK_BEAT);
 		nextItemInGroup();
 		// 使用 BeatBlock.ttf（Icons），避免 ▶⏸■ 等未进 ImGui 图集显示为 ?
 		if (playing) {
 			if (ImGui.button(Icons.Play.PAUSE + "##tlPause", tBtn, tBtn)) {
 				if (BeatBlock.musicPlayer != null) BeatBlock.musicPlayer.pause();
 			}
-			if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_PAUSE);
+			transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_PAUSE);
 		} else {
 			if (ImGui.button(Icons.Play.PLAY + "##tlPlay", tBtn, tBtn)) {
 				if (BeatBlock.musicPlayer != null) {
@@ -112,40 +102,43 @@ public final class TimelineToolbar {
 					if (!BeatBlockClientDriver.isDriving()) BeatBlockClientDriver.startDriving();
 				}
 			}
-			if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_PLAY);
+			transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_PLAY);
 		}
 		nextItemInGroup();
 		if (ImGui.button(Icons.Play.STOP + "##tlStop", tBtn, tBtn)) {
 			if (BeatBlock.musicPlayer != null) BeatBlock.musicPlayer.stop();
 			seekTo(editor, 0);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_STOP);
+		transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_STOP);
 		nextItemInGroup();
 		if (ImGui.button(Icons.Play.FORWARD + "##tlFwdBeat", tBtn, tBtn)) {
-			seekBy(editor, seekStep);
+			seekBy(editor, stepSeek);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_FWD_BEAT);
-		nextItemInGroup();
-		if (compactTextButton("+5", "##tlFwd5", tBtn)) {
-			seekBy(editor, 5.0);
-		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_FWD_5S);
-		nextItemInGroup();
-		if (ImGui.button(Icons.Action.ARROW_RIGHT + "##tlNextEvt", tBtn, tBtn)) {
-			jumpToNearbyEvent(editor, true);
-		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_NEXT_EVENT);
+		transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_FWD_BEAT);
 		nextItemInGroup();
 		if (ImGui.button(Icons.Play.FORWARD_END + "##tlToEnd", tBtn, tBtn)) {
 			seekTo(editor, getDuration(editor));
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TO_END);
+		transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_TO_END);
+		nextGroup();
+		if (ImGui.button(Icons.Action.ARROW_LEFT + "##tlPrevEvt", tBtn, tBtn)) {
+			jumpToNearbyEvent(editor, false);
+		}
+		transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_PREV_EVENT);
+		nextItemInGroup();
+		if (ImGui.button(Icons.Action.ARROW_RIGHT + "##tlNextEvt", tBtn, tBtn)) {
+			jumpToNearbyEvent(editor, true);
+		}
+		transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_NEXT_EVENT);
 		nextItemInGroup();
 		if (ImGui.button(Icons.Timeline.MARKER + "##tlAddMarker", tBtn, tBtn)) {
 			addMarkerAtCurrentTime(editor);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_ADD_MARKER);
+		transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_ADD_MARKER);
 		IconButtonStyle.popBeatBlockIconButton();
+		if (transportTooltip != null) {
+			ImGui.setTooltip(transportTooltip);
+		}
 
 		if (compactToolbar) {
 			nextGroup();
@@ -399,13 +392,9 @@ public final class TimelineToolbar {
 	}
 
 	private static float estimateTransportWidth(float tBtn) {
-		float stepTextWidth = Math.max(compactTextButtonWidth("-5"), compactTextButtonWidth("+5"));
-		float buttonSum = tBtn + tBtn + stepTextWidth + tBtn + tBtn + tBtn + tBtn + stepTextWidth + tBtn + tBtn + tBtn;
-		return buttonSum + TOOLBAR_ITEM_SPACING * 10f;
-	}
-
-	private static float compactTextButtonWidth(String label) {
-		return Math.max(TimelineLayout.ROW_HEIGHT, ImGui.calcTextSize(label).x + 14f);
+		// to-start, back-step, prev-event, play/pause, stop, fwd-step, next-event, to-end, add-marker
+		float buttonSum = tBtn * 9f;
+		return buttonSum + TOOLBAR_ITEM_SPACING * 8f;
 	}
 
 	private static float buttonWidth(String label) {
@@ -428,11 +417,6 @@ public final class TimelineToolbar {
 		ImGui.sameLine(0f, TOOLBAR_GROUP_SPACING);
 	}
 
-	private static boolean compactTextButton(String label, String idSuffix, float minSize) {
-		float width = Math.max(minSize, ImGui.calcTextSize(label).x + 14f);
-		return ImGui.button(label + idSuffix, width, minSize);
-	}
-
 	private static float comboWidthForLabels(String[] labels) {
 		float maxText = 0f;
 		for (String label : labels) {
@@ -440,6 +424,13 @@ public final class TimelineToolbar {
 			maxText = Math.max(maxText, ImGui.calcTextSize(label).x);
 		}
 		return maxText + 40f;
+	}
+
+	private static String hoveredTooltip(String current, String text) {
+		if (current == null && ImGui.isItemHovered()) {
+			return text;
+		}
+		return current;
 	}
 
 	private static int indexOfClosestZoom(float zoom) {
