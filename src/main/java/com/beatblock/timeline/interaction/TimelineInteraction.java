@@ -15,7 +15,12 @@ import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseCursor;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 时间线输入：鼠标按下/拖拽/释放，使用 TimelineLayout 四区域做 HitTest，驱动状态与 Clock。
@@ -29,11 +34,35 @@ public final class TimelineInteraction {
 	/** 轨道头与内容区分割线可拖动区域宽度（像素） */
 	private static final float DIVIDER_HIT_PX = 5f;
 	private static final String POPUP_EVENT_CONTEXT = "##TimelineEventContextPopup";
+	private static final class ClipboardEvent {
+		final String trackId;
+		final String clipId;
+		final double timeSeconds;
+		final com.beatblock.timeline.EventType type;
+		final Map<String, Object> parameters;
+
+		ClipboardEvent(String trackId, String clipId, double timeSeconds,
+				com.beatblock.timeline.EventType type, Map<String, Object> parameters) {
+			this.trackId = trackId;
+			this.clipId = clipId;
+			this.timeSeconds = timeSeconds;
+			this.type = type;
+			this.parameters = parameters;
+		}
+	}
 
 	private IAudioPlayer audioPlayer;
+	private final List<ClipboardEvent> clipboardEvents = new ArrayList<>();
+	private String contextTrackId;
+	private String contextClipId;
+	private double contextTimeSeconds;
 
 	public void setAudioPlayer(IAudioPlayer audioPlayer) {
 		this.audioPlayer = audioPlayer;
+	}
+
+	public TimelineInteraction() {
+		contextTimeSeconds = 0;
 	}
 
 	private static final String[] INTERACTIVE_TRACK_IDS = {
@@ -82,6 +111,17 @@ public final class TimelineInteraction {
 		if (ImGui.isKeyPressed(ImGuiKey.Delete)) {
 			deleteSelectedEvents(timeline, selectionState);
 		}
+		if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.C)) {
+			copySelectedEvents(timeline, selectionState);
+		}
+		if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.V)) {
+			double anchor = contextTimeSeconds;
+			if (layout.contentContains(mx, my)) {
+				float localX = Math.max(0, Math.min(mx - layout.contentLeft, layout.contentWidth));
+				anchor = viewState.screenToTime(localX);
+			}
+			pasteClipboardEvents(timeline, selectionState, anchor);
+		}
 
 		float wheel = ImGui.getIO().getMouseWheel();
 		if (ImGui.getIO().getKeyCtrl() && wheel != 0
@@ -106,6 +146,10 @@ public final class TimelineInteraction {
 		}
 
 		if (ImGui.isMouseClicked(1) && layout.contentContains(mx, my)) {
+			contextTimeSeconds = viewState.screenToTime(Math.max(0, Math.min(mx - layout.contentLeft, layout.contentWidth)));
+			HitResult hit = hitContentAtMouse(timeline, viewState, layout, mx, my);
+			contextTrackId = hit != null ? hit.getTrackId() : null;
+			contextClipId = hit != null ? hit.getClipId() : null;
 			ImGui.openPopup(POPUP_EVENT_CONTEXT);
 		}
 		renderContextMenu(timeline, selectionState);
@@ -229,14 +273,15 @@ public final class TimelineInteraction {
 		}
 	}
 
-	private static void renderContextMenu(Timeline timeline, SelectionState selectionState) {
+	private void renderContextMenu(Timeline timeline, SelectionState selectionState) {
 		if (!ImGui.beginPopup(POPUP_EVENT_CONTEXT)) return;
 		boolean hasSelection = selectionState != null && !selectionState.getSelectedEvents().isEmpty();
+		boolean hasClipboard = !clipboardEvents.isEmpty();
 		if (ImGui.menuItem("Copy", "Ctrl+C", false, hasSelection)) {
-			// TODO: 剪贴板协议待定义
+			copySelectedEvents(timeline, selectionState);
 		}
-		if (ImGui.menuItem("Paste", "Ctrl+V", false, false)) {
-			// TODO: 粘贴逻辑待实现
+		if (ImGui.menuItem("Paste", "Ctrl+V", false, hasClipboard)) {
+			pasteClipboardEvents(timeline, selectionState, contextTimeSeconds);
 		}
 		if (ImGui.menuItem("Delete", "Del", false, hasSelection)) {
 			deleteSelectedEvents(timeline, selectionState);
@@ -246,6 +291,126 @@ public final class TimelineInteraction {
 			// TODO: 属性面板待实现
 		}
 		ImGui.endPopup();
+	}
+
+	private static HitResult hitContentAtMouse(Timeline timeline, TimelineViewState viewState,
+			TimelineLayout layout, float mx, float my) {
+		for (int i = 0; i < layout.getInteractiveRowCount() && i < INTERACTIVE_TRACK_IDS.length; i++) {
+			int logicalRow = TimelineLayout.INTERACTIVE_ROW_INDICES[i];
+			if (!layout.isRowVisible(logicalRow)) continue;
+			float rowScreenY = layout.getRowScreenY(logicalRow);
+			HitResult hit = HitTestSystem.hitTestTrackContent(
+				timeline,
+				INTERACTIVE_TRACK_IDS[i],
+				mx,
+				my,
+				layout.contentLeft,
+				rowScreenY,
+				TimelineLayout.ROW_HEIGHT,
+				layout.contentWidth,
+				viewState);
+			if (!hit.isEmpty()) return hit;
+		}
+		return HitResult.empty();
+	}
+
+	private void copySelectedEvents(Timeline timeline, SelectionState selectionState) {
+		clipboardEvents.clear();
+		if (timeline == null || selectionState == null) return;
+		if (selectionState.getSelectedEvents().isEmpty()) return;
+		Set<String> selected = new HashSet<>(selectionState.getSelectedEvents());
+		for (Track track : timeline.getTracks()) {
+			for (Clip clip : track.getClips()) {
+				for (TimelineEvent e : clip.getEvents()) {
+					if (!selected.contains(e.getId())) continue;
+					clipboardEvents.add(new ClipboardEvent(
+						track.getId(),
+						clip.getId(),
+						e.getTimeSeconds(),
+						e.getType(),
+						new HashMap<>(e.getParameters())
+					));
+				}
+			}
+		}
+		clipboardEvents.sort(Comparator.comparingDouble(a -> a.timeSeconds));
+	}
+
+	private void pasteClipboardEvents(Timeline timeline, SelectionState selectionState, double anchorTimeSeconds) {
+		if (timeline == null || selectionState == null) return;
+		if (clipboardEvents.isEmpty()) return;
+
+		double baseTime = clipboardEvents.get(0).timeSeconds;
+		double maxTime = clipboardEvents.get(clipboardEvents.size() - 1).timeSeconds;
+		double span = Math.max(0.2, maxTime - baseTime);
+		selectionState.clearEvents();
+		Set<String> dirtyTracks = new HashSet<>();
+		Map<String, Clip> targetClipsByTrack = new HashMap<>();
+
+		for (ClipboardEvent src : clipboardEvents) {
+			double newTime = Math.max(0, anchorTimeSeconds + (src.timeSeconds - baseTime));
+			Track targetTrack = resolvePasteTargetTrack(timeline, src);
+			if (targetTrack == null) continue;
+			Clip targetClip = resolveOrCreatePasteTargetClip(
+				timeline,
+				targetTrack,
+				newTime,
+				anchorTimeSeconds,
+				span,
+				targetClipsByTrack);
+			if (targetClip == null) continue;
+			TimelineEvent added = TimelineOperations.addEvent(targetClip, newTime, src.type, new HashMap<>(src.parameters));
+			if (added != null) {
+				selectionState.selectEvent(added.getId());
+				dirtyTracks.add(targetTrack.getId());
+			}
+		}
+
+		for (String trackId : dirtyTracks) {
+			timeline.markAnimationEventsDirty(trackId);
+		}
+	}
+
+	private Track resolvePasteTargetTrack(Timeline timeline, ClipboardEvent src) {
+		if (contextTrackId != null) {
+			Track t = timeline.getTrack(contextTrackId);
+			if (t != null) return t;
+		}
+		return timeline.getTrack(src.trackId);
+	}
+
+	private Clip resolveOrCreatePasteTargetClip(
+			Timeline timeline,
+			Track targetTrack,
+			double eventTime,
+			double anchorTime,
+			double span,
+			Map<String, Clip> targetClipsByTrack) {
+		Clip cached = targetClipsByTrack.get(targetTrack.getId());
+		if (cached != null) return cached;
+
+		if (contextTrackId != null && contextTrackId.equals(targetTrack.getId()) && contextClipId != null) {
+			Clip contextClip = targetTrack.getClip(contextClipId);
+			if (contextClip != null) {
+				targetClipsByTrack.put(targetTrack.getId(), contextClip);
+				return contextClip;
+			}
+		}
+
+		for (Clip clip : targetTrack.getClips()) {
+			if (eventTime >= clip.getStartTimeSeconds() && eventTime <= clip.getEndTimeSeconds()) {
+				targetClipsByTrack.put(targetTrack.getId(), clip);
+				return clip;
+			}
+		}
+
+		double start = Math.max(0, anchorTime - 0.05);
+		double end = Math.max(start + 0.2, start + span + 0.1);
+		Clip created = TimelineOperations.addClip(targetTrack, start, end);
+		if (created != null) {
+			targetClipsByTrack.put(targetTrack.getId(), created);
+		}
+		return created;
 	}
 
 	private static void deleteSelectedEvents(Timeline timeline, SelectionState selectionState) {
