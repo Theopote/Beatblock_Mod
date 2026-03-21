@@ -240,8 +240,18 @@ public final class TimelineInteraction {
 				ImGui.openPopup(POPUP_MARKER_CONTEXT);
 				return;
 			}
-			if (findMarkerIndexAtMouse(timeline, viewState, layout, mx, my) >= 0) {
-				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+		}
+
+		if (!alt && ImGui.isMouseDoubleClicked(0) && layout.rulerContains(mx, my)) {
+			boolean overLoopHandle = toolbarState != null
+				&& (isMouseOverLoopInHandle(mx, my, layout, viewState, toolbarState)
+					|| isMouseOverLoopOutHandle(mx, my, layout, viewState, toolbarState));
+			int markerIndex = findMarkerIndexAtMouse(timeline, viewState, layout, mx, my);
+			if (!overLoopHandle && markerIndex < 0) {
+				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+				addMarkerAtTime(timeline, t);
+				if (clock != null) seekClockAndMusic(clock, t);
+				return;
 			}
 		}
 
@@ -445,6 +455,12 @@ public final class TimelineInteraction {
 			if (Math.abs(mx - x) <= LOOP_HANDLE_HIT_PX) return i;
 		}
 		return -1;
+	}
+
+	private static void addMarkerAtTime(Timeline timeline, double timeSeconds) {
+		if (timeline == null) return;
+		int markerIndex = timeline.getMarkers().size() + 1;
+		timeline.addMarker(new TimelineMarker(timeSeconds, "Marker " + markerIndex));
 	}
 
 	private void renderContextMenu(Timeline timeline, SelectionState selectionState) {

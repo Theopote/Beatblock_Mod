@@ -37,7 +37,7 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_FWD_5S = "前进 5 秒";
 	private static final String TOOLTIP_PREV_EVENT = "跳到上一事件点";
 	private static final String TOOLTIP_NEXT_EVENT = "跳到下一事件点";
-	private static final String TOOLTIP_ADD_MARKER = "在当前时间创建 Marker";
+	private static final String TOOLTIP_ADD_MARKER = "在当前时间创建 Marker；也可双击标尺空白处";
 	private static final String TOOLTIP_LOOP_IN = "将当前时间设为循环起点；也可 Alt+左键点击标尺";
 	private static final String TOOLTIP_LOOP_OUT = "将当前时间设为循环终点；也可 Alt+右键点击标尺";
 	private static final String TOOLTIP_LOOP_CLEAR = "清除循环区间（保留 Loop 开关）";
