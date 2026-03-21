@@ -7,6 +7,7 @@ import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineRenderer;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
+import com.beatblock.timeline.rendering.TimelineUiStateStore;
 
 /**
  * ImGui 时间线编辑器入口：协调渲染与交互，UI 与数据分离。
@@ -21,6 +22,7 @@ public final class TimelineEditor {
 	private final CommandManager commandManager;
 	private final TimelineToolbarState toolbarState = new TimelineToolbarState();
 	private final TimelineTrackListState trackListState = new TimelineTrackListState();
+	private final TimelineUiStateStore uiStateStore = new TimelineUiStateStore();
 	private final TimelineLayout frameLayout = new TimelineLayout();
 	private boolean frameLayoutBuilt;
 	private final IAudioPlayer audioPlayer;
@@ -50,6 +52,7 @@ public final class TimelineEditor {
 		this.interactionSystem = new TimelineInteraction();
 		this.interactionSystem.setAudioPlayer(audioPlayer);
 		this.commandManager = new CommandManager();
+		this.uiStateStore.loadTrackListState(trackListState);
 	}
 
 	/** 无音频源时使用（可独立运行和测试）。 */
@@ -183,5 +186,6 @@ public final class TimelineEditor {
 			layout,
 			toolbarState
 		);
+		uiStateStore.syncAndFlush(trackListState);
 	}
 }

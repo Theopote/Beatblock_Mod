@@ -124,4 +124,70 @@ public final class TimelineTrackListState {
 			else collapsedGroupRows.add(groupRowIndex);
 		}
 	}
+
+	/** 可持久化：复制可见状态数组。 */
+	public boolean[] copyVisibleStates() {
+		return visible.clone();
+	}
+
+	/** 可持久化：复制锁定状态数组。 */
+	public boolean[] copyLockedStates() {
+		return locked.clone();
+	}
+
+	/** 可持久化：复制自定义名称映射。 */
+	public Map<Integer, String> copyCustomNames() {
+		return new HashMap<>(customNames);
+	}
+
+	/** 可持久化：复制组折叠状态。 */
+	public Set<Integer> copyCollapsedGroupRows() {
+		return new HashSet<>(collapsedGroupRows);
+	}
+
+	/**
+	 * 应用外部持久化状态。
+	 *
+	 * @param widthPx 轨道头宽度
+	 * @param visibleStates 可见状态（长度不足时忽略超出部分）
+	 * @param lockedStates 锁定状态（长度不足时忽略超出部分）
+	 * @param names 自定义名称
+	 * @param collapsedRows 折叠组行（仅接受 0、5）
+	 */
+	public void applyPersistedState(
+		float widthPx,
+		boolean[] visibleStates,
+		boolean[] lockedStates,
+		Map<Integer, String> names,
+		Set<Integer> collapsedRows
+	) {
+		setTrackHeaderWidth(widthPx);
+
+		if (visibleStates != null) {
+			int n = Math.min(visible.length, visibleStates.length);
+			for (int i = 0; i < n; i++) visible[i] = visibleStates[i];
+		}
+
+		if (lockedStates != null) {
+			int n = Math.min(locked.length, lockedStates.length);
+			for (int i = 0; i < n; i++) locked[i] = lockedStates[i];
+		}
+
+		customNames.clear();
+		if (names != null) {
+			for (Map.Entry<Integer, String> e : names.entrySet()) {
+				Integer idx = e.getKey();
+				if (idx != null && idx >= 0 && idx < TimelineLayout.CONTENT_ROW_COUNT) {
+					setCustomName(idx, e.getValue());
+				}
+			}
+		}
+
+		collapsedGroupRows.clear();
+		if (collapsedRows != null) {
+			for (Integer row : collapsedRows) {
+				if (row != null) setGroupCollapsed(row, true);
+			}
+		}
+	}
 }
