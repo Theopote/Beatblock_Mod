@@ -320,6 +320,10 @@ public final class TimelineInteraction {
 				DragController.dragEvent(timeline, interactionState.getActiveTrackId(), interactionState.getActiveClipId(), interactionState.getActiveEventId(), t, duration, toolbarState, viewState);
 				return;
 			}
+			if (interactionState.getMode() == InteractionMode.BOX_SELECT && selectionBox != null) {
+				selectionBox.setEnd(mx, my);
+				return;
+			}
 			return;
 		}
 
