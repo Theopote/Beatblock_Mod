@@ -11,6 +11,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,6 +41,9 @@ public final class AudioAnalysisService {
 	});
 	private volatile String cachedPythonSummary = "Python: 检测中...";
 	private volatile long nextPythonSummaryRefreshAtMs;
+	private static final long PYTHON_PROBE_CACHE_TTL_MS = 5 * 60 * 1000L;
+	private static final long PYTHON_PROBE_TIMEOUT_MS = 3000L;
+	private final Map<String, PythonProbeInfo> pythonProbeCache = new ConcurrentHashMap<>();
 
 	// ── 公共 API ─────────────────────────────────────────────────────────────
 
@@ -133,9 +138,19 @@ public final class AudioAnalysisService {
 				请确认已安装 Python，或在 config/beatblock/python_path.txt 中指定完整路径。""");
 			return;
 		}
-		if (!isSupportedPythonVersion(pythonExe)) {
+		PythonProbeInfo pythonProbe = getPythonProbeInfo(pythonExe);
+		if (!pythonProbe.probeOk) {
+			onError.accept("无法探测 Python 运行环境：" + pythonProbe.detail);
+			return;
+		}
+		if (!pythonProbe.isSupportedVersion()) {
 			onError.accept("检测到 Python 版本过新（>=3.13），当前音频分析依赖在该版本上可能无预编译包。\n"
 				+ "请在 config/beatblock/python_path.txt 指定 Python 3.10~3.12 路径后重试。");
+			return;
+		}
+		if (!pythonProbe.hasPip) {
+			onError.accept("当前 Python 没有可用 pip。请先执行 python -m ensurepip --upgrade。\n"
+				+ "当前解释器：" + pythonProbe.executablePath);
 			return;
 		}
 
@@ -324,7 +339,7 @@ public final class AudioAnalysisService {
 		if (Files.exists(custom)) {
 			try {
 				String txt = Files.readString(custom).trim();
-				if (!txt.isEmpty() && isExecutable(txt) && isUsablePythonForAnalyzer(txt)) {
+				if (!txt.isEmpty() && isUsablePythonForAnalyzer(txt)) {
 					return txt;
 				}
 			} catch (IOException ignored) {}
@@ -343,7 +358,6 @@ public final class AudioAnalysisService {
 		candidates.addAll(List.of("python", "python3"));
 
 		for (String cand : candidates) {
-			if (!isExecutable(cand)) continue;
 			if (!isUsablePythonForAnalyzer(cand)) continue;
 			return cand;
 		}
@@ -360,94 +374,76 @@ public final class AudioAnalysisService {
 			return "Python: 未找到（请配置 config/beatblock/python_path.txt）";
 		}
 
-		String version = readPythonVersion(exe);
+		PythonProbeInfo info = getPythonProbeInfo(exe);
+		String version = info.versionString();
 		if (version == null || version.isBlank()) version = "unknown";
-		return "Python: " + version + " · " + exe;
-	}
-
-	private String readPythonVersion(String pythonExe) {
-		try {
-			Process p = new ProcessBuilder(
-				pythonExe,
-				"-c",
-				"import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
-			).redirectErrorStream(true).start();
-			String out = readProcessOutput(p).trim();
-			int code = waitProcess(p);
-			if (code != 0) return "unknown";
-			return out;
-		} catch (Exception e) {
-			return "unknown";
-		}
-	}
-
-	private boolean isExecutable(String exe) {
-		try {
-			Process p = new ProcessBuilder(exe, "--version")
-				.redirectErrorStream(true)
-				.start();
-			p.waitFor(3, TimeUnit.SECONDS);
-			return p.exitValue() == 0;
-		} catch (Exception e) {
-			return false;
-		}
-	}
-
-	private boolean isSupportedPythonVersion(String pythonExe) {
-		try {
-			Process p = new ProcessBuilder(
-				pythonExe,
-				"-c",
-				"import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
-			).redirectErrorStream(true).start();
-			String out = readProcessOutput(p).trim();
-			int code = waitProcess(p);
-			if (code != 0 || out.isBlank()) return true;
-
-			String[] parts = out.split("\\.");
-			if (parts.length < 2) return true;
-			int major = Integer.parseInt(parts[0]);
-			int minor = Integer.parseInt(parts[1]);
-			if (major != 3) return false;
-			return minor <= 12;
-		} catch (Exception e) {
-			return true;
-		}
-	}
-
-	private boolean hasPipModule(String pythonExe) {
-		try {
-			Process p = new ProcessBuilder(
-				pythonExe,
-				"-c",
-				"import pip"
-			).redirectErrorStream(true).start();
-			waitProcess(p);
-			return p.exitValue() == 0;
-		} catch (Exception e) {
-			return false;
-		}
+		String path = (info.executablePath != null && !info.executablePath.isBlank())
+			? info.executablePath
+			: exe;
+		return "Python: " + version + " · " + path;
 	}
 
 	private boolean isUsablePythonForAnalyzer(String pythonExe) {
-		String resolvedPath = readPythonExecutablePath(pythonExe);
-		if (isBlockedAutoPython(resolvedPath)) return false;
-		if (!isSupportedPythonVersion(pythonExe)) return false;
-		return hasPipModule(pythonExe);
+		PythonProbeInfo info = getPythonProbeInfo(pythonExe);
+		if (!info.probeOk) return false;
+		if (isBlockedAutoPython(info.executablePath)) return false;
+		if (!info.isSupportedVersion()) return false;
+		return info.hasPip;
 	}
 
-	private String readPythonExecutablePath(String pythonExe) {
+	private PythonProbeInfo getPythonProbeInfo(String pythonExe) {
+		if (pythonExe == null || pythonExe.isBlank()) {
+			return PythonProbeInfo.failed("Python 路径为空");
+		}
+
+		long now = System.currentTimeMillis();
+		PythonProbeInfo cached = pythonProbeCache.get(pythonExe);
+		if (cached != null && (now - cached.checkedAtMs) <= PYTHON_PROBE_CACHE_TTL_MS) {
+			return cached;
+		}
+
+		PythonProbeInfo fresh = probePythonInfoOnce(pythonExe);
+		pythonProbeCache.put(pythonExe, fresh);
+		return fresh;
+	}
+
+	private PythonProbeInfo probePythonInfoOnce(String pythonExe) {
 		try {
 			Process p = new ProcessBuilder(
 				pythonExe,
 				"-c",
-				"import sys; print(sys.executable)"
+				"import sys; "
+					+ "try:\n import pip\n has_pip=1\n"
+					+ "except Exception:\n has_pip=0\n"
+					+ "print(f'{sys.version_info.major}|{sys.version_info.minor}|{sys.version_info.micro}|{has_pip}|{sys.executable}')"
 			).redirectErrorStream(true).start();
+
+			boolean finished = p.waitFor(PYTHON_PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+			if (!finished) {
+				p.destroyForcibly();
+				return PythonProbeInfo.failed("探测超时");
+			}
+
 			String out = readProcessOutput(p).trim();
-			waitProcess(p);
-			return out;
+			if (p.exitValue() != 0) {
+				String detail = sanitizeProcessOutput(out);
+				if (detail.isBlank()) detail = "退出码=" + p.exitValue();
+				return PythonProbeInfo.failed(detail);
+			}
+
+			String[] parts = out.split("\\|", 5);
+			if (parts.length < 5) {
+				return PythonProbeInfo.failed("探测输出格式异常: " + sanitizeProcessOutput(out));
+			}
+
+			int major = Integer.parseInt(parts[0].trim());
+			int minor = Integer.parseInt(parts[1].trim());
+			int micro = Integer.parseInt(parts[2].trim());
+			boolean hasPip = "1".equals(parts[3].trim());
+			String executable = parts[4].trim();
+			return PythonProbeInfo.ok(major, minor, micro, hasPip, executable);
 		} catch (Exception e) {
-			return "";
+			return PythonProbeInfo.failed(e.getClass().getSimpleName() + ": " + e.getMessage());
 		}
 	}
 
@@ -487,7 +483,7 @@ public final class AudioAnalysisService {
 			String detail = sanitizeProcessOutput(installOut);
 			if (detail.isEmpty()) detail = sanitizeProcessOutput(checkOut);
 			String hint = explainPythonError(detail);
-			String resolvedExe = readPythonExecutablePath(pythonExe);
+			String resolvedExe = getPythonProbeInfo(pythonExe).executablePath;
 			String cmdExe = resolvedExe != null && !resolvedExe.isBlank() ? resolvedExe : pythonExe;
 			return "Python 依赖安装失败，请手动执行：\n"
 				+ "\"" + cmdExe + "\" -m pip install -r \"" + requirementsPath.toAbsolutePath() + "\"\n"
@@ -560,6 +556,54 @@ public final class AudioAnalysisService {
 	@FunctionalInterface
 	public interface BiConsumer<A, B> {
 		void accept(A a, B b);
+	}
+
+	private static final class PythonProbeInfo {
+		private final boolean probeOk;
+		private final int major;
+		private final int minor;
+		private final int micro;
+		private final boolean hasPip;
+		private final String executablePath;
+		private final String detail;
+		private final long checkedAtMs;
+
+		private PythonProbeInfo(
+			boolean probeOk,
+			int major,
+			int minor,
+			int micro,
+			boolean hasPip,
+			String executablePath,
+			String detail,
+			long checkedAtMs
+		) {
+			this.probeOk = probeOk;
+			this.major = major;
+			this.minor = minor;
+			this.micro = micro;
+			this.hasPip = hasPip;
+			this.executablePath = executablePath;
+			this.detail = detail;
+			this.checkedAtMs = checkedAtMs;
+		}
+
+		private static PythonProbeInfo ok(int major, int minor, int micro, boolean hasPip, String executablePath) {
+			return new PythonProbeInfo(true, major, minor, micro, hasPip, executablePath, "", System.currentTimeMillis());
+		}
+
+		private static PythonProbeInfo failed(String detail) {
+			return new PythonProbeInfo(false, 0, 0, 0, false, "", detail == null ? "" : detail, System.currentTimeMillis());
+		}
+
+		private boolean isSupportedVersion() {
+			return major == 3 && minor <= 12;
+		}
+
+		private String versionString() {
+			if (!probeOk) return "unknown";
+			return major + "." + minor + "." + micro;
+		}
 	}
 }
 
