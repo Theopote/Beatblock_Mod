@@ -4,13 +4,18 @@ import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.IAudioPlayer;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
+import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseCursor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 时间线输入：鼠标按下/拖拽/释放，使用 TimelineLayout 四区域做 HitTest，驱动状态与 Clock。
@@ -23,6 +28,7 @@ public final class TimelineInteraction {
 	private static final float PLAYHEAD_HIT_PX = 6f;
 	/** 轨道头与内容区分割线可拖动区域宽度（像素） */
 	private static final float DIVIDER_HIT_PX = 5f;
+	private static final String POPUP_EVENT_CONTEXT = "##TimelineEventContextPopup";
 
 	private IAudioPlayer audioPlayer;
 
@@ -73,6 +79,10 @@ public final class TimelineInteraction {
 
 		if (!ImGui.isWindowHovered()) return;
 
+		if (ImGui.isKeyPressed(ImGuiKey.Delete)) {
+			deleteSelectedEvents(timeline, selectionState);
+		}
+
 		float wheel = ImGui.getIO().getMouseWheel();
 		if (ImGui.getIO().getKeyCtrl() && wheel != 0
 				&& (layout.contentContains(mx, my) || layout.rulerContains(mx, my))) {
@@ -94,6 +104,11 @@ public final class TimelineInteraction {
 				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
 			}
 		}
+
+		if (ImGui.isMouseClicked(1) && layout.contentContains(mx, my)) {
+			ImGui.openPopup(POPUP_EVENT_CONTEXT);
+		}
+		renderContextMenu(timeline, selectionState);
 
 		if (ImGui.isMouseReleased(0)) {
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT && interactionState.getActiveEventId() != null) {
@@ -211,6 +226,43 @@ public final class TimelineInteraction {
 		clock.seek(timeSeconds);
 		if (audioPlayer != null) {
 			audioPlayer.setCurrentTimeSeconds(clock.getCurrentTimeSeconds());
+		}
+	}
+
+	private static void renderContextMenu(Timeline timeline, SelectionState selectionState) {
+		if (!ImGui.beginPopup(POPUP_EVENT_CONTEXT)) return;
+		boolean hasSelection = selectionState != null && !selectionState.getSelectedEvents().isEmpty();
+		if (ImGui.menuItem("Copy", "Ctrl+C", false, hasSelection)) {
+			// TODO: 剪贴板协议待定义
+		}
+		if (ImGui.menuItem("Paste", "Ctrl+V", false, false)) {
+			// TODO: 粘贴逻辑待实现
+		}
+		if (ImGui.menuItem("Delete", "Del", false, hasSelection)) {
+			deleteSelectedEvents(timeline, selectionState);
+		}
+		ImGui.separator();
+		if (ImGui.menuItem("Properties", null, false, false)) {
+			// TODO: 属性面板待实现
+		}
+		ImGui.endPopup();
+	}
+
+	private static void deleteSelectedEvents(Timeline timeline, SelectionState selectionState) {
+		if (timeline == null || selectionState == null) return;
+		if (selectionState.getSelectedEvents().isEmpty()) return;
+
+		List<String> eventIds = new ArrayList<>(selectionState.getSelectedEvents());
+		for (Track track : timeline.getTracks()) {
+			for (Clip clip : track.getClips()) {
+				for (String eventId : eventIds) {
+					if (eventId == null) continue;
+					if (TimelineOperations.removeEvent(clip, eventId)) {
+						selectionState.deselectEvent(eventId);
+						timeline.markAnimationEventsDirty(track.getId());
+					}
+				}
+			}
 		}
 	}
 
