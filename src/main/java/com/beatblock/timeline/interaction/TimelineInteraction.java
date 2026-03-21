@@ -12,6 +12,7 @@ import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import imgui.ImGui;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseCursor;
 import imgui.type.ImString;
@@ -179,7 +180,7 @@ public final class TimelineInteraction {
 			return;
 		}
 
-		if (!ImGui.isWindowHovered()) return;
+		if (!ImGui.isWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenBlockedByPopup)) return;
 		boolean alt = ImGui.getIO().getKeyAlt();
 
 		if (ImGui.isKeyPressed(ImGuiKey.Delete)) {
@@ -238,7 +239,6 @@ public final class TimelineInteraction {
 				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
 				markerNameBuffer.set(marker.getName());
 				ImGui.openPopup(POPUP_MARKER_CONTEXT);
-				return;
 			}
 		}
 
@@ -392,6 +392,9 @@ public final class TimelineInteraction {
 					return;
 				}
 			}
+			if (!layout.contentContains(mx, my)) {
+				return;
+			}
 			selectionState.clearEvents();
 			selectionState.clearClips();
 			if (selectionBox != null) {
@@ -470,7 +473,7 @@ public final class TimelineInteraction {
 			return;
 		}
 
-		if (!ImGui.isWindowHovered()) return;
+		if (!ImGui.isWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenBlockedByPopup)) return;
 		boolean alt = ImGui.getIO().getKeyAlt();
 
 		float wheel = ImGui.getIO().getMouseWheel();
@@ -506,7 +509,6 @@ public final class TimelineInteraction {
 				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
 				markerNameBuffer.set(marker.getName());
 				ImGui.openPopup(POPUP_MARKER_CONTEXT);
-				return;
 			}
 		}
 
