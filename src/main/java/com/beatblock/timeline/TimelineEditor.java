@@ -127,14 +127,12 @@ public final class TimelineEditor {
 	public void handleRulerInteraction() {
 		if (timeline == null) return;
 		TimelineLayout layout = getOrBuildFrameLayout(false);
-		interactionSystem.update(
+		interactionSystem.updateRulerOnly(
 			timeline,
 			state.getViewState(),
 			state.getInteractionState(),
 			state.getSelectionState(),
 			state.getClock(),
-			state.getSelectionBox(),
-			trackListState,
 			layout,
 			toolbarState
 		);

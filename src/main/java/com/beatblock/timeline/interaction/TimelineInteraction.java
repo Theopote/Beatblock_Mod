@@ -407,6 +407,176 @@ public final class TimelineInteraction {
 		}
 	}
 
+	/**
+	 * 仅处理固定标尺区域交互（主窗口上下文）：Scrub、Loop 句柄、Marker 点击/拖拽/右键菜单。
+	 * 不处理轨道内容区命中与框选，避免与子窗口的完整交互逻辑相互干扰。
+	 */
+	public void updateRulerOnly(
+		Timeline timeline,
+		TimelineViewState viewState,
+		InteractionState interactionState,
+		SelectionState selectionState,
+		TimelineClock clock,
+		TimelineLayout layout,
+		TimelineToolbarState toolbarState
+	) {
+		if (timeline == null || viewState == null || interactionState == null || selectionState == null || layout == null) return;
+
+		float mx = ImGui.getMousePosX();
+		float my = ImGui.getMousePosY();
+		double duration = timeline.getDurationSeconds();
+		if (duration <= 0) duration = 60.0;
+		if (layout.contentWidth > 0) {
+			viewState.setViewEndTimeSeconds(viewState.screenToTime(layout.contentWidth));
+		}
+
+		if (toolbarState != null && interactionState.getMode() == InteractionMode.LOOP_IN_DRAG) {
+			double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+			toolbarState.setLoopInSeconds(t);
+			if (toolbarState.getLoopOutSeconds() > 0 && toolbarState.getLoopOutSeconds() <= t) {
+				toolbarState.setLoopOutSeconds(t + 0.1);
+			}
+			if (clock != null) seekClockAndMusic(clock, t);
+			if (ImGui.isMouseReleased(0)) {
+				interactionState.setMode(InteractionMode.NONE);
+			}
+			return;
+		}
+
+		if (interactionState.getMode() == InteractionMode.MARKER_DRAG) {
+			String markerId = interactionState.getActiveMarkerId();
+			int markerIndex = timeline.findMarkerIndexById(markerId);
+			if (markerIndex >= 0) {
+				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
+				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+				timeline.updateMarker(markerId, t, marker.getName());
+				if (clock != null) seekClockAndMusic(clock, t);
+			}
+			if (ImGui.isMouseReleased(0)) {
+				interactionState.setMode(InteractionMode.NONE);
+				interactionState.clearActive();
+			}
+			return;
+		}
+
+		if (toolbarState != null && interactionState.getMode() == InteractionMode.LOOP_OUT_DRAG) {
+			double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+			double loopIn = toolbarState.getLoopInSeconds();
+			toolbarState.setLoopOutSeconds(Math.max(t, loopIn + 0.1));
+			if (clock != null) seekClockAndMusic(clock, toolbarState.getLoopOutSeconds());
+			if (ImGui.isMouseReleased(0)) {
+				interactionState.setMode(InteractionMode.NONE);
+			}
+			return;
+		}
+
+		if (!ImGui.isWindowHovered()) return;
+		boolean alt = ImGui.getIO().getKeyAlt();
+
+		float wheel = ImGui.getIO().getMouseWheel();
+		if (ImGui.getIO().getKeyCtrl() && wheel != 0 && layout.rulerContains(mx, my)) {
+			float anchorX = mx - layout.contentLeft;
+			anchorX = Math.max(0, Math.min(anchorX, layout.contentWidth));
+			double anchorTime = viewState.screenToTime(anchorX);
+			float zoomFactor = (float) Math.pow(1.15, wheel);
+			float newZoom = viewState.getZoom() * zoomFactor;
+			viewState.zoomAt(anchorTime, anchorX, newZoom);
+			if (layout.contentWidth > 0) {
+				viewState.setViewEndTimeSeconds(viewState.screenToTime(layout.contentWidth));
+			}
+		}
+
+		if (toolbarState != null && layout.rulerContains(mx, my) && interactionState.getMode() == InteractionMode.NONE) {
+			if (isMouseOverLoopInHandle(mx, my, layout, viewState, toolbarState)
+				|| isMouseOverLoopOutHandle(mx, my, layout, viewState, toolbarState)) {
+				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+			}
+		}
+
+		if (alt && toolbarState != null && layout.rulerContains(mx, my) && ImGui.isMouseClicked(1)) {
+			double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+			double loopIn = toolbarState.getLoopInSeconds();
+			toolbarState.setLoopOutSeconds(Math.max(t, loopIn + 0.1));
+			return;
+		}
+		if (!alt && layout.rulerContains(mx, my) && ImGui.isMouseClicked(1)) {
+			int markerIndex = findMarkerIndexAtMouse(timeline, viewState, layout, mx, my);
+			if (markerIndex >= 0) {
+				contextMarkerId = timeline.getMarkers().get(markerIndex).getId();
+				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
+				markerNameBuffer.set(marker.getName());
+				ImGui.openPopup(POPUP_MARKER_CONTEXT);
+				return;
+			}
+		}
+
+		if (!alt && ImGui.isMouseDoubleClicked(0) && layout.rulerContains(mx, my)) {
+			boolean overLoopHandle = toolbarState != null
+				&& (isMouseOverLoopInHandle(mx, my, layout, viewState, toolbarState)
+					|| isMouseOverLoopOutHandle(mx, my, layout, viewState, toolbarState));
+			int markerIndex = findMarkerIndexAtMouse(timeline, viewState, layout, mx, my);
+			if (!overLoopHandle && markerIndex < 0) {
+				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+				addMarkerAtTime(timeline, t);
+				if (clock != null) seekClockAndMusic(clock, t);
+				return;
+			}
+		}
+
+		renderMarkerContextPopup(timeline, clock);
+
+		if (ImGui.isMouseReleased(0)) {
+			if (interactionState.getMode() == InteractionMode.SCRUB_TIME) {
+				interactionState.setMode(InteractionMode.NONE);
+				interactionState.clearActive();
+				return;
+			}
+		}
+
+		if (ImGui.isMouseDown(0) && interactionState.getMode() == InteractionMode.SCRUB_TIME) {
+			if (clock != null) {
+				double t = viewState.screenToTime(mx - layout.contentLeft);
+				seekClockAndMusic(clock, Math.max(0, Math.min(t, duration)));
+			}
+			return;
+		}
+
+		if (ImGui.isMouseClicked(0)) {
+			if (!layout.rulerContains(mx, my)) return;
+			if (toolbarState != null && isMouseOverLoopInHandle(mx, my, layout, viewState, toolbarState)) {
+				interactionState.setMode(InteractionMode.LOOP_IN_DRAG);
+				interactionState.setMouseStart(mx, my);
+				return;
+			}
+			if (toolbarState != null && isMouseOverLoopOutHandle(mx, my, layout, viewState, toolbarState)) {
+				interactionState.setMode(InteractionMode.LOOP_OUT_DRAG);
+				interactionState.setMouseStart(mx, my);
+				return;
+			}
+			int markerIndex = findMarkerIndexAtMouse(timeline, viewState, layout, mx, my);
+			if (!alt && markerIndex >= 0 && clock != null) {
+				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
+				seekClockAndMusic(clock, marker.getTimeSeconds());
+				interactionState.setMode(InteractionMode.MARKER_DRAG);
+				interactionState.setMouseStart(mx, my);
+				interactionState.setActiveMarkerId(marker.getId());
+				return;
+			}
+			if (alt && toolbarState != null) {
+				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+				toolbarState.setLoopInSeconds(t);
+				if (toolbarState.getLoopOutSeconds() > 0 && toolbarState.getLoopOutSeconds() <= t) {
+					toolbarState.setLoopOutSeconds(t + 0.1);
+				}
+				return;
+			}
+			double t = viewState.screenToTime(mx - layout.contentLeft);
+			interactionState.setMode(InteractionMode.SCRUB_TIME);
+			interactionState.setMouseStart(mx, my);
+			if (clock != null) seekClockAndMusic(clock, Math.max(0, Math.min(t, duration)));
+		}
+	}
+
 	/** 拖动/点击标尺或播放头时，同时更新时钟和音乐进度 */
 	private void seekClockAndMusic(TimelineClock clock, double timeSeconds) {
 		clock.seek(timeSeconds);
