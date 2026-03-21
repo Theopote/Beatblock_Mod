@@ -661,6 +661,9 @@ public final class AudioAnalysisPanel {
      * 若资产提供了精确的 getAnalysisProgress()，优先使用。
      */
     private float computeProgress(AudioAsset asset) {
+		if (asset.getAnalysisProgressPercent() > 0) {
+			return Math.max(0f, Math.min(1f, asset.getAnalysisProgressPercent() / 100f));
+		}
         int total = AudioAnalysisStep.values().length;
         if (total == 0) return 0f;
         return (float) asset.getFinishedSteps().size() / total;

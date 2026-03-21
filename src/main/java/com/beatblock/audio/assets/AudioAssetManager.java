@@ -82,6 +82,7 @@ public final class AudioAssetManager {
 		Path path = asset.getPath();
 		if (path == null) return;
 		asset.setStatus(AudioAssetStatus.ANALYZING);
+		asset.setAnalysisProgressPercent(0);
 		asset.getFinishedSteps().clear();
 		asset.setErrorMessage(null);
 
@@ -95,6 +96,7 @@ public final class AudioAssetManager {
 		service.analyze(
 			path,
 			(step, pct) -> {
+				asset.setAnalysisProgressPercent(pct);
 				// 解析 Python 步骤名映射到 UI 步骤
 				switch (step) {
 					case "BPM_DETECTION" -> asset.markStepFinished(AudioAnalysisStep.BPM_DETECTION);
@@ -110,6 +112,7 @@ public final class AudioAssetManager {
 			},
 			(Beatmap beatmap) -> {
 				asset.setBeatmap(beatmap);
+				asset.setAnalysisProgressPercent(100);
 				BeatmapMeta meta = beatmap.meta;
 				asset.setDurationSeconds(meta.durationMs() / 1000.0);
 				asset.setSampleRate(meta.sampleRate());
@@ -132,9 +135,34 @@ public final class AudioAssetManager {
 			err -> {
 				LOGGER.warn("BeatBlock AudioAssetManager: 外部解析失败: {}", err);
 				asset.setStatus(AudioAssetStatus.FAILED);
-				asset.setErrorMessage(err);
+				asset.setAnalysisProgressPercent(0);
+				asset.setErrorMessage(normalizeErrorMessage(path, err));
 			}
 		);
+	}
+
+	private String normalizeErrorMessage(Path audioPath, String raw) {
+		String safe = raw == null ? "未知错误" : raw.trim();
+		String lower = safe.toLowerCase();
+		String ext = "";
+		if (audioPath != null && audioPath.getFileName() != null) {
+			String name = audioPath.getFileName().toString();
+			int idx = name.lastIndexOf('.');
+			if (idx >= 0 && idx < name.length() - 1) {
+				ext = name.substring(idx + 1).toLowerCase();
+			}
+		}
+
+		if ("wma".equals(ext)
+			|| lower.contains("wma")
+			|| lower.contains("format")
+			|| lower.contains("unsupported")
+			|| lower.contains("could not")
+			|| lower.contains("can't")
+			|| lower.contains("cannot load audio")) {
+			return "当前格式可能不受支持。建议先转换为 MP3 或 WAV，再重新解析。";
+		}
+		return safe;
 	}
 }
 

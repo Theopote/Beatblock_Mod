@@ -27,6 +27,7 @@ public final class AudioAsset {
 	private int highCount;
 
 	private AudioAssetStatus status = AudioAssetStatus.PENDING;
+	private int analysisProgressPercent;
 	private final EnumSet<AudioAnalysisStep> finishedSteps = EnumSet.noneOf(AudioAnalysisStep.class);
 	private String errorMessage;
 
@@ -70,6 +71,11 @@ public final class AudioAsset {
 
 	public AudioAssetStatus getStatus() { return status; }
 	public void setStatus(AudioAssetStatus status) { this.status = status != null ? status : AudioAssetStatus.PENDING; }
+
+	public int getAnalysisProgressPercent() { return analysisProgressPercent; }
+	public void setAnalysisProgressPercent(int analysisProgressPercent) {
+		this.analysisProgressPercent = Math.max(0, Math.min(100, analysisProgressPercent));
+	}
 
 	public EnumSet<AudioAnalysisStep> getFinishedSteps() { return finishedSteps; }
 	public void markStepFinished(AudioAnalysisStep step) {

@@ -3,6 +3,7 @@ package com.beatblock.client;
 import com.beatblock.BeatBlock;
 import com.beatblock.animation.AnimationInstance;
 import com.beatblock.animation.AnimationTemplate;
+import com.beatblock.audio.BeatBlockRuntime;
 import com.beatblock.beat.BeatEvent;
 import com.beatblock.beat.Beatmap;
 import com.beatblock.stage.StageZone;
@@ -33,6 +34,14 @@ public final class BeatBlockClientDriver {
 
 		BeatBlock.musicPlayer.tick(delta);
 		double currentTime = BeatBlock.musicPlayer.getCurrentTimeSeconds();
+
+		BeatBlockRuntime runtime = BeatBlockRuntime.getInstance();
+		if (BeatBlock.musicPlayer.isPlaying()) {
+			if (!runtime.isPlaying()) runtime.play();
+		} else if (runtime.isPlaying()) {
+			runtime.pause();
+		}
+		runtime.onServerTick();
 
 		BeatBlock.beatScheduler.tick(currentTime);
 		BeatBlock.animationManager.tick(currentTime);
@@ -138,6 +147,7 @@ public final class BeatBlockClientDriver {
 
 	public static void stopPlayback() {
 		BeatBlock.musicPlayer.pause();
+		BeatBlockRuntime.getInstance().stop();
 		BeatBlock.animationManager.clear();
 		stopDriving();
 	}

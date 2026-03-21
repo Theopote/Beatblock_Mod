@@ -1,6 +1,7 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.audio.BeatBlockRuntime;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.timeline.FrequencyBand;
@@ -133,6 +134,7 @@ public final class TimelineRenderer {
 							if (asset != null && BeatBlock.audioAnalysisEngine != null) {
 								if (asset.getBeatmap() != null) {
 									BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
+									BeatBlockRuntime.getInstance().loadBeatmap(asset.getBeatmap());
 								} else if (asset.getFeatureTimeline() != null) {
 									BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
 								}

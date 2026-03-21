@@ -1,5 +1,6 @@
 package com.beatblock.audio;
 
+import com.beatblock.BeatBlock;
 import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.audio.beatmap.BeatmapReader;
 import com.beatblock.audio.scheduler.AnimationScheduler;
@@ -7,7 +8,6 @@ import com.beatblock.audio.scheduler.AnimationScheduler.ScheduledEvent;
 import com.beatblock.audio.scheduler.BeatClock;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * BeatBlockRuntime
@@ -28,7 +28,7 @@ public final class BeatBlockRuntime {
 	}
 
 	private BeatBlockRuntime() {
-		BeatClock.IAudioPlayer player = new StubAudioPlayer();
+		BeatClock.IAudioPlayer player = new MusicPlayerAdapter();
 		this.beatClock = new BeatClock(player);
 		this.scheduler = new AnimationScheduler();
 		this.analysisService = new AudioAnalysisService();
@@ -49,6 +49,11 @@ public final class BeatBlockRuntime {
 		}
 	}
 
+	public void loadBeatmap(Beatmap beatmap) {
+		if (beatmap == null) return;
+		scheduler.load(beatmap);
+	}
+
 	public void analyzeAndLoad(Path audioPath) {
 		analysisService.analyze(
 			audioPath,
@@ -64,6 +69,7 @@ public final class BeatBlockRuntime {
 	public void play()  { beatClock.play(); }
 	public void pause() { beatClock.pause(); }
 	public void stop()  { beatClock.stop(); scheduler.reset(); }
+	public boolean isPlaying() { return beatClock.isPlaying(); }
 
 	public void seekTo(long ms) {
 		beatClock.seekTo(ms);
@@ -81,18 +87,17 @@ public final class BeatBlockRuntime {
 		}
 	}
 
-	private static class StubAudioPlayer implements BeatClock.IAudioPlayer {
-		private long startMs = -1;
+	private static final class MusicPlayerAdapter implements BeatClock.IAudioPlayer {
 		@Override
 		public long getPlaybackPositionMs() {
-			if (startMs < 0) return 0;
-			return System.currentTimeMillis() - startMs;
+			if (BeatBlock.musicPlayer == null) return 0;
+			return Math.round(BeatBlock.musicPlayer.getCurrentTimeSeconds() * 1000.0);
 		}
 		@Override
 		public void seekTo(long ms) {
-			startMs = System.currentTimeMillis() - ms;
+			if (BeatBlock.musicPlayer == null) return;
+			BeatBlock.musicPlayer.setCurrentTimeSeconds(ms / 1000.0);
 		}
-		public void start() { startMs = System.currentTimeMillis(); }
 	}
 }
 
