@@ -32,6 +32,8 @@ public final class TimelineInteraction {
 	private static final float DRAG_THRESHOLD_PX = 4f;
 	/** 播放头竖线两侧的命中宽度（像素），便于拖动 */
 	private static final float PLAYHEAD_HIT_PX = 6f;
+	/** 循环 In/Out 竖线命中宽度（像素） */
+	private static final float LOOP_HANDLE_HIT_PX = 6f;
 	/** 轨道头与内容区分割线可拖动区域宽度（像素） */
 	private static final float DIVIDER_HIT_PX = 5f;
 	private static final String POPUP_EVENT_CONTEXT = "##TimelineEventContextPopup";
@@ -133,6 +135,30 @@ public final class TimelineInteraction {
 			}
 		}
 
+		if (toolbarState != null && interactionState.getMode() == InteractionMode.LOOP_IN_DRAG) {
+			double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+			toolbarState.setLoopInSeconds(t);
+			if (toolbarState.getLoopOutSeconds() > 0 && toolbarState.getLoopOutSeconds() <= t) {
+				toolbarState.setLoopOutSeconds(t + 0.1);
+			}
+			if (clock != null) seekClockAndMusic(clock, t);
+			if (ImGui.isMouseReleased(0)) {
+				interactionState.setMode(InteractionMode.NONE);
+			}
+			return;
+		}
+
+		if (toolbarState != null && interactionState.getMode() == InteractionMode.LOOP_OUT_DRAG) {
+			double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+			double loopIn = toolbarState.getLoopInSeconds();
+			toolbarState.setLoopOutSeconds(Math.max(t, loopIn + 0.1));
+			if (clock != null) seekClockAndMusic(clock, toolbarState.getLoopOutSeconds());
+			if (ImGui.isMouseReleased(0)) {
+				interactionState.setMode(InteractionMode.NONE);
+			}
+			return;
+		}
+
 		if (!ImGui.isWindowHovered()) return;
 		boolean alt = ImGui.getIO().getKeyAlt();
 
@@ -169,6 +195,12 @@ public final class TimelineInteraction {
 		if (trackListState != null) {
 			boolean overDivider = isMouseOverDivider(mx, my, layout);
 			if (overDivider && interactionState.getMode() == InteractionMode.NONE) {
+				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+			}
+		}
+		if (toolbarState != null && layout.rulerContains(mx, my) && interactionState.getMode() == InteractionMode.NONE) {
+			if (isMouseOverLoopInHandle(mx, my, layout, viewState, toolbarState)
+				|| isMouseOverLoopOutHandle(mx, my, layout, viewState, toolbarState)) {
 				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
 			}
 		}
@@ -256,6 +288,16 @@ public final class TimelineInteraction {
 				return;
 			}
 			if (layout.rulerContains(mx, my)) {
+				if (toolbarState != null && isMouseOverLoopInHandle(mx, my, layout, viewState, toolbarState)) {
+					interactionState.setMode(InteractionMode.LOOP_IN_DRAG);
+					interactionState.setMouseStart(mx, my);
+					return;
+				}
+				if (toolbarState != null && isMouseOverLoopOutHandle(mx, my, layout, viewState, toolbarState)) {
+					interactionState.setMode(InteractionMode.LOOP_OUT_DRAG);
+					interactionState.setMouseStart(mx, my);
+					return;
+				}
 				if (alt && toolbarState != null) {
 					double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
 					toolbarState.setLoopInSeconds(t);
@@ -318,6 +360,30 @@ public final class TimelineInteraction {
 		if (audioPlayer != null) {
 			audioPlayer.setCurrentTimeSeconds(clock.getCurrentTimeSeconds());
 		}
+	}
+
+	private static boolean isMouseOverLoopInHandle(
+		float mx,
+		float my,
+		TimelineLayout layout,
+		TimelineViewState viewState,
+		TimelineToolbarState toolbarState
+	) {
+		if (layout == null || viewState == null || toolbarState == null) return false;
+		float x = layout.rulerLeft + viewState.timeToScreen(toolbarState.getLoopInSeconds());
+		return layout.rulerContains(mx, my) && Math.abs(mx - x) <= LOOP_HANDLE_HIT_PX;
+	}
+
+	private static boolean isMouseOverLoopOutHandle(
+		float mx,
+		float my,
+		TimelineLayout layout,
+		TimelineViewState viewState,
+		TimelineToolbarState toolbarState
+	) {
+		if (layout == null || viewState == null || toolbarState == null || !toolbarState.hasLoopRange()) return false;
+		float x = layout.rulerLeft + viewState.timeToScreen(toolbarState.getLoopOutSeconds());
+		return layout.rulerContains(mx, my) && Math.abs(mx - x) <= LOOP_HANDLE_HIT_PX;
 	}
 
 	private void renderContextMenu(Timeline timeline, SelectionState selectionState) {
