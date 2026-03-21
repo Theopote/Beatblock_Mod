@@ -44,7 +44,6 @@ public final class GridRenderer {
 	private static final int LOOP_RANGE_FILL  = 0x33_FF_D0_66;
 	private static final int LOOP_IN_COLOR    = 0xEE_FF_BB_44;
 	private static final int LOOP_OUT_COLOR   = 0xEE_FF_88_66;
-	private static final int MARKER_COLOR     = 0xEE_FF_D4_66;
 	private static final float MARKER_LABEL_GAP = 6f;
 	private static final int MARKER_LABEL_ROWS = 3;
 
@@ -331,14 +330,15 @@ public final class GridRenderer {
 		float[] rowRightEdges = new float[MARKER_LABEL_ROWS];
 		for (TimelineMarker marker : timeline.getMarkers()) {
 			if (marker == null) continue;
+			int markerColor = marker.getType().getColorAbgr();
 			float x = rLeft + view.timeToScreen(marker.getTimeSeconds());
 			if (x < clipLeft - 6 || x > clipRight + 6) continue;
-			ImGui.getWindowDrawList().addLine(x, rTop + 2, x, rBot - 2, MARKER_COLOR, 1.5f);
+			ImGui.getWindowDrawList().addLine(x, rTop + 2, x, rBot - 2, markerColor, 1.5f);
 			ImGui.getWindowDrawList().addTriangleFilled(
 				x - 4, rTop + 2,
 				x + 4, rTop + 2,
 				x, rTop + 8,
-				MARKER_COLOR
+				markerColor
 			);
 			String name = marker.getName();
 			if (name != null && !name.isBlank()) {
@@ -355,7 +355,7 @@ public final class GridRenderer {
 					}
 					if (rowIndex >= 0) {
 						float textY = rTop + 2 + rowIndex * 8f;
-						ImGui.getWindowDrawList().addText(labelX, textY, MARKER_COLOR, name);
+						ImGui.getWindowDrawList().addText(labelX, textY, markerColor, name);
 						rowRightEdges[rowIndex] = Math.min(labelRight, clipRight);
 					}
 				}

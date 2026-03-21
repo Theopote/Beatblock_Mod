@@ -2,11 +2,14 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
+import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImInt;
 import imgui.type.ImString;
 
 import java.util.Locale;
@@ -23,6 +26,8 @@ public class ToolPanel {
 	private String selectedMarkerId;
 	private final ImString markerNameBuffer = new ImString(128);
 	private final ImString markerTimeBuffer = new ImString(32);
+	private final ImInt markerTypeIndex = new ImInt(0);
+	private static final String[] MARKER_TYPE_LABELS = MarkerType.displayNames();
 
 	/** 由菜单栏「演出 → Smart Auto Map」调用，打开设置弹窗 */
 	public void setShowAutoMapSettings(boolean show) {
@@ -89,15 +94,19 @@ public class ToolPanel {
 				if (marker == null) continue;
 				String markerId = marker.getId();
 				boolean selected = markerId.equals(selectedMarkerId);
-				String label = String.format(Locale.ROOT, "%.2fs  %s##%s",
+				String label = String.format(Locale.ROOT, "[%s] %.2fs  %s##%s",
+					marker.getType().getDisplayName(),
 					marker.getTimeSeconds(),
 					marker.getName() == null || marker.getName().isBlank() ? "(unnamed)" : marker.getName(),
 					markerId);
+				ImGui.pushStyleColor(ImGuiCol.Text, abgrToR(marker.getType().getColorAbgr()), abgrToG(marker.getType().getColorAbgr()), abgrToB(marker.getType().getColorAbgr()), abgrToA(marker.getType().getColorAbgr()));
 				if (ImGui.selectable(label, selected)) {
 					selectedMarkerId = markerId;
 					markerNameBuffer.set(marker.getName());
 					markerTimeBuffer.set(String.format(Locale.ROOT, "%.3f", marker.getTimeSeconds()));
+					markerTypeIndex.set(marker.getType().ordinal());
 				}
+				ImGui.popStyleColor();
 			}
 		}
 		ImGui.endChild();
@@ -111,6 +120,10 @@ public class ToolPanel {
 		ImGui.inputText("名称##markerName", markerNameBuffer);
 		ImGui.setNextItemWidth(-1);
 		ImGui.inputText("时间(秒)##markerTime", markerTimeBuffer);
+		markerTypeIndex.set(Math.max(0, Math.min(marker.getType().ordinal(), MARKER_TYPE_LABELS.length - 1)));
+		if (ImGui.combo("类型##markerType", markerTypeIndex, MARKER_TYPE_LABELS)) {
+			applyMarkerEdits(timeline, selectedMarkerId, marker);
+		}
 
 		if (ImGui.button("Jump##toolMarkerJump")) {
 			jumpToMarker(marker);
@@ -172,6 +185,7 @@ public class ToolPanel {
 		if (timeline == null || markerId == null || marker == null) return;
 		String name = markerNameBuffer.get() == null ? "" : markerNameBuffer.get().trim();
 		double timeSeconds = marker.getTimeSeconds();
+		MarkerType type = MarkerType.values()[Math.max(0, Math.min(markerTypeIndex.get(), MarkerType.values().length - 1))];
 		try {
 			String raw = markerTimeBuffer.get();
 			if (raw != null && !raw.isBlank()) {
@@ -181,14 +195,20 @@ public class ToolPanel {
 			markerTimeBuffer.set(String.format(Locale.ROOT, "%.3f", marker.getTimeSeconds()));
 			return;
 		}
-		timeline.updateMarker(markerId, timeSeconds, name);
+		timeline.updateMarker(markerId, timeSeconds, name, type);
 		int newIndex = timeline.findMarkerIndexById(markerId);
 		if (newIndex >= 0) {
 			TimelineMarker updated = timeline.getMarkers().get(newIndex);
 			markerNameBuffer.set(updated.getName());
 			markerTimeBuffer.set(String.format(Locale.ROOT, "%.3f", updated.getTimeSeconds()));
+			markerTypeIndex.set(updated.getType().ordinal());
 		}
 	}
+
+	private static float abgrToR(int abgr) { return ((abgr >> 0) & 0xFF) / 255f; }
+	private static float abgrToG(int abgr) { return ((abgr >> 8) & 0xFF) / 255f; }
+	private static float abgrToB(int abgr) { return ((abgr >> 16) & 0xFF) / 255f; }
+	private static float abgrToA(int abgr) { return ((abgr >> 24) & 0xFF) / 255f; }
 
 	private void setLoopIn(double timeSeconds) {
 		if (BeatBlock.timelineEditor == null) return;

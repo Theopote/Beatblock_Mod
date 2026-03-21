@@ -108,7 +108,15 @@ public class Timeline {
 	public boolean updateMarker(int index, double timeSeconds, String name) {
 		if (index < 0 || index >= markers.size()) return false;
 		TimelineMarker prev = markers.get(index);
-		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name));
+		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, prev.getType()));
+		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
+		return true;
+	}
+
+	public boolean updateMarker(int index, double timeSeconds, String name, MarkerType type) {
+		if (index < 0 || index >= markers.size()) return false;
+		TimelineMarker prev = markers.get(index);
+		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, type));
 		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
 		return true;
 	}
@@ -117,7 +125,16 @@ public class Timeline {
 		int index = findMarkerIndexById(markerId);
 		if (index < 0) return false;
 		TimelineMarker prev = markers.get(index);
-		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name));
+		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, prev.getType()));
+		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
+		return true;
+	}
+
+	public boolean updateMarker(String markerId, double timeSeconds, String name, MarkerType type) {
+		int index = findMarkerIndexById(markerId);
+		if (index < 0) return false;
+		TimelineMarker prev = markers.get(index);
+		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, type));
 		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
 		return true;
 	}

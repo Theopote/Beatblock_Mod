@@ -10,15 +10,25 @@ public final class TimelineMarker {
 	private final String id;
 	private final double timeSeconds;
 	private final String name;
+	private final MarkerType type;
 
 	public TimelineMarker(double timeSeconds, String name) {
-		this(UUID.randomUUID().toString(), timeSeconds, name);
+		this(UUID.randomUUID().toString(), timeSeconds, name, MarkerType.GENERIC);
 	}
 
 	public TimelineMarker(String id, double timeSeconds, String name) {
+		this(id, timeSeconds, name, MarkerType.GENERIC);
+	}
+
+	public TimelineMarker(double timeSeconds, String name, MarkerType type) {
+		this(UUID.randomUUID().toString(), timeSeconds, name, type);
+	}
+
+	public TimelineMarker(String id, double timeSeconds, String name, MarkerType type) {
 		this.id = id != null && !id.isBlank() ? id : UUID.randomUUID().toString();
 		this.timeSeconds = Math.max(0, timeSeconds);
 		this.name = name != null ? name : "";
+		this.type = type != null ? type : MarkerType.GENERIC;
 	}
 
 	public String getId() {
@@ -31,5 +41,9 @@ public final class TimelineMarker {
 
 	public String getName() {
 		return name;
+	}
+
+	public MarkerType getType() {
+		return type;
 	}
 }

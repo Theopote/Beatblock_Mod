@@ -1,5 +1,6 @@
 package com.beatblock.timeline.project;
 
+import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
 import com.google.gson.Gson;
@@ -57,6 +58,7 @@ public final class OscProjectStore {
 			markerObj.addProperty("id", marker.getId());
 			markerObj.addProperty("timeSeconds", marker.getTimeSeconds());
 			markerObj.addProperty("name", marker.getName());
+			markerObj.addProperty("type", marker.getType().name());
 			markers.add(markerObj);
 		}
 		root.add("markers", markers);
@@ -102,7 +104,8 @@ public final class OscProjectStore {
 				String id = getString(obj, "id", "");
 				double timeSeconds = obj.has("timeSeconds") ? obj.get("timeSeconds").getAsDouble() : 0;
 				String name = getString(obj, "name", "");
-				markers.add(new TimelineMarker(id, timeSeconds, name));
+				MarkerType type = MarkerType.fromName(getString(obj, "type", "GENERIC"));
+				markers.add(new TimelineMarker(id, timeSeconds, name, type));
 			}
 		} catch (Exception ignored) {}
 		markers.sort(java.util.Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
