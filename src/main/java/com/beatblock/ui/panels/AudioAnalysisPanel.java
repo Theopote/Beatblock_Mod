@@ -1,6 +1,8 @@
 package com.beatblock.ui.panels;
 
+import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.ui.icons.Icons;
+import com.beatblock.ui.imgui.IconButtonStyle;
 import com.beatblock.audio.assets.AudioAnalysisStep;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
@@ -59,6 +61,9 @@ public final class AudioAnalysisPanel {
 
     private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 
+    /** 与轨道行高一致，图标按钮方形边长 */
+    private static final float ICON_BTN = TimelineLayout.ROW_HEIGHT;
+
     // ── 状态字段 ────────────────────────────────────────────────────────────
     private final ImString importPath = new ImString(512);
     private AudioAsset selectedAsset;
@@ -97,9 +102,11 @@ public final class AudioAnalysisPanel {
             renderDetailPanel(selectedAsset);
             ImGui.endChild();
         } else {
-            if (ImGui.button(Icons.Layout.RIGHT_EXPAND + "##expand")) {
+            IconButtonStyle.pushBeatBlockIconButton();
+            if (ImGui.button(Icons.Layout.RIGHT_EXPAND + "##expand", ICON_BTN, ICON_BTN)) {
                 detailExpanded = true;
             }
+            IconButtonStyle.popBeatBlockIconButton();
             if (ImGui.isItemHovered()) ImGui.setTooltip("展开详情面板");
         }
 
@@ -113,19 +120,22 @@ public final class AudioAnalysisPanel {
     // ── 工具栏（+ 按钮 / 弹窗）────────────────────────────────────────────
 
     private void renderToolbar() {
-        // + 添加文件按钮
-        if (ImGui.button("+##AddAudio")) {
+        // “+” 用主字体，仅方形槽居中；详情开关用 BeatBlock 大字重图标
+        IconButtonStyle.pushSquareIconSlot();
+        if (ImGui.button("+##AddAudio", ICON_BTN, ICON_BTN)) {
             importPath.set("");
             ImGui.openPopup("##AddAudioPopup");
         }
+        IconButtonStyle.popSquareIconSlot();
         if (ImGui.isItemHovered()) ImGui.setTooltip("添加音频文件路径");
 
         ImGui.sameLine();
 
-        // 折叠/展开详情（BeatBlock 图标字体，避免 ◀▶ 未进图集显示为 ?）
-        if (ImGui.button((detailExpanded ? Icons.Layout.LEFT_COLLAPSE : Icons.Layout.RIGHT_EXPAND) + "##detail")) {
+        IconButtonStyle.pushBeatBlockIconButton();
+        if (ImGui.button((detailExpanded ? Icons.Layout.LEFT_COLLAPSE : Icons.Layout.RIGHT_EXPAND) + "##detail", ICON_BTN, ICON_BTN)) {
             detailExpanded = !detailExpanded;
         }
+        IconButtonStyle.popBeatBlockIconButton();
         if (ImGui.isItemHovered()) ImGui.setTooltip(detailExpanded ? "折叠详情" : "展开详情");
 
         // 添加路径弹窗
@@ -458,9 +468,11 @@ public final class AudioAnalysisPanel {
 
     private void renderDetailPanel(AudioAsset asset) {
         // 折叠按钮（自定义图标，与工具栏一致）
-        if (ImGui.button(Icons.Layout.LEFT_COLLAPSE + "##collapse")) {
+        IconButtonStyle.pushBeatBlockIconButton();
+        if (ImGui.button(Icons.Layout.LEFT_COLLAPSE + "##collapse", ICON_BTN, ICON_BTN)) {
             detailExpanded = false;
         }
+        IconButtonStyle.popBeatBlockIconButton();
         if (ImGui.isItemHovered()) ImGui.setTooltip("折叠详情");
         ImGui.sameLine();
         ImGui.text("详情");

@@ -1,11 +1,10 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.ui.icons.Icons;
+import com.beatblock.ui.imgui.IconButtonStyle;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiStyleVar;
-
 /**
  * 轨道表头：折叠槽 → 类型 → 名称 → 右对齐可见/锁定图标。
  *
@@ -14,17 +13,14 @@ import imgui.flag.ImGuiStyleVar;
  */
 public final class TrackRenderer {
 
-	// 紧凑布局参数
+	// 紧凑布局参数（图标按钮边长 = 轨道行高，与行对齐）
 	private static final float PAD = 3f;
-	private static final float FOLD_BTN = 16f;
-	/** 折叠槽总宽（一级有按钮；二级留空但占位） */
-	private static final float FOLD_COL_W = 20f;
 
 	private static final float TYPE_COL_RIGHT_PAD = 6f;
 	private static final float MIN_TYPE_COL_W = 34f;
 
-	private static final float ICON_BTN = 18f;
-	private static final float ICON_GAP = 1.5f;
+	/** 可见/锁定 两枚按钮之间的间隙 */
+	private static final float ICON_GAP = 2f;
 
 	private static final int MICRO_SEP_COLOR = 0x55_66_66_66; // ABGR
 
@@ -44,6 +40,9 @@ public final class TrackRenderer {
 		float baseX = trackHeaderLeft;
 		float headW = trackHeaderWidth > 0 ? trackHeaderWidth : TimelineLayout.TRACK_LABEL_WIDTH;
 		float rowH = TimelineLayout.ROW_HEIGHT;
+		/** 折叠槽宽 = 行高，折叠按钮与轨道行同高同宽 */
+		float foldColW = rowH;
+		float iconBtn = rowH;
 
 		// 类型列宽：取四种类型里“最宽”的文字宽度（加右内边距）
 		float maxTypeW = 0f;
@@ -56,10 +55,10 @@ public final class TrackRenderer {
 
 		// 列边界（内部坐标：以“轨道头内部局部 X=0”为基准）
 		float foldColLeft = PAD;
-		float typeStartX = foldColLeft + FOLD_COL_W;
+		float typeStartX = foldColLeft + foldColW;
 		float nameX = typeStartX + typeColW;
 
-		float iconBlockW = ICON_BTN * 2 + ICON_GAP; // 可见+锁定
+		float iconBlockW = iconBtn * 2 + ICON_GAP; // 可见+锁定
 		float nameRight = headW - PAD - iconBlockW;   // 名称区右边界（对齐图标块左边）
 		float nameW = nameRight - nameX;
 		if (nameW < 24f) {
@@ -77,7 +76,7 @@ public final class TrackRenderer {
 		var dl = ImGui.getWindowDrawList();
 
 		// 分段微竖线：折叠槽右缘 | 类型列右缘（=名称左缘）| 名称区右缘（=图标区左缘）
-		float sepFold = baseX + foldColLeft + FOLD_COL_W;
+		float sepFold = baseX + foldColLeft + foldColW;
 		float sepType = baseX + nameX;
 		float sepName = baseX + nameRight;
 		dl.addLine(sepFold, rowOriginScreenY, sepFold, rowOriginScreenY + rowH, MICRO_SEP_COLOR, 1f);
@@ -86,19 +85,17 @@ public final class TrackRenderer {
 
 		// —— 折叠槽：仅组轨道显示按钮；二级轨占位但无按钮 —— //
 		if (isGroup && listState != null) {
-			float vbtn = (rowH - FOLD_BTN) * 0.5f;
-			float foldX = foldColLeft + (FOLD_COL_W - FOLD_BTN) * 0.5f;
-			float btnX = baseX + foldX;
-			float btnY = rowOriginScreenY + vbtn;
+			float btnX = baseX + foldColLeft;
+			float btnY = rowOriginScreenY;
 
-			ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 2f, 2f);
+			IconButtonStyle.pushBeatBlockIconButton();
 			ImGui.setCursorScreenPos(btnX, btnY);
 			boolean collapsed = listState.isGroupCollapsed(rowIndex);
 			// 折叠态：track-collapse（侧向）与字体一致；展开态：track-expand 在当前字体内易错配，改用通用 collapse（向下收起）
-			if (ImGui.button((collapsed ? Icons.Timeline.TRACK_COLLAPSE : Icons.Action.COLLAPSE) + "##fold" + rowIndex, FOLD_BTN, FOLD_BTN)) {
+			if (ImGui.button((collapsed ? Icons.Timeline.TRACK_COLLAPSE : Icons.Action.COLLAPSE) + "##fold" + rowIndex, rowH, rowH)) {
 				listState.toggleGroupCollapsed(rowIndex);
 			}
-			ImGui.popStyleVar();
+			IconButtonStyle.popBeatBlockIconButton();
 
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip(collapsed ? "Expand sub-tracks" : "Collapse sub-tracks");
@@ -154,17 +151,14 @@ public final class TrackRenderer {
 
 		// —— 可见 / 锁定：右对齐，纯图标按钮 —— //
 		if (listState != null && !isEditing) {
-			float vbtn = (rowH - ICON_BTN) * 0.5f;
+			float lockRight = headW - PAD - iconBtn;
+			float visX = lockRight - ICON_GAP - iconBtn;
 
-			float lockRight = headW - PAD;
-			float lockX = lockRight - ICON_BTN;
-			float visX = lockX - ICON_GAP - ICON_BTN;
-
-			ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 2f, 2f);
+			IconButtonStyle.pushBeatBlockIconButton();
 
 			boolean vis = listState.isVisible(rowIndex);
-			ImGui.setCursorScreenPos(baseX + visX, rowOriginScreenY + vbtn);
-			if (ImGui.button((vis ? Icons.EYE : Icons.Action.HIDDEN) + "##vis" + rowIndex, ICON_BTN, ICON_BTN)) {
+			ImGui.setCursorScreenPos(baseX + visX, rowOriginScreenY);
+			if (ImGui.button((vis ? Icons.EYE : Icons.Action.HIDDEN) + "##vis" + rowIndex, iconBtn, iconBtn)) {
 				listState.toggleVisible(rowIndex);
 			}
 			if (ImGui.isItemHovered()) {
@@ -172,15 +166,15 @@ public final class TrackRenderer {
 			}
 
 			boolean lock = listState.isLocked(rowIndex);
-			ImGui.setCursorScreenPos(baseX + lockX, rowOriginScreenY + vbtn);
-			if (ImGui.button((lock ? Icons.Action.LOCK : Icons.Action.UNLOCK) + "##lock" + rowIndex, ICON_BTN, ICON_BTN)) {
+			ImGui.setCursorScreenPos(baseX + lockRight, rowOriginScreenY);
+			if (ImGui.button((lock ? Icons.Action.LOCK : Icons.Action.UNLOCK) + "##lock" + rowIndex, iconBtn, iconBtn)) {
 				listState.toggleLocked(rowIndex);
 			}
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip(lock ? "已锁定 (点击解锁)" : "未锁定 (点击锁定)");
 			}
 
-			ImGui.popStyleVar();
+			IconButtonStyle.popBeatBlockIconButton();
 		}
 
 		return rowY + rowH;

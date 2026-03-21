@@ -1,5 +1,7 @@
 package com.beatblock.client.imgui;
 
+import com.beatblock.timeline.rendering.TimelineLayout;
+import imgui.ImFont;
 import imgui.ImFontAtlas;
 import imgui.ImFontConfig;
 import imgui.ImGuiIO;
@@ -16,6 +18,12 @@ import java.io.InputStream;
 public final class ImGuiFontManager {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ImGuiFontManager.class);
 	private static final float FONT_SIZE = 16.0f;
+
+	/** 纯图标按钮用字号，与轨道行高一致，使字形高度接近方形按钮边长。 */
+	public static final float ICON_BUTTON_FONT_PX = TimelineLayout.ROW_HEIGHT;
+
+	/** 独立烘焙的 BeatBlock 图标字体（仅私用区），供方形图标按钮 {@code pushFont}；可能为 null。 */
+	private static ImFont iconButtonFont;
 
 	/** 系统字体路径：Windows / macOS / Linux 常见 CJK + 多语言字体 */
 	private static final String[] SYSTEM_FONT_PATHS = {
@@ -57,6 +65,7 @@ public final class ImGuiFontManager {
 			try { atlas.clearFonts(); } catch (Throwable ignored) {}
 			try { atlas.clearTexData(); } catch (Throwable ignored) {}
 		}
+		iconButtonFont = null;
 
 		short[] glyphRanges = buildMultiLanguageGlyphRanges(io);
 		ImFontConfig config = new ImFontConfig();
@@ -78,13 +87,19 @@ public final class ImGuiFontManager {
 		}
 
 		// 关键：合并自定义图标字体，避免依赖系统 emoji。
-		tryLoadIconFont(atlas);
+		tryLoadIconFontMerged(atlas);
+		tryLoadIconButtonFontStandalone(atlas);
 
 		if (!atlas.isBuilt()) {
 			atlas.build();
 		}
 		config.destroy();
 		LOGGER.info("[BeatBlock] ImGui fonts initialized (multi-language support)");
+	}
+
+	/** 供 {@link com.beatblock.ui.imgui.IconButtonStyle} 使用；未加载图标文件时为 null。 */
+	public static ImFont getIconButtonFont() {
+		return iconButtonFont;
 	}
 
 	/**
@@ -194,7 +209,7 @@ public final class ImGuiFontManager {
 		}
 	}
 
-	private static boolean tryLoadIconFont(ImFontAtlas atlas) {
+	private static boolean tryLoadIconFontMerged(ImFontAtlas atlas) {
 		try (InputStream in = ImGuiFontManager.class.getResourceAsStream(ICON_FONT_PATH)) {
 			if (in == null) {
 				LOGGER.debug("[BeatBlock] No icon font found: {}", ICON_FONT_PATH);
@@ -211,11 +226,37 @@ public final class ImGuiFontManager {
 			iconConfig.setOversampleV(2);
 
 			atlas.addFontFromMemoryTTF(data, FONT_SIZE, iconConfig, ICON_GLYPH_RANGES);
-			LOGGER.info("[BeatBlock] Loaded icon font: {} ({} bytes)", ICON_FONT_PATH, data.length);
+			iconConfig.destroy();
+			LOGGER.info("[BeatBlock] Loaded icon font (merged): {} ({} bytes)", ICON_FONT_PATH, data.length);
 			return true;
 		} catch (Throwable e) {
 			LOGGER.debug("[BeatBlock] Load icon font failed: {}", e.getMessage());
 			return false;
+		}
+	}
+
+	/**
+	 * 第二份 BeatBlock.ttf：不合并，字号与轨道行高一致，专供图标按钮在 {@code pushFont} 后尽量铺满方形区域。
+	 * 与合并加载分开读字节，避免 atlas 接管第一份 buffer 后引用失效。
+	 */
+	private static void tryLoadIconButtonFontStandalone(ImFontAtlas atlas) {
+		iconButtonFont = null;
+		try (InputStream in = ImGuiFontManager.class.getResourceAsStream(ICON_FONT_PATH)) {
+			if (in == null) return;
+			byte[] data = in.readAllBytes();
+			if (data.length == 0) return;
+
+			ImFontConfig cfg = new ImFontConfig();
+			cfg.setMergeMode(false);
+			cfg.setPixelSnapH(true);
+			cfg.setOversampleH(2);
+			cfg.setOversampleV(2);
+
+			iconButtonFont = atlas.addFontFromMemoryTTF(data, ICON_BUTTON_FONT_PX, cfg, ICON_GLYPH_RANGES);
+			cfg.destroy();
+			LOGGER.info("[BeatBlock] Loaded icon button font: {} px={}", ICON_FONT_PATH, ICON_BUTTON_FONT_PX);
+		} catch (Throwable e) {
+			LOGGER.debug("[BeatBlock] Icon button font skipped: {}", e.getMessage());
 		}
 	}
 }
