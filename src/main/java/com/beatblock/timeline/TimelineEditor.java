@@ -16,7 +16,7 @@ import com.beatblock.timeline.rendering.TimelineTrackListState;
 public final class TimelineEditor {
 
 	private final Timeline timeline;
-	private final com.beatblock.timeline.editor.TimelineEditor state;
+	private final TimelineEditorState state;
 	private final TimelineRenderer renderer;
 	private final TimelineInteraction interactionSystem;
 	private final CommandManager commandManager;
@@ -44,7 +44,7 @@ public final class TimelineEditor {
 
 	public TimelineEditor(Timeline timeline) {
 		this.timeline = timeline;
-		this.state = new com.beatblock.timeline.editor.TimelineEditor(timeline);
+		this.state = new TimelineEditorState(timeline);
 		this.renderer = new TimelineRenderer();
 		this.interactionSystem = new TimelineInteraction();
 		this.commandManager = new CommandManager();
@@ -54,7 +54,7 @@ public final class TimelineEditor {
 		return timeline;
 	}
 
-	public com.beatblock.timeline.editor.TimelineEditor getState() {
+	public TimelineEditorState getEditorState() {
 		return state;
 	}
 

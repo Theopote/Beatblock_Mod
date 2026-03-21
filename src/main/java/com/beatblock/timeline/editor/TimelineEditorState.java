@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * 时间线编辑器：聚合 TimeSystem / Viewport / Selection / Interaction，与 Timeline 数据解耦。
  */
-public class TimelineEditor {
+public class TimelineEditorState {
 
 	private final Timeline timeline;
 	private final TimelineClock clock;
@@ -18,7 +18,7 @@ public class TimelineEditor {
 	private final SelectionBox selectionBox;
 	private final Map<String, TrackUIState> trackUIStates = new HashMap<>();
 
-	public TimelineEditor(Timeline timeline) {
+	public TimelineEditorState(Timeline timeline) {
 		this.timeline = timeline;
 		this.clock = new TimelineClock();
 		this.viewState = new TimelineViewState();
