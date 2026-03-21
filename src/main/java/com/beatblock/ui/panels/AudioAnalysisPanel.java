@@ -15,10 +15,15 @@ import imgui.ImVec2;
 import imgui.ImVec4;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiMouseCursor;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 
+import javax.swing.JFileChooser;
+import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.io.File;
 import java.util.List;
 
 /**
@@ -71,6 +76,7 @@ public final class AudioAnalysisPanel {
     private final ImString importPath = new ImString(512);
     private AudioAsset selectedAsset;
     private boolean detailExpanded = true;
+    private float detailRatio = 0.40f;
 	private String panelHintText;
 	private boolean panelHintError;
 	private long panelHintExpireAtMs;
@@ -90,8 +96,22 @@ public final class AudioAnalysisPanel {
 
         float totalW = ImGui.getContentRegionAvailX();
         float totalH = ImGui.getContentRegionAvailY() - 32f; // 为底栏留空间
-        float detailW = detailExpanded ? totalW * 0.42f : 0f;
-        float listW   = totalW - detailW - (detailExpanded ? 6f : 0f);
+        float splitterW = detailExpanded ? 8f : 0f;
+        float minListW = 280f;
+        float minDetailW = 240f;
+
+        float detailW = 0f;
+        float listW = totalW;
+        if (detailExpanded) {
+            float minRatio = minDetailW / Math.max(1f, totalW);
+            float maxRatio = (totalW - minListW - splitterW) / Math.max(1f, totalW);
+            if (maxRatio < minRatio) {
+                maxRatio = minRatio;
+            }
+            detailRatio = clamp(detailRatio, minRatio, maxRatio);
+            detailW = totalW * detailRatio;
+            listW = totalW - detailW - splitterW;
+        }
 
         // ── 左侧：列表 ──────────────────────────────────────────────────────
         ImGui.beginChild("##AudioList", listW, totalH, false);
@@ -103,6 +123,34 @@ public final class AudioAnalysisPanel {
         // ── 右侧：详情 ──────────────────────────────────────────────────────
         ImGui.sameLine();
         if (detailExpanded) {
+            ImGui.pushStyleColor(ImGuiCol.Button, 0.20f, 0.19f, 0.28f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.38f, 0.36f, 0.52f, 1f);
+            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.50f, 0.47f, 0.66f, 1f);
+            ImGui.button("##detail_splitter", splitterW, totalH);
+            if (ImGui.isItemHovered() || ImGui.isItemActive()) {
+                ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("左右拖动调整比例");
+            }
+            if (ImGui.isItemActive()) {
+                float deltaRatio = ImGui.getIO().getMouseDeltaX() / Math.max(1f, totalW);
+                float minRatio = minDetailW / Math.max(1f, totalW);
+                float maxRatio = (totalW - minListW - splitterW) / Math.max(1f, totalW);
+                detailRatio = clamp(detailRatio - deltaRatio, minRatio, maxRatio);
+                float listPercent = (1f - detailRatio) * 100f;
+                float detailPercent = detailRatio * 100f;
+                ImGui.setTooltip(String.format("%.0f : %.0f", listPercent, detailPercent));
+            }
+
+            float splitX = ImGui.getItemRectMinX() + splitterW * 0.5f;
+            float splitY0 = ImGui.getItemRectMinY() + 4f;
+            float splitY1 = ImGui.getItemRectMaxY() - 4f;
+            int lineColor = ImGui.isItemActive() ? 0xFFB9B0FF : (ImGui.isItemHovered() ? 0xFF9A90E8 : 0xFF6B6488);
+            ImGui.getWindowDrawList().addLine(splitX, splitY0, splitX, splitY1, lineColor, 2f);
+            ImGui.popStyleColor(3);
+
+            ImGui.sameLine();
             ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 4f);
             ImGui.beginChild("##AudioDetail", detailW, totalH, true);
             ImGui.popStyleVar();
@@ -133,7 +181,7 @@ public final class AudioAnalysisPanel {
             importPath.set("");
             ImGui.openPopup("##AddAudioPopup");
         }
-        if (ImGui.isItemHovered()) setTooltipWithDefaultFont("添加音频文件路径");
+        if (ImGui.isItemHovered()) setTooltipWithDefaultFont("选择音频文件");
 
         ImGui.sameLine();
 
@@ -160,19 +208,32 @@ public final class AudioAnalysisPanel {
     }
 
     private void renderAddPopup() {
-        ImGui.setNextWindowSize(360f, 0f, ImGuiCond.Always);
+        ImGui.setNextWindowSize(460f, 0f, ImGuiCond.Always);
         if (!ImGui.beginPopup("##AddAudioPopup")) return;
 
-        ImGui.text("音频文件路径");
-        ImGui.setNextItemWidth(-1f);
-        boolean entered = ImGui.inputText("##AudioPathInput", importPath,
-                imgui.flag.ImGuiInputTextFlags.EnterReturnsTrue);
+        ImGui.text("选择音频文件");
+        if (ImGui.button("浏览文件...##browseAudio", 120f, 0f)) {
+            String chosenPath = chooseAudioFilePath();
+            if (chosenPath != null && !chosenPath.isBlank()) {
+                importPath.set(chosenPath);
+                handleIncomingAudioPath(chosenPath);
+                ImGui.closeCurrentPopup();
+            }
+        }
+
+        ImGui.spacing();
+        if (importPath.get().isBlank()) {
+            ImGui.textDisabled("尚未选择文件");
+        } else {
+            ImGui.textWrapped(importPath.get());
+        }
 
         ImGui.spacing();
         ImGui.textDisabled("支持 MP3 · WAV · OGG · FLAC");
+        ImGui.textDisabled("提示：选择文件后会自动开始解析");
         ImGui.spacing();
 
-        boolean add = ImGui.button("添加并解析##add", 120f, 0f) || entered;
+        boolean add = ImGui.button("手动添加并解析##add", 150f, 0f);
         ImGui.sameLine();
         boolean cancel = ImGui.button("取消##cancel");
 
@@ -212,7 +273,7 @@ public final class AudioAnalysisPanel {
         float textH = ImGui.getTextLineHeightWithSpacing() * 2f + ImGui.getTextLineHeight();
         ImGui.setCursorPosY((zoneH - textH) * 0.5f - (hasHint ? 6f : 0f));
 
-        centerText("拖入音频文件 / 点击 + 添加");
+        centerText("拖入音频文件 / 点击 + 选择");
         centerText("MP3 · WAV · OGG · FLAC");
 
         if (hasHint) {
@@ -317,7 +378,7 @@ public final class AudioAnalysisPanel {
             case PENDING   -> lineH * 2f + 28f;            // 文件名 + 按钮行
             case ANALYZING -> lineH * 2f + 12f
                     + AudioAnalysisStep.values().length * lineH; // 步骤列表
-            case COMPLETED -> lineH * 2f + 24f;            // 文件名 + 拖拽提示
+            case COMPLETED -> lineH * 4f + 18f;            // 紧凑信息 + 拖拽提示
             case FAILED    -> lineH * 3f + 28f;            // 文件名 + 错误 + 按钮
         };
     }
@@ -406,7 +467,7 @@ public final class AudioAnalysisPanel {
     }
 
     private void renderCompletedContent(AudioAsset asset) {
-        // BPM + 踩点数量快速预览
+        // 紧凑的关键信息：BPM + 踩点数量
         ImGui.pushStyleColor(ImGuiCol.Text,
                 COLOR_PROGRESS_FG.x, COLOR_PROGRESS_FG.y, COLOR_PROGRESS_FG.z, COLOR_PROGRESS_FG.w);
         ImGui.text(String.format("%.1f BPM", asset.getBpm()));
@@ -418,11 +479,6 @@ public final class AudioAnalysisPanel {
                 COLOR_MID.x, COLOR_MID.y, COLOR_MID.z, COLOR_MID.w);
         ImGui.text(asset.getBeatCount() + " 踩点");
         ImGui.popStyleColor();
-
-        if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
-            ImGui.spacing();
-            ImGui.textDisabled(asset.getInfoMessage());
-        }
 
         // 拖拽提示文字（也是拖拽源的触发区域）
         ImGui.spacing();
@@ -533,6 +589,11 @@ public final class AudioAnalysisPanel {
         }
         IconButtonStyle.popBeatBlockIconButton();
         if (ImGui.isItemHovered()) ImGui.setTooltip("折叠详情");
+        ImGui.sameLine();
+        if (ImGui.button("重置比例 6:4##resetDetailRatio")) {
+            detailRatio = 0.40f;
+        }
+        if (ImGui.isItemHovered()) ImGui.setTooltip("将左右区域恢复为默认 6:4");
         ImGui.sameLine();
         ImGui.text("详情");
         ImGui.separator();
@@ -788,27 +849,17 @@ public final class AudioAnalysisPanel {
 
     /** key-value 一行，key 灰色，value 白色，右对齐。 */
     private void detailRow(String key, String value) {
-        ImVec2 cursorStart = ImGui.getCursorStartPos();
-        ImGui.textDisabled(key);
-        float keyWidth = ImGui.calcTextSize(key).x;
-        float valueWidth = ImGui.calcTextSize(value).x;
-        float region = ImGui.getContentRegionAvailX() + keyWidth;
-        float x = cursorStart.x + region - valueWidth;
+        ImGui.textDisabled(key + "：");
         ImGui.sameLine();
-        ImGui.setCursorPosX(x);
+        ImGui.setCursorPosX(ImGui.getCursorPosX() + 4f);
         ImGui.text(value);
     }
 
     /** 同 detailRow，但 value 使用指定颜色。 */
     private void detailRowColored(String key, String value, ImVec4 color) {
-        ImVec2 cursorStart = ImGui.getCursorStartPos();
-        ImGui.textDisabled(key);
-        float keyWidth = ImGui.calcTextSize(key).x;
-        float valueWidth = ImGui.calcTextSize(value).x;
-        float region = ImGui.getContentRegionAvailX() + keyWidth;
-        float x = cursorStart.x + region - valueWidth;
+        ImGui.textDisabled(key + "：");
         ImGui.sameLine();
-        ImGui.setCursorPosX(x);
+        ImGui.setCursorPosX(ImGui.getCursorPosX() + 4f);
         ImGui.pushStyleColor(ImGuiCol.Text, color.x, color.y, color.z, color.w);
         ImGui.text(value);
         ImGui.popStyleColor();
@@ -872,6 +923,44 @@ public final class AudioAnalysisPanel {
         ImGui.popFont();
         ImGui.setTooltip(text);
         ImGui.pushFont(ImGuiFontManager.getIconButtonFont());
+    }
+
+    private String chooseAudioFilePath() {
+        final String[] selected = new String[1];
+        Runnable chooserTask = () -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("选择音频文件");
+            chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            chooser.setAcceptAllFileFilterUsed(false);
+            chooser.setFileFilter(new FileNameExtensionFilter(
+                    "音频文件 (*.mp3, *.wav, *.ogg, *.flac)", "mp3", "wav", "ogg", "flac"));
+
+            String current = importPath.get().trim();
+            if (!current.isEmpty()) {
+                chooser.setSelectedFile(new File(current));
+            }
+
+            int result = chooser.showOpenDialog(null);
+            if (result == JFileChooser.APPROVE_OPTION && chooser.getSelectedFile() != null) {
+                selected[0] = chooser.getSelectedFile().getAbsolutePath();
+            }
+        };
+
+        try {
+            if (SwingUtilities.isEventDispatchThread()) {
+                chooserTask.run();
+            } else {
+                SwingUtilities.invokeAndWait(chooserTask);
+            }
+        } catch (Exception e) {
+            setPanelHint("打开文件选择器失败: " + e.getMessage(), true);
+        }
+
+        return selected[0];
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
     }
 }
 
