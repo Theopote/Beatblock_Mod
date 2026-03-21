@@ -120,18 +120,16 @@ public final class AudioAnalysisPanel {
     // ── 工具栏（+ 按钮 / 弹窗）────────────────────────────────────────────
 
     private void renderToolbar() {
-        // “+” 用主字体，仅方形槽居中；详情开关用 BeatBlock 大字重图标
-        IconButtonStyle.pushSquareIconSlot();
-        if (ImGui.button("+##AddAudio", ICON_BTN, ICON_BTN)) {
+        // 与轨道同高的方形槽 + BeatBlock 大字重：添加用 icon-bb-add，避免 ASCII “+” 仍走 16px 主字体显小
+        IconButtonStyle.pushBeatBlockIconButton();
+        if (ImGui.button(Icons.Action.ADD + "##AddAudio", ICON_BTN, ICON_BTN)) {
             importPath.set("");
             ImGui.openPopup("##AddAudioPopup");
         }
-        IconButtonStyle.popSquareIconSlot();
         if (ImGui.isItemHovered()) ImGui.setTooltip("添加音频文件路径");
 
         ImGui.sameLine();
 
-        IconButtonStyle.pushBeatBlockIconButton();
         if (ImGui.button((detailExpanded ? Icons.Layout.LEFT_COLLAPSE : Icons.Layout.RIGHT_EXPAND) + "##detail", ICON_BTN, ICON_BTN)) {
             detailExpanded = !detailExpanded;
         }
