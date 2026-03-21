@@ -44,36 +44,7 @@ public final class TimelineUiStateStore {
 	public void loadTrackListState(Timeline timeline, TimelineTrackListState state) {
 		if (state == null) return;
 		currentProjectKey = resolveProjectKey(timeline);
-		if (!Files.exists(filePath)) {
-			lastStateHash = hashState(state);
-			return;
-		}
-
-		try {
-			String json = Files.readString(filePath, StandardCharsets.UTF_8);
-			UiConfig cfg = GSON.fromJson(json, UiConfig.class);
-			if (cfg == null) cfg = new UiConfig();
-
-			// 兼容旧版：如果旧字段存在，迁移到 default 桶
-			if (cfg.timelineTrackList != null) {
-				cfg.projects.putIfAbsent(PROJECT_KEY_DEFAULT, cfg.timelineTrackList);
-				cfg.timelineTrackList = null;
-			}
-
-			TrackListData d = cfg.projects.get(currentProjectKey);
-			if (d == null) d = cfg.projects.get(PROJECT_KEY_DEFAULT);
-			if (d != null) {
-				state.applyPersistedState(
-					d.trackHeaderWidthPx,
-					d.visible,
-					d.locked,
-					d.customNames,
-					d.collapsedGroupRows
-				);
-			}
-		} catch (Exception e) {
-			LOGGER.warn("读取 timeline UI 状态失败: {}", filePath, e);
-		}
+		loadStateForProjectKey(state, currentProjectKey);
 
 		lastStateHash = hashState(state);
 		dirty = false;
@@ -87,8 +58,10 @@ public final class TimelineUiStateStore {
 		String key = resolveProjectKey(timeline);
 		if (!key.equals(currentProjectKey)) {
 			currentProjectKey = key;
-			lastStateHash = Integer.MIN_VALUE;
-			dirty = true;
+			// 切换项目时先加载该项目对应 UI 状态，避免把上个项目状态覆盖过来。
+			loadStateForProjectKey(state, currentProjectKey);
+			lastStateHash = hashState(state);
+			dirty = false;
 		}
 		int hash = hashState(state);
 		long now = System.currentTimeMillis();
@@ -145,6 +118,11 @@ public final class TimelineUiStateStore {
 			String s = String.valueOf(path).trim();
 			if (!s.isEmpty()) return "path:" + s;
 		}
+		Object audioPath = timeline.getMetadata("audioPath");
+		if (audioPath != null) {
+			String s = String.valueOf(audioPath).trim();
+			if (!s.isEmpty()) return "audio:" + s;
+		}
 		Object id = timeline.getMetadata("projectId");
 		if (id != null) {
 			String s = String.valueOf(id).trim();
@@ -156,6 +134,37 @@ public final class TimelineUiStateStore {
 			if (!s.isEmpty()) return "name:" + s;
 		}
 		return PROJECT_KEY_DEFAULT;
+	}
+
+	private void loadStateForProjectKey(TimelineTrackListState state, String key) {
+		if (state == null) return;
+		if (!Files.exists(filePath)) return;
+
+		try {
+			String json = Files.readString(filePath, StandardCharsets.UTF_8);
+			UiConfig cfg = GSON.fromJson(json, UiConfig.class);
+			if (cfg == null) cfg = new UiConfig();
+
+			// 兼容旧版：如果旧字段存在，迁移到 default 桶
+			if (cfg.timelineTrackList != null) {
+				cfg.projects.putIfAbsent(PROJECT_KEY_DEFAULT, cfg.timelineTrackList);
+				cfg.timelineTrackList = null;
+			}
+
+			TrackListData d = cfg.projects.get(key);
+			if (d == null) d = cfg.projects.get(PROJECT_KEY_DEFAULT);
+			if (d != null) {
+				state.applyPersistedState(
+					d.trackHeaderWidthPx,
+					d.visible,
+					d.locked,
+					d.customNames,
+					d.collapsedGroupRows
+				);
+			}
+		} catch (Exception e) {
+			LOGGER.warn("读取 timeline UI 状态失败: {}", filePath, e);
+		}
 	}
 
 	private static int hashState(TimelineTrackListState state) {

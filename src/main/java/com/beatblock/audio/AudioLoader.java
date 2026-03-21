@@ -37,6 +37,8 @@ public class AudioLoader {
 
 		Timeline timeline = BeatBlock.timeline;
 		if (timeline != null) {
+			timeline.setMetadata("audioPath", pathOrId);
+			timeline.setMetadata("projectPath", pathOrId);
 			// 优先使用 Audio Analysis Engine（节拍检测、BPM、频段、波形）
 			AudioAnalysisEngine engine = BeatBlock.audioAnalysisEngine;
 			if (engine != null) {
@@ -68,6 +70,8 @@ public class AudioLoader {
 	public void loadFromDecoded(DecodedAudio audio) {
 		if (audio == null) return;
 		if (BeatBlock.timeline != null) {
+			BeatBlock.timeline.setMetadata("audioPath", "(decoded)");
+			BeatBlock.timeline.setMetadata("projectId", "decoded");
 			AudioAnalyzer.analyzeAndFillTimeline(audio, BeatBlock.timeline);
 		}
 		if (BeatBlock.musicPlayer != null) {
