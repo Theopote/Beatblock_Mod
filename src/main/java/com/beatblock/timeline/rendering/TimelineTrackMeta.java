@@ -46,6 +46,29 @@ public final class TimelineTrackMeta {
 		PARENT_ROW[ROW_ANIM_AUTO] = ROW_ANIMATION_GROUP;
 		PARENT_ROW[ROW_CAMERA] = NO_PARENT;
 		PARENT_ROW[ROW_GLOBAL_EVENT] = NO_PARENT;
+
+		validateMeta();
+	}
+
+	private static void validateMeta() {
+		for (int i = 0; i < ROW_COUNT; i++) {
+			String name = DEFAULT_NAMES[i];
+			if (name == null || name.isBlank()) {
+				throw new IllegalStateException("TimelineTrackMeta missing default name at row " + i);
+			}
+
+			int parent = PARENT_ROW[i];
+			if (parent == NO_PARENT) continue;
+			if (parent < 0 || parent >= ROW_COUNT) {
+				throw new IllegalStateException("TimelineTrackMeta parent row out of range: row=" + i + ", parent=" + parent);
+			}
+			if (parent == i) {
+				throw new IllegalStateException("TimelineTrackMeta parent row cannot reference itself: row=" + i);
+			}
+			if (!isGroupRow(parent)) {
+				throw new IllegalStateException("TimelineTrackMeta parent row must be a group row: row=" + i + ", parent=" + parent);
+			}
+		}
 	}
 
 	public static String getDefaultName(int rowIndex) {
