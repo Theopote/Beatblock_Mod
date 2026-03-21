@@ -1,5 +1,6 @@
 package com.beatblock.ui.panels;
 
+import com.beatblock.BeatBlock;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.client.imgui.ImGuiFontManager;
@@ -83,6 +84,7 @@ public final class AudioAnalysisPanel {
         }
 
         renderToolbar();
+		renderPythonRuntimeHint();
 
         List<AudioAsset> assets = AudioAssetManager.getInstance().getAssets();
 
@@ -146,6 +148,14 @@ public final class AudioAnalysisPanel {
         // 添加路径弹窗
         renderAddPopup();
 
+        ImGui.separator();
+    }
+
+    private void renderPythonRuntimeHint() {
+        if (BeatBlock.externalAudioAnalyzer == null) return;
+        String py = BeatBlock.externalAudioAnalyzer.getPythonRuntimeSummary();
+        if (py == null || py.isBlank()) return;
+        ImGui.textDisabled(py);
         ImGui.separator();
     }
 

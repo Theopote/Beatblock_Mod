@@ -34,6 +34,8 @@ public final class AudioAnalysisService {
 		t.setDaemon(true);
 		return t;
 	});
+	private volatile String cachedPythonSummary = "Python: 检测中...";
+	private volatile long nextPythonSummaryRefreshAtMs;
 
 	// ── 公共 API ─────────────────────────────────────────────────────────────
 
@@ -57,6 +59,28 @@ public final class AudioAnalysisService {
 
 	public void shutdown() {
 		executor.shutdownNow();
+	}
+
+	/**
+	 * 返回当前 Python 运行时信息（带 5 秒缓存，避免 UI 每帧触发外部进程）。
+	 */
+	public String getPythonRuntimeSummary() {
+		long now = System.currentTimeMillis();
+		if (now < nextPythonSummaryRefreshAtMs && cachedPythonSummary != null) {
+			return cachedPythonSummary;
+		}
+
+		synchronized (this) {
+			now = System.currentTimeMillis();
+			if (now < nextPythonSummaryRefreshAtMs && cachedPythonSummary != null) {
+				return cachedPythonSummary;
+			}
+
+			String summary = probePythonRuntimeSummary();
+			cachedPythonSummary = summary;
+			nextPythonSummaryRefreshAtMs = now + 5000L;
+			return summary;
+		}
 	}
 
 	// ── 内部分析流程 ──────────────────────────────────────────────────────────
@@ -235,6 +259,36 @@ public final class AudioAnalysisService {
 			if (isExecutable(cand)) return cand;
 		}
 		return null;
+	}
+
+	private String probePythonRuntimeSummary() {
+		Path configDir = AnalyzerInstaller.getScriptPath().getParent();
+		if (configDir == null) return "Python: 未检测到配置目录";
+
+		String exe = resolvePythonExe(configDir);
+		if (exe == null) {
+			return "Python: 未找到（请配置 config/beatblock/python_path.txt）";
+		}
+
+		String version = readPythonVersion(exe);
+		if (version == null || version.isBlank()) version = "unknown";
+		return "Python: " + version + " · " + exe;
+	}
+
+	private String readPythonVersion(String pythonExe) {
+		try {
+			Process p = new ProcessBuilder(
+				pythonExe,
+				"-c",
+				"import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
+			).redirectErrorStream(true).start();
+			String out = readProcessOutput(p).trim();
+			int code = waitProcess(p);
+			if (code != 0) return "unknown";
+			return out;
+		} catch (Exception e) {
+			return "unknown";
+		}
 	}
 
 	private boolean isExecutable(String exe) {
