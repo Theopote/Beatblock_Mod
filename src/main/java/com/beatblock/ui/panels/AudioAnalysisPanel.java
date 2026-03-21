@@ -20,6 +20,9 @@ import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 
+import java.awt.EventQueue;
+import java.awt.FileDialog;
+import java.awt.Frame;
 import javax.swing.JFileChooser;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -71,6 +74,8 @@ public final class AudioAnalysisPanel {
 
     /** 与轨道行高一致，图标按钮方形边长 */
     private static final float ICON_BTN = TimelineLayout.ROW_HEIGHT;
+    private static final float MIN_LIST_PANEL_WIDTH = 96f;
+    private static final float MIN_DETAIL_PANEL_WIDTH = 96f;
 
     // ── 状态字段 ────────────────────────────────────────────────────────────
     private final ImString importPath = new ImString(512);
@@ -96,17 +101,16 @@ public final class AudioAnalysisPanel {
 
         float totalW = ImGui.getContentRegionAvailX();
         float totalH = ImGui.getContentRegionAvailY() - 32f; // 为底栏留空间
-        float splitterW = detailExpanded ? 8f : 0f;
-        float minListW = 280f;
-        float minDetailW = 240f;
+        float splitterW = detailExpanded ? 3f : 0f;
 
         float detailW = 0f;
         float listW = totalW;
         if (detailExpanded) {
-            float minRatio = minDetailW / Math.max(1f, totalW);
-            float maxRatio = (totalW - minListW - splitterW) / Math.max(1f, totalW);
+            float minRatio = MIN_DETAIL_PANEL_WIDTH / Math.max(1f, totalW);
+            float maxRatio = (totalW - MIN_LIST_PANEL_WIDTH - splitterW) / Math.max(1f, totalW);
             if (maxRatio < minRatio) {
-                maxRatio = minRatio;
+                minRatio = 0.5f;
+                maxRatio = 0.5f;
             }
             detailRatio = clamp(detailRatio, minRatio, maxRatio);
             detailW = totalW * detailRatio;
@@ -121,12 +125,9 @@ public final class AudioAnalysisPanel {
         ImGui.endChild();
 
         // ── 右侧：详情 ──────────────────────────────────────────────────────
-        ImGui.sameLine();
+        ImGui.sameLine(0f, 0f);
         if (detailExpanded) {
-            ImGui.pushStyleColor(ImGuiCol.Button, 0.20f, 0.19f, 0.28f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.38f, 0.36f, 0.52f, 1f);
-            ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.50f, 0.47f, 0.66f, 1f);
-            ImGui.button("##detail_splitter", splitterW, totalH);
+            ImGui.invisibleButton("##detail_splitter", splitterW, totalH);
             if (ImGui.isItemHovered() || ImGui.isItemActive()) {
                 ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
             }
@@ -135,8 +136,8 @@ public final class AudioAnalysisPanel {
             }
             if (ImGui.isItemActive()) {
                 float deltaRatio = ImGui.getIO().getMouseDeltaX() / Math.max(1f, totalW);
-                float minRatio = minDetailW / Math.max(1f, totalW);
-                float maxRatio = (totalW - minListW - splitterW) / Math.max(1f, totalW);
+                float minRatio = MIN_DETAIL_PANEL_WIDTH / Math.max(1f, totalW);
+                float maxRatio = (totalW - MIN_LIST_PANEL_WIDTH - splitterW) / Math.max(1f, totalW);
                 detailRatio = clamp(detailRatio - deltaRatio, minRatio, maxRatio);
                 float listPercent = (1f - detailRatio) * 100f;
                 float detailPercent = detailRatio * 100f;
@@ -148,9 +149,8 @@ public final class AudioAnalysisPanel {
             float splitY1 = ImGui.getItemRectMaxY() - 4f;
             int lineColor = ImGui.isItemActive() ? 0xFFB9B0FF : (ImGui.isItemHovered() ? 0xFF9A90E8 : 0xFF6B6488);
             ImGui.getWindowDrawList().addLine(splitX, splitY0, splitX, splitY1, lineColor, 2f);
-            ImGui.popStyleColor(3);
 
-            ImGui.sameLine();
+            ImGui.sameLine(0f, 0f);
             ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 4f);
             ImGui.beginChild("##AudioDetail", detailW, totalH, true);
             ImGui.popStyleVar();
@@ -926,7 +926,78 @@ public final class AudioAnalysisPanel {
     }
 
     private String chooseAudioFilePath() {
+        try {
+            String nativePath = openNativeAudioFileDialog();
+            if (nativePath != null && !nativePath.isBlank()) {
+                return nativePath;
+            }
+        } catch (Throwable nativeErr) {
+            try {
+                String swingPath = openSwingAudioFileDialog();
+                if (swingPath != null && !swingPath.isBlank()) {
+                    return swingPath;
+                }
+            } catch (Throwable swingErr) {
+                setPanelHint("打开文件选择器失败: "
+                        + describeThrowable(nativeErr)
+                        + " | 备用方案失败: "
+                        + describeThrowable(swingErr), true);
+                return null;
+            }
+
+            setPanelHint("打开文件选择器失败: " + describeThrowable(nativeErr), true);
+            return null;
+        }
+
+        return null;
+    }
+
+    private String openNativeAudioFileDialog() throws Exception {
         final String[] selected = new String[1];
+
+        Runnable dialogTask = () -> {
+            FileDialog dialog = new FileDialog((Frame) null, "选择音频文件", FileDialog.LOAD);
+            dialog.setMultipleMode(false);
+            dialog.setFilenameFilter((dir, name) -> {
+                String lower = name == null ? "" : name.toLowerCase();
+                return lower.endsWith(".mp3") || lower.endsWith(".wav")
+                        || lower.endsWith(".ogg") || lower.endsWith(".flac");
+            });
+
+            String current = importPath.get().trim();
+            if (!current.isEmpty()) {
+                File seed = new File(current);
+                File parent = seed.getParentFile();
+                if (parent != null && parent.exists()) {
+                    dialog.setDirectory(parent.getAbsolutePath());
+                }
+                if (seed.getName() != null && !seed.getName().isBlank()) {
+                    dialog.setFile(seed.getName());
+                }
+            }
+
+            dialog.setVisible(true);
+            String file = dialog.getFile();
+            String dir = dialog.getDirectory();
+            dialog.dispose();
+
+            if (file != null && dir != null) {
+                selected[0] = new File(dir, file).getAbsolutePath();
+            }
+        };
+
+        if (EventQueue.isDispatchThread()) {
+            dialogTask.run();
+        } else {
+            EventQueue.invokeAndWait(dialogTask);
+        }
+
+        return selected[0];
+    }
+
+    private String openSwingAudioFileDialog() throws Exception {
+        final String[] selected = new String[1];
+
         Runnable chooserTask = () -> {
             JFileChooser chooser = new JFileChooser();
             chooser.setDialogTitle("选择音频文件");
@@ -946,17 +1017,26 @@ public final class AudioAnalysisPanel {
             }
         };
 
-        try {
-            if (SwingUtilities.isEventDispatchThread()) {
-                chooserTask.run();
-            } else {
-                SwingUtilities.invokeAndWait(chooserTask);
-            }
-        } catch (Exception e) {
-            setPanelHint("打开文件选择器失败: " + e.getMessage(), true);
+        if (SwingUtilities.isEventDispatchThread()) {
+            chooserTask.run();
+        } else {
+            SwingUtilities.invokeAndWait(chooserTask);
         }
 
         return selected[0];
+    }
+
+    private static String describeThrowable(Throwable t) {
+        if (t == null) return "未知错误";
+        Throwable root = t;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String msg = root.getMessage();
+        if (msg == null || msg.isBlank()) {
+            msg = "无详细信息";
+        }
+        return root.getClass().getSimpleName() + "(" + msg + ")";
     }
 
     private static float clamp(float value, float min, float max) {
