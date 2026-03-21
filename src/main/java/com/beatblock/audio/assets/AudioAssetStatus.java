@@ -5,6 +5,7 @@ package com.beatblock.audio.assets;
  */
 public enum AudioAssetStatus {
 	PENDING,
+	QUEUED,
 	ANALYZING,
 	COMPLETED,
 	FAILED

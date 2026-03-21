@@ -53,6 +53,7 @@ public final class AudioAnalysisPanel {
 
     // ── 颜色常量（ImGui DrawList 格式：0xAABBGGRR）──────────────────────────
     private static final int COLOR_DOT_DONE     = 0xFF57C45D; // 绿
+    private static final int COLOR_DOT_QUEUED   = 0xFF3AB6F5; // 橙黄
     private static final int COLOR_DOT_ANALYZING= 0xFF27C4CA; // 青
     private static final int COLOR_DOT_FAILED   = 0xFF4A4BE2; // 红（ABGR）
     private static final int COLOR_DOT_PENDING  = 0xFF888888; // 灰
@@ -363,6 +364,7 @@ public final class AudioAnalysisPanel {
         ImGui.spacing();
         switch (asset.getStatus()) {
             case PENDING  -> renderPendingContent(asset);
+            case QUEUED   -> renderQueuedContent(asset);
             case ANALYZING-> renderAnalyzingContent(asset);
             case COMPLETED-> renderCompletedContent(asset);
             case FAILED   -> renderFailedContent(asset);
@@ -376,6 +378,7 @@ public final class AudioAnalysisPanel {
         float lineH = ImGui.getTextLineHeightWithSpacing();
         return switch (asset.getStatus()) {
             case PENDING   -> lineH * 2f + 28f;            // 文件名 + 按钮行
+            case QUEUED    -> lineH * 3f + 20f;            // 排队信息 + 操作按钮
             case ANALYZING -> lineH * 2f + 12f
                     + AudioAnalysisStep.values().length * lineH; // 步骤列表
             case COMPLETED -> lineH * 4f + 18f;            // 紧凑信息 + 拖拽提示
@@ -389,6 +392,7 @@ public final class AudioAnalysisPanel {
         float dotY = ImGui.getCursorScreenPosY() + ImGui.getTextLineHeight() * 0.5f;
         int dotColor = switch (asset.getStatus()) {
             case COMPLETED -> COLOR_DOT_DONE;
+            case QUEUED    -> COLOR_DOT_QUEUED;
             case ANALYZING -> COLOR_DOT_ANALYZING;
             case FAILED    -> COLOR_DOT_FAILED;
             default        -> COLOR_DOT_PENDING;
@@ -463,6 +467,26 @@ public final class AudioAnalysisPanel {
             } else {
                 ImGui.textDisabled("  " + stepLabel);
             }
+        }
+    }
+
+    private void renderQueuedContent(AudioAsset asset) {
+        int pos = AudioAssetManager.getInstance().getQueuePosition(asset.getId());
+        ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.78f, 0.38f, 1f);
+        if (pos > 0) {
+            ImGui.text("排队中 #" + pos);
+        } else {
+            ImGui.text("排队中");
+        }
+        ImGui.popStyleColor();
+
+        ImGui.spacing();
+        ImGui.textDisabled("当前任务将按顺序自动开始解析");
+
+        ImGui.spacing();
+        if (ImGui.button("移除##remove_queue_" + asset.getId())) {
+            AudioAssetManager.getInstance().remove(asset.getId());
+            if (asset == selectedAsset) selectedAsset = null;
         }
     }
 
@@ -606,9 +630,26 @@ public final class AudioAnalysisPanel {
 
         switch (asset.getStatus()) {
             case COMPLETED -> renderDetailCompleted(asset);
+            case QUEUED    -> renderDetailQueued(asset);
             case ANALYZING -> renderDetailAnalyzing(asset);
             case PENDING   -> renderDetailPending(asset);
             case FAILED    -> renderDetailFailed(asset);
+        }
+    }
+
+    private void renderDetailQueued(AudioAsset asset) {
+        sectionHeader("队列状态");
+        int pos = AudioAssetManager.getInstance().getQueuePosition(asset.getId());
+        detailRow("当前状态", "排队中");
+        if (pos > 0) {
+            detailRowColored("队列位次", "#" + pos, new ImVec4(0.95f, 0.78f, 0.38f, 1f));
+        }
+        ImGui.spacing();
+        ImGui.textDisabled("当前分析器为串行执行，前序任务完成后将自动开始。\n你可以继续添加文件，系统会按顺序处理。");
+        ImGui.spacing();
+        if (ImGui.button("移除队列项##detailRemoveQueued", ImGui.getContentRegionAvailX(), 26f)) {
+            AudioAssetManager.getInstance().remove(asset.getId());
+            if (asset == selectedAsset) selectedAsset = null;
         }
     }
 

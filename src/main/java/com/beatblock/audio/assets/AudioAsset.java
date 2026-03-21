@@ -27,6 +27,7 @@ public final class AudioAsset {
 	private int highCount;
 
 	private AudioAssetStatus status = AudioAssetStatus.PENDING;
+	private long queueTicket = -1L;
 	private int analysisProgressPercent;
 	private String processingStatusText;
 	private final EnumSet<AudioAnalysisStep> finishedSteps = EnumSet.noneOf(AudioAnalysisStep.class);
@@ -78,6 +79,8 @@ public final class AudioAsset {
 
 	public AudioAssetStatus getStatus() { return status; }
 	public void setStatus(AudioAssetStatus status) { this.status = status != null ? status : AudioAssetStatus.PENDING; }
+	public long getQueueTicket() { return queueTicket; }
+	public void setQueueTicket(long queueTicket) { this.queueTicket = queueTicket; }
 
 	public int getAnalysisProgressPercent() { return analysisProgressPercent; }
 	public void setAnalysisProgressPercent(int analysisProgressPercent) {

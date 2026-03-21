@@ -37,6 +37,7 @@ public final class AudioAssetManager {
 	private final List<AudioAsset> assets = new CopyOnWriteArrayList<>();
 	private AudioAsset currentDragAsset;
 	private ConversionRequestHandler conversionRequestHandler;
+	private long nextQueueTicket = 1L;
 	private static final String[] SUPPORTED_AUDIO_EXTENSIONS = {"mp3", "wav", "ogg", "flac"};
 
 	private AudioAssetManager() {
@@ -154,6 +155,25 @@ public final class AudioAssetManager {
 		assets.removeIf(a -> id.equals(a.getId()));
 	}
 
+	public int getQueuePosition(String assetId) {
+		if (assetId == null || assetId.isBlank()) return -1;
+		AudioAsset target = findById(assetId);
+		if (target == null || target.getStatus() != AudioAssetStatus.QUEUED) return -1;
+		long targetTicket = target.getQueueTicket();
+		if (targetTicket < 0) return -1;
+
+		int position = 1;
+		for (AudioAsset asset : assets) {
+			if (asset == target) continue;
+			if (asset.getStatus() != AudioAssetStatus.QUEUED) continue;
+			long ticket = asset.getQueueTicket();
+			if (ticket >= 0 && ticket < targetTicket) {
+				position++;
+			}
+		}
+		return position;
+	}
+
 	/**
 	 * 异步执行完整音频解析（Python + librosa），更新 asset 状态与统计信息。
 	 */
@@ -161,15 +181,20 @@ public final class AudioAssetManager {
 		if (asset == null) return;
 		Path path = asset.getPath();
 		if (path == null) return;
-		asset.setStatus(AudioAssetStatus.ANALYZING);
+		if (asset.getStatus() == AudioAssetStatus.ANALYZING || asset.getStatus() == AudioAssetStatus.QUEUED) {
+			return;
+		}
+		asset.setStatus(AudioAssetStatus.QUEUED);
+		asset.setQueueTicket(nextQueueTicket++);
 		asset.setAnalysisProgressPercent(0);
-		asset.setProcessingStatusText(null);
+		asset.setProcessingStatusText("排队中");
 		asset.getFinishedSteps().clear();
 		asset.setErrorMessage(null);
 
 		AudioAnalysisService service = BeatBlock.externalAudioAnalyzer;
 		if (service == null) {
 			asset.setStatus(AudioAssetStatus.FAILED);
+			asset.setQueueTicket(-1L);
 			asset.setErrorMessage("外部音频分析器未初始化");
 			return;
 		}
@@ -178,6 +203,7 @@ public final class AudioAssetManager {
 			path,
 			(step, pct) -> {
 				asset.setAnalysisProgressPercent(pct);
+				asset.setProcessingStatusText(step);
 				// 解析 Python 步骤名映射到 UI 步骤
 				switch (step) {
 					case "BPM_DETECTION" -> asset.markStepFinished(AudioAnalysisStep.BPM_DETECTION);
@@ -195,6 +221,7 @@ public final class AudioAssetManager {
 				asset.setBeatmap(beatmap);
 				asset.setAnalysisProgressPercent(100);
 				asset.setProcessingStatusText(null);
+				asset.setQueueTicket(-1L);
 				BeatmapMeta meta = beatmap.meta;
 				asset.setDurationSeconds(meta.durationMs() / 1000.0);
 				asset.setSampleRate(meta.sampleRate());
@@ -219,7 +246,13 @@ public final class AudioAssetManager {
 				asset.setStatus(AudioAssetStatus.FAILED);
 				asset.setAnalysisProgressPercent(0);
 				asset.setProcessingStatusText(null);
+				asset.setQueueTicket(-1L);
 				asset.setErrorMessage(normalizeErrorMessage(path, err));
+			},
+			() -> {
+				asset.setStatus(AudioAssetStatus.ANALYZING);
+				asset.setQueueTicket(-1L);
+				asset.setProcessingStatusText("正在分析");
 			}
 		);
 	}

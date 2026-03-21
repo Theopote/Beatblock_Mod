@@ -5,14 +5,17 @@ import com.beatblock.audio.beatmap.BeatmapReader;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -54,7 +57,22 @@ public final class AudioAnalysisService {
 		Consumer<Beatmap> onComplete,
 		Consumer<String> onError
 	) {
-		return executor.submit(() -> runAnalysis(audioPath, onProgress, onComplete, onError));
+		return analyze(audioPath, onProgress, onComplete, onError, null);
+	}
+
+	public Future<?> analyze(
+		Path audioPath,
+		BiConsumer<String, Integer> onProgress,
+		Consumer<Beatmap> onComplete,
+		Consumer<String> onError,
+		Runnable onStarted
+	) {
+		return executor.submit(() -> {
+			if (onStarted != null) {
+				onStarted.run();
+			}
+			runAnalysis(audioPath, onProgress, onComplete, onError);
+		});
 	}
 
 	public void shutdown() {
@@ -149,27 +167,18 @@ public final class AudioAnalysisService {
 		}
 
 		String resultJson = null;
-		try (BufferedReader reader = new BufferedReader(
-			new InputStreamReader(process.getInputStream()))) {
-
-			String line;
-			while ((line = reader.readLine()) != null) {
-				resultJson = parseLine(line, onProgress, onError, resultJson);
-			}
-		} catch (IOException e) {
-			onError.accept("读取 Python 输出失败：" + e.getMessage());
-			return;
-		}
-
-		// 读取 stderr（异常栈 / 依赖缺失等）
-		String stderrText = "";
-		try (BufferedReader errReader = new BufferedReader(
-			new InputStreamReader(process.getErrorStream()))) {
-			StringBuilder sb = new StringBuilder();
-			String line;
-			while ((line = errReader.readLine()) != null) sb.append(line).append('\n');
-			stderrText = sb.toString();
-		} catch (IOException ignored) {}
+		FutureTask<String> stdoutTask = new FutureTask<>(
+			() -> consumeStdout(process.getInputStream(), onProgress, onError)
+		);
+		FutureTask<String> stderrTask = new FutureTask<>(
+			() -> consumeLines(process.getErrorStream())
+		);
+		Thread stdoutThread = new Thread(stdoutTask, "beatblock-analyzer-stdout");
+		stdoutThread.setDaemon(true);
+		stdoutThread.start();
+		Thread stderrThread = new Thread(stderrTask, "beatblock-analyzer-stderr");
+		stderrThread.setDaemon(true);
+		stderrThread.start();
 
 		int exitCode;
 		try {
@@ -177,8 +186,34 @@ public final class AudioAnalysisService {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			process.destroyForcibly();
+			stdoutTask.cancel(true);
+			stderrTask.cancel(true);
 			onError.accept("分析被中断");
 			return;
+		}
+
+		String stderrText;
+		try {
+			resultJson = stdoutTask.get();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			process.destroyForcibly();
+			onError.accept("读取 Python 输出时被中断");
+			return;
+		} catch (ExecutionException e) {
+			onError.accept("读取 Python 输出失败：" + rootMessage(e));
+			return;
+		}
+
+		try {
+			stderrText = stderrTask.get();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			process.destroyForcibly();
+			onError.accept("读取 Python 错误输出时被中断");
+			return;
+		} catch (ExecutionException e) {
+			stderrText = "读取 stderr 失败：" + rootMessage(e);
 		}
 
 		if (exitCode != 0) {
@@ -209,6 +244,43 @@ public final class AudioAnalysisService {
 		} catch (Exception e) {
 			onError.accept("读取 beatmap 文件失败：" + e.getMessage());
 		}
+	}
+
+	private String consumeStdout(
+		InputStream stdout,
+		BiConsumer<String, Integer> onProgress,
+		Consumer<String> onError
+	) throws IOException {
+		String resultJson = null;
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(stdout))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				resultJson = parseLine(line, onProgress, onError, resultJson);
+			}
+		}
+		return resultJson;
+	}
+
+	private String consumeLines(InputStream input) throws IOException {
+		StringBuilder sb = new StringBuilder();
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(input))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				sb.append(line).append('\n');
+			}
+		}
+		return sb.toString();
+	}
+
+	private String rootMessage(Throwable t) {
+		Throwable root = t;
+		while (root.getCause() != null && root.getCause() != root) {
+			root = root.getCause();
+		}
+		if (root.getMessage() != null && !root.getMessage().isBlank()) {
+			return root.getMessage();
+		}
+		return root.getClass().getSimpleName();
 	}
 
 	/**
