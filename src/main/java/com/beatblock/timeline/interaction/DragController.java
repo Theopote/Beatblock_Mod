@@ -25,7 +25,7 @@ public final class DragController {
 			TimelineToolbarState toolbarState, TimelineViewState viewState) {
 		if (timeline == null || trackId == null || clipId == null || eventId == null) return;
 
-		double snapped = applySnap(newTimeSeconds, timeline, toolbarState, viewState);
+		double snapped = applySnap(newTimeSeconds, eventId, timeline, toolbarState, viewState);
 		double t = Math.max(0, Math.min(snapped, duration > 0 ? duration : Double.MAX_VALUE));
 
 		Track track = timeline.getTrack(trackId);
@@ -36,12 +36,13 @@ public final class DragController {
 		if (e != null) e.setTimeSeconds(t);
 	}
 
-	private static double applySnap(double timeSeconds, Timeline timeline,
+	private static double applySnap(double timeSeconds, String excludeEventId, Timeline timeline,
 			TimelineToolbarState toolbarState, TimelineViewState viewState) {
 		if (toolbarState == null) return timeSeconds;
 		boolean grid = toolbarState.isSnapToGrid();
 		boolean beat = toolbarState.isSnapToBeat();
-		if (!grid && !beat) return timeSeconds;
+		boolean magnet = toolbarState.isMagnetSnap();
+		if (!grid && !beat && !magnet) return timeSeconds;
 
 		double gridStep = 0;
 		if (grid && viewState != null) {
@@ -50,6 +51,6 @@ public final class DragController {
 				viewState.getViewEndTimeSeconds(),
 				viewState.getZoom());
 		}
-		return SnapSystem.snap(timeSeconds, timeline, grid, gridStep, beat, timeline.getBpm());
+		return SnapSystem.snap(timeSeconds, timeline, grid, gridStep, beat, timeline.getBpm(), magnet, excludeEventId);
 	}
 }

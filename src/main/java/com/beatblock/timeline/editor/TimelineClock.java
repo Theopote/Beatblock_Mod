@@ -52,12 +52,21 @@ public class TimelineClock {
 		setCurrentTimeSeconds(timeSeconds);
 	}
 
-	/** 每帧调用：currentTime += delta * playbackSpeed */
-	public void update(double deltaSeconds) {
+	/** 每帧调用：currentTime += delta * playbackSpeed。loop=true 时到达末尾自动回零继续播放。 */
+	public void update(double deltaSeconds, boolean loop) {
 		if (!playing || durationSeconds <= 0) return;
 		currentTimeSeconds = Math.min(currentTimeSeconds + deltaSeconds * playbackSpeed, durationSeconds);
 		if (currentTimeSeconds >= durationSeconds) {
-			playing = false;
+			if (loop) {
+				currentTimeSeconds = 0;
+			} else {
+				playing = false;
+			}
 		}
+	}
+
+	/** 每帧调用（不循环）。等同于 {@link #update(double, boolean) update(deltaSeconds, false)}。 */
+	public void update(double deltaSeconds) {
+		update(deltaSeconds, false);
 	}
 }

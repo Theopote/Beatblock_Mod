@@ -120,7 +120,14 @@ public final class TimelineEditor {
 		frameLayoutBuilt = false;
 		state.syncClockDuration();
 		if (BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.isPlaying()) {
-			state.getClock().setCurrentTimeSeconds(BeatBlock.musicPlayer.getCurrentTimeSeconds());
+			double t = BeatBlock.musicPlayer.getCurrentTimeSeconds();
+			double dur = timeline.getDurationSeconds();
+			if (toolbarState.isLoop() && dur > 0 && t >= dur) {
+				BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
+				state.getClock().seek(0);
+			} else {
+				state.getClock().setCurrentTimeSeconds(t);
+			}
 		}
 		TimelineLayout layout = frameLayout;
 		cachedDividerScreenX = layout.contentLeft;
