@@ -37,6 +37,7 @@ public final class TimelineInteraction {
 	private static final String POPUP_EVENT_CONTEXT = "##TimelineEventContextPopup";
 	private static final String POPUP_EVENT_PROPERTIES = "##TimelineEventPropertiesPopup";
 	private static final int TIME_INPUT_BUFFER_SIZE = 64;
+	private static final int PARAM_INPUT_BUFFER_SIZE = 256;
 	private static final class ClipboardEvent {
 		final String trackId;
 		final String clipId;
@@ -78,6 +79,9 @@ public final class TimelineInteraction {
 	private final Map<String, Boolean> propertiesParamAsNumber = new HashMap<>();
 	private final Map<String, String> propertiesOriginalParamValues = new HashMap<>();
 	private final Map<String, Boolean> propertiesOriginalParamAsNumber = new HashMap<>();
+	private final ImString propertiesNewParamKey = new ImString(PARAM_INPUT_BUFFER_SIZE);
+	private final ImString propertiesNewParamValue = new ImString(PARAM_INPUT_BUFFER_SIZE);
+	private boolean propertiesNewParamAsNumber;
 	private String propertiesError;
 
 	public void setAudioPlayer(IAudioPlayer audioPlayer) {
@@ -336,6 +340,9 @@ public final class TimelineInteraction {
 		propertiesParamAsNumber.clear();
 		propertiesOriginalParamValues.clear();
 		propertiesOriginalParamAsNumber.clear();
+		propertiesNewParamKey.set("");
+		propertiesNewParamValue.set("");
+		propertiesNewParamAsNumber = false;
 		if (event == null) return;
 		propertiesOriginalTime = String.format(java.util.Locale.ROOT, "%.6f", event.getTimeSeconds());
 		propertiesTimeBuffer.set(propertiesOriginalTime);
@@ -373,6 +380,9 @@ public final class TimelineInteraction {
 			return;
 		}
 
+		boolean applyRequested = ImGui.isKeyPressed(ImGuiKey.Enter);
+		boolean closeRequested = ImGui.isKeyPressed(ImGuiKey.Escape);
+
 		ImGui.text("Event ID: " + ref.event.getId());
 		ImGui.text("Type: " + ref.event.getType().name());
 		ImGui.separator();
@@ -388,27 +398,66 @@ public final class TimelineInteraction {
 			ImGui.text("Parameters");
 			List<String> keys = new ArrayList<>(ref.event.getParameters().keySet());
 			keys.sort(String::compareTo);
+			List<String> removedKeys = new ArrayList<>();
 			for (String key : keys) {
 				ImString buf = propertiesParamBuffers.computeIfAbsent(key, k -> new ImString(256));
 				Boolean asNumber = propertiesParamAsNumber.computeIfAbsent(key,
 					k -> ref.event.getParameters().get(k) instanceof Number);
 				ImGui.text(key);
 				ImGui.sameLine();
-				ImGui.setNextItemWidth(170f);
+				ImGui.setNextItemWidth(130f);
 				ImGui.inputText("##param_" + key, buf);
 				ImGui.sameLine();
 				boolean numberFlag = asNumber != null && asNumber;
 				if (ImGui.checkbox("Number##param_type_" + key, numberFlag)) {
 					propertiesParamAsNumber.put(key, !numberFlag);
 				}
+				ImGui.sameLine();
+				if (ImGui.smallButton("X##param_remove_" + key)) {
+					removedKeys.add(key);
+				}
+			}
+			for (String key : removedKeys) {
+				propertiesParamBuffers.remove(key);
+				propertiesParamAsNumber.remove(key);
 			}
 		}
 
-		if (ImGui.button("Apply")) {
+		ImGui.separator();
+		ImGui.text("Add Parameter");
+		ImGui.setNextItemWidth(120f);
+		ImGui.inputText("Key##param_add_key", propertiesNewParamKey);
+		ImGui.sameLine();
+		ImGui.setNextItemWidth(120f);
+		ImGui.inputText("Value##param_add_value", propertiesNewParamValue);
+		ImGui.sameLine();
+		if (ImGui.checkbox("Number##param_add_type", propertiesNewParamAsNumber)) {
+			propertiesNewParamAsNumber = !propertiesNewParamAsNumber;
+		}
+		ImGui.sameLine();
+		if (ImGui.button("Add/Update##param_add")) {
+			String key = propertiesNewParamKey.get() != null ? propertiesNewParamKey.get().trim() : "";
+			if (key.isEmpty()) {
+				propertiesError = "Parameter key cannot be empty";
+			} else {
+				ImString valueBuf = propertiesParamBuffers.computeIfAbsent(key, k -> new ImString(PARAM_INPUT_BUFFER_SIZE));
+				valueBuf.set(propertiesNewParamValue.get() == null ? "" : propertiesNewParamValue.get());
+				propertiesParamAsNumber.put(key, propertiesNewParamAsNumber);
+				propertiesError = null;
+			}
+		}
+
+		if (ImGui.button("Apply") || applyRequested) {
 			String raw = propertiesTimeBuffer.get();
 			try {
 				double t = Math.max(0, Double.parseDouble(raw.trim()));
 				ref.event.setTimeSeconds(t);
+				Set<String> existing = new HashSet<>(ref.event.getParameters().keySet());
+				for (String key : existing) {
+					if (!propertiesParamBuffers.containsKey(key)) {
+						ref.event.removeParameter(key);
+					}
+				}
 				for (Map.Entry<String, ImString> entry : propertiesParamBuffers.entrySet()) {
 					String key = entry.getKey();
 					String valueRaw = entry.getValue().get();
@@ -436,7 +485,7 @@ public final class TimelineInteraction {
 			resetPropertiesBuffers();
 		}
 		ImGui.sameLine();
-		if (ImGui.button("Close")) {
+		if (ImGui.button("Close") || closeRequested) {
 			ImGui.closeCurrentPopup();
 		}
 		ImGui.endPopup();

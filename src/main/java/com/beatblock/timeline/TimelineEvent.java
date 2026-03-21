@@ -35,5 +35,9 @@ public class TimelineEvent {
 		if (parameters == null) parameters = new java.util.HashMap<>();
 		parameters.put(key, value);
 	}
+	public void removeParameter(String key) {
+		if (parameters == null || key == null) return;
+		parameters.remove(key);
+	}
 	public Object getParameter(String key) { return parameters != null ? parameters.get(key) : null; }
 }
