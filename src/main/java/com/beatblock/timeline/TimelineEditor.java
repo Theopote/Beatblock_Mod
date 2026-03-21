@@ -1,6 +1,5 @@
 package com.beatblock.timeline;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.interaction.TimelineInteraction;
@@ -24,6 +23,7 @@ public final class TimelineEditor {
 	private final TimelineTrackListState trackListState = new TimelineTrackListState();
 	private final TimelineLayout frameLayout = new TimelineLayout();
 	private boolean frameLayoutBuilt;
+	private final IAudioPlayer audioPlayer;
 
 	/** 供 TimelinePanel 绘制贯通竖线：屏幕 X、标尺顶 Y、轨道内容区底 Y（每帧由 render 更新） */
 	private float cachedDividerScreenX;
@@ -42,12 +42,19 @@ public final class TimelineEditor {
 		return cachedDividerContentBottomScreenY;
 	}
 
-	public TimelineEditor(Timeline timeline) {
+	public TimelineEditor(Timeline timeline, IAudioPlayer audioPlayer) {
 		this.timeline = timeline;
+		this.audioPlayer = audioPlayer;
 		this.state = new TimelineEditorState(timeline);
 		this.renderer = new TimelineRenderer();
 		this.interactionSystem = new TimelineInteraction();
+		this.interactionSystem.setAudioPlayer(audioPlayer);
 		this.commandManager = new CommandManager();
+	}
+
+	/** 无音频源时使用（可独立运行和测试）。 */
+	public TimelineEditor(Timeline timeline) {
+		this(timeline, null);
 	}
 
 	public Timeline getTimeline() {
@@ -86,6 +93,10 @@ public final class TimelineEditor {
 		return toolbarState;
 	}
 
+	public IAudioPlayer getAudioPlayer() {
+		return audioPlayer;
+	}
+
 	public TimelineTrackListState getTrackListState() {
 		return trackListState;
 	}
@@ -119,11 +130,11 @@ public final class TimelineEditor {
 		if (timeline == null) return;
 		frameLayoutBuilt = false;
 		state.syncClockDuration();
-		if (BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.isPlaying()) {
-			double t = BeatBlock.musicPlayer.getCurrentTimeSeconds();
+		if (audioPlayer != null && audioPlayer.isPlaying()) {
+			double t = audioPlayer.getCurrentTimeSeconds();
 			double dur = timeline.getDurationSeconds();
 			if (toolbarState.isLoop() && dur > 0 && t >= dur) {
-				BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
+				audioPlayer.setCurrentTimeSeconds(0);
 				state.getClock().seek(0);
 			} else {
 				state.getClock().setCurrentTimeSeconds(t);

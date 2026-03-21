@@ -4,6 +4,7 @@ import com.beatblock.BeatBlock;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.client.BeatBlockClientDriver;
+import com.beatblock.timeline.IAudioPlayer;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;

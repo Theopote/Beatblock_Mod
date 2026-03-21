@@ -1,7 +1,7 @@
 package com.beatblock.timeline.interaction;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.timeline.Clip;
+import com.beatblock.timeline.IAudioPlayer;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
@@ -23,6 +23,12 @@ public final class TimelineInteraction {
 	private static final float PLAYHEAD_HIT_PX = 6f;
 	/** 轨道头与内容区分割线可拖动区域宽度（像素） */
 	private static final float DIVIDER_HIT_PX = 5f;
+
+	private IAudioPlayer audioPlayer;
+
+	public void setAudioPlayer(IAudioPlayer audioPlayer) {
+		this.audioPlayer = audioPlayer;
+	}
 
 	private static final String[] INTERACTIVE_TRACK_IDS = {
 		Timeline.TRACK_ID_ANIMATION_BLOCK,
@@ -184,10 +190,10 @@ public final class TimelineInteraction {
 	}
 
 	/** 拖动/点击标尺或播放头时，同时更新时钟和音乐进度 */
-	private static void seekClockAndMusic(TimelineClock clock, double timeSeconds) {
+	private void seekClockAndMusic(TimelineClock clock, double timeSeconds) {
 		clock.seek(timeSeconds);
-		if (BeatBlock.musicPlayer != null) {
-			BeatBlock.musicPlayer.setCurrentTimeSeconds(clock.getCurrentTimeSeconds());
+		if (audioPlayer != null) {
+			audioPlayer.setCurrentTimeSeconds(clock.getCurrentTimeSeconds());
 		}
 	}
 

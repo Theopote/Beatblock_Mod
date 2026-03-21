@@ -65,7 +65,7 @@ public class BeatBlock implements ModInitializer {
 		transformUpdater = new TransformUpdater();
 		stageManager = new StageManager();
 		timeline = Timeline.createDefault();
-		timelineEditor = new TimelineEditor(timeline);
+		timelineEditor = new TimelineEditor(timeline, musicPlayer);
 		blockAnimationEngine = new BlockAnimationEngine();
 		audioAnalysisEngine = new AudioAnalysisEngine();
 		// 外部 Python 音频分析器（librosa），脚本由 AnalyzerInstaller 从资源解压到 config 目录
