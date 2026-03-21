@@ -14,11 +14,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 音频转换服务：后台调用 ffmpeg 将不支持格式转换为 MP3。
  */
 public final class AudioConversionService {
+
+	private static final Pattern DURATION_PATTERN = Pattern.compile("Duration:\\s*([0-9:.]+)");
+	private static final Pattern TIME_PATTERN = Pattern.compile("time=([0-9:.]+)");
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
 		Thread t = new Thread(r, "beatblock-audio-converter");
@@ -26,11 +31,21 @@ public final class AudioConversionService {
 		return t;
 	});
 
-	public Future<?> convertToMp3Async(Path inputAudio, Consumer<Path> onComplete, Consumer<String> onError) {
-		return executor.submit(() -> convertToMp3(inputAudio, onComplete, onError));
+	public Future<?> convertToMp3Async(
+		Path inputAudio,
+		ProgressCallback onProgress,
+		Consumer<Path> onComplete,
+		Consumer<String> onError
+	) {
+		return executor.submit(() -> convertToMp3(inputAudio, onProgress, onComplete, onError));
 	}
 
-	private void convertToMp3(Path inputAudio, Consumer<Path> onComplete, Consumer<String> onError) {
+	private void convertToMp3(
+		Path inputAudio,
+		ProgressCallback onProgress,
+		Consumer<Path> onComplete,
+		Consumer<String> onError
+	) {
 		if (inputAudio == null || !Files.isRegularFile(inputAudio)) {
 			onError.accept("待转换文件不存在。");
 			return;
@@ -38,6 +53,7 @@ public final class AudioConversionService {
 
 		String fileName = inputAudio.getFileName() != null ? inputAudio.getFileName().toString() : "";
 		if (fileName.toLowerCase().endsWith(".mp3")) {
+			onProgress.accept("源文件已是 MP3，跳过转换。", 100);
 			onComplete.accept(inputAudio);
 			return;
 		}
@@ -51,6 +67,7 @@ public final class AudioConversionService {
 			);
 			return;
 		}
+		onProgress.accept("已找到 ffmpeg，准备转换...", 2);
 
 		Path output = buildOutputPath(inputAudio);
 		List<String> cmd = new ArrayList<>();
@@ -76,10 +93,12 @@ public final class AudioConversionService {
 		}
 
 		StringBuilder out = new StringBuilder();
+		double[] totalDurationSec = {0.0};
 		try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
 			String line;
 			while ((line = br.readLine()) != null) {
 				out.append(line).append('\n');
+				parseProgressLine(line, totalDurationSec, onProgress);
 			}
 		} catch (IOException ignored) {
 		}
@@ -99,7 +118,48 @@ public final class AudioConversionService {
 			return;
 		}
 
+		onProgress.accept("转换完成。", 100);
 		onComplete.accept(output);
+	}
+
+	private void parseProgressLine(String line, double[] totalDurationSec, ProgressCallback onProgress) {
+		if (line == null || line.isBlank()) return;
+
+		Matcher durationMatcher = DURATION_PATTERN.matcher(line);
+		if (durationMatcher.find()) {
+			double duration = parseHmsSeconds(durationMatcher.group(1));
+			if (duration > 0) {
+				totalDurationSec[0] = duration;
+				onProgress.accept("读取音频时长...", 4);
+			}
+		}
+
+		Matcher timeMatcher = TIME_PATTERN.matcher(line);
+		if (timeMatcher.find()) {
+			double current = parseHmsSeconds(timeMatcher.group(1));
+			if (current <= 0) return;
+			if (totalDurationSec[0] > 0) {
+				int pct = (int) Math.round((current / totalDurationSec[0]) * 100.0);
+				pct = Math.max(5, Math.min(98, pct));
+				onProgress.accept("FFmpeg 转换中", pct);
+			} else {
+				onProgress.accept("FFmpeg 转换中", 10);
+			}
+		}
+	}
+
+	private double parseHmsSeconds(String hms) {
+		if (hms == null || hms.isBlank()) return 0.0;
+		String[] parts = hms.trim().split(":");
+		if (parts.length != 3) return 0.0;
+		try {
+			double h = Double.parseDouble(parts[0]);
+			double m = Double.parseDouble(parts[1]);
+			double s = Double.parseDouble(parts[2]);
+			return (h * 3600.0) + (m * 60.0) + s;
+		} catch (NumberFormatException e) {
+			return 0.0;
+		}
 	}
 
 	private Path buildOutputPath(Path inputAudio) {
@@ -167,5 +227,10 @@ public final class AudioConversionService {
 
 	public void shutdown() {
 		executor.shutdownNow();
+	}
+
+	@FunctionalInterface
+	public interface ProgressCallback {
+		void accept(String message, int percent);
 	}
 }

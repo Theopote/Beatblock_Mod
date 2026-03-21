@@ -80,6 +80,11 @@ public class BeatBlock implements ModInitializer {
 			asset.setErrorMessage(null);
 			audioConversionService.convertToMp3Async(
 				asset.getPath(),
+				(message, percent) -> {
+					asset.setStatus(com.beatblock.audio.assets.AudioAssetStatus.ANALYZING);
+					asset.setProcessingStatusText(message + "（" + percent + "%）");
+					asset.setAnalysisProgressPercent(percent);
+				},
 				convertedPath -> {
 					asset.setPath(convertedPath);
 					asset.setProcessingStatusText("转换完成，开始解析...");
