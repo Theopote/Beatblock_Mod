@@ -191,8 +191,8 @@ public final class TimelineLayout {
 		if (rowIndex < 0 || rowIndex >= CONTENT_ROW_COUNT) return -1f;
 		int vi = logicalToVisibleIndex[rowIndex];
 		if (vi < 0) return -1f;
-		float rulerOffset = trackAreaOnly ? 0f : RULER_HEIGHT;
-		return startY + rulerOffset + vi * ROW_STRIDE;
+		// 轨道区总是在 child 窗口里按本地坐标绘制，返回窗口内行偏移即可。
+		return vi * ROW_STRIDE;
 	}
 
 	/** 第 i 个可交互轨道的屏幕 Y（与 INTERACTIVE_TRACK_IDS[i] 对应） */

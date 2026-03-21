@@ -22,6 +22,8 @@ public final class TimelineEditor {
 	private final CommandManager commandManager;
 	private final TimelineToolbarState toolbarState = new TimelineToolbarState();
 	private final TimelineTrackListState trackListState = new TimelineTrackListState();
+	private final TimelineLayout frameLayout = new TimelineLayout();
+	private boolean frameLayoutBuilt;
 
 	/** 供 TimelinePanel 绘制贯通竖线：屏幕 X、标尺顶 Y、轨道内容区底 Y（每帧由 render 更新） */
 	private float cachedDividerScreenX;
@@ -88,13 +90,20 @@ public final class TimelineEditor {
 		return trackListState;
 	}
 
+	private TimelineLayout getOrBuildFrameLayout() {
+		if (!frameLayoutBuilt) {
+			frameLayout.build(false, trackListState.getTrackHeaderWidth(), trackListState);
+			frameLayoutBuilt = true;
+		}
+		return frameLayout;
+	}
+
 	/**
 	 * 在父窗口标尺带点击分割线开始拖动（子窗口未覆盖标尺区域，需在此处命中）。
 	 */
 	public void tryBeginTimelineDividerDragOnRuler() {
 		if (timeline == null) return;
-		TimelineLayout l = new TimelineLayout();
-		l.build(false, trackListState.getTrackHeaderWidth(), trackListState);
+		TimelineLayout l = getOrBuildFrameLayout();
 		interactionSystem.tryBeginDividerDragOnRuler(trackListState, getInteractionState(), l);
 	}
 
@@ -108,22 +117,22 @@ public final class TimelineEditor {
 	 */
 	public void renderRulerOnly() {
 		if (timeline == null) return;
+		frameLayoutBuilt = false;
 		state.syncClockDuration();
 		if (BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.isPlaying()) {
 			state.getClock().setCurrentTimeSeconds(BeatBlock.musicPlayer.getCurrentTimeSeconds());
 		}
-		TimelineLayout layout = new TimelineLayout();
-		layout.build(false, trackListState.getTrackHeaderWidth(), trackListState);
+		TimelineLayout layout = frameLayout;
 		cachedDividerScreenX = layout.contentLeft;
 		cachedDividerTopScreenY = layout.rulerTop;
 		double duration = timeline.getDurationSeconds() > 0 ? timeline.getDurationSeconds() : 60.0;
 		TimelineViewState viewState = state.getViewState();
 		if (viewState.getViewEndTimeSeconds() >= 59 && viewState.getViewEndTimeSeconds() <= 61 && duration > 0 && layout.contentWidth > 0) {
 			viewState.fitToDuration(duration, layout.contentWidth);
-			layout.build(false, trackListState.getTrackHeaderWidth(), trackListState);
-			cachedDividerScreenX = layout.contentLeft;
-			cachedDividerTopScreenY = layout.rulerTop;
 		}
+		layout = getOrBuildFrameLayout();
+		cachedDividerScreenX = layout.contentLeft;
+		cachedDividerTopScreenY = layout.rulerTop;
 		renderer.renderRulerRow(layout, viewState);
 	}
 
@@ -132,8 +141,7 @@ public final class TimelineEditor {
 	 */
 	public void renderTrackArea() {
 		if (timeline == null) return;
-		TimelineLayout layout = new TimelineLayout();
-		layout.build(true, trackListState.getTrackHeaderWidth(), trackListState); // 在可滚动子窗口内，考虑折叠
+		TimelineLayout layout = getOrBuildFrameLayout();
 		cachedDividerScreenX = layout.contentLeft;
 		cachedDividerContentBottomScreenY = layout.contentTop + layout.contentHeight;
 		TimelineViewState viewState = state.getViewState();
