@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.List;
+import java.util.Comparator;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -172,6 +173,104 @@ public final class AudioAssetManager {
 			}
 		}
 		return position;
+	}
+
+	public boolean moveQueueUp(String assetId) {
+		return moveQueueBy(assetId, -1);
+	}
+
+	public boolean moveQueueDown(String assetId) {
+		return moveQueueBy(assetId, 1);
+	}
+
+	public boolean canMoveQueueUp(String assetId) {
+		int pos = getQueuePosition(assetId);
+		return pos > 1;
+	}
+
+	public boolean canMoveQueueDown(String assetId) {
+		int pos = getQueuePosition(assetId);
+		return pos > 0 && pos < getQueuedCount();
+	}
+
+	public boolean moveQueueBefore(String movingAssetId, String targetAssetId) {
+		if (movingAssetId == null || targetAssetId == null) return false;
+		if (movingAssetId.isBlank() || targetAssetId.isBlank()) return false;
+		if (movingAssetId.equals(targetAssetId)) return false;
+
+		List<AudioAsset> queued = getQueuedAssetsSorted();
+		int movingIdx = -1;
+		int targetIdx = -1;
+		for (int i = 0; i < queued.size(); i++) {
+			String id = queued.get(i).getId();
+			if (movingAssetId.equals(id)) movingIdx = i;
+			if (targetAssetId.equals(id)) targetIdx = i;
+		}
+		if (movingIdx < 0 || targetIdx < 0 || movingIdx == targetIdx) return false;
+
+		AudioAsset moving = queued.remove(movingIdx);
+		if (movingIdx < targetIdx) {
+			targetIdx--;
+		}
+		queued.add(targetIdx, moving);
+
+		long t = 1L;
+		for (AudioAsset asset : queued) {
+			asset.setQueueTicket(t++);
+		}
+		nextQueueTicket = t;
+		return true;
+	}
+
+	public int getQueuedCount() {
+		int count = 0;
+		for (AudioAsset asset : assets) {
+			if (asset.getStatus() == AudioAssetStatus.QUEUED) count++;
+		}
+		return count;
+	}
+
+	private boolean moveQueueBy(String assetId, int delta) {
+		if (assetId == null || assetId.isBlank() || delta == 0) return false;
+		List<AudioAsset> queued = getQueuedAssetsSorted();
+		int idx = -1;
+		for (int i = 0; i < queued.size(); i++) {
+			if (assetId.equals(queued.get(i).getId())) {
+				idx = i;
+				break;
+			}
+		}
+		if (idx < 0) return false;
+		int newIdx = idx + delta;
+		if (newIdx < 0 || newIdx >= queued.size()) return false;
+
+		AudioAsset a = queued.get(idx);
+		AudioAsset b = queued.get(newIdx);
+		long t = a.getQueueTicket();
+		a.setQueueTicket(b.getQueueTicket());
+		b.setQueueTicket(t);
+		normalizeQueueTickets();
+		return true;
+	}
+
+	private List<AudioAsset> getQueuedAssetsSorted() {
+		List<AudioAsset> queued = new ArrayList<>();
+		for (AudioAsset asset : assets) {
+			if (asset.getStatus() == AudioAssetStatus.QUEUED && asset.getQueueTicket() >= 0) {
+				queued.add(asset);
+			}
+		}
+		queued.sort(Comparator.comparingLong(AudioAsset::getQueueTicket));
+		return queued;
+	}
+
+	private void normalizeQueueTickets() {
+		List<AudioAsset> queued = getQueuedAssetsSorted();
+		long t = 1L;
+		for (AudioAsset asset : queued) {
+			asset.setQueueTicket(t++);
+		}
+		nextQueueTicket = t;
 	}
 
 	/**

@@ -471,7 +471,8 @@ public final class AudioAnalysisPanel {
     }
 
     private void renderQueuedContent(AudioAsset asset) {
-        int pos = AudioAssetManager.getInstance().getQueuePosition(asset.getId());
+        AudioAssetManager manager = AudioAssetManager.getInstance();
+        int pos = manager.getQueuePosition(asset.getId());
         ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.78f, 0.38f, 1f);
         if (pos > 0) {
             ImGui.text("排队中 #" + pos);
@@ -480,12 +481,49 @@ public final class AudioAnalysisPanel {
         }
         ImGui.popStyleColor();
 
-        ImGui.spacing();
-        ImGui.textDisabled("当前任务将按顺序自动开始解析");
+        if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
+            ImGui.setDragDropPayload("BB_AUDIO_QUEUE_ID", asset.getId().getBytes(), ImGuiCond.Once);
+            ImGui.text("调整队列顺序: " + asset.getFileName());
+            ImGui.endDragDropSource();
+        }
+
+        if (ImGui.beginDragDropTarget()) {
+            byte[] raw = ImGui.acceptDragDropPayload("BB_AUDIO_QUEUE_ID");
+            if (raw != null) {
+                String movingId = decodePayloadText(raw);
+                if (!movingId.isBlank()) {
+                    manager.moveQueueBefore(movingId, asset.getId());
+                }
+            }
+            ImGui.endDragDropTarget();
+        }
 
         ImGui.spacing();
+        ImGui.textDisabled("当前任务将按顺序自动开始解析");
+        ImGui.textDisabled("可拖动队列项到此处以调整优先级");
+
+        ImGui.spacing();
+        boolean canMoveUp = manager.canMoveQueueUp(asset.getId());
+        boolean canMoveDown = manager.canMoveQueueDown(asset.getId());
+
+        if (canMoveUp) {
+            if (ImGui.button("上移##queue_up_" + asset.getId())) {
+                manager.moveQueueUp(asset.getId());
+            }
+        } else {
+            ImGui.textDisabled("上移");
+        }
+        ImGui.sameLine();
+        if (canMoveDown) {
+            if (ImGui.button("下移##queue_down_" + asset.getId())) {
+                manager.moveQueueDown(asset.getId());
+            }
+        } else {
+            ImGui.textDisabled("下移");
+        }
+        ImGui.sameLine();
         if (ImGui.button("移除##remove_queue_" + asset.getId())) {
-            AudioAssetManager.getInstance().remove(asset.getId());
+            manager.remove(asset.getId());
             if (asset == selectedAsset) selectedAsset = null;
         }
     }
@@ -556,6 +594,17 @@ public final class AudioAnalysisPanel {
         float btnW = 110f;
 		prunePanelHint();
 
+        AudioAsset runningAsset = null;
+        int queuedCount = 0;
+        for (AudioAsset a : assets) {
+            if (a.getStatus() == AudioAssetStatus.ANALYZING && runningAsset == null) {
+                runningAsset = a;
+            }
+            if (a.getStatus() == AudioAssetStatus.QUEUED) {
+                queuedCount++;
+            }
+        }
+
         // 全部解析（跳过已完成和正在进行的）
         if (ImGui.button("全部解析##analyzeAll", btnW, 22f)) {
             for (AudioAsset a : assets) {
@@ -592,6 +641,17 @@ public final class AudioAnalysisPanel {
             } else {
                 ImGui.textDisabled(panelHintText);
             }
+        }
+
+        if (runningAsset != null || queuedCount > 0) {
+            ImGui.sameLine();
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.65f, 0.74f, 0.92f, 1f);
+            String running = runningAsset != null
+                ? ("执行中: " + runningAsset.getFileName())
+                : "执行中: 无";
+            String queueText = "队列: " + queuedCount;
+            ImGui.text(running + " · " + queueText);
+            ImGui.popStyleColor();
         }
 
         // 右对齐：资产统计
@@ -639,16 +699,44 @@ public final class AudioAnalysisPanel {
 
     private void renderDetailQueued(AudioAsset asset) {
         sectionHeader("队列状态");
-        int pos = AudioAssetManager.getInstance().getQueuePosition(asset.getId());
+        AudioAssetManager manager = AudioAssetManager.getInstance();
+        int pos = manager.getQueuePosition(asset.getId());
         detailRow("当前状态", "排队中");
         if (pos > 0) {
             detailRowColored("队列位次", "#" + pos, new ImVec4(0.95f, 0.78f, 0.38f, 1f));
         }
         ImGui.spacing();
         ImGui.textDisabled("当前分析器为串行执行，前序任务完成后将自动开始。\n你可以继续添加文件，系统会按顺序处理。");
+        ImGui.textDisabled("提示：左侧列表支持拖动队列项直接改顺序。");
         ImGui.spacing();
+
+        boolean canMoveUp = manager.canMoveQueueUp(asset.getId());
+        boolean canMoveDown = manager.canMoveQueueDown(asset.getId());
+
+        float half = (ImGui.getContentRegionAvailX() - 6f) * 0.5f;
+        if (canMoveUp) {
+            if (ImGui.button("上移优先级##detailQueueUp", half, 26f)) {
+                manager.moveQueueUp(asset.getId());
+            }
+        } else {
+            ImGui.beginDisabled();
+            ImGui.button("上移优先级##detailQueueUpDisabled", half, 26f);
+            ImGui.endDisabled();
+        }
+        ImGui.sameLine();
+        if (canMoveDown) {
+            if (ImGui.button("下移优先级##detailQueueDown", half, 26f)) {
+                manager.moveQueueDown(asset.getId());
+            }
+        } else {
+            ImGui.beginDisabled();
+            ImGui.button("下移优先级##detailQueueDownDisabled", half, 26f);
+            ImGui.endDisabled();
+        }
+        ImGui.spacing();
+
         if (ImGui.button("移除队列项##detailRemoveQueued", ImGui.getContentRegionAvailX(), 26f)) {
-            AudioAssetManager.getInstance().remove(asset.getId());
+            manager.remove(asset.getId());
             if (asset == selectedAsset) selectedAsset = null;
         }
     }
@@ -1082,6 +1170,14 @@ public final class AudioAnalysisPanel {
 
     private static float clamp(float value, float min, float max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private String decodePayloadText(byte[] payload) {
+        if (payload == null || payload.length == 0) return "";
+        String raw = new String(payload);
+        int zero = raw.indexOf('\0');
+        if (zero >= 0) raw = raw.substring(0, zero);
+        return raw.trim();
     }
 }
 
