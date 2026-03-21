@@ -33,7 +33,11 @@ public final class DragController {
 		Clip clip = track.getClip(clipId);
 		if (clip == null) return;
 		TimelineEvent e = clip.getEvent(eventId);
-		if (e != null) e.setTimeSeconds(t);
+		if (e != null) {
+			e.setTimeSeconds(t);
+			// 事件时间变更后使动画缓存失效，避免渲染读取旧排序结果。
+			timeline.markAnimationEventsDirty(trackId);
+		}
 	}
 
 	private static double applySnap(double timeSeconds, String excludeEventId, Timeline timeline,

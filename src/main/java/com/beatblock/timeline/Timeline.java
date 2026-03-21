@@ -23,14 +23,29 @@ public class Timeline {
 	private double durationSeconds = 0;
 	private final List<Track> tracks = new ArrayList<>();
 	private final Map<String, Object> metadata = new ConcurrentHashMap<>();
+	private final List<TimelineAnimationEvent> blockAnimationCache = new ArrayList<>();
+	private final List<TimelineAnimationEvent> autoAnimationCache = new ArrayList<>();
+	private final List<TimelineAnimationEvent> blockAnimationCacheView = Collections.unmodifiableList(blockAnimationCache);
+	private final List<TimelineAnimationEvent> autoAnimationCacheView = Collections.unmodifiableList(autoAnimationCache);
+	private boolean blockAnimationDirty = true;
+	private boolean autoAnimationDirty = true;
 
 	public String getName() { return name; }
 	public void setName(String name) { this.name = name != null ? name : ""; }
 	public double getDurationSeconds() { return durationSeconds; }
 	public void setDurationSeconds(double durationSeconds) { this.durationSeconds = Math.max(0, durationSeconds); }
 	public List<Track> getTracks() { return Collections.unmodifiableList(tracks); }
-	public void addTrack(Track track) { if (track != null) tracks.add(track); }
-	public boolean removeTrack(String trackId) { return tracks.removeIf(t -> trackId != null && trackId.equals(t.getId())); }
+	public void addTrack(Track track) {
+		if (track != null) {
+			tracks.add(track);
+			markAnimationEventsDirty(track.getId());
+		}
+	}
+	public boolean removeTrack(String trackId) {
+		boolean removed = tracks.removeIf(t -> trackId != null && trackId.equals(t.getId()));
+		if (removed) markAnimationEventsDirty(trackId);
+		return removed;
+	}
 	public Track getTrack(String trackId) {
 		for (Track t : tracks) if (trackId != null && trackId.equals(t.getId())) return t;
 		return null;
@@ -90,13 +105,38 @@ public class Timeline {
 		if (ad != null) ad.clearAllBands();
 	}
 
-	public List<TimelineAnimationEvent> getBlockAnimationEvents() { return collectAnimationEvents(TRACK_ID_ANIMATION_BLOCK); }
+	public List<TimelineAnimationEvent> getBlockAnimationEvents() {
+		if (blockAnimationDirty) {
+			rebuildAnimationCache(TRACK_ID_ANIMATION_BLOCK, blockAnimationCache);
+			blockAnimationDirty = false;
+		}
+		return blockAnimationCacheView;
+	}
 	public void addBlockAnimationEvent(TimelineAnimationEvent e) { addAnimationEvent(TRACK_ID_ANIMATION_BLOCK, e); }
 	public void clearBlockAnimationEvents() { clearClips(TRACK_ID_ANIMATION_BLOCK); }
 
-	public List<TimelineAnimationEvent> getAutoAnimationEvents() { return collectAnimationEvents(TRACK_ID_ANIMATION_AUTO); }
+	public List<TimelineAnimationEvent> getAutoAnimationEvents() {
+		if (autoAnimationDirty) {
+			rebuildAnimationCache(TRACK_ID_ANIMATION_AUTO, autoAnimationCache);
+			autoAnimationDirty = false;
+		}
+		return autoAnimationCacheView;
+	}
 	public void addAutoAnimationEvent(TimelineAnimationEvent e) { addAnimationEvent(TRACK_ID_ANIMATION_AUTO, e); }
 	public void clearAutoAnimationEvents() { clearClips(TRACK_ID_ANIMATION_AUTO); }
+
+	/**
+	 * 轨道事件被外部直接修改（如拖拽 setTimeSeconds）后，调用此方法失效动画缓存。
+	 */
+	public void markAnimationEventsDirty(String trackId) {
+		if (TRACK_ID_ANIMATION_BLOCK.equals(trackId)) blockAnimationDirty = true;
+		if (TRACK_ID_ANIMATION_AUTO.equals(trackId)) autoAnimationDirty = true;
+	}
+
+	public void markAnimationEventsDirty() {
+		blockAnimationDirty = true;
+		autoAnimationDirty = true;
+	}
 
 	public List<CameraKeyframe> getCameraKeyframes() {
 		List<CameraKeyframe> out = new ArrayList<>();
@@ -160,10 +200,10 @@ public class Timeline {
 		return t != null ? t.getAudioData() : null;
 	}
 
-	private List<TimelineAnimationEvent> collectAnimationEvents(String trackId) {
-		List<TimelineAnimationEvent> out = new ArrayList<>();
+	private void rebuildAnimationCache(String trackId, List<TimelineAnimationEvent> out) {
+		out.clear();
 		Track t = getTrack(trackId);
-		if (t == null) return out;
+		if (t == null) return;
 		for (Clip c : t.getClips())
 			for (TimelineEvent e : c.getEvents()) {
 				if (e.getType() != EventType.ANIMATION) continue;
@@ -176,7 +216,6 @@ public class Timeline {
 				out.add(new TimelineAnimationEvent(e.getId(), e.getTimeSeconds(), dur, animId, target, energy, new HashMap<>(p)));
 			}
 		out.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
-		return out;
 	}
 
 	private void addAnimationEvent(String trackId, TimelineAnimationEvent e) {
@@ -192,6 +231,7 @@ public class Timeline {
 		params.put("durationSeconds", e.getDurationSeconds());
 		params.putAll(e.getParameters());
 		TimelineOperations.addEvent(clip, e.getTimeSeconds(), EventType.ANIMATION, params);
+		markAnimationEventsDirty(trackId);
 	}
 
 	private void clearClips(String trackId) {
@@ -200,6 +240,7 @@ public class Timeline {
 		List<String> ids = new ArrayList<>();
 		for (Clip c : t.getClips()) ids.add(c.getId());
 		for (String id : ids) t.removeClip(id);
+		markAnimationEventsDirty(trackId);
 	}
 
 	public static Timeline createDefault() {
