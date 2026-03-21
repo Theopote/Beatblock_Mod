@@ -4,9 +4,9 @@ import com.beatblock.audio.beatmap.AnchorType;
 import com.beatblock.audio.beatmap.BeatEvent;
 import com.beatblock.audio.beatmap.Beatmap;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -17,54 +17,108 @@ import java.util.function.Consumer;
  */
 public final class AnimationScheduler {
 
-	private static final long LOOKAHEAD_MS = 1000L;
+	private static final FlightTimeEstimator DEFAULT_FLIGHT_ESTIMATOR = event -> {
+		double energy = Math.max(0.0, Math.min(1.0, event.energy()));
+		long baseMs = switch (event.band()) {
+			case LOW -> 620L;
+			case MID -> 520L;
+			case HIGH -> 420L;
+		};
+		double energyScale = 1.15 - (energy * 0.30);
+		return Math.max(120L, Math.round(baseMs * energyScale));
+	};
 
-	private long dispatchedUpToMs = -1L;
-	private final Set<Long> lookaheadDispatched = new HashSet<>();
 	private Beatmap beatmap;
+	private List<PreparedEvent> prepared = List.of();
+	private int nextDispatchIndex;
+	private long lastTickMs = -1L;
+	private FlightTimeEstimator flightTimeEstimator = DEFAULT_FLIGHT_ESTIMATOR;
 	private final List<Consumer<ScheduledEvent>> listeners = new CopyOnWriteArrayList<>();
 
 	public void load(Beatmap beatmap) {
 		this.beatmap = beatmap;
+		this.prepared = prepareEvents(beatmap);
 		reset();
 	}
 
+	public void setFlightTimeEstimator(FlightTimeEstimator flightTimeEstimator) {
+		this.flightTimeEstimator = flightTimeEstimator != null
+			? flightTimeEstimator
+			: DEFAULT_FLIGHT_ESTIMATOR;
+		if (beatmap != null) {
+			this.prepared = prepareEvents(beatmap);
+			reset();
+		}
+	}
+
 	public void reset() {
-		dispatchedUpToMs = -1L;
-		lookaheadDispatched.clear();
+		nextDispatchIndex = 0;
+		lastTickMs = -1L;
 	}
 
 	public void tick(long nowMs) {
-		if (beatmap == null || beatmap.beats.isEmpty()) return;
-		dispatchDepartEvents(nowMs);
-		dispatchArriveEventsLookahead(nowMs);
-		if (nowMs > dispatchedUpToMs) {
-			dispatchedUpToMs = nowMs;
+		if (prepared.isEmpty()) return;
+
+		if (lastTickMs >= 0 && nowMs < lastTickMs) {
+			nextDispatchIndex = lowerBoundDispatchIndex(nowMs);
 		}
+
+		while (nextDispatchIndex < prepared.size()) {
+			PreparedEvent pe = prepared.get(nextDispatchIndex);
+			if (pe.dispatchMs() > nowMs) break;
+			notify(new ScheduledEvent(
+				pe.event(),
+				pe.dispatchMs(),
+				Math.max(0L, pe.anchorMs() - nowMs)
+			));
+			nextDispatchIndex++;
+		}
+
+		lastTickMs = nowMs;
 	}
 
-	private void dispatchDepartEvents(long nowMs) {
-		long from = dispatchedUpToMs + 1;
-		if (from > nowMs) return;
+	private List<PreparedEvent> prepareEvents(Beatmap beatmap) {
+		if (beatmap == null || beatmap.beats.isEmpty()) return List.of();
+		List<PreparedEvent> list = new ArrayList<>(beatmap.beats.size());
 		for (BeatEvent event : beatmap.beats) {
-			if (event.anchor() != AnchorType.DEPART) continue;
-			if (event.timeMs() < from) continue;
-			if (event.timeMs() > nowMs) break;
-			notify(new ScheduledEvent(event, event.timeMs(), 0L));
+			long anchorMs = event.timeMs();
+			long dispatchMs = anchorMs;
+			if (event.anchor() == AnchorType.ARRIVE) {
+				long flightMs = Math.max(0L, flightTimeEstimator.estimateFlightMs(event));
+				dispatchMs = Math.max(0L, anchorMs - flightMs);
+			}
+			list.add(new PreparedEvent(event, dispatchMs, anchorMs));
 		}
+		list.sort(Comparator
+			.comparingLong(PreparedEvent::dispatchMs)
+			.thenComparingLong(PreparedEvent::anchorMs)
+			.thenComparingInt(pe -> pe.event().band().ordinal()));
+		return List.copyOf(list);
 	}
 
-	private void dispatchArriveEventsLookahead(long nowMs) {
-		long windowEnd = nowMs + LOOKAHEAD_MS;
-		for (BeatEvent event : beatmap.beats) {
-			if (event.anchor() != AnchorType.ARRIVE) continue;
-			if (event.timeMs() < nowMs) continue;
-			if (event.timeMs() > windowEnd) break;
-			if (lookaheadDispatched.contains(event.timeMs())) continue;
-			lookaheadDispatched.add(event.timeMs());
-			long timeUntilLanding = event.timeMs() - nowMs;
-			notify(new ScheduledEvent(event, nowMs, timeUntilLanding));
+	private int lowerBoundDispatchIndex(long nowMs) {
+		int lo = 0;
+		int hi = prepared.size();
+		while (lo < hi) {
+			int mid = (lo + hi) >>> 1;
+			if (prepared.get(mid).dispatchMs() < nowMs) {
+				lo = mid + 1;
+			} else {
+				hi = mid;
+			}
 		}
+		return lo;
+	}
+
+	private record PreparedEvent(
+		BeatEvent event,
+		long dispatchMs,
+		long anchorMs
+	) {}
+
+	@FunctionalInterface
+	public interface FlightTimeEstimator {
+		long estimateFlightMs(BeatEvent event);
 	}
 
 	private void notify(ScheduledEvent se) {
@@ -91,7 +145,7 @@ public final class AnimationScheduler {
 		long timeUntilAnchorMs
 	) {
 		public boolean needsLookahead() {
-			return event.anchor() == AnchorType.ARRIVE && timeUntilAnchorMs > 0;
+			return event.anchor() == AnchorType.ARRIVE;
 		}
 	}
 }

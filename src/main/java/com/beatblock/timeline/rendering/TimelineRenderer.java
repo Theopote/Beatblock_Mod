@@ -11,6 +11,8 @@ import com.beatblock.timeline.editor.TimelineClock;
 import com.beatblock.timeline.editor.TimelineViewState;
 import imgui.ImGui;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * 时间线渲染入口：按 4 区域绘制（1.时间尺 2.轨道名 3.网格 4.内容/事件/播放头/框选）。
  */
@@ -121,14 +123,23 @@ public final class TimelineRenderer {
 				ImGui.setCursorScreenPos(dropX, dropY);
 				ImGui.invisibleButton("##AudioTrackDropTarget", layout.contentWidth, layout.rowHeight);
 				if (ImGui.beginDragDropTarget()) {
-					if (ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID") != null) {
-						AudioAsset asset = AudioAssetManager.getInstance().getCurrentDragAsset();
-						if (asset != null && asset.getFeatureTimeline() != null && BeatBlock.audioAnalysisEngine != null) {
-							BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
-							if (BeatBlock.timelineEditor != null) {
-								BeatBlock.timelineEditor.syncClockDuration();
+						byte[] payload = ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID");
+						if (payload != null) {
+							String assetId = new String(payload, StandardCharsets.UTF_8).trim();
+							AudioAsset asset = AudioAssetManager.getInstance().findById(assetId);
+							if (asset == null) {
+								asset = AudioAssetManager.getInstance().getCurrentDragAsset();
 							}
-						}
+							if (asset != null && BeatBlock.audioAnalysisEngine != null) {
+								if (asset.getBeatmap() != null) {
+									BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
+								} else if (asset.getFeatureTimeline() != null) {
+									BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
+								}
+								if (BeatBlock.timelineEditor != null) {
+									BeatBlock.timelineEditor.syncClockDuration();
+								}
+							}
 					}
 					ImGui.endDragDropTarget();
 				}

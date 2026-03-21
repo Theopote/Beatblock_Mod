@@ -49,6 +49,14 @@ public final class AudioAssetManager {
 		this.currentDragAsset = asset;
 	}
 
+	public AudioAsset findById(String id) {
+		if (id == null || id.isBlank()) return null;
+		for (AudioAsset asset : assets) {
+			if (id.equals(asset.getId())) return asset;
+		}
+		return null;
+	}
+
 	public AudioAsset addFromPath(String pathStr) {
 		if (pathStr == null || pathStr.isEmpty()) return null;
 		Path path = Paths.get(pathStr);

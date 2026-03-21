@@ -389,6 +389,7 @@ public final class AudioAnalysisPanel {
 
         // 整个 child window 作为拖拽源
         if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
+            AudioAssetManager.getInstance().setCurrentDragAsset(asset);
             ImGui.setDragDropPayload(
                     "BB_AUDIO_ASSET_ID",
                     asset.getId().getBytes(),
@@ -531,6 +532,7 @@ public final class AudioAnalysisPanel {
         ImGui.popStyleColor(3);
 
         if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
+            AudioAssetManager.getInstance().setCurrentDragAsset(asset);
             ImGui.setDragDropPayload(
                     "BB_AUDIO_ASSET_ID",
                     asset.getId().getBytes(),

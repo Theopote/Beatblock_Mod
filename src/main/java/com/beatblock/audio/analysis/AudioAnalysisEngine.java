@@ -1,8 +1,13 @@
 package com.beatblock.audio.analysis;
 
+import com.beatblock.audio.beatmap.Beatmap;
+import com.beatblock.audio.beatmap.BeatEvent;
+import com.beatblock.audio.beatmap.MusicSection;
 import com.beatblock.timeline.FrequencyBand;
 import com.beatblock.timeline.FrequencyEvent;
+import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.WaveformData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,6 +121,62 @@ public final class AudioAnalysisEngine {
 	 */
 	public void fillTimelineFromFeature(Timeline timeline, AudioFeatureTimeline feature, int sampleRate) {
 		fillTimelineInternal(timeline, feature, sampleRate);
+	}
+
+	/**
+	 * 使用 .beatmap JSON（Python 预处理产物）直接填充时间线。
+	 * 运行时无需重新读取/分析音频文件。
+	 */
+	public void fillTimelineFromBeatmap(Timeline timeline, Beatmap beatmap) {
+		if (timeline == null || beatmap == null) return;
+
+		timeline.setDurationSeconds(Math.max(0.0, beatmap.meta.durationMs() / 1000.0));
+
+		if (beatmap.waveformPreview != null && beatmap.waveformPreview.data() != null) {
+			float[] peaks = beatmap.waveformPreview.data().clone();
+			float max = 0f;
+			for (float peak : peaks) {
+				if (peak > max) max = peak;
+			}
+			if (max > 1e-6f && max != 1f) {
+				for (int i = 0; i < peaks.length; i++) peaks[i] /= max;
+			}
+			timeline.setWaveform(new WaveformData(
+				peaks,
+				timeline.getDurationSeconds(),
+				beatmap.meta.sampleRate()
+			));
+		}
+
+		timeline.clearFrequencyEvents();
+		for (BeatEvent e : beatmap.beats) {
+			FrequencyBand band = switch (e.band()) {
+				case LOW -> FrequencyBand.LOW;
+				case MID -> FrequencyBand.MID;
+				case HIGH -> FrequencyBand.HIGH;
+			};
+			timeline.addFrequencyEvent(new FrequencyEvent(
+				e.timeMs() / 1000.0,
+				band,
+				Math.max(0f, Math.min(1f, e.energy()))
+			));
+		}
+
+		List<TimelineMarker> preserved = timeline.getMarkers().stream()
+			.filter(m -> m.getType() != MarkerType.SECTION)
+			.toList();
+		timeline.setMarkers(preserved);
+		for (MusicSection section : beatmap.sections) {
+			double sectionStartSec = Math.max(0.0, section.startMs() / 1000.0);
+			String name = "SECTION " + section.label().name();
+			timeline.addMarker(new TimelineMarker(sectionStartSec, name, MarkerType.SECTION));
+		}
+
+		timeline.setMetadata("bpm", beatmap.meta.bpm());
+		timeline.setMetadata("beatCount", beatmap.beats.size());
+		timeline.setMetadata("sectionCount", beatmap.sections.size());
+		timeline.setMetadata("sourceFile", beatmap.meta.sourceFile());
+		timeline.sortAll();
 	}
 
 	public AudioFeatureTimeline getLastFeatureTimeline() {
