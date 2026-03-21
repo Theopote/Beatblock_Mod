@@ -22,6 +22,8 @@ public final class TrackRenderer {
 
 	/** 可见/锁定 两枚按钮之间的间隙 */
 	private static final float ICON_GAP = 2f;
+	/** 左侧安全内边距，避免折叠按钮贴边被窗口裁剪。 */
+	private static final float LEFT_INSET = 8f;
 
 	private static final int MICRO_SEP_COLOR = 0x55_66_66_66; // ABGR
 
@@ -54,8 +56,8 @@ public final class TrackRenderer {
 		}
 		float typeColW = Math.max(MIN_TYPE_COL_W, maxTypeW + TYPE_COL_RIGHT_PAD);
 
-		// 列边界（内部坐标：以“轨道头内部局部 X=0”为基准）；折叠槽贴左，不留左侧空隙
-		float foldColLeft = 0f;
+		// 列边界（内部坐标：以“轨道头内部局部 X=0”为基准）
+		float foldColLeft = LEFT_INSET;
 		float typeStartX = foldColLeft + foldColW;
 		float nameX = typeStartX + typeColW;
 
