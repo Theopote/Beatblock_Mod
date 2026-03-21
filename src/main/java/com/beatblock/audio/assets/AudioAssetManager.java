@@ -19,7 +19,10 @@ import java.util.Collections;
 import java.util.Locale;
 import java.util.List;
 import java.util.Comparator;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Future;
 
 /**
  * 音频资产管理器：维护「音频解析」面板的数据源，并串联 AudioAnalysisEngine。
@@ -36,6 +39,7 @@ public final class AudioAssetManager {
 	}
 
 	private final List<AudioAsset> assets = new CopyOnWriteArrayList<>();
+	private final Map<String, Future<?>> analysisTasks = new ConcurrentHashMap<>();
 	private AudioAsset currentDragAsset;
 	private ConversionRequestHandler conversionRequestHandler;
 	private long nextQueueTicket = 1L;
@@ -153,6 +157,10 @@ public final class AudioAssetManager {
 
 	public void remove(String id) {
 		if (id == null) return;
+		Future<?> task = analysisTasks.remove(id);
+		if (task != null) {
+			task.cancel(true);
+		}
 		assets.removeIf(a -> id.equals(a.getId()));
 	}
 
@@ -298,13 +306,16 @@ public final class AudioAssetManager {
 			return;
 		}
 
-		service.analyze(
+		Future<?> task = service.analyze(
 			path,
 			(step, pct) -> {
 				asset.setAnalysisProgressPercent(pct);
-				asset.setProcessingStatusText(step);
+				asset.setProcessingStatusText(stepDisplayName(step));
 				// 解析 Python 步骤名映射到 UI 步骤
 				switch (step) {
+					case "DEPENDENCY_INSTALL" -> {
+						// 依赖安装是前置步骤，不映射到 beatmap 步骤枚举
+					}
 					case "BPM_DETECTION" -> asset.markStepFinished(AudioAnalysisStep.BPM_DETECTION);
 					case "BEAT_DETECTION" -> {
 						asset.markStepFinished(AudioAnalysisStep.BEAT_DETECTION);
@@ -339,6 +350,7 @@ public final class AudioAssetManager {
 				asset.setHighCount(high);
 
 				asset.setStatus(AudioAssetStatus.COMPLETED);
+				analysisTasks.remove(asset.getId());
 			},
 			err -> {
 				LOGGER.warn("BeatBlock AudioAssetManager: 外部解析失败: {}", err);
@@ -347,6 +359,7 @@ public final class AudioAssetManager {
 				asset.setProcessingStatusText(null);
 				asset.setQueueTicket(-1L);
 				asset.setErrorMessage(normalizeErrorMessage(path, err));
+				analysisTasks.remove(asset.getId());
 			},
 			() -> {
 				asset.setStatus(AudioAssetStatus.ANALYZING);
@@ -354,6 +367,19 @@ public final class AudioAssetManager {
 				asset.setProcessingStatusText("正在分析");
 			}
 		);
+		analysisTasks.put(asset.getId(), task);
+	}
+
+	private String stepDisplayName(String step) {
+		if (step == null || step.isBlank()) return "处理中";
+		return switch (step) {
+			case "DEPENDENCY_INSTALL" -> "正在安装依赖";
+			case "BPM_DETECTION" -> "BPM 检测";
+			case "BEAT_DETECTION" -> "踩点检测";
+			case "SECTION_DETECTION" -> "段落识别";
+			case "WRITE_BEATMAP" -> "写入 Beatmap";
+			default -> step;
+		};
 	}
 
 	private String normalizeErrorMessage(Path audioPath, String raw) {

@@ -19,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -78,12 +79,14 @@ public final class AudioAnalysisService {
 		Consumer<String> onError,
 		Runnable onStarted
 	) {
-		return executor.submit(() -> {
+		AnalysisControl control = new AnalysisControl();
+		Future<?> delegate = executor.submit(() -> {
 			if (onStarted != null) {
 				onStarted.run();
 			}
-			runAnalysis(audioPath, onProgress, onComplete, onError);
+			runAnalysis(audioPath, onProgress, onComplete, onError, control);
 		});
+		return wrapCancelableFuture(delegate, control);
 	}
 
 	public void shutdown() {
@@ -138,7 +141,8 @@ public final class AudioAnalysisService {
 		Path audioPath,
 		BiConsumer<String, Integer> onProgress,
 		Consumer<Beatmap> onComplete,
-		Consumer<String> onError
+		Consumer<String> onError,
+		AnalysisControl control
 	) {
 		// 确保脚本与输出目录已就绪
 		Path scriptPath;
@@ -164,6 +168,10 @@ public final class AudioAnalysisService {
 				请确认已安装 Python，或在 config/beatblock/python_path.txt 中指定完整路径。""");
 			return;
 		}
+		if (control.isCancelled()) {
+			onError.accept("分析被取消");
+			return;
+		}
 		PythonProbeInfo pythonProbe = getPythonProbeInfo(pythonExe);
 		if (!pythonProbe.probeOk) {
 			onError.accept("无法探测 Python 运行环境：" + pythonProbe.detail);
@@ -181,12 +189,18 @@ public final class AudioAnalysisService {
 		}
 
 		// 预检并补齐依赖（librosa / numpy / soundfile / scipy）
+		onProgress.accept("DEPENDENCY_INSTALL", 0);
 		Path requirementsPath = scriptPath.getParent().resolve("requirements.txt");
-		String dependencyError = ensurePythonDependencies(pythonExe, requirementsPath);
+		String dependencyError = ensurePythonDependencies(pythonExe, requirementsPath, control);
 		if (dependencyError != null) {
+			if (control.isCancelled()) {
+				onError.accept("分析被取消");
+				return;
+			}
 			onError.accept(dependencyError);
 			return;
 		}
+		onProgress.accept("DEPENDENCY_INSTALL", 100);
 
 		// 构建 Python 命令
 		List<String> cmd = new ArrayList<>();
@@ -201,6 +215,7 @@ public final class AudioAnalysisService {
 			process = new ProcessBuilder(cmd)
 				.redirectErrorStream(false)
 				.start();
+			control.attachProcess(process);
 		} catch (IOException e) {
 			onError.accept("无法启动 Python：" + e.getMessage()
 				+ "\n请确认 Python 已安装，路径：" + pythonExe);
@@ -231,6 +246,8 @@ public final class AudioAnalysisService {
 			stderrTask.cancel(true);
 			onError.accept("分析被中断");
 			return;
+		} finally {
+			control.clearProcess(process);
 		}
 
 		String stderrText;
@@ -479,15 +496,20 @@ public final class AudioAnalysisService {
 		return s.contains("inkscape") && s.contains("python.exe");
 	}
 
-	private String ensurePythonDependencies(String pythonExe, Path requirementsPath) {
+	private String ensurePythonDependencies(String pythonExe, Path requirementsPath, AnalysisControl control) {
 		try {
+			if (control.isCancelled()) return "分析被取消";
+
 			Process check = new ProcessBuilder(
 				pythonExe,
 				"-c",
 				"import numpy, librosa, soundfile, scipy"
 			).redirectErrorStream(true).start();
+			control.attachProcess(check);
 			String checkOut = readProcessOutput(check);
 			int checkCode = waitProcess(check);
+			control.clearProcess(check);
+			if (control.isCancelled()) return "分析被取消";
 			if (checkCode == 0) return null;
 
 			if (!Files.isRegularFile(requirementsPath)) {
@@ -502,8 +524,11 @@ public final class AudioAnalysisService {
 				"-r",
 				requirementsPath.toAbsolutePath().toString()
 			).redirectErrorStream(true).start();
+			control.attachProcess(install);
 			String installOut = readProcessOutput(install);
 			int installCode = waitProcess(install);
+			control.clearProcess(install);
+			if (control.isCancelled()) return "分析被取消";
 			if (installCode == 0) return null;
 
 			String detail = sanitizeProcessOutput(installOut);
@@ -516,8 +541,40 @@ public final class AudioAnalysisService {
 				+ (hint.isEmpty() ? "" : ("\n" + hint + "\n"))
 				+ detail;
 		} catch (IOException e) {
+			if (control.isCancelled()) return "分析被取消";
 			return "检查 Python 依赖失败：" + e.getMessage();
 		}
+	}
+
+	private Future<?> wrapCancelableFuture(Future<?> delegate, AnalysisControl control) {
+		return new Future<>() {
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				control.cancelRunningProcess();
+				return delegate.cancel(true);
+			}
+
+			@Override
+			public boolean isCancelled() {
+				return delegate.isCancelled();
+			}
+
+			@Override
+			public boolean isDone() {
+				return delegate.isDone();
+			}
+
+			@Override
+			public Object get() throws InterruptedException, ExecutionException {
+				return delegate.get();
+			}
+
+			@Override
+			public Object get(long timeout, TimeUnit unit)
+				throws InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
+				return delegate.get(timeout, unit);
+			}
+		};
 	}
 
 	private String readProcessOutput(Process process) throws IOException {
@@ -629,6 +686,35 @@ public final class AudioAnalysisService {
 		private String versionString() {
 			if (!probeOk) return "unknown";
 			return major + "." + minor + "." + micro;
+		}
+	}
+
+	private static final class AnalysisControl {
+		private final AtomicReference<Process> activeProcess = new AtomicReference<>();
+		private volatile boolean cancelled;
+
+		private void attachProcess(Process process) {
+			if (process == null) return;
+			activeProcess.set(process);
+			if (cancelled) {
+				process.destroyForcibly();
+			}
+		}
+
+		private void clearProcess(Process process) {
+			activeProcess.compareAndSet(process, null);
+		}
+
+		private void cancelRunningProcess() {
+			cancelled = true;
+			Process p = activeProcess.getAndSet(null);
+			if (p != null) {
+				p.destroyForcibly();
+			}
+		}
+
+		private boolean isCancelled() {
+			return cancelled;
 		}
 	}
 }
