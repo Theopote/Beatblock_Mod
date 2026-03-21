@@ -13,6 +13,7 @@ import com.beatblock.timeline.rendering.TimelineTrackListState;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseCursor;
+import imgui.type.ImString;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,6 +35,8 @@ public final class TimelineInteraction {
 	/** 轨道头与内容区分割线可拖动区域宽度（像素） */
 	private static final float DIVIDER_HIT_PX = 5f;
 	private static final String POPUP_EVENT_CONTEXT = "##TimelineEventContextPopup";
+	private static final String POPUP_EVENT_PROPERTIES = "##TimelineEventPropertiesPopup";
+	private static final int TIME_INPUT_BUFFER_SIZE = 64;
 	private static final class ClipboardEvent {
 		final String trackId;
 		final String clipId;
@@ -51,11 +54,28 @@ public final class TimelineInteraction {
 		}
 	}
 
+	private static final class EventRef {
+		final Track track;
+		final Clip clip;
+		final TimelineEvent event;
+
+		EventRef(Track track, Clip clip, TimelineEvent event) {
+			this.track = track;
+			this.clip = clip;
+			this.event = event;
+		}
+	}
+
 	private IAudioPlayer audioPlayer;
 	private final List<ClipboardEvent> clipboardEvents = new ArrayList<>();
 	private String contextTrackId;
 	private String contextClipId;
 	private double contextTimeSeconds;
+	private String propertiesEventId;
+	private final ImString propertiesTimeBuffer = new ImString(TIME_INPUT_BUFFER_SIZE);
+	private final Map<String, ImString> propertiesParamBuffers = new HashMap<>();
+	private final Map<String, Boolean> propertiesParamAsNumber = new HashMap<>();
+	private String propertiesError;
 
 	public void setAudioPlayer(IAudioPlayer audioPlayer) {
 		this.audioPlayer = audioPlayer;
@@ -150,9 +170,13 @@ public final class TimelineInteraction {
 			HitResult hit = hitContentAtMouse(timeline, viewState, layout, mx, my);
 			contextTrackId = hit != null ? hit.getTrackId() : null;
 			contextClipId = hit != null ? hit.getClipId() : null;
+			if (hit != null && hit.getEventId() != null) {
+				propertiesEventId = hit.getEventId();
+			}
 			ImGui.openPopup(POPUP_EVENT_CONTEXT);
 		}
 		renderContextMenu(timeline, selectionState);
+		renderPropertiesPopup(timeline);
 
 		if (ImGui.isMouseReleased(0)) {
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT && interactionState.getActiveEventId() != null) {
@@ -277,6 +301,7 @@ public final class TimelineInteraction {
 		if (!ImGui.beginPopup(POPUP_EVENT_CONTEXT)) return;
 		boolean hasSelection = selectionState != null && !selectionState.getSelectedEvents().isEmpty();
 		boolean hasClipboard = !clipboardEvents.isEmpty();
+		boolean canOpenProperties = resolvePropertiesEventRef(timeline, selectionState) != null;
 		if (ImGui.menuItem("Copy", "Ctrl+C", false, hasSelection)) {
 			copySelectedEvents(timeline, selectionState);
 		}
@@ -287,10 +312,129 @@ public final class TimelineInteraction {
 			deleteSelectedEvents(timeline, selectionState);
 		}
 		ImGui.separator();
-		if (ImGui.menuItem("Properties", null, false, false)) {
-			// TODO: 属性面板待实现
+		if (ImGui.menuItem("Properties", null, false, canOpenProperties)) {
+			openPropertiesPopup(timeline, selectionState);
 		}
 		ImGui.endPopup();
+	}
+
+	private void openPropertiesPopup(Timeline timeline, SelectionState selectionState) {
+		EventRef ref = resolvePropertiesEventRef(timeline, selectionState);
+		if (ref == null || ref.event == null) return;
+		propertiesEventId = ref.event.getId();
+		propertiesTimeBuffer.set(String.format(java.util.Locale.ROOT, "%.6f", ref.event.getTimeSeconds()));
+		loadPropertiesParameterBuffers(ref.event);
+		propertiesError = null;
+		ImGui.openPopup(POPUP_EVENT_PROPERTIES);
+	}
+
+	private void loadPropertiesParameterBuffers(TimelineEvent event) {
+		propertiesParamBuffers.clear();
+		propertiesParamAsNumber.clear();
+		if (event == null) return;
+		for (Map.Entry<String, Object> entry : event.getParameters().entrySet()) {
+			String key = entry.getKey();
+			Object value = entry.getValue();
+			ImString buf = new ImString(256);
+			buf.set(value == null ? "" : String.valueOf(value));
+			propertiesParamBuffers.put(key, buf);
+			propertiesParamAsNumber.put(key, value instanceof Number);
+		}
+	}
+
+	private void renderPropertiesPopup(Timeline timeline) {
+		if (!ImGui.beginPopup(POPUP_EVENT_PROPERTIES)) return;
+		EventRef ref = findEventRef(timeline, propertiesEventId);
+		if (ref == null || ref.event == null) {
+			ImGui.textDisabled("Event no longer exists.");
+			if (ImGui.button("Close")) ImGui.closeCurrentPopup();
+			ImGui.endPopup();
+			return;
+		}
+
+		ImGui.text("Event ID: " + ref.event.getId());
+		ImGui.text("Type: " + ref.event.getType().name());
+		ImGui.separator();
+		ImGui.text("Time (seconds)");
+		ImGui.setNextItemWidth(170f);
+		ImGui.inputText("##eventTime", propertiesTimeBuffer);
+		if (propertiesError != null) {
+			ImGui.textColored(1f, 0.45f, 0.45f, 1f, propertiesError);
+		}
+
+		if (!ref.event.getParameters().isEmpty()) {
+			ImGui.separator();
+			ImGui.text("Parameters");
+			List<String> keys = new ArrayList<>(ref.event.getParameters().keySet());
+			keys.sort(String::compareTo);
+			for (String key : keys) {
+				ImString buf = propertiesParamBuffers.computeIfAbsent(key, k -> new ImString(256));
+				Boolean asNumber = propertiesParamAsNumber.computeIfAbsent(key,
+					k -> ref.event.getParameters().get(k) instanceof Number);
+				ImGui.text(key);
+				ImGui.sameLine();
+				ImGui.setNextItemWidth(170f);
+				ImGui.inputText("##param_" + key, buf);
+				ImGui.sameLine();
+				boolean numberFlag = asNumber != null && asNumber;
+				if (ImGui.checkbox("Number##param_type_" + key, numberFlag)) {
+					propertiesParamAsNumber.put(key, !numberFlag);
+				}
+			}
+		}
+
+		if (ImGui.button("Apply")) {
+			String raw = propertiesTimeBuffer.get();
+			try {
+				double t = Math.max(0, Double.parseDouble(raw.trim()));
+				ref.event.setTimeSeconds(t);
+				for (Map.Entry<String, ImString> entry : propertiesParamBuffers.entrySet()) {
+					String key = entry.getKey();
+					String valueRaw = entry.getValue().get();
+					boolean asNumber = propertiesParamAsNumber.getOrDefault(key, false);
+					if (asNumber) {
+						ref.event.setParameter(key, Double.parseDouble(valueRaw.trim()));
+					} else {
+						ref.event.setParameter(key, valueRaw);
+					}
+				}
+				timeline.markAnimationEventsDirty(ref.track.getId());
+				propertiesError = null;
+			} catch (Exception ex) {
+				propertiesError = "Invalid number in time/parameter";
+			}
+		}
+		ImGui.sameLine();
+		if (ImGui.button("Close")) {
+			ImGui.closeCurrentPopup();
+		}
+		ImGui.endPopup();
+	}
+
+	private EventRef resolvePropertiesEventRef(Timeline timeline, SelectionState selectionState) {
+		EventRef byContext = findEventRef(timeline, propertiesEventId);
+		if (byContext != null) return byContext;
+		if (selectionState != null && !selectionState.getSelectedEvents().isEmpty()) {
+			for (String eventId : selectionState.getSelectedEvents()) {
+				EventRef bySelection = findEventRef(timeline, eventId);
+				if (bySelection != null) {
+					propertiesEventId = eventId;
+					return bySelection;
+				}
+			}
+		}
+		return null;
+	}
+
+	private static EventRef findEventRef(Timeline timeline, String eventId) {
+		if (timeline == null || eventId == null || eventId.isBlank()) return null;
+		for (Track track : timeline.getTracks()) {
+			for (Clip clip : track.getClips()) {
+				TimelineEvent e = clip.getEvent(eventId);
+				if (e != null) return new EventRef(track, clip, e);
+			}
+		}
+		return null;
 	}
 
 	private static HitResult hitContentAtMouse(Timeline timeline, TimelineViewState viewState,
