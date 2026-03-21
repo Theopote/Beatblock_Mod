@@ -2,6 +2,8 @@ package com.beatblock.audio;
 
 import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.audio.beatmap.BeatmapReader;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -69,7 +71,7 @@ public final class AudioAnalysisService {
 		Consumer<Beatmap> onComplete,
 		Consumer<String> onError
 	) {
-		return analyze(audioPath, onProgress, onComplete, onError, null);
+		return analyze(audioPath, onProgress, onComplete, onError, null, null);
 	}
 
 	public Future<?> analyze(
@@ -79,12 +81,23 @@ public final class AudioAnalysisService {
 		Consumer<String> onError,
 		Runnable onStarted
 	) {
+		return analyze(audioPath, onProgress, onComplete, onError, null, onStarted);
+	}
+
+	public Future<?> analyze(
+		Path audioPath,
+		BiConsumer<String, Integer> onProgress,
+		Consumer<Beatmap> onComplete,
+		Consumer<String> onError,
+		Consumer<AnalysisSummary> onSummary,
+		Runnable onStarted
+	) {
 		AnalysisControl control = new AnalysisControl();
 		Future<?> delegate = executor.submit(() -> {
 			if (onStarted != null) {
 				onStarted.run();
 			}
-			runAnalysis(audioPath, onProgress, onComplete, onError, control);
+			runAnalysis(audioPath, onProgress, onComplete, onError, onSummary, control);
 		});
 		return wrapCancelableFuture(delegate, control);
 	}
@@ -142,6 +155,7 @@ public final class AudioAnalysisService {
 		BiConsumer<String, Integer> onProgress,
 		Consumer<Beatmap> onComplete,
 		Consumer<String> onError,
+		Consumer<AnalysisSummary> onSummary,
 		AnalysisControl control
 	) {
 		// 确保脚本与输出目录已就绪
@@ -296,11 +310,32 @@ public final class AudioAnalysisService {
 			return;
 		}
 
+		if (onSummary != null && resultJson != null && !resultJson.isBlank()) {
+			AnalysisSummary summary = parseResultSummary(resultJson);
+			if (summary != null) {
+				onSummary.accept(summary);
+			}
+		}
+
 		try {
 			Beatmap beatmap = BeatmapReader.read(beatmapPath);
 			onComplete.accept(beatmap);
 		} catch (Exception e) {
 			onError.accept("读取 beatmap 文件失败：" + e.getMessage());
+		}
+	}
+
+	private AnalysisSummary parseResultSummary(String resultJson) {
+		if (resultJson == null || resultJson.isBlank()) return null;
+		try {
+			JsonObject o = JsonParser.parseString(resultJson).getAsJsonObject();
+			float bpm = o.has("bpm") ? o.get("bpm").getAsFloat() : 0f;
+			int beatCount = o.has("beat_count") ? o.get("beat_count").getAsInt() : 0;
+			int sectionCount = o.has("section_count") ? o.get("section_count").getAsInt() : 0;
+			long durationMs = o.has("duration_ms") ? o.get("duration_ms").getAsLong() : 0L;
+			return new AnalysisSummary(bpm, beatCount, sectionCount, durationMs);
+		} catch (Exception ignored) {
+			return null;
 		}
 	}
 
@@ -640,6 +675,8 @@ public final class AudioAnalysisService {
 	public interface BiConsumer<A, B> {
 		void accept(A a, B b);
 	}
+
+	public record AnalysisSummary(float bpm, int beatCount, int sectionCount, long durationMs) {}
 
 	private static final class PythonProbeInfo {
 		private final boolean probeOk;

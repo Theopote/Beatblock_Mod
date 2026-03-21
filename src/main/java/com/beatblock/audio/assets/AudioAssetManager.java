@@ -361,6 +361,20 @@ public final class AudioAssetManager {
 				asset.setErrorMessage(normalizeErrorMessage(path, err));
 				analysisTasks.remove(asset.getId());
 			},
+			summary -> {
+				if (summary.durationMs() > 0) {
+					asset.setDurationSeconds(summary.durationMs() / 1000.0);
+				}
+				if (summary.bpm() > 0) {
+					asset.setBpm(summary.bpm());
+				}
+				if (summary.beatCount() >= 0) {
+					asset.setBeatCount(summary.beatCount());
+				}
+				if (summary.sectionCount() >= 0) {
+					asset.setSectionCount(summary.sectionCount());
+				}
+			},
 			() -> {
 				asset.setStatus(AudioAssetStatus.ANALYZING);
 				asset.setQueueTicket(-1L);
