@@ -92,6 +92,10 @@ public final class TimelineToolbar {
 		if (playing) {
 			if (ImGui.button(Icons.Play.PAUSE + "##tlPause", tBtn, tBtn)) {
 				if (BeatBlock.musicPlayer != null) BeatBlock.musicPlayer.pause();
+				// 同时暂停时间线时钟
+				if (BeatBlock.timelineEditor != null) {
+					BeatBlock.timelineEditor.getClock().pause();
+				}
 			}
 			transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_PAUSE);
 		} else {
@@ -101,12 +105,20 @@ public final class TimelineToolbar {
 					// 启动驱动以便每帧推进时间，播放头随音乐移动
 					if (!BeatBlockClientDriver.isDriving()) BeatBlockClientDriver.startDriving();
 				}
+				// 同时启动时间线时钟
+				if (BeatBlock.timelineEditor != null) {
+					BeatBlock.timelineEditor.getClock().play();
+				}
 			}
 			transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_PLAY);
 		}
 		nextItemInGroup();
 		if (ImGui.button(Icons.Play.STOP + "##tlStop", tBtn, tBtn)) {
 			if (BeatBlock.musicPlayer != null) BeatBlock.musicPlayer.stop();
+			// 同时暂停和重置时间线时钟
+			if (BeatBlock.timelineEditor != null) {
+				BeatBlock.timelineEditor.getClock().pause();
+			}
 			seekTo(editor, 0);
 		}
 		transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_STOP);
