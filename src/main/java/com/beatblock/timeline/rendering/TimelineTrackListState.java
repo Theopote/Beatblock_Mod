@@ -116,6 +116,18 @@ public final class TimelineTrackListState {
 		return audioRowHeightPx;
 	}
 
+	public float getAudioRowHeightMin() {
+		return AUDIO_ROW_HEIGHT_MIN;
+	}
+
+	public float getAudioRowHeightMax() {
+		return AUDIO_ROW_HEIGHT_MAX;
+	}
+
+	public float getAudioRowHeightDefault() {
+		return AUDIO_ROW_HEIGHT_DEFAULT;
+	}
+
 	public void setAudioRowHeight(float height) {
 		audioRowHeightPx = Math.max(AUDIO_ROW_HEIGHT_MIN, Math.min(AUDIO_ROW_HEIGHT_MAX, height));
 	}
@@ -126,6 +138,10 @@ public final class TimelineTrackListState {
 
 	public void resetAudioRowHeight() {
 		audioRowHeightPx = AUDIO_ROW_HEIGHT_DEFAULT;
+	}
+
+	public boolean isAudioRowHeightDefault() {
+		return Math.abs(audioRowHeightPx - AUDIO_ROW_HEIGHT_DEFAULT) < 0.001f;
 	}
 
 	/** 组轨道是否已折叠（仅对组行 0、5 有效） */

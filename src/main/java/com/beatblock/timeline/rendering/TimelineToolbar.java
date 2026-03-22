@@ -50,6 +50,8 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_LOOP = "循环播放";
 	private static final String TOOLTIP_FIT = "缩放至整段时长可见";
 	private static final String TOOLTIP_ZOOM = "时间线横向缩放";
+	private static final String TOOLTIP_TRACK_HEIGHT = "调整音频轨（波形/低中高频）高度，便于看清节奏细节";
+	private static final String TOOLTIP_TRACK_HEIGHT_RESET = "恢复音频轨默认高度";
 
 	/** Zoom 预设：显示名与对应的缩放倍数（相对基准 1x） */
 	private static final String[] ZOOM_PRESET_LABELS = { "0.25x", "0.5x", "1x", "2x", "3x", "4x" };
@@ -257,6 +259,8 @@ public final class TimelineToolbar {
 			if (dur > 0 && w > 0) editor.getViewState().fitToDuration(dur, w);
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_FIT);
+		nextItemInGroup();
+		renderTrackHeightControl(editor, false);
 		nextGroup();
 
 		// ----- 4. Auto Map -----
@@ -368,6 +372,7 @@ public final class TimelineToolbar {
 			if (dur > 0 && w > 0) editor.getViewState().fitToDuration(dur, w);
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_FIT);
+		renderTrackHeightControl(editor, true);
 
 		ImGui.separator();
 		ImGui.textDisabled("Tools");
@@ -409,6 +414,7 @@ public final class TimelineToolbar {
 			+ checkboxWidth("Loop");
 
 		float viewGroupWidth = comboTotalWidth("Zoom", ZOOM_PRESET_LABELS) + TOOLBAR_ITEM_SPACING + buttonWidth("Fit");
+		float trackHeightGroupWidth = sliderTotalWidth("Track H", 120f) + TOOLBAR_ITEM_SPACING + buttonWidth("Reset");
 		float autoMapWidth = buttonWidth("Auto Map") + 70f;
 
 		return transportWidth
@@ -418,6 +424,8 @@ public final class TimelineToolbar {
 			+ snapGroupWidth
 			+ TOOLBAR_GROUP_SPACING
 			+ viewGroupWidth
+			+ TOOLBAR_GROUP_SPACING
+			+ trackHeightGroupWidth
 			+ TOOLBAR_GROUP_SPACING
 			+ autoMapWidth;
 	}
@@ -438,6 +446,44 @@ public final class TimelineToolbar {
 
 	private static float comboTotalWidth(String label, String[] values) {
 		return comboWidthForLabels(values) + ImGui.calcTextSize(label).x + 10f;
+	}
+
+	private static float sliderTotalWidth(String label, float sliderWidth) {
+		return sliderWidth + ImGui.calcTextSize(label).x + 10f;
+	}
+
+	private static void renderTrackHeightControl(TimelineEditor editor, boolean compactMode) {
+		if (editor == null || editor.getTrackListState() == null) return;
+		TimelineTrackListState trackState = editor.getTrackListState();
+		float min = trackState.getAudioRowHeightMin();
+		float max = trackState.getAudioRowHeightMax();
+		float[] v = new float[] { trackState.getAudioRowHeight() };
+
+		if (compactMode) {
+			ImGui.separator();
+			ImGui.textDisabled("Track Height");
+			ImGui.setNextItemWidth(180f);
+			if (ImGui.sliderFloat("Track H##tlMoreTrackH", v, min, max, "%.0f px")) {
+				trackState.setAudioRowHeight(v[0]);
+			}
+			if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TRACK_HEIGHT);
+			if (ImGui.button("Reset##tlMoreTrackHReset")) {
+				trackState.resetAudioRowHeight();
+			}
+			if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TRACK_HEIGHT_RESET);
+			return;
+		}
+
+		ImGui.setNextItemWidth(120f);
+		if (ImGui.sliderFloat("Track H", v, min, max, "%.0f px")) {
+			trackState.setAudioRowHeight(v[0]);
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TRACK_HEIGHT);
+		nextItemInGroup();
+		if (ImGui.button("Reset##tlTrackHReset")) {
+			trackState.resetAudioRowHeight();
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TRACK_HEIGHT_RESET);
 	}
 
 	private static void nextItemInGroup() {
