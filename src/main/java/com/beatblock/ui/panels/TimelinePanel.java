@@ -47,6 +47,7 @@ public class TimelinePanel {
 		// ----- 固定区域：时间刻度（标尺），紧接工具栏下方 -----
 		ImGui.separator();
 		if (editor != null) {
+			editor.beginFrameLayout();
 			editor.renderRulerOnly();
 			editor.handleRulerInteraction();
 			editor.tryBeginTimelineDividerDragOnRuler();

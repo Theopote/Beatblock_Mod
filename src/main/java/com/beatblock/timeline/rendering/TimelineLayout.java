@@ -82,50 +82,45 @@ public final class TimelineLayout {
 	/** 时间线区域在窗口内的起始 Y（用于 setCursorPosY） */
 	public float startY;
 
-	/** 是否在「仅轨道区」子窗口中构建（无标尺行，startY 即轨道区顶部）。 */
-	private boolean trackAreaOnly;
-
 	/**
-	 * 根据当前 ImGui 窗口状态填充布局（在 begin 之后、绘制前调用）。
-	 * @param trackAreaOnly 若为 true，表示在可滚动的轨道区子窗口内，无标尺行，行从 0 开始。
-	 * @param trackHeaderWidthPx 轨道头区域宽度（可拖动分割线调整），若 &lt;= 0 则用 TRACK_LABEL_WIDTH。
-	 * @param trackListState 若非 null，则根据组折叠状态计算可见行；为 null 时全部可见。
+	 * 采样固定标尺区域的锚点与共享宽度。本帧只调用一次。
+	 * @param trackHeaderWidthPx 轨道头区域宽度（可拖动分割线调整），若 <= 0 则用 TRACK_LABEL_WIDTH。
 	 */
-	public void build(boolean trackAreaOnly, float trackHeaderWidthPx, TimelineTrackListState trackListState) {
-		this.trackAreaOnly = trackAreaOnly;
+	public void beginFrame(float trackHeaderWidthPx) {
 		float headerW = trackHeaderWidthPx > 0 ? trackHeaderWidthPx : TRACK_LABEL_WIDTH;
 
-		// 用「内容区 (0,·) 的屏幕坐标」锚定，避免 winPos+scroll 与 ImGui 实际 padding/滚动不一致导致
-		// 主竖线、标尺起点、轨道内容区、分割线命中区错位。
 		float backupX = ImGui.getCursorPosX();
 		float backupY = ImGui.getCursorPosY();
 		startY = backupY;
 		float availX = ImGui.getContentRegionAvailX();
 		float rightPad = Math.max(8f, ImGui.getStyle().getScrollbarSize() * 0.5f + 4f);
 		contentWidth = Math.max(200f, availX - headerW - rightPad);
-
-		if (trackAreaOnly) {
-			ImGui.setCursorPos(0f, startY);
-			trackHeaderLeft = ImGui.getCursorScreenPosX();
-			trackHeaderTop = ImGui.getCursorScreenPosY();
-			rulerLeft = trackHeaderLeft + headerW;
-			// 轨道子窗口不包含固定标尺，标尺命中区域位于子窗口上方。
-			rulerTop = trackHeaderTop - RULER_HEIGHT;
-			rulerWidth = contentWidth;
-		} else {
-			ImGui.setCursorPos(0f, startY);
-			rulerTop = ImGui.getCursorScreenPosY();
-			ImGui.setCursorPos(0f, startY + RULER_HEIGHT);
-			trackHeaderLeft = ImGui.getCursorScreenPosX();
-			trackHeaderTop = ImGui.getCursorScreenPosY();
-			rulerLeft = trackHeaderLeft + headerW;
-			rulerWidth = contentWidth;
-		}
-
-		ImGui.setCursorPos(backupX, backupY);
-
 		trackHeaderWidth = headerW;
 		rowHeight = ROW_HEIGHT;
+		timelineWidth = contentWidth;
+		trackLabelWidth = headerW;
+
+		ImGui.setCursorPos(0f, startY);
+		rulerTop = ImGui.getCursorScreenPosY();
+		trackHeaderLeft = ImGui.getCursorScreenPosX();
+		rulerLeft = trackHeaderLeft + headerW;
+		rulerWidth = contentWidth;
+
+		ImGui.setCursorPos(backupX, backupY);
+	}
+
+	/**
+	 * 在轨道子窗口顶部采样滚动后的内容锚点，并仅在这里计算一次行坐标。
+	 */
+	public void attachTrackAreaContext(TimelineTrackListState trackListState) {
+		float backupX = ImGui.getCursorPosX();
+		float backupY = ImGui.getCursorPosY();
+		ImGui.setCursorPos(0f, backupY);
+		trackHeaderTop = ImGui.getCursorScreenPosY();
+		trackHeaderLeft = ImGui.getCursorScreenPosX();
+		contentLeft = trackHeaderLeft + trackHeaderWidth;
+		contentTop = trackHeaderTop;
+		ImGui.setCursorPos(backupX, backupY);
 
 		int v = 0;
 		for (int i = 0; i < CONTENT_ROW_COUNT; i++) {
@@ -141,13 +136,7 @@ public final class TimelineLayout {
 		}
 		visibleRowCount = v;
 		trackHeaderHeight = visibleRowCount * ROW_STRIDE;
-
-		contentLeft = rulerLeft;
-		contentTop = trackHeaderTop;
-		this.contentWidth = contentWidth;
 		contentHeight = trackHeaderHeight;
-		timelineWidth = contentWidth;
-		trackLabelWidth = headerW;
 	}
 
 	private static boolean isRowVisible(int rowIndex, TimelineTrackListState state) {
@@ -155,21 +144,6 @@ public final class TimelineLayout {
 		int parent = TimelineTrackMeta.getParentRowIndex(rowIndex);
 		if (parent == TimelineTrackMeta.NO_PARENT) return true;
 		return !state.isGroupCollapsed(parent);
-	}
-
-	/** 兼容旧调用：不传 state，全部行可见。 */
-	public void build(boolean trackAreaOnly, float trackHeaderWidthPx) {
-		build(trackAreaOnly, trackHeaderWidthPx, null);
-	}
-
-	/** 兼容旧调用：按「含标尺」、默认轨道头宽度构建。 */
-	public void build(boolean trackAreaOnly) {
-		build(trackAreaOnly, TRACK_LABEL_WIDTH);
-	}
-
-	/** 兼容旧调用：按「含标尺」模式构建。 */
-	public void build() {
-		build(false);
 	}
 
 	/** 第 i 行是否可见（未折叠或其父组未折叠） */
