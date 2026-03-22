@@ -12,9 +12,13 @@ import com.beatblock.timeline.WaveformData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Audio Analysis Engine 门面：加载 → 解码 → 波形/FFT/能量/节拍/BPM → 生成 FeatureTimeline，并可写入 Timeline。
@@ -32,12 +36,44 @@ public final class AudioAnalysisEngine {
 	private AudioFeatureTimeline lastFeatureTimeline;
 
 	/**
+	 * 会话级缓存：key = "绝对路径:mtime(ms)"，避免同一文件在一个 JVM 生命周期内重复解码分析。
+	 */
+	private final ConcurrentMap<String, AudioFeatureTimeline> featureCache = new ConcurrentHashMap<>();
+
+	/**
 	 * 从文件路径加载并完整分析，得到 AudioFeatureTimeline；失败返回 null。
+	 * 命中会话缓存时直接返回缓存结果，无需重新解码。
 	 */
 	public AudioFeatureTimeline analyze(Path path) {
 		if (path == null) return null;
+		String cacheKey = buildFeatureCacheKey(path);
+		if (cacheKey != null) {
+			AudioFeatureTimeline cached = featureCache.get(cacheKey);
+			if (cached != null) {
+				LOGGER.debug("BeatBlock AudioAnalysis: session cache hit path={}", path);
+				lastFeatureTimeline = cached;
+				return cached;
+			}
+		}
 		AudioBuffer buffer = AudioDecoder.load(path);
-		return analyzeBuffer(buffer);
+		AudioFeatureTimeline result = analyzeBuffer(buffer);
+		if (result != null && cacheKey != null) {
+			featureCache.put(cacheKey, result);
+		}
+		return result;
+	}
+
+	/**
+	 * 构建缓存 key（绝对路径 + ":" + mtime毫秒）。文件不存在或IO异常时返回 null。
+	 */
+	private String buildFeatureCacheKey(Path path) {
+		try {
+			Path abs = path.toAbsolutePath().normalize();
+			long mtime = Files.getLastModifiedTime(abs).toMillis();
+			return abs.toString().toLowerCase() + ":" + mtime;
+		} catch (IOException e) {
+			return null;
+		}
 	}
 
 	/**
