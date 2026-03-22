@@ -159,46 +159,52 @@ def analyze(input_path: str, output_path: str, include_waveform: bool) -> dict:
 
     progress("BEAT_DETECTION", 55)
 
-    # ── 4. 计算每个踩点的能量 ────────────────────────────────────────────────
-    # 用 RMS 能量包络在踩点前后 20ms 窗口取最大值
-    hop_length = 512
-    rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
-    rms_norm = rms / (np.max(rms) + 1e-8)  # 归一化到 0~1
+    # ── 4. 计算每个踩点的能量（按轨道分别归一化）────────────────────────────
+    # 全局 RMS：仅用于取原始能量值，不做全局归一化。
+    # 低频底鼓 RMS 比高频踩镲高 10~20 倍，若用全局最大值归一化，
+    # hihat 踩点能量会被压到 0.05~0.15 并被噪声过滤阈值误删。
+    # 解决方案：先收集每条轨道的原始 RMS 值，再用该轨道内的最大值做局部归一化，
+    # 使每条轨道的能量分布均覆盖 0~1，动态表现力对等。
+    _hop_e = 512
+    _rms_raw = librosa.feature.rms(y=y, hop_length=_hop_e)[0]   # 原始 RMS，未归一化
 
-    def energy_at_time(t_sec: float) -> float:
-        """返回某时刻的归一化能量（0~1）。"""
-        frame = librosa.time_to_frames(t_sec, sr=sr, hop_length=hop_length)
+    def _raw_energy(t_sec: float) -> float:
+        """返回 onset 附近 ±2 帧内的原始 RMS 最大值。"""
+        frame = librosa.time_to_frames(t_sec, sr=sr, hop_length=_hop_e)
         lo = max(0, frame - 2)
-        hi = min(len(rms_norm) - 1, frame + 2)
-        return float(np.max(rms_norm[lo:hi+1]))
+        hi = min(len(_rms_raw) - 1, frame + 2)
+        return float(np.max(_rms_raw[lo:hi + 1]))
 
-    # ── 5. 构建 beats 列表 ────────────────────────────────────────────────────
+    # ── 5. 构建 beats 列表（逐轨道归一化）───────────────────────────────────
     progress("BEAT_DETECTION", 65)
 
-    # 计算小节信息：节拍序号 → 小节序号 + 拍内位置
-    # beat_frames 是全部节拍帧，index 就是 beat_index
-    beat_time_set = set(beat_times_ms)  # 用于快速查找是否是强拍
+    beat_time_arr = librosa.frames_to_time(beat_frames, sr=sr)   # 避免循环内重复计算
 
     beats = []
-    beat_global_index = 0
 
     for band_name, onset_times in band_onsets.items():
-        for t_sec in onset_times:
+        # 第一遍：收集该轨道所有 onset 的原始能量
+        raw_energies = [_raw_energy(t) for t in onset_times]
+
+        # 轨道内归一化：use track-local max，避免轨道间能量尺度差异
+        track_max = max(raw_energies) if raw_energies else 1.0
+        track_min = min(raw_energies) if raw_energies else 0.0
+        track_range = track_max - track_min + 1e-8
+
+        for t_sec, raw_e in zip(onset_times, raw_energies):
             t_ms = int(t_sec * 1000)
             if t_ms < 0 or t_ms > duration_ms:
                 continue
 
-            energy = energy_at_time(t_sec)
+            # 轨道局部归一化后的能量
+            energy = float(np.clip((raw_e - track_min) / track_range, 0.0, 1.0))
 
-            # 跳过极低能量的噪声踩点
+            # 过滤噪声踩点（阈值针对局部归一化后的值，0.05 更合理）
             if energy < 0.05:
                 continue
 
-            # 找最近的节拍索引
-            nearest_beat_idx = int(np.argmin(np.abs(
-                librosa.frames_to_time(beat_frames, sr=sr) - t_sec
-            )))
-            bar_index  = nearest_beat_idx // 4
+            nearest_beat_idx = int(np.argmin(np.abs(beat_time_arr - t_sec)))
+            bar_index   = nearest_beat_idx // 4
             beat_in_bar = nearest_beat_idx % 4
 
             # anchor 规则：hihat 系列（high-freq）→ depart；其余 → arrive
