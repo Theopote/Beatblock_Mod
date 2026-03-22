@@ -1,6 +1,7 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.BeatBlockRuntime;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
@@ -229,9 +230,12 @@ public final class TimelineRenderer {
 					bindDroppedAudioToPlayback(timeline, asset);
 					if (asset.getBeatmap() != null) {
 						BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
+						enrichTimelineWithDenseFeatureData(timeline, asset);
 						BeatBlockRuntime.getInstance().loadBeatmap(asset.getBeatmap());
 					} else if (asset.getFeatureTimeline() != null) {
 						BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
+					} else {
+						enrichTimelineWithDenseFeatureData(timeline, asset);
 					}
 					if (BeatBlock.timelineEditor != null) {
 						BeatBlock.timelineEditor.syncClockDuration();
@@ -239,6 +243,28 @@ public final class TimelineRenderer {
 				}
 			}
 			ImGui.endDragDropTarget();
+		}
+	}
+
+	/**
+	 * 拖拽落轨后补充高分辨率频段帧数据，解决 beatmap 踩点稀疏导致的子轨可视化断续问题。
+	 */
+	private void enrichTimelineWithDenseFeatureData(Timeline timeline, AudioAsset asset) {
+		if (timeline == null || asset == null || BeatBlock.audioAnalysisEngine == null) return;
+
+		AudioFeatureTimeline feature = asset.getFeatureTimeline();
+		if (feature == null && asset.getPath() != null) {
+			feature = BeatBlock.audioAnalysisEngine.analyze(asset.getPath());
+			if (feature != null) {
+				asset.setFeatureTimeline(feature);
+			}
+		}
+		if (feature == null) return;
+
+		BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, feature, asset.getSampleRate());
+		if (asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
+			timeline.setMetadata("bpm", asset.getBeatmap().meta.bpm());
+			timeline.setMetadata("beatCount", asset.getBeatmap().beats.size());
 		}
 	}
 
