@@ -775,6 +775,11 @@ public final class AudioAnalysisPanel {
     }
 
     private void renderDetailCompleted(AudioAsset asset) {
+        Beatmap detailBm = asset.getBeatmap();
+        boolean hasStemSeparation = detailBm != null
+            && detailBm.meta != null
+            && detailBm.meta.hasStemSeparation();
+
         // ── 基本信息 ───────────────────────────────────────────────────
         sectionHeader("基本信息");
         detailRow("文件名",   asset.getFileName());
@@ -787,29 +792,40 @@ public final class AudioAnalysisPanel {
         sectionHeader("解析结果");
         detailRowColored("BPM",    String.format("%.1f", asset.getBpm()),       COLOR_PROGRESS_FG);
         detailRow("拍号",           "4/4");
+        detailRow("解析模式",       hasStemSeparation ? "Demucs 语义茎分离" : "传统频段分离");
         detailRowColored("踩点数量", asset.getBeatCount() + " 个",               COLOR_MID);
         detailRow("识别段落",        asset.getSectionCount() + " 段");
 
         ImGui.spacing();
 
-        // ── 频段分布 ───────────────────────────────────────────────────
-        sectionHeader("频段踩点分布");
-        detailRowColored("低频（鼓点）", asset.getLowCount()  + " 个", COLOR_LOW);
-        detailRowColored("中频（旋律）", asset.getMidCount()  + " 个", COLOR_MID);
-        detailRowColored("高频（打击）", asset.getHighCount() + " 个", COLOR_HIGH);
+        // ── 分布信息（传统频段 / Demucs 语义茎）──────────────────────────
+        if (!hasStemSeparation) {
+            sectionHeader("频段踩点分布");
+            detailRowColored("低频（鼓点）", asset.getLowCount()  + " 个", COLOR_LOW);
+            detailRowColored("中频（旋律）", asset.getMidCount()  + " 个", COLOR_MID);
+            detailRowColored("高频（打击）", asset.getHighCount() + " 个", COLOR_HIGH);
+        } else {
+            sectionHeader("语义茎轨道");
+            detailRowColored("鼓组（drums）", stemStateLabel(detailBm, "drums"), new ImVec4(0.87f, 0.53f, 0.25f, 1f));
+            detailRowColored("贝斯（bass）",  stemStateLabel(detailBm, "bass"),  new ImVec4(0.27f, 0.60f, 0.87f, 1f));
+            detailRowColored("人声（vocals）", stemStateLabel(detailBm, "vocals"), new ImVec4(0.67f, 0.38f, 0.84f, 1f));
+            detailRowColored("其他（other）",  stemStateLabel(detailBm, "other"),  new ImVec4(0.58f, 0.72f, 0.30f, 1f));
+            ImGui.textDisabled("提示：静音/独奏请在时间线音频子轨上操作。\n鼓类特征轨(kick/snare/hihat)会共同影响 drums 茎。" );
+        }
 
         if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
             ImGui.spacing();
             ImGui.textDisabled(asset.getInfoMessage());
         }
 
-        // 简易频段占比条
-        ImGui.spacing();
-        renderBandBar(asset);
+        // 简易频段占比条（仅传统频段模式）
+        if (!hasStemSeparation) {
+            ImGui.spacing();
+            renderBandBar(asset);
+        }
 
         // ── Demucs 茎分离详情 ─────────────────────────────────────────────
-        Beatmap detailBm = asset.getBeatmap();
-        if (detailBm != null && detailBm.meta != null && detailBm.meta.hasStemSeparation()) {
+        if (hasStemSeparation) {
             ImGui.spacing();
             sectionHeader("茎分离 (Demucs)");
             detailRowColored("分离模式", detailBm.meta.separationMode(), new ImVec4(0.22f, 0.78f, 0.82f, 1f));
@@ -1057,6 +1073,12 @@ public final class AudioAnalysisPanel {
             case STEM_SEPARATION  -> "Demucs 茎分离";
             case WRITE_BEATMAP    -> "写入 Beatmap";
         };
+    }
+
+    private String stemStateLabel(Beatmap bm, String stemKey) {
+        if (bm == null || bm.meta == null || bm.meta.stems() == null) return "未生成";
+        String path = bm.meta.stems().get(stemKey);
+        return (path != null && !path.isBlank()) ? "已生成" : "未生成";
     }
 
     private boolean handleIncomingAudioPath(String path) {

@@ -121,6 +121,12 @@ public final class TimelineRenderer {
 			currentAudioSubTracks  = TrackRegistry.buildAudioSubTracks(timeline);
 		}
 		layout.setActiveAudioSubRowCount(currentAudioSubTracks.size());
+		if (trackListState != null) {
+			syncPrimaryPlayerMuteState(trackListState);
+		}
+		if (trackListState != null && BeatBlock.stemMixer != null && BeatBlock.stemMixer.hasStems()) {
+			syncStemMuteState(trackListState);
+		}
 
 		// 预留轨道区总高度，使子窗口滚动范围正确
 		ImGui.dummy(0, layout.contentHeight);
@@ -195,7 +201,7 @@ public final class TimelineRenderer {
 			TrackDefinition td = currentAudioSubTracks.get(slot);
 			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout);
 			// 静音/独奏：有效静音时跳过内容渲染（保留拖放目标区）
-			if (trackListState != null && trackListState.isEffectivelyMuted(rowIndex)) return;
+			if (trackListState != null && isAudioRowEffectivelyMuted(trackListState, rowIndex)) return;
 			renderAudioSubTrack(td, rowY, rowHeight, timeline, layout, viewState);
 			return;
 		}
@@ -417,15 +423,82 @@ public final class TimelineRenderer {
 	 */
 	private void syncStemMuteState(TimelineTrackListState trackListState) {
 		if (BeatBlock.stemMixer == null || !BeatBlock.stemMixer.hasStems()) return;
+		syncOneStemMute(trackListState, "drums");
+		syncOneStemMute(trackListState, "bass");
+		syncOneStemMute(trackListState, "vocals");
+		syncOneStemMute(trackListState, "other");
+	}
+
+	private void syncOneStemMute(TimelineTrackListState trackListState, String stemName) {
+		boolean hasMappedRow = false;
+		boolean anyAudibleMappedRow = false;
 		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
 			TrackDefinition td = currentAudioSubTracks.get(slot);
 			String key = td.getKey();
-			if (key == null || !key.startsWith("stem_wf_")) continue;
-			String stemName = key.substring("stem_wf_".length()); // e.g. "drums"
+			if (!mapsToStem(key, stemName)) continue;
+			hasMappedRow = true;
 			int rowIndex = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
-			boolean effectivelyMuted = trackListState.isEffectivelyMuted(rowIndex);
-			BeatBlock.stemMixer.setStemMuted(stemName, effectivelyMuted);
+			if (!isAudioRowEffectivelyMuted(trackListState, rowIndex)) {
+				anyAudibleMappedRow = true;
+			}
 		}
+
+		// 语义：仅当存在映射行且这些行都被静音/独奏抑制时，才静音该茎
+		boolean muted = hasMappedRow && !anyAudibleMappedRow;
+		BeatBlock.stemMixer.setStemMuted(stemName, muted);
+	}
+
+	private boolean mapsToStem(String trackKey, String stemName) {
+		if (trackKey == null || stemName == null) return false;
+		if (trackKey.startsWith("stem_wf_")) {
+			return stemName.equals(trackKey.substring("stem_wf_".length()));
+		}
+		return switch (trackKey) {
+			case "bass", "vocals", "other", "drums" -> stemName.equals(trackKey);
+			case "kick", "snare", "snare_hi", "hihat", "hihat_open" -> "drums".equals(stemName);
+			default -> false;
+		};
+	}
+
+	private boolean isAudioRowEffectivelyMuted(TimelineTrackListState trackListState, int rowIndex) {
+		if (trackListState == null) return false;
+		if (trackListState.isMuted(rowIndex)) return true;
+
+		boolean groupSoloed = trackListState.isSoloed(TimelineTrackMeta.ROW_AUDIO_GROUP);
+		boolean anyAudioSolo = groupSoloed;
+		int lastAudioRow = TimelineTrackMeta.ROW_AUDIO_SUBS_START + currentAudioSubTracks.size() - 1;
+		for (int r = TimelineTrackMeta.ROW_AUDIO_SUBS_START; r <= lastAudioRow; r++) {
+			if (trackListState.isSoloed(r)) {
+				anyAudioSolo = true;
+				break;
+			}
+		}
+
+		if (!anyAudioSolo) return false;
+		if (groupSoloed) return false;
+		return !trackListState.isSoloed(rowIndex);
+	}
+
+	private void syncPrimaryPlayerMuteState(TimelineTrackListState trackListState) {
+		if (BeatBlock.musicPlayer == null) return;
+
+		// StemMixer 激活时，主播放器保持静音，避免潜在双路叠加。
+		if (BeatBlock.stemMixer != null && BeatBlock.stemMixer.hasStems()) {
+			BeatBlock.musicPlayer.setMuted(true);
+			return;
+		}
+
+		boolean anyAudioRowAudible = false;
+		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
+			int rowIndex = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
+			if (!isAudioRowEffectivelyMuted(trackListState, rowIndex)) {
+				anyAudioRowAudible = true;
+				break;
+			}
+		}
+
+		// 没有任何可听音频子轨时静音主播放器。
+		BeatBlock.musicPlayer.setMuted(!anyAudioRowAudible);
 	}
 
 	/**

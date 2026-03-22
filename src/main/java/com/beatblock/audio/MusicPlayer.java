@@ -13,6 +13,7 @@ import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.sound.sampled.DataLine;
+import javax.sound.sampled.FloatControl;
 import javax.sound.sampled.Line;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
@@ -46,6 +47,7 @@ public class MusicPlayer implements IAudioPlayer {
 	private int streamStartBytePosition;
 	private String loadedAudioPath;
 	private String lastLoadError;
+	private volatile boolean muted;
 
 	// OpenAL backend (used when JavaSound has no mixers, e.g. inside Minecraft/LWJGL)
 	private int alBuffer = 0;
@@ -57,6 +59,16 @@ public class MusicPlayer implements IAudioPlayer {
 		this.playing = false;
 		this.currentTimeSeconds = 0;
 		this.durationSeconds = 0;
+		this.muted = false;
+	}
+
+	public void setMuted(boolean muted) {
+		this.muted = muted;
+		applyOutputGain();
+	}
+
+	public boolean isMuted() {
+		return muted;
 	}
 
 	public boolean isPlaying() {
@@ -100,6 +112,7 @@ public class MusicPlayer implements IAudioPlayer {
 		} else {
 			LOGGER.warn("BeatBlock MusicPlayer: play requested but no audio clip is loaded. lastLoadError={}", lastLoadError);
 		}
+		applyOutputGain();
 		playing = true;
 	}
 
@@ -208,6 +221,7 @@ public class MusicPlayer implements IAudioPlayer {
 			currentTimeSeconds = 0;
 			lastLoadError = null;
 			LOGGER.info("BeatBlock MusicPlayer: audio loaded path={} duration={}s", loadedAudioPath, String.format("%.3f", durationSeconds));
+			applyOutputGain();
 			return true;
 		} catch (UnsupportedAudioFileException e) {
 			LOGGER.warn("BeatBlock: unsupported audio format for {}: {}, trying ffmpeg fallback", file, e.getMessage());
@@ -301,6 +315,40 @@ public class MusicPlayer implements IAudioPlayer {
 					}
 				}
 			} catch (Throwable ignored) {}
+		}
+	}
+
+	private void applyOutputGain() {
+		float gain = muted ? 0.0f : 1.0f;
+
+		if (audioClip != null && audioClip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+			try {
+				FloatControl control = (FloatControl) audioClip.getControl(FloatControl.Type.MASTER_GAIN);
+				if (gain <= 0.0001f) {
+					control.setValue(control.getMinimum());
+				} else {
+					float db = (float) (20.0 * Math.log10(gain));
+					db = Math.max(control.getMinimum(), Math.min(control.getMaximum(), db));
+					control.setValue(db);
+				}
+			} catch (Exception ignored) {}
+		}
+
+		if (streamLine != null && streamLine.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+			try {
+				FloatControl control = (FloatControl) streamLine.getControl(FloatControl.Type.MASTER_GAIN);
+				if (gain <= 0.0001f) {
+					control.setValue(control.getMinimum());
+				} else {
+					float db = (float) (20.0 * Math.log10(gain));
+					db = Math.max(control.getMinimum(), Math.min(control.getMaximum(), db));
+					control.setValue(db);
+				}
+			} catch (Exception ignored) {}
+		}
+
+		if (useOpenAl && alSource != 0) {
+			try { AL10.alSourcef(alSource, AL10.AL_GAIN, gain); } catch (Throwable ignored) {}
 		}
 	}
 
