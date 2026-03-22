@@ -94,6 +94,8 @@ public final class BeatmapReader {
 	}
 
 	private static BeatmapMeta parseMeta(JsonObject m) {
+		String style = m.has("style") && !m.get("style").isJsonNull()
+			? m.get("style").getAsString() : null;
 		return new BeatmapMeta(
 			getString(m, "source_file", "unknown"),
 			getLong(m, "duration_ms", 0),
@@ -102,7 +104,8 @@ public final class BeatmapReader {
 			getString(m, "time_signature", "4/4"),
 			getInt(m, "sample_rate", 44100),
 			getString(m, "generated_at", ""),
-			getString(m, "analyzer_version", "")
+			getString(m, "analyzer_version", ""),
+			style
 		);
 	}
 

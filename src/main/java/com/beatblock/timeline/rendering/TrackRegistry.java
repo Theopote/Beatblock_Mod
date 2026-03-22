@@ -19,14 +19,17 @@ import java.util.Set;
  */
 public final class TrackRegistry {
 
-	// ── 已知节奏键（priority 顺序）───────────────────────────────────────────
-	private static final List<String> RHYTHM_KEYS = List.of("kick", "snare", "hihat");
+	// ── 已知节奏键（priority 顺序，对应 Python _NAME_POOL）──────────────────
+	private static final List<String> RHYTHM_KEYS =
+		List.of("kick", "snare", "snare_hi", "hihat", "hihat_open");
 
 	// ── 颜色表（ABGR，与 TimelineRenderer 遗留色对齐）───────────────────────
-	// kick：偏暖橙红，snare：青绿，hihat：天蓝；扩展轨道用循环色板
-	private static final int COLOR_KICK    = 0xFF_55_88_EE; // 暖橙红
-	private static final int COLOR_SNARE   = 0xFF_57_C4_A0; // 青绿（沿用 MID 色）
-	private static final int COLOR_HIHAT   = 0xFF_27_A0_EF; // 天蓝（沿用 HIGH 色）
+	// kick：暖橙红，snare：青绿，snare_hi：青蓝，hihat：天蓝，hihat_open：亮蓝
+	private static final int COLOR_KICK       = 0xFF_55_88_EE; // 暖橙红
+	private static final int COLOR_SNARE      = 0xFF_57_C4_A0; // 青绿
+	private static final int COLOR_SNARE_HI   = 0xFF_3A_B8_C8; // 青蓝（snare 与 hihat 之间）
+	private static final int COLOR_HIHAT      = 0xFF_27_A0_EF; // 天蓝
+	private static final int COLOR_HIHAT_OPEN = 0xFF_10_80_FF; // 亮蓝（开镲）
 	private static final int COLOR_LOW     = 0xFF_77_77_DD; // 遗留低频色
 	private static final int COLOR_MID     = 0xFF_57_C4_A0; // 遗留中频色
 	private static final int COLOR_HIGH    = 0xFF_27_A0_EF; // 遗留高频色
@@ -111,15 +114,17 @@ public final class TrackRegistry {
 	/** 本地化显示名称（未知 key 直接大写返回）。 */
 	private static String localizedName(String key) {
 		return switch (key.toLowerCase()) {
-			case "kick"        -> "底鼓";
-			case "snare"       -> "军鼓";
-			case "hihat", "hat"-> "踩镲";
-			case "bass"        -> "贝斯";
-			case "vocal"       -> "人声";
-			case "low"         -> "低频";
-			case "mid"         -> "中频";
-			case "high"        -> "高频";
-			default            -> key;
+			case "kick"         -> "底鼓";
+			case "snare"        -> "军鼓";
+			case "snare_hi"     -> "高军鼓";
+			case "hihat", "hat" -> "踩镲";
+			case "hihat_open"   -> "开镲";
+			case "bass"         -> "贝斯";
+			case "vocal"        -> "人声";
+			case "low"          -> "低频";
+			case "mid"          -> "中频";
+			case "high"         -> "高频";
+			default             -> key;
 		};
 	}
 
@@ -128,7 +133,9 @@ public final class TrackRegistry {
 		return switch (key.toLowerCase()) {
 			case "kick"         -> COLOR_KICK;
 			case "snare"        -> COLOR_SNARE;
+			case "snare_hi"     -> COLOR_SNARE_HI;
 			case "hihat", "hat" -> COLOR_HIHAT;
+			case "hihat_open"   -> COLOR_HIHAT_OPEN;
 			case "low"          -> COLOR_LOW;
 			case "mid"          -> COLOR_MID;
 			case "high"         -> COLOR_HIGH;

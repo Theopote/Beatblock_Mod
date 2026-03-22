@@ -11,6 +11,7 @@ public record BeatmapMeta(
 	String  timeSignature,
 	int     sampleRate,
 	String  generatedAt,
-	String  analyzerVersion
+	String  analyzerVersion,
+	String  style           // "acoustic" | "electronic" | null for old beatmaps
 ) {}
 
