@@ -215,13 +215,13 @@ public final class TimelineInteraction {
 
 		if (trackListState != null && ImGui.getIO().getKeyAlt() && wheel != 0 && layout.contentContains(mx, my)) {
 			int hoveredRow = layout.findRowAtScreenY(my);
-			if (hoveredRow >= TimelineTrackMeta.ROW_WAVEFORM && hoveredRow <= TimelineTrackMeta.ROW_FREQ_HIGH) {
+			if (hoveredRow >= TimelineTrackMeta.ROW_AUDIO_SUBS_START && hoveredRow <= TimelineTrackMeta.ROW_AUDIO_SUBS_END) {
 				trackListState.adjustAudioRowHeight(wheel * 2f);
 			}
 		}
 		if (trackListState != null && alt && ImGui.isMouseClicked(2) && layout.contentContains(mx, my)) {
 			int hoveredRow = layout.findRowAtScreenY(my);
-			if (hoveredRow >= TimelineTrackMeta.ROW_WAVEFORM && hoveredRow <= TimelineTrackMeta.ROW_FREQ_HIGH) {
+			if (hoveredRow >= TimelineTrackMeta.ROW_AUDIO_SUBS_START && hoveredRow <= TimelineTrackMeta.ROW_AUDIO_SUBS_END) {
 				trackListState.resetAudioRowHeight();
 				return;
 			}
@@ -959,7 +959,7 @@ public final class TimelineInteraction {
 		if (clipboardEvents.isEmpty()) return;
 
 		double baseTime = clipboardEvents.getFirst().timeSeconds;
-		double maxTime = clipboardEvents.get(clipboardEvents.size() - 1).timeSeconds;
+		double maxTime = clipboardEvents.getLast().timeSeconds;
 		double span = Math.max(0.2, maxTime - baseTime);
 		selectionState.clearEvents();
 		Set<String> dirtyTracks = new HashSet<>();
