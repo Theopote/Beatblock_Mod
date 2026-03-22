@@ -391,7 +391,9 @@ public class MusicPlayer implements IAudioPlayer {
 			"-vn", "-ar", String.valueOf(sampleRate), "-ac", String.valueOf(channels),
 			"-acodec", "pcm_s16le", "-f", "s16le", "pipe:1"
 		);
-		Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+		Process process = new ProcessBuilder(command)
+			.redirectError(ProcessBuilder.Redirect.DISCARD)
+			.start();
 		ByteArrayOutputStream pcmOut = new ByteArrayOutputStream(1 << 20);
 		try (var in = process.getInputStream()) {
 			byte[] buf = new byte[8192];
