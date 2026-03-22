@@ -482,6 +482,11 @@ public class MusicPlayer implements IAudioPlayer {
 			int src = AL10.alGenSources();
 			AL10.alSourcei(src, AL10.AL_BUFFER, buf);
 			AL10.alSourcef(src, AL10.AL_GAIN, 1.0f);
+			// 使 source 相对于 listener（非 3D 定位），避免 Minecraft 世界距离衰减导致静音
+			AL10.alSourcei(src, AL10.AL_SOURCE_RELATIVE, AL10.AL_TRUE);
+			AL10.alSource3f(src, AL10.AL_POSITION, 0.0f, 0.0f, 0.0f);
+			AL10.alSource3f(src, AL10.AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+			AL10.alSourcef(src, AL11.AL_SEC_OFFSET, 0.0f);
 			err = AL10.alGetError();
 			if (err != AL10.AL_NO_ERROR) {
 				AL10.alDeleteSources(src);
