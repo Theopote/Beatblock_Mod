@@ -279,24 +279,39 @@ def analyze(input_path: str, output_path: str, include_waveform: bool) -> dict:
 
 def detect_sections(y: np.ndarray, sr: int, duration_ms: int) -> list:
     """
-    使用 librosa 的结构分析（自相似矩阵 + 谱聚类）识别音乐段落。
-    返回段落列表，每项包含 start_ms, end_ms, label, energy_mean。
+    使用 Chroma + Ward 层次聚类识别音乐段落，段数根据时长自动推算。
+
+    策略：
+      - k = max(2, min(8, duration_s // 30))：每 ~30 秒约 1 段，范围 [2, 8]
+      - AgglomerativeClustering(Ward) 是 librosa.segment.agglomerative 的直接
+        替代（0.10 废弃），链接法确定结果与随机种子无关，完全可重现
+      - 任何异常均降级为单段，不影响主流程
     """
     try:
-        # 提取 Chroma 特征（12 维音高类向量，对段落识别很有效）
+        from sklearn.cluster import AgglomerativeClustering
+
         hop_length = 512
+        duration_s = duration_ms / 1000.0
+
+        # 根据时长自动选段数：每 30s 约 1 段，范围 [2, 8]
+        k = max(2, min(8, int(duration_s / 30)))
+
+        # Chroma 特征（对调性/段落变化敏感），shape = (12, T)
         chroma = librosa.feature.chroma_cqt(y=y, sr=sr, hop_length=hop_length)
 
-        # 用 Laplacian 谱分割法检测段落边界
-        # k=5 表示最多分 5 段（可调）
-        bounds_frames = librosa.segment.agglomerative(chroma.T, k=5)
-        bounds_times  = librosa.frames_to_time(bounds_frames, sr=sr, hop_length=hop_length)
+        # Ward 层次聚类：对每一帧的 12 维 chroma 向量聚成 k 类
+        # Ward linkage 是确定性的（不依赖随机种子），且对噪声鲁棒
+        ward = AgglomerativeClustering(n_clusters=k, metric="euclidean", linkage="ward")
+        seg_labels = ward.fit_predict(chroma.T)   # shape (T,)
+
+        # 找标签序列发生变化的帧号（即段落边界）
+        change_frames = np.flatnonzero(np.diff(seg_labels))   # 变化前一帧的索引
+        bounds_times  = librosa.frames_to_time(change_frames + 1, sr=sr, hop_length=hop_length)
 
         # 在首尾补边界
-        boundary_ms = [0] + [int(t * 1000) for t in bounds_times] + [duration_ms]
-        boundary_ms = sorted(set(boundary_ms))
+        boundary_ms = sorted(set([0] + [int(t * 1000) for t in bounds_times] + [duration_ms]))
 
-        # RMS 能量包络用于 energy_mean
+        # RMS 包络（用于 energy_mean）
         rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
         rms_norm = rms / (np.max(rms) + 1e-8)
 
@@ -304,16 +319,14 @@ def detect_sections(y: np.ndarray, sr: int, duration_ms: int) -> list:
         for i in range(len(boundary_ms) - 1):
             start_ms = boundary_ms[i]
             end_ms   = boundary_ms[i + 1]
-            if end_ms - start_ms < 1000:  # 跳过少于 1 秒的段落
+            if end_ms - start_ms < 2000:   # 跳过不足 2 秒的碎片段落
                 continue
 
-            # 计算该段平均能量
             start_frame = librosa.time_to_frames(start_ms / 1000, sr=sr, hop_length=hop_length)
             end_frame   = librosa.time_to_frames(end_ms   / 1000, sr=sr, hop_length=hop_length)
             seg_rms = rms_norm[start_frame:end_frame]
             energy_mean = float(np.mean(seg_rms)) if len(seg_rms) > 0 else 0.0
 
-            # 用能量和位置启发式打标签
             label = heuristic_label(i, len(boundary_ms) - 2, energy_mean, start_ms, duration_ms)
 
             sections.append({
@@ -323,10 +336,12 @@ def detect_sections(y: np.ndarray, sr: int, duration_ms: int) -> list:
                 "energy_mean": round(energy_mean, 4),
             })
 
+        if not sections:
+            raise ValueError("no valid sections after filtering")
+
         return sections
 
-    except Exception as e:
-        # 段落识别失败不影响整体，降级为单段
+    except Exception:
         return [{
             "start_ms":    0,
             "end_ms":      duration_ms,
