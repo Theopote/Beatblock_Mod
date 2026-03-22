@@ -40,7 +40,7 @@ except ImportError as e:
     print(f"ERROR 缺少依赖：{e}，请运行 pip install librosa soundfile numpy scipy", file=sys.stderr)
     sys.exit(1)
 
-ANALYZER_VERSION = "3.0.0"
+ANALYZER_VERSION = "3.1.0"
 SCHEMA_VERSION   = 1
 
 # ── 进度报告（Java 端按行读取 stdout）──────────────────────────────────────
@@ -73,6 +73,20 @@ def _detect_style(y: np.ndarray, sr: int) -> str:
     style = "electronic" if mean_flatness > 0.3 else "acoustic"
     print(f"PROGRESS STYLE_DETECT 0  # flatness={mean_flatness:.4f} → {style}", flush=True)
     return style
+
+
+def _make_waveform_preview(y: np.ndarray, sr: int, duration_ms: int) -> dict:
+    """为单条音频信号生成波形预览数据（降采样 RMS + 归一化）。"""
+    samples_per_sec = 100
+    target_len = int(duration_ms / 1000 * samples_per_sec)
+    chunk_size = max(1, len(y) // target_len)
+    preview = []
+    for i in range(target_len):
+        chunk = y[i * chunk_size: (i + 1) * chunk_size]
+        preview.append(round(float(np.sqrt(np.mean(chunk ** 2 + 1e-10))), 4))
+    mx = max(preview) if preview else 1.0
+    preview = [round(v / mx, 4) for v in preview]
+    return {"samples_per_second": samples_per_sec, "data": preview}
 
 
 def analyze(input_path: str, output_path: str, include_waveform: bool,
@@ -292,21 +306,7 @@ def analyze(input_path: str, output_path: str, include_waveform: bool,
     waveform_data = None
     if include_waveform:
         progress("WAVEFORM", 87)
-        samples_per_sec = 100
-        target_len = int(duration_ms / 1000 * samples_per_sec)
-        # 降采样：把全部样本折叠到 target_len 个点，每点取 RMS
-        chunk_size = max(1, len(y) // target_len)
-        preview = []
-        for i in range(target_len):
-            chunk = y[i * chunk_size: (i + 1) * chunk_size]
-            preview.append(round(float(np.sqrt(np.mean(chunk ** 2 + 1e-10))), 4))
-        # 归一化
-        mx = max(preview) if preview else 1.0
-        preview = [round(v / mx, 4) for v in preview]
-        waveform_data = {
-            "samples_per_second": samples_per_sec,
-            "data": preview,
-        }
+        waveform_data = _make_waveform_preview(y, sr, duration_ms)
 
     # ── 8. 组装最终 beatmap ───────────────────────────────────────────────
     progress("WRITE_BEATMAP", 92)
