@@ -12,6 +12,7 @@ import javax.sound.sampled.Clip;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Line;
 import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.Mixer;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.ByteArrayInputStream;
@@ -52,10 +53,6 @@ public class MusicPlayer implements IAudioPlayer {
 	public boolean isPlaying() {
 		syncClipState();
 		return playing;
-	}
-
-	public void setPlaying(boolean playing) {
-		this.playing = playing;
 	}
 
 	public void play() {
@@ -210,15 +207,6 @@ public class MusicPlayer implements IAudioPlayer {
 		return loadedAudioPath;
 	}
 
-	public String getPlaybackStatusText() {
-		if (loadedAudioPath == null || loadedAudioPath.isBlank()) {
-			return "音频输出: 未绑定";
-		}
-		Path p = Path.of(loadedAudioPath);
-		String name = p.getFileName() != null ? p.getFileName().toString() : loadedAudioPath;
-		return "音频输出: " + name;
-	}
-
 	public String getLastLoadError() {
 		return lastLoadError;
 	}
@@ -291,74 +279,64 @@ public class MusicPlayer implements IAudioPlayer {
 			return false;
 		}
 
-		// 直接输出裸 PCM（s16le）到 stdout，绕过 JavaSound 对 WAV 容器/头部兼容问题。
-		final int sampleRate = 44_100;
-		final int channels = 2;
-		List<String> command = List.of(
-			ffmpeg,
-			"-y",
-			"-i",
-			originalFile.toAbsolutePath().toString(),
-			"-vn",
-			"-ar",
-			String.valueOf(sampleRate),
-			"-ac",
-			String.valueOf(channels),
-			"-acodec",
-			"pcm_s16le",
-			"-f",
-			"s16le",
-			"pipe:1"
-		);
+		// 依次尝试多种常见 PCM 输出格式，直到找到系统可接受的一组。
+		int[][] candidates = {
+			{48_000, 2}, {44_100, 2}, {48_000, 1}, {44_100, 1}, {32_000, 1}, {22_050, 1}
+		};
+		Throwable lastFailure = null;
+		for (int[] c : candidates) {
+			int sampleRate = c[0];
+			int channels = c[1];
+			byte[] pcmBytes;
+			try {
+				pcmBytes = decodePcmWithFfmpeg(ffmpeg, originalFile, sampleRate, channels);
+			} catch (Exception e) {
+				lastLoadError = "ffmpeg 解码失败: " + e.getMessage();
+				return false;
+			}
+			try {
+				AudioFormat fmt = new AudioFormat(
+					AudioFormat.Encoding.PCM_SIGNED, sampleRate, 16, channels, channels * 2, sampleRate, false);
+				openPcmAsPlaybackBackend(pcmBytes, fmt);
+				LOGGER.info("BeatBlock MusicPlayer: ffmpeg fallback selected format {}Hz/{}ch for {}",
+					sampleRate, channels, originalFile.getFileName());
+				return true;
+			} catch (Throwable e) {
+				lastFailure = e;
+				LOGGER.warn("BeatBlock MusicPlayer: format candidate {}Hz/{}ch rejected: {}",
+					sampleRate, channels, e.getMessage());
+			}
+		}
+		lastLoadError = "ffmpeg 已解码，但加载 PCM 失败 (all formats rejected): "
+			+ (lastFailure != null ? lastFailure.getMessage() : "unknown");
+		return false;
+	}
 
-		StringBuilder output = new StringBuilder();
-		int exitCode;
-		byte[] pcmBytes;
-		try {
-			Process process = new ProcessBuilder(command)
-				.redirectErrorStream(true)
-				.start();
-			ByteArrayOutputStream pcmOut = new ByteArrayOutputStream(1 << 20);
-			try (var in = process.getInputStream()) {
-				byte[] buffer = new byte[8192];
-				int read;
-				while ((read = in.read(buffer)) != -1) {
-					pcmOut.write(buffer, 0, read);
-					if (pcmOut.size() > 256 * 1024 * 1024) {
-						process.destroyForcibly();
-						lastLoadError = "音频过长，解码后内存占用过大";
-						return false;
-					}
+	private byte[] decodePcmWithFfmpeg(String ffmpeg, Path originalFile, int sampleRate, int channels)
+		throws IOException, InterruptedException {
+		List<String> command = List.of(
+			ffmpeg, "-y", "-i", originalFile.toAbsolutePath().toString(),
+			"-vn", "-ar", String.valueOf(sampleRate), "-ac", String.valueOf(channels),
+			"-acodec", "pcm_s16le", "-f", "s16le", "pipe:1"
+		);
+		Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+		ByteArrayOutputStream pcmOut = new ByteArrayOutputStream(1 << 20);
+		try (var in = process.getInputStream()) {
+			byte[] buf = new byte[8192];
+			int n;
+			while ((n = in.read(buf)) != -1) {
+				pcmOut.write(buf, 0, n);
+				if (pcmOut.size() > 256 * 1024 * 1024) {
+					process.destroyForcibly();
+					throw new IOException("音频过长，解码后内存占用过大");
 				}
 			}
-			pcmBytes = pcmOut.toByteArray();
-			exitCode = process.waitFor();
-		} catch (Exception e) {
-			lastLoadError = "ffmpeg 解码失败: " + e.getMessage();
-			return false;
 		}
-
-		if (exitCode != 0 || pcmBytes == null || pcmBytes.length == 0) {
-			lastLoadError = "ffmpeg 解码失败，退出码=" + exitCode;
-			return false;
+		int exitCode = process.waitFor();
+		if (exitCode != 0 || pcmOut.size() == 0) {
+			throw new IOException("ffmpeg 进程退出码=" + exitCode);
 		}
-
-		try {
-			AudioFormat pcmFmt = new AudioFormat(
-				AudioFormat.Encoding.PCM_SIGNED,
-				sampleRate,
-				16,
-				channels,
-				channels * 2,
-				sampleRate,
-				false
-			);
-			openPcmAsPlaybackBackend(pcmBytes, pcmFmt);
-			return true;
-		} catch (Throwable e) {
-			lastLoadError = "ffmpeg 已解码，但加载 PCM 失败: " + e.getMessage();
-			return false;
-		}
+		return pcmOut.toByteArray();
 	}
 
 	private void openPcmAsPlaybackBackend(byte[] pcmBytes, AudioFormat pcmFmt) throws LineUnavailableException, IOException {
@@ -366,10 +344,11 @@ public class MusicPlayer implements IAudioPlayer {
 			throw new IOException("PCM 数据为空");
 		}
 		long frameLength = pcmBytes.length / pcmFmt.getFrameSize();
-		Throwable clipFailure = null;
+
+		// 尝试 Clip 后端
 		try (AudioInputStream pcmStream = new AudioInputStream(new ByteArrayInputStream(pcmBytes), pcmFmt, frameLength)) {
 			try {
-				Clip clip = acquireClip(pcmFmt);
+				Clip clip = acquireClipFromAnyMixer(pcmFmt);
 				clip.open(pcmStream);
 				audioClip = clip;
 				streamPcmData = null;
@@ -377,26 +356,86 @@ public class MusicPlayer implements IAudioPlayer {
 				streamBytePosition = 0;
 				streamStartBytePosition = 0;
 				durationSeconds = clip.getMicrosecondLength() / 1_000_000.0;
+				LOGGER.info("BeatBlock MusicPlayer: using Clip backend for {}Hz/{}ch",
+					(int) pcmFmt.getSampleRate(), pcmFmt.getChannels());
 				return;
 			} catch (Throwable e) {
-				clipFailure = e;
-				LOGGER.warn("BeatBlock MusicPlayer: Clip backend unavailable, switching to SourceDataLine backend: {}", e.getMessage());
+				LOGGER.warn("BeatBlock MusicPlayer: Clip backend failed ({}), trying SourceDataLine", e.getMessage());
 			}
 		}
 
-		DataLine.Info info = new DataLine.Info(SourceDataLine.class, pcmFmt);
-		if (!AudioSystem.isLineSupported(info)) {
-			if (clipFailure != null) {
-				throw new LineUnavailableException("no mixer supporting source line: " + pcmFmt + " (clip error: " + clipFailure.getMessage() + ")");
-			}
-			throw new LineUnavailableException("no mixer supporting source line: " + pcmFmt);
+		// 尝试 SourceDataLine 后端——遍历所有 mixer，不依赖 isLineSupported()
+		SourceDataLine foundLine = openSourceDataLineFromAnyMixer(pcmFmt);
+		if (foundLine == null) {
+			throw new LineUnavailableException("no mixer (of " + AudioSystem.getMixerInfo().length
+				+ " found) supports SourceDataLine for " + pcmFmt.getSampleRate()
+				+ "Hz/" + pcmFmt.getChannels() + "ch");
 		}
+		foundLine.close(); // 此处关掉，playback 时再重新开
 		streamPcmData = pcmBytes;
 		streamPcmFormat = pcmFmt;
 		streamBytePosition = 0;
 		streamStartBytePosition = 0;
 		audioClip = null;
 		durationSeconds = pcmBytes.length / (pcmFmt.getFrameRate() * pcmFmt.getFrameSize());
+		LOGGER.info("BeatBlock MusicPlayer: using SourceDataLine stream backend for {}Hz/{}ch",
+			(int) pcmFmt.getSampleRate(), pcmFmt.getChannels());
+	}
+
+	private Clip acquireClipFromAnyMixer(AudioFormat fmt) throws LineUnavailableException {
+		// 首先尝试默认路径
+		try {
+			return acquireClip(fmt);
+		} catch (Throwable ignored) {
+		}
+		// 遍历所有 mixer
+		DataLine.Info clipInfo = new DataLine.Info(Clip.class, fmt);
+		for (Mixer.Info mi : AudioSystem.getMixerInfo()) {
+			try (Mixer mixer = AudioSystem.getMixer(mi)) {
+				if (mixer.isLineSupported(clipInfo)) {
+					Line line = mixer.getLine(clipInfo);
+					if (line instanceof Clip clip) return clip;
+				}
+			} catch (Throwable ignored) {
+			}
+		}
+		throw new LineUnavailableException("no mixer supports Clip");
+	}
+
+	private SourceDataLine openSourceDataLineFromAnyMixer(AudioFormat fmt) {
+		DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
+		// 1. 默认路径
+		try {
+			SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
+			line.open(fmt);
+			return line;
+		} catch (Throwable ignored) {
+		}
+		// 2. 遍历所有 mixer
+		for (Mixer.Info mi : AudioSystem.getMixerInfo()) {
+			try {
+				Mixer mixer = AudioSystem.getMixer(mi);
+				if (mixer.isLineSupported(info)) {
+					SourceDataLine line = (SourceDataLine) mixer.getLine(info);
+					line.open(fmt);
+					LOGGER.info("BeatBlock MusicPlayer: acquired SourceDataLine from mixer '{}'", mi.getName());
+					return line;
+				}
+			} catch (Throwable ignored) {
+			}
+		}
+		// 3. 强行尝试不检查 isLineSupported
+		for (Mixer.Info mi : AudioSystem.getMixerInfo()) {
+			try {
+				Mixer mixer = AudioSystem.getMixer(mi);
+				SourceDataLine line = (SourceDataLine) mixer.getLine(info);
+				line.open(fmt);
+				LOGGER.info("BeatBlock MusicPlayer: force-acquired SourceDataLine from mixer '{}'", mi.getName());
+				return line;
+			} catch (Throwable ignored) {
+			}
+		}
+		return null;
 	}
 
 	private boolean hasStreamBackend() {
@@ -413,11 +452,12 @@ public class MusicPlayer implements IAudioPlayer {
 		startByte -= (startByte % frameSize);
 		final int alignedStartByte = startByte;
 		try {
-			DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
-			SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-			line.open(fmt);
+			SourceDataLine line = openSourceDataLineFromAnyMixer(fmt);
+			if (line == null) {
+				lastLoadError = "无法从任何混音器打开流式输出";
+				return false;
+			}
 			line.start();
-
 			streamLine = line;
 			streamStartBytePosition = alignedStartByte;
 			streamBytePosition = alignedStartByte;
@@ -517,7 +557,7 @@ public class MusicPlayer implements IAudioPlayer {
 		int pos = streamBytePosition;
 		if (streamLine != null) {
 			long lineFrames = streamLine.getLongFramePosition();
-			int lineBytes = (int) Math.max(0, Math.min((long) Integer.MAX_VALUE, lineFrames * streamPcmFormat.getFrameSize()));
+			int lineBytes = (int) Math.max(0, Math.min(Integer.MAX_VALUE, lineFrames * streamPcmFormat.getFrameSize()));
 			pos = Math.max(pos, Math.min(streamStartBytePosition + lineBytes, streamPcmData.length));
 		}
 		return Math.max(0, pos / bytesPerSecond);
