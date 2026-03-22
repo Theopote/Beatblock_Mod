@@ -7,6 +7,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.sound.SoundCategory;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.EntityHitResult;
@@ -25,10 +26,13 @@ public class BeatBlockUIScreen extends Screen {
 
 	private BeatBlockUIManager uiManager;
 	private boolean initFailed;
+	private Double originalMusicVolume;
+	private boolean musicMutedByBeatBlock;
 
 	public BeatBlockUIScreen() {
 		super(Text.translatable("gui.beatblock.title"));
 		MinecraftClient client = MinecraftClient.getInstance();
+		muteVanillaBackgroundMusic(client);
 		if (client != null && client.mouse != null) {
 			client.mouse.unlockCursor();
 		}
@@ -93,6 +97,7 @@ public class BeatBlockUIScreen extends Screen {
 	public void removed() {
 		super.removed();
 		MinecraftClient client = MinecraftClient.getInstance();
+		restoreVanillaBackgroundMusic(client);
 		// 仅当关闭后没有其他 Screen 时恢复锁定（回到游戏视角）
 		if (client != null && client.mouse != null && client.currentScreen == null) {
 			client.mouse.lockCursor();
@@ -174,5 +179,22 @@ public class BeatBlockUIScreen extends Screen {
 	@Override
 	public boolean shouldCloseOnEsc() {
 		return true;
+	}
+
+	private void muteVanillaBackgroundMusic(MinecraftClient client) {
+		if (client == null || client.options == null) return;
+		if (musicMutedByBeatBlock) return;
+		originalMusicVolume = (double) client.options.getSoundVolume(SoundCategory.MUSIC);
+		client.options.getSoundVolumeOption(SoundCategory.MUSIC).setValue(0.0);
+		musicMutedByBeatBlock = true;
+	}
+
+	private void restoreVanillaBackgroundMusic(MinecraftClient client) {
+		if (!musicMutedByBeatBlock) return;
+		if (client == null || client.options == null) return;
+		if (originalMusicVolume != null) {
+			client.options.getSoundVolumeOption(SoundCategory.MUSIC).setValue(originalMusicVolume);
+		}
+		musicMutedByBeatBlock = false;
 	}
 }
