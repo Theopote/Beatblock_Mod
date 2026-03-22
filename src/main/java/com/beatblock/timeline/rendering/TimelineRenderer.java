@@ -11,6 +11,8 @@ import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineClock;
 import com.beatblock.timeline.editor.TimelineViewState;
 import imgui.ImGui;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 
@@ -18,6 +20,7 @@ import java.nio.charset.StandardCharsets;
  * 时间线渲染入口：按 4 区域绘制（1.时间尺 2.轨道名 3.网格 4.内容/事件/播放头/框选）。
  */
 public final class TimelineRenderer {
+	private static final Logger LOGGER = LoggerFactory.getLogger(TimelineRenderer.class);
 
 	private static final int PLAYHEAD_COLOR = 0xFF_FF_66_66;
 	private static final int SELECTED_BORDER_COLOR = 0xFF_FF_FF_00;
@@ -215,8 +218,15 @@ public final class TimelineRenderer {
 			timeline.setDurationSeconds(asset.getDurationSeconds());
 		}
 		if (BeatBlock.musicPlayer != null) {
-			BeatBlock.musicPlayer.loadAudio(audioPath);
+			boolean loaded = BeatBlock.musicPlayer.loadAudio(audioPath);
 			BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
+			if (loaded) {
+				LOGGER.info("BeatBlock Timeline: dropped audio asset bound to playback path={}", audioPath);
+			} else {
+				LOGGER.warn("BeatBlock Timeline: dropped audio asset failed to bind path={} reason={}", audioPath, BeatBlock.musicPlayer.getLastLoadError());
+			}
+		} else {
+			LOGGER.warn("BeatBlock Timeline: dropped audio asset has no MusicPlayer instance path={}", audioPath);
 		}
 	}
 

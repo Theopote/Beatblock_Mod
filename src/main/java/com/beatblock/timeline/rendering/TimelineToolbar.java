@@ -14,6 +14,8 @@ import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
 import imgui.ImGui;
 import imgui.type.ImInt;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +26,7 @@ import java.util.List;
  * 参考专业 DCC（Blender / Unreal Sequencer）的 transport + 吸附条。
  */
 public final class TimelineToolbar {
+	private static final Logger LOGGER = LoggerFactory.getLogger(TimelineToolbar.class);
 
 	private static final String TOOLTIP_PLAY = "播放 (空格)";
 	private static final String TOOLTIP_PAUSE = "暂停";
@@ -511,7 +514,12 @@ public final class TimelineToolbar {
 			if (audioPath instanceof String path && !path.isBlank()) {
 				String loadedPath = BeatBlock.musicPlayer.getLoadedAudioPath();
 				if (!path.equals(loadedPath)) {
-					BeatBlock.musicPlayer.loadAudio(path);
+					boolean loaded = BeatBlock.musicPlayer.loadAudio(path);
+					if (loaded) {
+						LOGGER.info("BeatBlock TimelineToolbar: auto-bound timeline audioPath={} before transport action", path);
+					} else {
+						LOGGER.warn("BeatBlock TimelineToolbar: failed to auto-bind timeline audioPath={} reason={}", path, BeatBlock.musicPlayer.getLastLoadError());
+					}
 				}
 			}
 		}

@@ -51,6 +51,9 @@ public class MusicPlayer implements IAudioPlayer {
 				audioClip.setMicrosecondPosition(0);
 			}
 			audioClip.start();
+			LOGGER.info("BeatBlock MusicPlayer: playback started path={} time={}s", loadedAudioPath, String.format("%.3f", currentTimeSeconds));
+		} else {
+			LOGGER.warn("BeatBlock MusicPlayer: play requested but no audio clip is loaded. lastLoadError={}", lastLoadError);
 		}
 		playing = true;
 	}
@@ -131,6 +134,7 @@ public class MusicPlayer implements IAudioPlayer {
 			playing = false;
 			currentTimeSeconds = 0;
 			lastLoadError = null;
+			LOGGER.info("BeatBlock MusicPlayer: audio loaded path={} duration={}s", loadedAudioPath, String.format("%.3f", durationSeconds));
 			return true;
 		} catch (UnsupportedAudioFileException e) {
 			lastLoadError = "格式不受当前音频后端支持: " + file.getFileName();
