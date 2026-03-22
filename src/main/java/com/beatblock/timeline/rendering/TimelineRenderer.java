@@ -16,6 +16,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 时间线渲染入口：按 4 区域绘制（1.时间尺 2.轨道名 3.网格 4.内容/事件/播放头/框选）。
@@ -41,6 +47,13 @@ public final class TimelineRenderer {
 	private final TrackRenderer trackRenderer = new TrackRenderer();
 	private final EventRenderer eventRenderer = new EventRenderer();
 	private final WaveformRenderer waveformRenderer = new WaveformRenderer();
+	private final ExecutorService denseFeatureExecutor = Executors.newSingleThreadExecutor(r -> {
+		Thread t = new Thread(r, "beatblock-dense-feature");
+		t.setDaemon(true);
+		return t;
+	});
+	private final ConcurrentMap<String, DenseApplyPayload> pendingDenseApplies = new ConcurrentHashMap<>();
+	private final ConcurrentMap<String, Boolean> denseAnalysisInFlight = new ConcurrentHashMap<>();
 
 	/** 当前帧音频组是否有拖拽悬停高亮（任意 row 0~4 悬停且有 audio payload 时置 true） */
 	private boolean audioGroupDropHighlight;
@@ -74,6 +87,8 @@ public final class TimelineRenderer {
 		TimelineLayout layout
 	) {
 		if (timeline == null || viewState == null || layout == null) return;
+
+		applyPendingDenseUpdates(timeline);
 
 		// 预留轨道区总高度，使子窗口滚动范围正确
 		ImGui.dummy(0, layout.contentHeight);
@@ -230,12 +245,12 @@ public final class TimelineRenderer {
 					bindDroppedAudioToPlayback(timeline, asset);
 					if (asset.getBeatmap() != null) {
 						BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
-						enrichTimelineWithDenseFeatureData(timeline, asset);
+						requestDenseFeatureEnrichment(timeline, asset);
 						BeatBlockRuntime.getInstance().loadBeatmap(asset.getBeatmap());
 					} else if (asset.getFeatureTimeline() != null) {
 						BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
 					} else {
-						enrichTimelineWithDenseFeatureData(timeline, asset);
+						requestDenseFeatureEnrichment(timeline, asset);
 					}
 					if (BeatBlock.timelineEditor != null) {
 						BeatBlock.timelineEditor.syncClockDuration();
@@ -247,26 +262,81 @@ public final class TimelineRenderer {
 	}
 
 	/**
-	 * 拖拽落轨后补充高分辨率频段帧数据，解决 beatmap 踩点稀疏导致的子轨可视化断续问题。
+	 * 触发高分辨率频段数据补全：已有特征时立即应用；否则在后台分析，主线程按当前时间线音频路径安全回填。
 	 */
-	private void enrichTimelineWithDenseFeatureData(Timeline timeline, AudioAsset asset) {
+	private void requestDenseFeatureEnrichment(Timeline timeline, AudioAsset asset) {
 		if (timeline == null || asset == null || BeatBlock.audioAnalysisEngine == null) return;
 
-		AudioFeatureTimeline feature = asset.getFeatureTimeline();
-		if (feature == null && asset.getPath() != null) {
-			feature = BeatBlock.audioAnalysisEngine.analyze(asset.getPath());
-			if (feature != null) {
-				asset.setFeatureTimeline(feature);
-			}
+		String audioKey = buildAudioAssetKey(asset);
+		if (audioKey == null) return;
+
+		AudioFeatureTimeline cachedFeature = asset.getFeatureTimeline();
+		if (cachedFeature != null) {
+			applyDenseFeatureData(timeline, asset, cachedFeature, audioKey);
+			return;
 		}
-		if (feature == null) return;
+
+		Path audioPath = asset.getPath();
+		if (audioPath == null) return;
+		if (denseAnalysisInFlight.putIfAbsent(audioKey, Boolean.TRUE) != null) return;
+
+		denseFeatureExecutor.submit(() -> {
+			try {
+				AudioFeatureTimeline analyzed = BeatBlock.audioAnalysisEngine.analyze(audioPath);
+				if (analyzed == null) return;
+				asset.setFeatureTimeline(analyzed);
+				pendingDenseApplies.put(audioKey, new DenseApplyPayload(asset, analyzed));
+			} catch (Exception e) {
+				LOGGER.warn("BeatBlock Timeline: dense feature enrichment failed path={} reason={}", audioPath, e.toString());
+			} finally {
+				denseAnalysisInFlight.remove(audioKey);
+			}
+		});
+	}
+
+	private void applyPendingDenseUpdates(Timeline timeline) {
+		if (timeline == null || pendingDenseApplies.isEmpty()) return;
+		String timelineAudioKey = getTimelineAudioPathKey(timeline);
+		if (timelineAudioKey == null) return;
+		DenseApplyPayload payload = pendingDenseApplies.remove(timelineAudioKey);
+		if (payload != null) {
+			applyDenseFeatureData(timeline, payload.asset(), payload.feature(), timelineAudioKey);
+		}
+	}
+
+	private void applyDenseFeatureData(Timeline timeline, AudioAsset asset, AudioFeatureTimeline feature, String expectedAudioKey) {
+		if (timeline == null || asset == null || feature == null || BeatBlock.audioAnalysisEngine == null) return;
+		String timelineAudioKey = getTimelineAudioPathKey(timeline);
+		if (!Objects.equals(timelineAudioKey, expectedAudioKey)) return;
 
 		BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, feature, asset.getSampleRate());
 		if (asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
 			timeline.setMetadata("bpm", asset.getBeatmap().meta.bpm());
 			timeline.setMetadata("beatCount", asset.getBeatmap().beats.size());
 		}
+		if (BeatBlock.timelineEditor != null) {
+			BeatBlock.timelineEditor.syncClockDuration();
+		}
 	}
+
+	private String buildAudioAssetKey(AudioAsset asset) {
+		if (asset == null || asset.getPath() == null) return null;
+		return normalizeAudioPath(asset.getPath().toAbsolutePath().normalize().toString());
+	}
+
+	private String getTimelineAudioPathKey(Timeline timeline) {
+		if (timeline == null) return null;
+		Object audioPath = timeline.getMetadata("audioPath");
+		if (audioPath == null) return null;
+		return normalizeAudioPath(audioPath.toString());
+	}
+
+	private String normalizeAudioPath(String rawPath) {
+		if (rawPath == null || rawPath.isBlank()) return null;
+		return rawPath.trim().toLowerCase();
+	}
+
+	private record DenseApplyPayload(AudioAsset asset, AudioFeatureTimeline feature) {}
 
 	private void bindDroppedAudioToPlayback(Timeline timeline, AudioAsset asset) {
 		if (timeline == null || asset == null || asset.getPath() == null) return;

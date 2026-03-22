@@ -169,10 +169,12 @@ public final class AudioAnalysisService {
 			return;
 		}
 
-		// 输出文件名：将音频扩展名替换为 .beatmap
-		String baseName = audioPath.getFileName().toString()
-			.replaceAll("\\.[^.]+$", "");
-		Path beatmapPath = outputDir.resolve(baseName + ".beatmap");
+		// 输出文件名：带路径指纹，避免不同目录同名音频互相覆盖
+		String baseName = sanitizeBeatmapBaseName(audioPath.getFileName().toString()
+			.replaceAll("\\.[^.]+$", ""));
+		String audioFingerprint = Integer.toHexString(
+			audioPath.toAbsolutePath().normalize().toString().toLowerCase().hashCode());
+		Path beatmapPath = outputDir.resolve(baseName + "-" + audioFingerprint + ".beatmap");
 
 		// 解析 Python 可执行文件
 		String pythonExe = resolvePythonExe(outputDir.getParent());
@@ -323,6 +325,13 @@ public final class AudioAnalysisService {
 		} catch (Exception e) {
 			onError.accept("读取 beatmap 文件失败：" + e.getMessage());
 		}
+	}
+
+	private String sanitizeBeatmapBaseName(String baseName) {
+		if (baseName == null || baseName.isBlank()) return "audio";
+		String sanitized = baseName.replaceAll("[^A-Za-z0-9._-]", "_").replaceAll("_+", "_");
+		if (sanitized.isBlank()) return "audio";
+		return sanitized;
 	}
 
 	private AnalysisSummary parseResultSummary(String resultJson) {
