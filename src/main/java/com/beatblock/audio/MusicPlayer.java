@@ -36,8 +36,7 @@ public class MusicPlayer implements IAudioPlayer {
 	private Clip audioClip;
 	private SourceDataLine streamLine;
 	private Thread streamThread;
-	private final Object streamLock = new Object();
-	private byte[] streamPcmData;
+    private byte[] streamPcmData;
 	private AudioFormat streamPcmFormat;
 	private int streamBytePosition;
 	private int streamStartBytePosition;
@@ -308,7 +307,7 @@ public class MusicPlayer implements IAudioPlayer {
 			}
 		}
 		lastLoadError = "ffmpeg 已解码，但加载 PCM 失败 (all formats rejected): "
-			+ (lastFailure != null ? lastFailure.getMessage() : "unknown");
+			+ lastFailure.getMessage();
 		return false;
 	}
 

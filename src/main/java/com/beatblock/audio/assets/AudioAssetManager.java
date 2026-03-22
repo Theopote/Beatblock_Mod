@@ -105,7 +105,7 @@ public final class AudioAssetManager {
 
 	public boolean isSupportedAudioPath(String rawPath) {
 		Path path = normalizeAudioPath(rawPath);
-		return path != null && isSupportedAudioFile(path);
+		return isSupportedAudioFile(path);
 	}
 
 	public String getSupportedAudioExtensionsLabel() {
@@ -183,12 +183,12 @@ public final class AudioAssetManager {
 		return position;
 	}
 
-	public boolean moveQueueUp(String assetId) {
-		return moveQueueBy(assetId, -1);
+	public void moveQueueUp(String assetId) {
+		moveQueueBy(assetId, -1);
 	}
 
-	public boolean moveQueueDown(String assetId) {
-		return moveQueueBy(assetId, 1);
+	public void moveQueueDown(String assetId) {
+		moveQueueBy(assetId, 1);
 	}
 
 	public boolean canMoveQueueUp(String assetId) {
@@ -201,10 +201,10 @@ public final class AudioAssetManager {
 		return pos > 0 && pos < getQueuedCount();
 	}
 
-	public boolean moveQueueBefore(String movingAssetId, String targetAssetId) {
-		if (movingAssetId == null || targetAssetId == null) return false;
-		if (movingAssetId.isBlank() || targetAssetId.isBlank()) return false;
-		if (movingAssetId.equals(targetAssetId)) return false;
+	public void moveQueueBefore(String movingAssetId, String targetAssetId) {
+		if (movingAssetId == null || targetAssetId == null) return;
+		if (movingAssetId.isBlank() || targetAssetId.isBlank()) return;
+		if (movingAssetId.equals(targetAssetId)) return;
 
 		List<AudioAsset> queued = getQueuedAssetsSorted();
 		int movingIdx = -1;
@@ -214,7 +214,7 @@ public final class AudioAssetManager {
 			if (movingAssetId.equals(id)) movingIdx = i;
 			if (targetAssetId.equals(id)) targetIdx = i;
 		}
-		if (movingIdx < 0 || targetIdx < 0 || movingIdx == targetIdx) return false;
+		if (movingIdx < 0 || targetIdx < 0 || movingIdx == targetIdx) return;
 
 		AudioAsset moving = queued.remove(movingIdx);
 		if (movingIdx < targetIdx) {
@@ -227,7 +227,6 @@ public final class AudioAssetManager {
 			asset.setQueueTicket(t++);
 		}
 		nextQueueTicket = t;
-		return true;
 	}
 
 	public int getQueuedCount() {
@@ -238,8 +237,8 @@ public final class AudioAssetManager {
 		return count;
 	}
 
-	private boolean moveQueueBy(String assetId, int delta) {
-		if (assetId == null || assetId.isBlank() || delta == 0) return false;
+	private void moveQueueBy(String assetId, int delta) {
+		if (assetId == null || assetId.isBlank() || delta == 0) return;
 		List<AudioAsset> queued = getQueuedAssetsSorted();
 		int idx = -1;
 		for (int i = 0; i < queued.size(); i++) {
@@ -248,9 +247,9 @@ public final class AudioAssetManager {
 				break;
 			}
 		}
-		if (idx < 0) return false;
+		if (idx < 0) return;
 		int newIdx = idx + delta;
-		if (newIdx < 0 || newIdx >= queued.size()) return false;
+		if (newIdx < 0 || newIdx >= queued.size()) return;
 
 		AudioAsset a = queued.get(idx);
 		AudioAsset b = queued.get(newIdx);
@@ -258,7 +257,6 @@ public final class AudioAssetManager {
 		a.setQueueTicket(b.getQueueTicket());
 		b.setQueueTicket(t);
 		normalizeQueueTickets();
-		return true;
 	}
 
 	private List<AudioAsset> getQueuedAssetsSorted() {
