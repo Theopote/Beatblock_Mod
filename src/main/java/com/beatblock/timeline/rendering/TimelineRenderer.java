@@ -191,6 +191,7 @@ public final class TimelineRenderer {
 					asset = AudioAssetManager.getInstance().getCurrentDragAsset();
 				}
 				if (asset != null && BeatBlock.audioAnalysisEngine != null) {
+					bindDroppedAudioToPlayback(timeline, asset);
 					if (asset.getBeatmap() != null) {
 						BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
 						BeatBlockRuntime.getInstance().loadBeatmap(asset.getBeatmap());
@@ -203,6 +204,19 @@ public final class TimelineRenderer {
 				}
 			}
 			ImGui.endDragDropTarget();
+		}
+	}
+
+	private void bindDroppedAudioToPlayback(Timeline timeline, AudioAsset asset) {
+		if (timeline == null || asset == null || asset.getPath() == null) return;
+		String audioPath = asset.getPath().toAbsolutePath().normalize().toString();
+		timeline.setMetadata("audioPath", audioPath);
+		if (asset.getDurationSeconds() > 0) {
+			timeline.setDurationSeconds(asset.getDurationSeconds());
+		}
+		if (BeatBlock.musicPlayer != null) {
+			BeatBlock.musicPlayer.loadAudio(audioPath);
+			BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
 		}
 	}
 
