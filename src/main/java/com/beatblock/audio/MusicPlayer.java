@@ -5,6 +5,9 @@ import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.lwjgl.openal.AL10;
+import org.lwjgl.openal.AL11;
+
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
@@ -18,6 +21,7 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -42,6 +46,12 @@ public class MusicPlayer implements IAudioPlayer {
 	private int streamStartBytePosition;
 	private String loadedAudioPath;
 	private String lastLoadError;
+
+	// OpenAL backend (used when JavaSound has no mixers, e.g. inside Minecraft/LWJGL)
+	private int alBuffer = 0;
+	private int alSource = 0;
+	private boolean useOpenAl = false;
+	private double alBytesPerSecond = 0.0;
 
 	public MusicPlayer() {
 		this.playing = false;
@@ -74,6 +84,19 @@ public class MusicPlayer implements IAudioPlayer {
 				return;
 			}
 			LOGGER.info("BeatBlock MusicPlayer: stream playback started path={} time={}s", loadedAudioPath, String.format("%.3f", currentTimeSeconds));
+		} else if (useOpenAl) {
+			if (durationSeconds > 0 && currentTimeSeconds >= durationSeconds - 0.001) {
+				try { AL11.alSourcef(alSource, AL11.AL_SEC_OFFSET, 0.0f); } catch (Throwable ignored) {}
+				currentTimeSeconds = 0;
+			}
+			try {
+				AL10.alSourcePlay(alSource);
+				LOGGER.info("BeatBlock MusicPlayer: OpenAL playback started path={} time={}s", loadedAudioPath, String.format("%.3f", currentTimeSeconds));
+			} catch (Throwable e) {
+				LOGGER.warn("BeatBlock MusicPlayer: OpenAL play failed: {}", e.getMessage());
+				playing = false;
+				return;
+			}
 		} else {
 			LOGGER.warn("BeatBlock MusicPlayer: play requested but no audio clip is loaded. lastLoadError={}", lastLoadError);
 		}
@@ -87,6 +110,11 @@ public class MusicPlayer implements IAudioPlayer {
 		} else if (hasStreamBackend()) {
 			stopStreamPlayback(false);
 			currentTimeSeconds = streamPositionSeconds();
+		} else if (useOpenAl) {
+			try {
+				currentTimeSeconds = openAlPositionSeconds();
+				AL10.alSourcePause(alSource);
+			} catch (Throwable ignored) {}
 		}
 		playing = false;
 	}
@@ -97,6 +125,11 @@ public class MusicPlayer implements IAudioPlayer {
 			audioClip.setMicrosecondPosition(0);
 		} else if (hasStreamBackend()) {
 			stopStreamPlayback(true);
+		} else if (useOpenAl) {
+			try {
+				AL10.alSourceStop(alSource);
+				AL11.alSourcef(alSource, AL11.AL_SEC_OFFSET, 0.0f);
+			} catch (Throwable ignored) {}
 		}
 		playing = false;
 		currentTimeSeconds = 0;
@@ -127,6 +160,13 @@ public class MusicPlayer implements IAudioPlayer {
 				stopStreamPlayback(false);
 				startStreamPlayback();
 			}
+		} else if (useOpenAl) {
+			try {
+				boolean wasPlaying = playing && AL10.alGetSourcei(alSource, AL10.AL_SOURCE_STATE) == AL10.AL_PLAYING;
+				if (wasPlaying) AL10.alSourcePause(alSource);
+				AL11.alSourcef(alSource, AL11.AL_SEC_OFFSET, (float) this.currentTimeSeconds);
+				if (wasPlaying) AL10.alSourcePlay(alSource);
+			} catch (Throwable ignored) {}
 		}
 	}
 
@@ -248,6 +288,19 @@ public class MusicPlayer implements IAudioPlayer {
 				}
 				playing = false;
 			}
+			return;
+		}
+		if (useOpenAl) {
+			try {
+				currentTimeSeconds = openAlPositionSeconds();
+				if (playing) {
+					int state = AL10.alGetSourcei(alSource, AL10.AL_SOURCE_STATE);
+					if (state == AL10.AL_STOPPED || state == AL10.AL_INITIAL) {
+						if (durationSeconds > 0) currentTimeSeconds = durationSeconds;
+						playing = false;
+					}
+				}
+			} catch (Throwable ignored) {}
 		}
 	}
 
@@ -262,12 +315,32 @@ public class MusicPlayer implements IAudioPlayer {
 		streamPcmFormat = null;
 		streamBytePosition = 0;
 		streamStartBytePosition = 0;
+		closeOpenAlBackend();
 		if (audioClip == null) return;
 		try {
 			audioClip.stop();
 			audioClip.close();
 		} finally {
 			audioClip = null;
+		}
+	}
+
+	private void closeOpenAlBackend() {
+		useOpenAl = false;
+		alBytesPerSecond = 0.0;
+		if (alSource != 0) {
+			try {
+				AL10.alSourceStop(alSource);
+				AL10.alSourcei(alSource, AL10.AL_BUFFER, 0);
+				AL10.alDeleteSources(alSource);
+			} catch (Throwable ignored) {}
+			alSource = 0;
+		}
+		if (alBuffer != 0) {
+			try {
+				AL10.alDeleteBuffers(alBuffer);
+			} catch (Throwable ignored) {}
+			alBuffer = 0;
 		}
 	}
 
@@ -365,20 +438,82 @@ public class MusicPlayer implements IAudioPlayer {
 
 		// 尝试 SourceDataLine 后端——遍历所有 mixer，不依赖 isLineSupported()
 		SourceDataLine foundLine = openSourceDataLineFromAnyMixer(pcmFmt);
-		if (foundLine == null) {
-			throw new LineUnavailableException("no mixer (of " + AudioSystem.getMixerInfo().length
-				+ " found) supports SourceDataLine for " + pcmFmt.getSampleRate()
-				+ "Hz/" + pcmFmt.getChannels() + "ch");
+		if (foundLine != null) {
+			foundLine.close();
+			streamPcmData = pcmBytes;
+			streamPcmFormat = pcmFmt;
+			streamBytePosition = 0;
+			streamStartBytePosition = 0;
+			audioClip = null;
+			durationSeconds = pcmBytes.length / (pcmFmt.getFrameRate() * pcmFmt.getFrameSize());
+			LOGGER.info("BeatBlock MusicPlayer: using SourceDataLine stream backend for {}Hz/{}ch",
+				(int) pcmFmt.getSampleRate(), pcmFmt.getChannels());
+			return;
 		}
-		foundLine.close(); // 此处关掉，playback 时再重新开
-		streamPcmData = pcmBytes;
-		streamPcmFormat = pcmFmt;
-		streamBytePosition = 0;
-		streamStartBytePosition = 0;
-		audioClip = null;
-		durationSeconds = pcmBytes.length / (pcmFmt.getFrameRate() * pcmFmt.getFrameSize());
-		LOGGER.info("BeatBlock MusicPlayer: using SourceDataLine stream backend for {}Hz/{}ch",
-			(int) pcmFmt.getSampleRate(), pcmFmt.getChannels());
+
+		// 最终兜底：直接使用 Minecraft 已初始化的 OpenAL（LWJGL）
+		LOGGER.info("BeatBlock MusicPlayer: JavaSound unavailable (0 mixers), using OpenAL backend");
+		tryOpenAlBackend(pcmBytes, pcmFmt);
+	}
+
+	private void tryOpenAlBackend(byte[] pcmBytes, AudioFormat pcmFmt) throws LineUnavailableException {
+		closeOpenAlBackend();
+		try {
+			int channels = pcmFmt.getChannels();
+			int bits = pcmFmt.getSampleSizeInBits();
+			int alFormat;
+			if (channels == 2 && bits == 16) alFormat = AL10.AL_FORMAT_STEREO16;
+			else if (channels == 2) alFormat = AL10.AL_FORMAT_STEREO8;
+			else if (bits == 16) alFormat = AL10.AL_FORMAT_MONO16;
+			else alFormat = AL10.AL_FORMAT_MONO8;
+			int sampleRate = (int) pcmFmt.getSampleRate();
+
+			ByteBuffer directBuf = ByteBuffer.allocateDirect(pcmBytes.length);
+			directBuf.put(pcmBytes).flip();
+
+			int buf = AL10.alGenBuffers();
+			AL10.alBufferData(buf, alFormat, directBuf, sampleRate);
+			int err = AL10.alGetError();
+			if (err != AL10.AL_NO_ERROR) {
+				AL10.alDeleteBuffers(buf);
+				throw new LineUnavailableException("alBufferData failed, error=0x" + Integer.toHexString(err));
+			}
+
+			int src = AL10.alGenSources();
+			AL10.alSourcei(src, AL10.AL_BUFFER, buf);
+			AL10.alSourcef(src, AL10.AL_GAIN, 1.0f);
+			err = AL10.alGetError();
+			if (err != AL10.AL_NO_ERROR) {
+				AL10.alDeleteSources(src);
+				AL10.alDeleteBuffers(buf);
+				throw new LineUnavailableException("alGenSources/alSourcei failed, error=0x" + Integer.toHexString(err));
+			}
+
+			alBuffer = buf;
+			alSource = src;
+			useOpenAl = true;
+			alBytesPerSecond = pcmFmt.getFrameRate() * pcmFmt.getFrameSize();
+			audioClip = null;
+			streamPcmData = null;
+			streamPcmFormat = null;
+			durationSeconds = alBytesPerSecond > 0 ? pcmBytes.length / alBytesPerSecond : 0;
+			LOGGER.info("BeatBlock MusicPlayer: OpenAL backend ready {}Hz/{}ch duration={}s",
+				sampleRate, channels, String.format("%.3f", durationSeconds));
+		} catch (LineUnavailableException e) {
+			throw e;
+		} catch (Throwable e) {
+			closeOpenAlBackend();
+			throw new LineUnavailableException("OpenAL backend init failed: " + e.getMessage());
+		}
+	}
+
+	private double openAlPositionSeconds() {
+		if (!useOpenAl || alSource == 0) return currentTimeSeconds;
+		try {
+			return AL10.alGetSourcef(alSource, AL11.AL_SEC_OFFSET);
+		} catch (Throwable ignored) {
+			return currentTimeSeconds;
+		}
 	}
 
 	private Clip acquireClipFromAnyMixer(AudioFormat fmt) throws LineUnavailableException {
@@ -634,11 +769,7 @@ public class MusicPlayer implements IAudioPlayer {
 	 * 每帧调用，推进播放进度（仅当 playing 时）。
 	 */
 	public void tick(double deltaSeconds) {
-		if (audioClip != null) {
-			syncClipState();
-			return;
-		}
-		if (hasStreamBackend()) {
+		if (audioClip != null || hasStreamBackend() || useOpenAl) {
 			syncClipState();
 			return;
 		}
