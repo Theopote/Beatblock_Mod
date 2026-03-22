@@ -58,6 +58,7 @@ public class AudioLoader {
 		if (BeatBlock.musicPlayer != null) {
 			BeatBlock.musicPlayer.setDurationSeconds(audio.getDurationSeconds());
 			BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
+			BeatBlock.musicPlayer.loadAudio(pathOrId);
 		}
 		if (BeatBlock.timelineEditor != null) {
 			BeatBlock.timelineEditor.syncClockDuration();
@@ -80,6 +81,7 @@ public class AudioLoader {
 		if (BeatBlock.musicPlayer != null) {
 			BeatBlock.musicPlayer.setDurationSeconds(audio.getDurationSeconds());
 			BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
+			BeatBlock.musicPlayer.loadAudio(null);
 		}
 		if (BeatBlock.timelineEditor != null) {
 			BeatBlock.timelineEditor.syncClockDuration();

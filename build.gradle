@@ -39,6 +39,11 @@ dependencies {
 
 	// JSON 解析（BeatmapReader 使用）
 	implementation "com.google.code.gson:gson:2.10.1"
+
+	// MP3 解码（Java Sound SPI），用于时间线真实音频播放
+	implementation "com.googlecode.soundlibs:mp3spi:1.9.5-1"
+	implementation "com.googlecode.soundlibs:tritonus-share:0.3.7-2"
+	implementation "com.googlecode.soundlibs:jlayer:1.0.1.4"
 }
 
 processResources {

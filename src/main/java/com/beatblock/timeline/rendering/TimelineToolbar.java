@@ -505,6 +505,15 @@ public final class TimelineToolbar {
 
 	private static void ensureMusicDurationForPlayback(TimelineEditor editor) {
 		if (BeatBlock.musicPlayer == null || editor == null) return;
+		if (BeatBlock.timeline != null) {
+			Object audioPath = BeatBlock.timeline.getMetadata("audioPath");
+			if (audioPath instanceof String path && !path.isBlank()) {
+				String loadedPath = BeatBlock.musicPlayer.getLoadedAudioPath();
+				if (!path.equals(loadedPath)) {
+					BeatBlock.musicPlayer.loadAudio(path);
+				}
+			}
+		}
 		if (BeatBlock.musicPlayer.getDurationSeconds() > 0) return;
 		double duration = getDuration(editor);
 		if (duration > 0) {
