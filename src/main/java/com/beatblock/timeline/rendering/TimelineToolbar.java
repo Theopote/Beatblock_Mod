@@ -100,6 +100,7 @@ public final class TimelineToolbar {
 			transportTooltip = hoveredTooltip(transportTooltip, TOOLTIP_PAUSE);
 		} else {
 			if (ImGui.button(Icons.Play.PLAY + "##tlPlay", tBtn, tBtn)) {
+				ensureMusicDurationForPlayback(editor);
 				if (BeatBlock.musicPlayer != null) {
 					BeatBlock.musicPlayer.play();
 					// 启动驱动以便每帧推进时间，播放头随音乐移动
@@ -497,7 +498,17 @@ public final class TimelineToolbar {
 		double t = Math.max(0, Math.min(targetSeconds, duration));
 		editor.getClock().seek(t);
 		if (BeatBlock.musicPlayer != null) {
+			ensureMusicDurationForPlayback(editor);
 			BeatBlock.musicPlayer.setCurrentTimeSeconds(t);
+		}
+	}
+
+	private static void ensureMusicDurationForPlayback(TimelineEditor editor) {
+		if (BeatBlock.musicPlayer == null || editor == null) return;
+		if (BeatBlock.musicPlayer.getDurationSeconds() > 0) return;
+		double duration = getDuration(editor);
+		if (duration > 0) {
+			BeatBlock.musicPlayer.setDurationSeconds(duration);
 		}
 	}
 

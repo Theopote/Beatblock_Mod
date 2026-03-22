@@ -44,7 +44,11 @@ public class MusicPlayer implements IAudioPlayer {
 	}
 
 	public void setCurrentTimeSeconds(double currentTimeSeconds) {
-		this.currentTimeSeconds = Math.max(0, Math.min(currentTimeSeconds, durationSeconds));
+		if (durationSeconds > 0) {
+			this.currentTimeSeconds = Math.max(0, Math.min(currentTimeSeconds, durationSeconds));
+		} else {
+			this.currentTimeSeconds = Math.max(0, currentTimeSeconds);
+		}
 	}
 
 	public double getDurationSeconds() {
@@ -67,11 +71,11 @@ public class MusicPlayer implements IAudioPlayer {
 	 * 每帧调用，推进播放进度（仅当 playing 时）。
 	 */
 	public void tick(double deltaSeconds) {
-		if (playing && durationSeconds > 0) {
-			currentTimeSeconds = Math.min(currentTimeSeconds + deltaSeconds * playbackSpeed, durationSeconds);
-			if (currentTimeSeconds >= durationSeconds) {
-				playing = false;
-			}
+		if (!playing) return;
+		currentTimeSeconds = Math.max(0, currentTimeSeconds + deltaSeconds * playbackSpeed);
+		if (durationSeconds > 0 && currentTimeSeconds >= durationSeconds) {
+			currentTimeSeconds = durationSeconds;
+			playing = false;
 		}
 	}
 }
