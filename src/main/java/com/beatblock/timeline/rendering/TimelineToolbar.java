@@ -47,7 +47,6 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_LOOP = "循环播放";
 	private static final String TOOLTIP_FIT = "缩放至整段时长可见";
 	private static final String TOOLTIP_ZOOM = "时间线横向缩放";
-	private static final String TOOLTIP_REBIND_AUDIO = "重新绑定当前时间线 audioPath 到真实音频输出";
 
 	/** Zoom 预设：显示名与对应的缩放倍数（相对基准 1x） */
 	private static final String[] ZOOM_PRESET_LABELS = { "0.25x", "0.5x", "1x", "2x", "3x", "4x" };
@@ -273,21 +272,6 @@ public final class TimelineToolbar {
 			ImGui.textDisabled("(" + lastAutoMapCount + " events)");
 		}
 
-		nextGroup();
-		if (BeatBlock.musicPlayer != null) {
-			if (ImGui.smallButton("重新绑定##tlRebindAudio")) {
-				rebindTimelineAudio();
-			}
-			if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_REBIND_AUDIO);
-			ImGui.sameLine();
-			ImGui.textDisabled(BeatBlock.musicPlayer.getPlaybackStatusText());
-			String loadError = BeatBlock.musicPlayer.getLastLoadError();
-			if (loadError != null && !loadError.isBlank()) {
-				ImGui.sameLine();
-				ImGui.textDisabled("[原因]");
-				if (ImGui.isItemHovered()) ImGui.setTooltip(loadError);
-			}
-		}
 	}
 
 	private void renderOverflowMenu(TimelineEditor editor, TimelineToolbarState toolbarState, double seekStep) {
@@ -397,19 +381,6 @@ public final class TimelineToolbar {
 		if (lastAutoMapCount >= 0) {
 			ImGui.sameLine();
 			ImGui.textDisabled("(" + lastAutoMapCount + " events)");
-		}
-
-		ImGui.separator();
-		if (BeatBlock.musicPlayer != null) {
-			if (ImGui.button("重新绑定当前音频##tlMoreRebindAudio")) {
-				rebindTimelineAudio();
-			}
-			if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_REBIND_AUDIO);
-			String loadError = BeatBlock.musicPlayer.getLastLoadError();
-			if (loadError != null && !loadError.isBlank()) {
-				ImGui.textWrapped(loadError);
-			}
-			ImGui.textDisabled(BeatBlock.musicPlayer.getPlaybackStatusText());
 		}
 
 		ImGui.endPopup();
@@ -551,12 +522,6 @@ public final class TimelineToolbar {
 		}
 	}
 
-	private static boolean rebindTimelineAudio() {
-		if (BeatBlock.timeline == null || BeatBlock.musicPlayer == null) return false;
-		Object audioPath = BeatBlock.timeline.getMetadata("audioPath");
-		if (!(audioPath instanceof String path) || path.isBlank()) return false;
-		return BeatBlock.musicPlayer.loadAudio(path);
-	}
 
 	private static double getDuration(TimelineEditor editor) {
 		double timelineDur = BeatBlock.timeline != null ? BeatBlock.timeline.getDurationSeconds() : 0;
