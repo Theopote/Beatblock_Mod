@@ -697,12 +697,24 @@ public final class TimelineRenderer {
 	 * 释放后台资源，避免客户端退出后残留分析线程。
 	 */
 	public void shutdown() {
-		if (denseFeatureExecutorShutdown) return;
+		if (denseFeatureExecutorShutdown) {
+			LOGGER.debug("BeatBlock Timeline: dense feature executor already shut down");
+			return;
+		}
+		int pendingCount = pendingDenseApplies.size();
+		int inflightCount = denseAnalysisInFlight.size();
+		int cooldownCount = denseAnalysisFailureUntilMs.size();
 		denseFeatureExecutorShutdown = true;
 		pendingDenseApplies.clear();
 		denseAnalysisInFlight.clear();
 		denseAnalysisFailureUntilMs.clear();
 		denseFeatureExecutor.shutdownNow();
+		LOGGER.info(
+			"BeatBlock Timeline: dense feature executor shutdown (pending={}, inflight={}, cooldown={})",
+			pendingCount,
+			inflightCount,
+			cooldownCount
+		);
 	}
 
 	private void applyPendingDenseUpdates(Timeline timeline) {

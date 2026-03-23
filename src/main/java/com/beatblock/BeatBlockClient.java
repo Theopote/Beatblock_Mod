@@ -50,6 +50,7 @@ public class BeatBlockClient implements ClientModInitializer {
 		});
 		
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+			LOGGER.info("BeatBlock client stopping: releasing timeline and audio background resources");
 			if (BeatBlock.timelineEditor != null) {
 				BeatBlock.timelineEditor.shutdown();
 			}
@@ -59,6 +60,7 @@ public class BeatBlockClient implements ClientModInitializer {
 			if (BeatBlock.audioConversionService != null) {
 				BeatBlock.audioConversionService.shutdown();
 			}
+			LOGGER.info("BeatBlock client stopping: background resource cleanup complete");
 		});
 
 		LOGGER.info("BeatBlock 客户端已初始化 — 按 B 键切换节拍播放");
