@@ -22,8 +22,12 @@ public final class TrackRenderer {
 
 	/** 可见/锁定 两枚按钮之间的间隙 */
 	private static final float ICON_GAP = 2f;
-	/** 左侧安全内边距，避免折叠按钮贴边被窗口裁剪。 */
-	private static final float LEFT_INSET = 8f;
+	/**
+	 * 左侧额外缩进。
+	 * 轨道头本身已经处在 ImGui 内容区内，再加额外 inset 会产生“二次边距”，
+	 * 让折叠按钮、类型列、名称列整体向右偏移。
+	 */
+	private static final float LEFT_INSET = 0f;
 	private static final String[] TYPE_LABELS = {"音频", "动画", "摄像机", "事件"};
 
 	private static final int MICRO_SEP_COLOR = 0x55_66_66_66; // ABGR
