@@ -6,8 +6,11 @@ import com.beatblock.audio.BeatBlockRuntime;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.timeline.FeatureEvent;
+import com.beatblock.timeline.FeatureTrack;
 import com.beatblock.timeline.FrequencyBand;
+import com.beatblock.timeline.FrequencyEvent;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.WaveformData;
 import com.beatblock.timeline.editor.SelectionBox;
 import com.beatblock.timeline.editor.SelectionState;
@@ -20,7 +23,9 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -208,8 +213,10 @@ public final class TimelineRenderer {
 
 		// ── 固定非音频轨道 ────────────────────────────────────────────────────
 		if (rowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK) {
+			renderAnimationTrackDropTarget(rowIndex, rowHeight, timeline, layout);
 			eventRenderer.renderAnimationEventBlocks(rowY, timeline.getBlockAnimationEvents(), layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_ANIM_AUTO) {
+			renderAnimationTrackDropTarget(rowIndex, rowHeight, timeline, layout);
 			eventRenderer.renderAnimationEventBlocks(rowY, timeline.getAutoAnimationEvents(), layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_CAMERA) {
 			eventRenderer.renderCameraKeyframeRow(rowY, timeline.getCameraKeyframes(), layout, viewState);
@@ -318,26 +325,175 @@ public final class TimelineRenderer {
 				if (asset == null) {
 					asset = AudioAssetManager.getInstance().getCurrentDragAsset();
 				}
-				if (asset != null && BeatBlock.audioAnalysisEngine != null) {
-					bindDroppedAudioToPlayback(timeline, asset);
-					if (asset.getBeatmap() != null) {
-						BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
-						requestDenseFeatureEnrichment(timeline, asset);
-						BeatBlockRuntime.getInstance().loadBeatmap(asset.getBeatmap());
-						// 若是 Demucs 模式，加载茎音频到 StemMixer
-						bindStemAudioIfDemucs(asset.getBeatmap());
-					} else if (asset.getFeatureTimeline() != null) {
-						BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
-					} else {
-						requestDenseFeatureEnrichment(timeline, asset);
-					}
-					if (BeatBlock.timelineEditor != null) {
-						BeatBlock.timelineEditor.syncClockDuration();
-					}
-				}
+				handleDroppedAudioAsset(timeline, asset, -1);
 			}
 			ImGui.endDragDropTarget();
 		}
+	}
+
+	private void renderAnimationTrackDropTarget(int rowIndex, float rowHeight, Timeline timeline, TimelineLayout layout) {
+		float screenY = layout.getRowScreenY(rowIndex);
+		if (screenY < 0) return;
+		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
+		ImGui.invisibleButton("##AnimDropTarget_" + rowIndex, layout.contentWidth, rowHeight);
+		acceptAudioAssetDropForAnimationTrack(timeline, rowIndex);
+	}
+
+	private void acceptAudioAssetDropForAnimationTrack(Timeline timeline, int targetRowIndex) {
+		if (ImGui.beginDragDropTarget()) {
+			byte[] payload = ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID");
+			if (payload != null) {
+				String assetId = new String(payload, StandardCharsets.UTF_8).trim();
+				AudioAsset asset = AudioAssetManager.getInstance().findById(assetId);
+				if (asset == null) {
+					asset = AudioAssetManager.getInstance().getCurrentDragAsset();
+				}
+				handleDroppedAudioAsset(timeline, asset, targetRowIndex);
+			}
+			ImGui.endDragDropTarget();
+		}
+	}
+
+	private void handleDroppedAudioAsset(Timeline timeline, AudioAsset asset, int dropTargetRowIndex) {
+		if (asset == null || BeatBlock.audioAnalysisEngine == null) return;
+
+		bindDroppedAudioToPlayback(timeline, asset);
+		if (asset.getBeatmap() != null) {
+			BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
+			requestDenseFeatureEnrichment(timeline, asset);
+			BeatBlockRuntime.getInstance().loadBeatmap(asset.getBeatmap());
+			// 若是 Demucs 模式，加载茎音频到 StemMixer
+			bindStemAudioIfDemucs(asset.getBeatmap());
+		} else if (asset.getFeatureTimeline() != null) {
+			BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
+		} else {
+			requestDenseFeatureEnrichment(timeline, asset);
+		}
+
+		if (dropTargetRowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK
+			|| dropTargetRowIndex == TimelineTrackMeta.ROW_ANIM_AUTO) {
+			populateAnimationTrackFromAudioFeatures(timeline, dropTargetRowIndex);
+		}
+
+		if (BeatBlock.timelineEditor != null) {
+			BeatBlock.timelineEditor.syncClockDuration();
+		}
+	}
+
+	private void populateAnimationTrackFromAudioFeatures(Timeline timeline, int targetRowIndex) {
+		if (timeline == null) return;
+		boolean toBlockTrack = targetRowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK;
+		boolean toAutoTrack = targetRowIndex == TimelineTrackMeta.ROW_ANIM_AUTO;
+		if (!toBlockTrack && !toAutoTrack) return;
+
+		if (toBlockTrack) {
+			timeline.clearBlockAnimationEvents();
+		} else {
+			timeline.clearAutoAnimationEvents();
+		}
+
+		String targetObjectId = resolveDefaultTargetObjectId();
+		int added = 0;
+
+		for (Map.Entry<String, FeatureTrack> entry : timeline.getFeatureTracks().entrySet()) {
+			String featureKey = entry.getKey();
+			FeatureTrack track = entry.getValue();
+			if (track == null || track.getEvents().isEmpty()) continue;
+
+			String animationType = animationTypeForFeature(featureKey);
+			double baseDuration = durationForFeature(featureKey);
+			for (FeatureEvent event : track.getEvents()) {
+				added += addAnimationEventFromSource(
+					timeline, toBlockTrack, event.getTimeSeconds(),
+					event.getEnergy(), animationType, baseDuration,
+					targetObjectId, featureKey
+				);
+			}
+		}
+
+		if (added == 0) {
+			for (FrequencyEvent fe : timeline.getFrequencyEvents()) {
+				String featureKey = switch (fe.getBand()) {
+					case LOW -> "kick";
+					case MID -> "snare";
+					case HIGH -> "hihat";
+				};
+				added += addAnimationEventFromSource(
+					timeline, toBlockTrack, fe.getTimeSeconds(),
+					fe.getEnergy(), animationTypeForFeature(featureKey),
+					durationForFeature(featureKey), targetObjectId, featureKey
+				);
+			}
+		}
+
+		timeline.sortAll();
+		LOGGER.info("BeatBlock Timeline: mapped dropped audio into {} animation events on {} track",
+			added, toBlockTrack ? "block" : "auto");
+	}
+
+	private int addAnimationEventFromSource(
+		Timeline timeline,
+		boolean toBlockTrack,
+		double timeSeconds,
+		float rawEnergy,
+		String animationType,
+		double baseDuration,
+		String targetObjectId,
+		String sourceFeature
+	) {
+		float energy = Math.max(0f, Math.min(1f, rawEnergy));
+		double duration = Math.max(0.05, baseDuration * (0.65 + energy * 0.8));
+		Map<String, Object> params = new HashMap<>();
+		params.put("energy", energy);
+		params.put("sourceFeature", sourceFeature);
+		params.put("generatedBy", "audio-asset-drop");
+
+		TimelineAnimationEvent ev = new TimelineAnimationEvent(
+			"",
+			timeSeconds,
+			duration,
+			animationType,
+			targetObjectId,
+			energy,
+			params
+		);
+		if (toBlockTrack) {
+			timeline.addBlockAnimationEvent(ev);
+		} else {
+			timeline.addAutoAnimationEvent(ev);
+		}
+		return 1;
+	}
+
+	private String resolveDefaultTargetObjectId() {
+		if (BeatBlock.blockAnimationEngine != null) {
+			var sys = BeatBlock.blockAnimationEngine.getStageObjectSystem();
+			var all = sys != null ? sys.getAll() : null;
+			if (all != null && !all.isEmpty()) {
+				return all.iterator().next().getId();
+			}
+		}
+		return "default";
+	}
+
+	private String animationTypeForFeature(String featureKey) {
+		if (featureKey == null || featureKey.isBlank()) return "pulse";
+		return switch (featureKey.toLowerCase()) {
+			case "kick", "bass", "drums" -> "jump";
+			case "snare", "snare_hi", "vocals" -> "explosion";
+			case "hihat", "hihat_open", "other" -> "pulse";
+			default -> "pulse";
+		};
+	}
+
+	private double durationForFeature(String featureKey) {
+		if (featureKey == null || featureKey.isBlank()) return 0.35;
+		return switch (featureKey.toLowerCase()) {
+			case "kick", "bass", "drums" -> 0.50;
+			case "snare", "snare_hi", "vocals" -> 0.40;
+			case "hihat", "hihat_open", "other" -> 0.28;
+			default -> 0.35;
+		};
 	}
 
 	/**

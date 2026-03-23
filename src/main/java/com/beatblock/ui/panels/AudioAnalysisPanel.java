@@ -211,7 +211,7 @@ public final class AudioAnalysisPanel {
                 BeatBlock.externalAudioAnalyzer.setUseDemucs(demucsToggle.get());
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("启用 Demucs 高质量茎分离\n将音频拆分为鼓/贝斯/人声/其他四个独立轨道\n需要额外安装 demucs + torch，分析耗时更长");
+                ImGui.setTooltip("默认启用 Demucs 高质量茎分离\n将音频拆分为鼓/贝斯/人声/其他四个独立轨道\n关闭后使用仅 librosa 的快速分析模式");
             }
         }
 

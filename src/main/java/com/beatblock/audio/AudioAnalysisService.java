@@ -60,7 +60,7 @@ public final class AudioAnalysisService {
 	private final Map<String, PythonProbeInfo> pythonProbeCache = new ConcurrentHashMap<>();
 
 	/** 是否使用 Demucs 进行茎分离（需要额外 Python 依赖）。UI 可切换。 */
-	private volatile boolean useDemucs = false;
+	private volatile boolean useDemucs = true;
 
 	public boolean isUseDemucs() { return useDemucs; }
 	public void setUseDemucs(boolean useDemucs) { this.useDemucs = useDemucs; }
@@ -185,7 +185,8 @@ public final class AudioAnalysisService {
 			.replaceAll("\\.[^.]+$", ""));
 		String audioFingerprint = Integer.toHexString(
 			audioPath.toAbsolutePath().normalize().toString().toLowerCase().hashCode());
-		Path beatmapPath = outputDir.resolve(baseName + "-" + audioFingerprint + ".beatmap");
+		String separationTag = useDemucs ? "demucs" : "basic";
+		Path beatmapPath = outputDir.resolve(baseName + "-" + audioFingerprint + "-" + separationTag + ".beatmap");
 
 		// 若 beatmap 文件已存在且可读，直接加载，跳过 Python 分析（避免重复运行耗时分析）
 		// 若 analyzerVersion 低于当前最低兼容版本（2.0），则废弃缓存并重新分析
@@ -194,7 +195,7 @@ public final class AudioAnalysisService {
 				long fileSize = Files.size(beatmapPath);
 				if (fileSize > 16) {
 					Beatmap cached = BeatmapReader.read(beatmapPath);
-					if (isBeatmapVersionCompatible(cached)) {
+					if (isBeatmapVersionCompatible(cached, useDemucs)) {
 						LOGGER.info("BeatBlock AudioAnalysis: beatmap cache hit, skipping Python path={} beatmap={}",
 							audioPath.getFileName(), beatmapPath.getFileName());
 						onComplete.accept(cached);
@@ -373,17 +374,25 @@ public final class AudioAnalysisService {
 	 * v2.x: HPSS + 固定 kick/snare/hihat 三轨道
 	 * v3.x: HPSS + 谱聚类自适应轨道（当前）
 	 */
-	private static boolean isBeatmapVersionCompatible(Beatmap beatmap) {
+	private static boolean isBeatmapVersionCompatible(Beatmap beatmap, boolean expectDemucs) {
 		if (beatmap == null || beatmap.meta == null) return false;
 		String ver = beatmap.meta.analyzerVersion();
 		if (ver == null || ver.isBlank()) return false;
 		// 只接受 3.x 及以上的版本（3.0 引入谱聚类自适应轨道）
+		boolean versionOk;
 		try {
 			int major = Integer.parseInt(ver.split("\\.")[0]);
-			return major >= 3;
+			versionOk = major >= 3;
 		} catch (NumberFormatException e) {
 			return false;
 		}
+		if (!versionOk) return false;
+
+		boolean hasStemSeparation = beatmap.meta.hasStemSeparation();
+		if (expectDemucs) {
+			return hasStemSeparation;
+		}
+		return !hasStemSeparation;
 	}
 
 	private String sanitizeBeatmapBaseName(String baseName) {
@@ -655,41 +664,85 @@ public final class AudioAnalysisService {
 			int checkCode = waitProcess(check);
 			control.clearProcess(check);
 			if (control.isCancelled()) return "分析被取消";
-			if (checkCode == 0) return null;
+			if (checkCode != 0) {
+				if (!Files.isRegularFile(requirementsPath)) {
+					return "Python 依赖缺失，且找不到 requirements.txt：" + requirementsPath;
+				}
 
-			if (!Files.isRegularFile(requirementsPath)) {
-				return "Python 依赖缺失，且找不到 requirements.txt：" + requirementsPath;
+				Process install = new ProcessBuilder(
+					pythonExe,
+					"-m",
+					"pip",
+					"install",
+					"-r",
+					requirementsPath.toAbsolutePath().toString()
+				).redirectErrorStream(true).start();
+				control.attachProcess(install);
+				String installOut = readProcessOutput(install);
+				int installCode = waitProcess(install);
+				control.clearProcess(install);
+				if (control.isCancelled()) return "分析被取消";
+				if (installCode != 0) {
+					String detail = sanitizeProcessOutput(installOut);
+					if (detail.isEmpty()) detail = sanitizeProcessOutput(checkOut);
+					String hint = explainPythonError(detail);
+					String resolvedExe = getPythonProbeInfo(pythonExe).executablePath;
+					String cmdExe = resolvedExe != null && !resolvedExe.isBlank() ? resolvedExe : pythonExe;
+					return "Python 依赖安装失败，请手动执行：\n"
+						+ "\"" + cmdExe + "\" -m pip install -r \"" + requirementsPath.toAbsolutePath() + "\"\n"
+						+ (hint.isEmpty() ? "" : ("\n" + hint + "\n"))
+						+ detail;
+				}
 			}
 
-			Process install = new ProcessBuilder(
-				pythonExe,
-				"-m",
-				"pip",
-				"install",
-				"-r",
-				requirementsPath.toAbsolutePath().toString()
-			).redirectErrorStream(true).start();
-			control.attachProcess(install);
-			String installOut = readProcessOutput(install);
-			int installCode = waitProcess(install);
-			control.clearProcess(install);
-			if (control.isCancelled()) return "分析被取消";
-			if (installCode == 0) return null;
+			if (useDemucs) {
+				Process demucsCheck = new ProcessBuilder(
+					pythonExe,
+					"-c",
+					"import demucs, torch"
+				).redirectErrorStream(true).start();
+				control.attachProcess(demucsCheck);
+				String demucsCheckOut = readProcessOutput(demucsCheck);
+				int demucsCheckCode = waitProcess(demucsCheck);
+				control.clearProcess(demucsCheck);
+				if (control.isCancelled()) return "分析被取消";
 
-			String detail = sanitizeProcessOutput(installOut);
-			if (detail.isEmpty()) detail = sanitizeProcessOutput(checkOut);
-			String hint = explainPythonError(detail);
-			String resolvedExe = getPythonProbeInfo(pythonExe).executablePath;
-			String cmdExe = resolvedExe != null && !resolvedExe.isBlank() ? resolvedExe : pythonExe;
-			return "Python 依赖安装失败，请手动执行：\n"
-				+ "\"" + cmdExe + "\" -m pip install -r \"" + requirementsPath.toAbsolutePath() + "\"\n"
-				+ (hint.isEmpty() ? "" : ("\n" + hint + "\n"))
-				+ detail;
+				if (demucsCheckCode != 0) {
+					Process demucsInstall = new ProcessBuilder(
+						pythonExe,
+						"-m",
+						"pip",
+						"install",
+						"demucs",
+						"torch"
+					).redirectErrorStream(true).start();
+					control.attachProcess(demucsInstall);
+					String demucsInstallOut = readProcessOutput(demucsInstall);
+					int demucsInstallCode = waitProcess(demucsInstall);
+					control.clearProcess(demucsInstall);
+					if (control.isCancelled()) return "分析被取消";
+
+					if (demucsInstallCode != 0) {
+						String detail = sanitizeProcessOutput(demucsInstallOut);
+						if (detail.isEmpty()) detail = sanitizeProcessOutput(demucsCheckOut);
+						String hint = explainPythonError(detail);
+						String resolvedExe = getPythonProbeInfo(pythonExe).executablePath;
+						String cmdExe = resolvedExe != null && !resolvedExe.isBlank() ? resolvedExe : pythonExe;
+						return "Demucs 依赖安装失败，请手动执行：\n"
+							+ "\"" + cmdExe + "\" -m pip install demucs torch\n"
+							+ (hint.isEmpty() ? "" : ("\n" + hint + "\n"))
+							+ detail;
+					}
+				}
+			}
+
+			return null;
 		} catch (IOException e) {
 			if (control.isCancelled()) return "分析被取消";
 			return "检查 Python 依赖失败：" + e.getMessage();
 		}
 	}
+
 
 	private Future<?> wrapCancelableFuture(Future<?> delegate, AnalysisControl control) {
 		return new Future<>() {
@@ -752,6 +805,11 @@ public final class AudioAnalysisService {
 	private String explainPythonError(String detail) {
 		if (detail == null || detail.isBlank()) return "";
 		String s = detail.toLowerCase();
+
+		if ((s.contains("no module named demucs") || s.contains("no module named torch")
+			|| s.contains("modulenotfounderror: demucs") || s.contains("modulenotfounderror: torch"))) {
+			return "检测到 Demucs 依赖缺失。请安装 demucs 与 torch，建议使用 Python 3.10~3.12。";
+		}
 
 		if (s.contains("no module named") || s.contains("modulenotfounderror")) {
 			return "检测到 Python 依赖缺失。请确认当前 Python 环境已安装 librosa/numpy/soundfile/scipy。";

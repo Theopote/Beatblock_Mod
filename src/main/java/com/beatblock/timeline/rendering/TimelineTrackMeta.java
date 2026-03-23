@@ -11,7 +11,7 @@ public final class TimelineTrackMeta {
 	public static final int NO_PARENT = -1;
 
 	/** 音频子轨最大槽数（动态分配，实际使用数由 TrackRegistry 决定）。 */
-	public static final int MAX_AUDIO_SUB_ROWS = 8;
+	public static final int MAX_AUDIO_SUB_ROWS = 16;
 
 	// ── 固定行索引 ──────────────────────────────────────────────────────────
 	public static final int ROW_AUDIO_GROUP     = 0;
