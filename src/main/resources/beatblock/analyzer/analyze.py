@@ -24,6 +24,7 @@ v3.0：HPSS + 频谱比例阈值分类，完全确定性，无聚类随机性。
 """
 
 import argparse
+import hashlib
 import json
 import sys
 import os
@@ -527,8 +528,8 @@ def analyze_demucs(input_path: str, output_path: str,
 
     # ── 4. Demucs 茎分离 ────────────────────────────────────────────────────
     # 茎缓存目录：与输出 beatmap 同目录下的 stems/<音频指纹>/
-    audio_fingerprint = format(
-        abs(hash(os.path.abspath(input_path).lower())), 'x')
+    normalized_input_path = os.path.abspath(input_path).lower().encode("utf-8")
+    audio_fingerprint = hashlib.sha1(normalized_input_path).hexdigest()[:16]
     output_parent = os.path.dirname(os.path.abspath(output_path))
     stems_dir = os.path.join(output_parent, "stems", audio_fingerprint)
     stem_paths = _run_demucs(input_path, stems_dir)

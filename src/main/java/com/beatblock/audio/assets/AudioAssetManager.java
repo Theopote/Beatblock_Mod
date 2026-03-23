@@ -392,7 +392,10 @@ public final class AudioAssetManager {
 			case "DEPENDENCY_INSTALL" -> "正在安装依赖";
 			case "BPM_DETECTION" -> "BPM 检测";
 			case "BEAT_DETECTION" -> "踩点检测";
+			case "DEMUCS_SEPARATE" -> "Demucs 茎分离";
+			case "STEM_ANALYSIS" -> "茎轨特征分析";
 			case "SECTION_DETECTION" -> "段落识别";
+			case "WAVEFORM" -> "生成波形预览";
 			case "WRITE_BEATMAP" -> "写入 Beatmap";
 			default -> step;
 		};
