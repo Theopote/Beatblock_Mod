@@ -124,11 +124,20 @@ public final class TrackRenderer {
 		if (isEditing && listState != null) {
 			ImGui.setCursorScreenPos(nameTextX, rowOriginScreenY);
 			ImGui.setNextItemWidth(nameTextW);
-			if (ImGui.inputText("##name" + rowIndex, listState.getRenameBuffer(), ImGuiInputTextFlags.EnterReturnsTrue)) {
+			boolean commitByEnter = ImGui.inputText("##name" + rowIndex, listState.getRenameBuffer(), ImGuiInputTextFlags.EnterReturnsTrue);
+			boolean nameItemHovered = ImGui.isItemHovered();
+			boolean nameItemActive = ImGui.isItemActive();
+			if (commitByEnter) {
 				listState.finishEditing(true);
 			}
-			if (ImGui.isItemDeactivatedAfterEdit()) {
-				listState.finishEditing(true);
+			if (!commitByEnter && ImGui.isItemDeactivated()) {
+				listState.finishEditing(false);
+			}
+			if (!commitByEnter && !nameItemActive && !nameItemHovered && ImGui.isMouseClicked(0)) {
+				listState.finishEditing(false);
+			}
+			if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
+				listState.finishEditing(false);
 			}
 		} else {
 			// 命中区：名称区内全区域可双击改名
