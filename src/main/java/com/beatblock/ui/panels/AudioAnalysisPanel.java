@@ -465,6 +465,14 @@ public final class AudioAnalysisPanel {
                 COLOR_PROGRESS_FG.x, COLOR_PROGRESS_FG.y, COLOR_PROGRESS_FG.z, COLOR_PROGRESS_FG.w);
             ImGui.textWrapped("正在处理：" + statusText);
             ImGui.popStyleColor();
+        }
+
+        if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
+            ImGui.spacing();
+            ImGui.textDisabled(asset.getInfoMessage());
+        }
+
+        if (statusText != null && !statusText.isBlank()) {
             return;
         }
 
@@ -888,6 +896,14 @@ public final class AudioAnalysisPanel {
                 COLOR_PROGRESS_FG.x, COLOR_PROGRESS_FG.y, COLOR_PROGRESS_FG.z, COLOR_PROGRESS_FG.w);
             ImGui.textWrapped("正在处理：" + statusText);
             ImGui.popStyleColor();
+        }
+
+        if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
+            ImGui.spacing();
+            ImGui.textDisabled(asset.getInfoMessage());
+        }
+
+        if (statusText != null && !statusText.isBlank()) {
             return;
         }
 

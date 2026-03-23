@@ -343,7 +343,9 @@ public final class AudioAssetManager {
 						asset.setInfoMessage("Demucs 自动安装失败：未知原因");
 					}
 					case "DEMUCS_DEP_INSTALL_FAILED" -> {
-						asset.setInfoMessage("Demucs 依赖自动安装失败");
+						if (asset.getInfoMessage() == null || asset.getInfoMessage().isBlank()) {
+							asset.setInfoMessage("Demucs 依赖自动安装失败");
+						}
 					}
 					case "BPM_DETECTION" -> asset.markStepFinished(AudioAnalysisStep.BPM_DETECTION);
 					case "BEAT_DETECTION" -> {
@@ -355,7 +357,12 @@ public final class AudioAssetManager {
 						// Demucs 模型分离中，不单独计入已完成步骤
 					}
 					case "DEMUCS_FALLBACK" -> {
-						asset.setInfoMessage("Demucs 不可用，已自动切换为基础分析模式（Basic）");
+						String info = asset.getInfoMessage();
+						if (info == null || info.isBlank()) {
+							asset.setInfoMessage("Demucs 不可用，已自动切换为基础分析模式（Basic）");
+						} else if (!info.contains("已自动切换为基础分析模式")) {
+							asset.setInfoMessage(info + "；已自动切换为基础分析模式（Basic）");
+						}
 					}
 					case "STEM_ANALYSIS" -> asset.markStepFinished(AudioAnalysisStep.STEM_SEPARATION);
 					case "WRITE_BEATMAP" -> asset.markStepFinished(AudioAnalysisStep.WRITE_BEATMAP);

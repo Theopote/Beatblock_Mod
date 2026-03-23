@@ -169,7 +169,8 @@ public final class AudioAnalysisService {
 		Consumer<AnalysisSummary> onSummary,
 		AnalysisControl control
 	) {
-		runAnalysisInternal(audioPath, onProgress, onComplete, onError, onSummary, control, true);
+		boolean taskUseDemucs = useDemucs;
+		runAnalysisInternal(audioPath, onProgress, onComplete, onError, onSummary, control, true, taskUseDemucs);
 	}
 
 	private void runAnalysisInternal(
@@ -179,7 +180,8 @@ public final class AudioAnalysisService {
 		Consumer<String> onError,
 		Consumer<AnalysisSummary> onSummary,
 		AnalysisControl control,
-		boolean allowDemucsFallback
+		boolean allowDemucsFallback,
+		boolean analysisUseDemucs
 	) {
 		// 确保脚本与输出目录已就绪
 		Path scriptPath;
@@ -197,7 +199,7 @@ public final class AudioAnalysisService {
 			.replaceAll("\\.[^.]+$", ""));
 		String audioFingerprint = Integer.toHexString(
 			audioPath.toAbsolutePath().normalize().toString().toLowerCase().hashCode());
-		String separationTag = useDemucs ? "demucs" : "basic";
+		String separationTag = analysisUseDemucs ? "demucs" : "basic";
 		Path beatmapPath = outputDir.resolve(baseName + "-" + audioFingerprint + "-" + separationTag + ".beatmap");
 
 		// 若 beatmap 文件已存在且可读，直接加载，跳过 Python 分析（避免重复运行耗时分析）
@@ -207,7 +209,7 @@ public final class AudioAnalysisService {
 				long fileSize = Files.size(beatmapPath);
 				if (fileSize > 16) {
 					Beatmap cached = BeatmapReader.read(beatmapPath);
-					if (isBeatmapVersionCompatible(cached, useDemucs)) {
+					if (isBeatmapVersionCompatible(cached, analysisUseDemucs)) {
 						LOGGER.info("BeatBlock AudioAnalysis: beatmap cache hit, skipping Python path={} beatmap={}",
 							audioPath.getFileName(), beatmapPath.getFileName());
 						onComplete.accept(cached);
@@ -257,19 +259,13 @@ public final class AudioAnalysisService {
 		// 预检并补齐依赖（librosa / numpy / soundfile / scipy）
 		onProgress.accept("DEPENDENCY_INSTALL", 0);
 		Path requirementsPath = scriptPath.getParent().resolve("requirements.txt");
-		String dependencyError = ensurePythonDependencies(pythonExe, requirementsPath, control, onProgress);
+		String dependencyError = ensurePythonDependencies(pythonExe, requirementsPath, control, onProgress, analysisUseDemucs);
 		if (dependencyError != null) {
-			if (allowDemucsFallback && useDemucs && looksLikeDemucsMissing(dependencyError)) {
+			if (allowDemucsFallback && analysisUseDemucs && looksLikeDemucsMissing(dependencyError)) {
 				LOGGER.warn("BeatBlock AudioAnalysis: Demucs dependencies unavailable, fallback to basic mode path={} reason={}",
 					audioPath.getFileName(), sanitizeProcessOutput(dependencyError));
 				onProgress.accept("DEMUCS_FALLBACK", 100);
-				boolean originalUseDemucs = useDemucs;
-				useDemucs = false;
-				try {
-					runAnalysisInternal(audioPath, onProgress, onComplete, onError, onSummary, control, false);
-				} finally {
-					useDemucs = originalUseDemucs;
-				}
+				runAnalysisInternal(audioPath, onProgress, onComplete, onError, onSummary, control, false, false);
 				return;
 			}
 			if (control.isCancelled()) {
@@ -288,7 +284,7 @@ public final class AudioAnalysisService {
 		cmd.add(audioPath.toAbsolutePath().toString());
 		cmd.add(beatmapPath.toAbsolutePath().toString());
 		cmd.add("--waveform"); // 包含波形预览数据
-		if (useDemucs) {
+		if (analysisUseDemucs) {
 			cmd.add("--demucs");
 		}
 
@@ -365,17 +361,11 @@ public final class AudioAnalysisService {
 				detail = sanitizeProcessOutput(stdoutResult.resultJson);
 			}
 			String hint = explainPythonError(detail);
-			if (allowDemucsFallback && useDemucs && looksLikeDemucsMissing(detail + "\n" + hint)) {
+			if (allowDemucsFallback && analysisUseDemucs && looksLikeDemucsMissing(detail + "\n" + hint)) {
 				LOGGER.warn("BeatBlock AudioAnalysis: Demucs runtime unavailable, fallback to basic mode path={} detail={}",
 					audioPath.getFileName(), detail);
 				onProgress.accept("DEMUCS_FALLBACK", 100);
-				boolean originalUseDemucs = useDemucs;
-				useDemucs = false;
-				try {
-					runAnalysisInternal(audioPath, onProgress, onComplete, onError, onSummary, control, false);
-				} finally {
-					useDemucs = originalUseDemucs;
-				}
+				runAnalysisInternal(audioPath, onProgress, onComplete, onError, onSummary, control, false, false);
 				return;
 			}
 			if (!detail.isEmpty()) {
@@ -698,7 +688,8 @@ public final class AudioAnalysisService {
 		String pythonExe,
 		Path requirementsPath,
 		AnalysisControl control,
-		BiConsumer<String, Integer> onProgress
+		BiConsumer<String, Integer> onProgress,
+		boolean analysisUseDemucs
 	) {
 		try {
 			if (control.isCancelled()) return "分析被取消";
@@ -744,7 +735,7 @@ public final class AudioAnalysisService {
 				}
 			}
 
-			if (useDemucs) {
+			if (analysisUseDemucs) {
 				onProgress.accept("DEMUCS_DEP_CHECK", 0);
 				Process demucsCheck = new ProcessBuilder(
 					pythonExe,
