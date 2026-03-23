@@ -45,8 +45,7 @@ public final class EventRenderer {
 	public void renderFrequencyDots(float rowY, List<FrequencyEvent> events, TimelineLayout layout, TimelineViewState view) {
 		if (view == null || layout == null || events.isEmpty()) return;
 		ImGui.setCursorPosY(rowY);
-		ImGui.setCursorPosX(layout.trackLabelWidth);
-		float baseX = ImGui.getCursorScreenPosX();
+		float baseX = layout.contentLeft;
 		float baseY = ImGui.getCursorScreenPosY() + layout.rowHeight * 0.5f;
 		double vs = view.getViewStartTimeSeconds();
 		double ve = view.getViewEndTimeSeconds();
@@ -77,8 +76,7 @@ public final class EventRenderer {
 	) {
 		if (view == null || layout == null || events.isEmpty()) return;
 		ImGui.setCursorPosY(rowY);
-		ImGui.setCursorPosX(layout.trackLabelWidth);
-		float baseX = ImGui.getCursorScreenPosX();
+		float baseX = layout.contentLeft;
 		float baseY = ImGui.getCursorScreenPosY();
 		double vs = view.getViewStartTimeSeconds();
 		double ve = view.getViewEndTimeSeconds();
@@ -130,8 +128,7 @@ public final class EventRenderer {
 	) {
 		if (view == null || layout == null || events == null || events.isEmpty()) return;
 		ImGui.setCursorPosY(rowY);
-		ImGui.setCursorPosX(layout.trackLabelWidth);
-		float baseX = ImGui.getCursorScreenPosX();
+		float baseX = layout.contentLeft;
 		float baseY = ImGui.getCursorScreenPosY();
 		double vs = view.getViewStartTimeSeconds();
 		double ve = view.getViewEndTimeSeconds();
@@ -169,8 +166,7 @@ public final class EventRenderer {
 	public void renderAnimationEventBlocks(float rowY, List<TimelineAnimationEvent> events, TimelineLayout layout, TimelineViewState view, SelectionState selection) {
 		if (view == null || layout == null || events.isEmpty()) return;
 		ImGui.setCursorPosY(rowY);
-		ImGui.setCursorPosX(layout.trackLabelWidth);
-		float baseX = ImGui.getCursorScreenPosX();
+		float baseX = layout.contentLeft;
 		float baseY = ImGui.getCursorScreenPosY() + layout.rowHeight * 0.5f;
 		double vs = view.getViewStartTimeSeconds();
 		double ve = view.getViewEndTimeSeconds();
@@ -198,8 +194,7 @@ public final class EventRenderer {
 	public void renderCameraKeyframeRow(float rowY, List<CameraKeyframe> keyframes, TimelineLayout layout, TimelineViewState view) {
 		if (view == null || layout == null || keyframes.isEmpty()) return;
 		ImGui.setCursorPosY(rowY);
-		ImGui.setCursorPosX(layout.trackLabelWidth);
-		float baseX = ImGui.getCursorScreenPosX();
+		float baseX = layout.contentLeft;
 		float baseY = ImGui.getCursorScreenPosY() + layout.rowHeight * 0.5f;
 		double vs = view.getViewStartTimeSeconds();
 		double ve = view.getViewEndTimeSeconds();
@@ -222,8 +217,7 @@ public final class EventRenderer {
 	public void renderGlobalEventRow(float rowY, List<GlobalEvent> events, TimelineLayout layout, TimelineViewState view) {
 		if (view == null || layout == null || events.isEmpty()) return;
 		ImGui.setCursorPosY(rowY);
-		ImGui.setCursorPosX(layout.trackLabelWidth);
-		float baseX = ImGui.getCursorScreenPosX();
+		float baseX = layout.contentLeft;
 		float baseY = ImGui.getCursorScreenPosY() + layout.rowHeight * 0.5f;
 		double vs = view.getViewStartTimeSeconds();
 		double ve = view.getViewEndTimeSeconds();

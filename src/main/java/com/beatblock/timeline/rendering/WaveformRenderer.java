@@ -92,8 +92,7 @@ public final class WaveformRenderer {
 	                            boolean showBeatOverlay) {
 		if (timeline == null || layout == null || view == null) return;
 		ImGui.setCursorPosY(rowY);
-		ImGui.setCursorPosX(layout.trackLabelWidth);
-		float minX = ImGui.getCursorScreenPosX();
+		float minX = layout.contentLeft;
 		float minY = ImGui.getCursorScreenPosY();
 		double viewStart = view.getViewStartTimeSeconds();
 		double viewEnd = view.getViewEndTimeSeconds();
