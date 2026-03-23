@@ -14,11 +14,8 @@ import imgui.flag.ImGuiInputTextFlags;
 public final class TrackRenderer {
 
 	// 紧凑布局参数（图标按钮边长 = 轨道行高，与行对齐）
-	/**
-	 * 轨道头右侧留白（可见/锁定与分割线之间）。
-	 * 略大一些可避免右侧四枚按钮在视觉上压到播放区起点。
-	 */
-	private static final float PAD = 11f;
+	/** 轨道头右侧留白（可见/锁定与右缘）；保持紧凑，播放区越界由内容裁剪负责。 */
+	private static final float PAD = 3f;
 
 	private static final float TYPE_COL_RIGHT_PAD = 6f;
 	private static final float MIN_TYPE_COL_W = 34f;

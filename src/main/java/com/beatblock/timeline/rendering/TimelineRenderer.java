@@ -90,7 +90,7 @@ public final class TimelineRenderer {
 	 */
 	public void renderRulerRow(TimelineLayout layout, TimelineViewState viewState, double bpm, TimelineToolbarState toolbarState, Timeline timeline) {
 		if (viewState == null || layout == null) return;
-		ImGui.setCursorPosX(4);
+		ImGui.setCursorScreenPos(layout.trackHeaderLeft + 4f, layout.rulerTop + 4f);
 		ImGui.textDisabled("时间");
 		gridRenderer.renderRuler(layout.startY, viewState, layout, bpm, toolbarState, timeline);
 		// 竖向分割线在 TimelinePanel 中自标尺顶贯通画到子窗口底，避免与滚动区重复/断层
@@ -196,6 +196,7 @@ public final class TimelineRenderer {
 	                             SelectionState selectionState, TimelineLayout layout,
 	                             TimelineTrackListState trackListState) {
 		float rowHeight = layout.getRowHeight(rowIndex);
+		float rowScreenY = layout.getRowScreenY(rowIndex);
 
 		// ── 音频组标题行 ──────────────────────────────────────────────────────
 		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) {
@@ -211,11 +212,16 @@ public final class TimelineRenderer {
 			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout);
 			// 静音/独奏：有效静音时跳过内容渲染（保留拖放目标区）
 			if (isAudioRowEffectivelyMuted(trackListState, rowIndex)) return;
+			ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
+				rowScreenY + rowHeight, true);
 			renderAudioSubTrack(td, rowY, rowHeight, timeline, layout, viewState);
+			ImGui.popClipRect();
 			return;
 		}
 
 		// ── 固定非音频轨道 ────────────────────────────────────────────────────
+		ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
+			rowScreenY + rowHeight, true);
 		if (rowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK) {
 			renderAnimationTrackDropTarget(rowIndex, rowHeight, timeline, layout);
 			eventRenderer.renderAnimationEventBlocks(rowY, timeline.getBlockAnimationEvents(), layout, viewState, selectionState);
@@ -227,6 +233,7 @@ public final class TimelineRenderer {
 		} else if (rowIndex == TimelineTrackMeta.ROW_GLOBAL_EVENT) {
 			eventRenderer.renderGlobalEventRow(rowY, timeline.getGlobalEvents(), layout, viewState);
 		}
+		ImGui.popClipRect();
 	}
 
 	/**

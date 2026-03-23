@@ -130,7 +130,7 @@ public final class TimelineLayout {
 			visibleToLogicalRow[i] = -1;
 		}
 
-		ImGui.setCursorPos(0f, startY);
+		ImGui.setCursorPos(backupX, startY);
 		rulerTop = ImGui.getCursorScreenPosY();
 		trackHeaderLeft = ImGui.getCursorScreenPosX();
 		rulerLeft = trackHeaderLeft + headerW;
@@ -145,7 +145,7 @@ public final class TimelineLayout {
 	public void attachTrackAreaContext(TimelineTrackListState trackListState) {
 		float backupX = ImGui.getCursorPosX();
 		float backupY = ImGui.getCursorPosY();
-		ImGui.setCursorPos(0f, backupY);
+		ImGui.setCursorPos(backupX, backupY);
 		trackHeaderTop = ImGui.getCursorScreenPosY();
 		trackHeaderLeft = ImGui.getCursorScreenPosX();
 		contentLeft = trackHeaderLeft + trackHeaderWidth;
