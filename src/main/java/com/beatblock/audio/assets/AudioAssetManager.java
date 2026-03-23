@@ -295,6 +295,7 @@ public final class AudioAssetManager {
 		asset.setProcessingStatusText("排队中");
 		asset.getFinishedSteps().clear();
 		asset.setErrorMessage(null);
+		asset.setInfoMessage(null);
 
 		AudioAnalysisService service = BeatBlock.externalAudioAnalyzer;
 		if (service == null) {
@@ -322,6 +323,9 @@ public final class AudioAssetManager {
 					case "SECTION_DETECTION" -> asset.markStepFinished(AudioAnalysisStep.SECTION_DETECTION);
 					case "DEMUCS_SEPARATE" -> {
 						// Demucs 模型分离中，不单独计入已完成步骤
+					}
+					case "DEMUCS_FALLBACK" -> {
+						asset.setInfoMessage("Demucs 不可用，已自动切换为基础分析模式（Basic）");
 					}
 					case "STEM_ANALYSIS" -> asset.markStepFinished(AudioAnalysisStep.STEM_SEPARATION);
 					case "WRITE_BEATMAP" -> asset.markStepFinished(AudioAnalysisStep.WRITE_BEATMAP);
@@ -393,6 +397,7 @@ public final class AudioAssetManager {
 			case "BPM_DETECTION" -> "BPM 检测";
 			case "BEAT_DETECTION" -> "踩点检测";
 			case "DEMUCS_SEPARATE" -> "Demucs 茎分离";
+			case "DEMUCS_FALLBACK" -> "Demucs 不可用，切换基础分析";
 			case "STEM_ANALYSIS" -> "茎轨特征分析";
 			case "SECTION_DETECTION" -> "段落识别";
 			case "WAVEFORM" -> "生成波形预览";

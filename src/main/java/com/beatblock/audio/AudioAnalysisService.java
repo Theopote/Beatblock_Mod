@@ -304,9 +304,9 @@ public final class AudioAnalysisService {
 			return;
 		}
 
-		String resultJson;
+		StdoutParseResult stdoutResult;
 		FutureTask<String> stdoutTask = new FutureTask<>(
-			() -> consumeStdout(process.getInputStream(), onProgress, onError)
+			() -> consumeStdout(process.getInputStream(), onProgress)
 		);
 		FutureTask<String> stderrTask = new FutureTask<>(
 			() -> consumeLines(process.getErrorStream())
@@ -334,7 +334,7 @@ public final class AudioAnalysisService {
 
 		String stderrText;
 		try {
-			resultJson = stdoutTask.get();
+			stdoutResult = parseStdoutResult(stdoutTask.get());
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			process.destroyForcibly();
@@ -358,8 +358,11 @@ public final class AudioAnalysisService {
 
 		if (exitCode != 0) {
 			String detail = sanitizeProcessOutput(stderrText);
-			if (detail.isEmpty() && resultJson != null && !resultJson.isBlank()) {
-				detail = sanitizeProcessOutput(resultJson);
+			if (detail.isEmpty() && stdoutResult.errorText != null && !stdoutResult.errorText.isBlank()) {
+				detail = sanitizeProcessOutput(stdoutResult.errorText);
+			}
+			if (detail.isEmpty() && stdoutResult.resultJson != null && !stdoutResult.resultJson.isBlank()) {
+				detail = sanitizeProcessOutput(stdoutResult.resultJson);
 			}
 			String hint = explainPythonError(detail);
 			if (allowDemucsFallback && useDemucs && looksLikeDemucsMissing(detail + "\n" + hint)) {
@@ -391,8 +394,8 @@ public final class AudioAnalysisService {
 			return;
 		}
 
-		if (onSummary != null && resultJson != null && !resultJson.isBlank()) {
-			AnalysisSummary summary = parseResultSummary(resultJson);
+		if (onSummary != null && stdoutResult.resultJson != null && !stdoutResult.resultJson.isBlank()) {
+			AnalysisSummary summary = parseResultSummary(stdoutResult.resultJson);
 			if (summary != null) {
 				onSummary.accept(summary);
 			}
@@ -456,17 +459,45 @@ public final class AudioAnalysisService {
 
 	private String consumeStdout(
 		InputStream stdout,
-		BiConsumer<String, Integer> onProgress,
-		Consumer<String> onError
+		BiConsumer<String, Integer> onProgress
 	) throws IOException {
 		String resultJson = null;
+		StringBuilder errorBuf = new StringBuilder();
 		try (BufferedReader reader = new BufferedReader(new InputStreamReader(stdout))) {
 			String line;
 			while ((line = reader.readLine()) != null) {
-				resultJson = parseLine(line, onProgress, onError, resultJson);
+				if (line.startsWith("PROGRESS ")) {
+					String[] parts = line.split(" ", 3);
+					if (parts.length == 3) {
+						try {
+							String step = parts[1];
+							int pct = Integer.parseInt(parts[2].trim());
+							onProgress.accept(step, pct);
+						} catch (NumberFormatException ignored) {}
+					}
+				} else if (line.startsWith("RESULT ")) {
+					resultJson = line.substring("RESULT ".length());
+				} else if (line.startsWith("ERROR ")) {
+					errorBuf.append(line.substring("ERROR ".length())).append('\n');
+				}
 			}
 		}
-		return resultJson;
+		return toStdoutResult(resultJson, errorBuf.toString());
+	}
+
+	private String toStdoutResult(String resultJson, String errorText) {
+		String result = resultJson == null ? "" : resultJson.replace("\u001f", " ");
+		String error = errorText == null ? "" : errorText.replace("\u001f", " ");
+		return result + "\u001f" + error;
+	}
+
+	private StdoutParseResult parseStdoutResult(String raw) {
+		if (raw == null) return new StdoutParseResult("", "");
+		int sep = raw.indexOf('\u001f');
+		if (sep < 0) return new StdoutParseResult(raw, "");
+		String result = raw.substring(0, sep);
+		String error = sep + 1 < raw.length() ? raw.substring(sep + 1) : "";
+		return new StdoutParseResult(result, error);
 	}
 
 	private String consumeLines(InputStream input) throws IOException {
@@ -491,32 +522,7 @@ public final class AudioAnalysisService {
 		return root.getClass().getSimpleName();
 	}
 
-	/**
-	 * 解析 Python stdout 的一行输出。
-	 * 返回更新后的 resultJson（如果本行是 RESULT 行）。
-	 */
-	private String parseLine(
-		String line,
-		BiConsumer<String, Integer> onProgress,
-		Consumer<String> onError,
-		String currentResultJson
-	) {
-		if (line.startsWith("PROGRESS ")) {
-			String[] parts = line.split(" ", 3);
-			if (parts.length == 3) {
-				try {
-					String step = parts[1];
-					int pct = Integer.parseInt(parts[2].trim());
-					onProgress.accept(step, pct);
-				} catch (NumberFormatException ignored) {}
-			}
-		} else if (line.startsWith("RESULT ")) {
-			currentResultJson = line.substring("RESULT ".length());
-		} else if (line.startsWith("ERROR ")) {
-			onError.accept(line.substring("ERROR ".length()));
-		}
-		return currentResultJson;
-	}
+	private record StdoutParseResult(String resultJson, String errorText) {}
 
 	// ── Python 路径解析 ───────────────────────────────────────────────────────
 
