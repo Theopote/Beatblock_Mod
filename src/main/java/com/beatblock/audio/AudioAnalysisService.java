@@ -169,6 +169,18 @@ public final class AudioAnalysisService {
 		Consumer<AnalysisSummary> onSummary,
 		AnalysisControl control
 	) {
+		runAnalysisInternal(audioPath, onProgress, onComplete, onError, onSummary, control, true);
+	}
+
+	private void runAnalysisInternal(
+		Path audioPath,
+		BiConsumer<String, Integer> onProgress,
+		Consumer<Beatmap> onComplete,
+		Consumer<String> onError,
+		Consumer<AnalysisSummary> onSummary,
+		AnalysisControl control,
+		boolean allowDemucsFallback
+	) {
 		// 确保脚本与输出目录已就绪
 		Path scriptPath;
 		Path outputDir;
@@ -247,6 +259,19 @@ public final class AudioAnalysisService {
 		Path requirementsPath = scriptPath.getParent().resolve("requirements.txt");
 		String dependencyError = ensurePythonDependencies(pythonExe, requirementsPath, control);
 		if (dependencyError != null) {
+			if (allowDemucsFallback && useDemucs && looksLikeDemucsMissing(dependencyError)) {
+				LOGGER.warn("BeatBlock AudioAnalysis: Demucs dependencies unavailable, fallback to basic mode path={} reason={}",
+					audioPath.getFileName(), sanitizeProcessOutput(dependencyError));
+				onProgress.accept("DEMUCS_FALLBACK", 100);
+				boolean originalUseDemucs = useDemucs;
+				useDemucs = false;
+				try {
+					runAnalysisInternal(audioPath, onProgress, onComplete, onError, onSummary, control, false);
+				} finally {
+					useDemucs = originalUseDemucs;
+				}
+				return;
+			}
 			if (control.isCancelled()) {
 				onError.accept("分析被取消");
 				return;
@@ -337,6 +362,19 @@ public final class AudioAnalysisService {
 				detail = sanitizeProcessOutput(resultJson);
 			}
 			String hint = explainPythonError(detail);
+			if (allowDemucsFallback && useDemucs && looksLikeDemucsMissing(detail + "\n" + hint)) {
+				LOGGER.warn("BeatBlock AudioAnalysis: Demucs runtime unavailable, fallback to basic mode path={} detail={}",
+					audioPath.getFileName(), detail);
+				onProgress.accept("DEMUCS_FALLBACK", 100);
+				boolean originalUseDemucs = useDemucs;
+				useDemucs = false;
+				try {
+					runAnalysisInternal(audioPath, onProgress, onComplete, onError, onSummary, control, false);
+				} finally {
+					useDemucs = originalUseDemucs;
+				}
+				return;
+			}
 			if (!detail.isEmpty()) {
 				if (!hint.isEmpty()) {
 					onError.accept("Python 分析脚本退出码：" + exitCode + "\n" + hint + "\n\n" + detail);
@@ -699,7 +737,7 @@ public final class AudioAnalysisService {
 				Process demucsCheck = new ProcessBuilder(
 					pythonExe,
 					"-c",
-					"import demucs, torch"
+					"import demucs.api, torch"
 				).redirectErrorStream(true).start();
 				control.attachProcess(demucsCheck);
 				String demucsCheckOut = readProcessOutput(demucsCheck);
@@ -837,6 +875,12 @@ public final class AudioAnalysisService {
 			return "检测到 ffmpeg 不可用。请将 ffmpeg.exe 放在 Minecraft 目录，或在 config/beatblock/ffmpeg_path.txt 指定路径。";
 		}
 		return "";
+	}
+
+	private boolean looksLikeDemucsMissing(String detail) {
+		if (detail == null || detail.isBlank()) return false;
+		String s = detail.toLowerCase();
+		return s.contains("demucs") || s.contains("torch") || s.contains("demucs.api");
 	}
 
 	@FunctionalInterface
