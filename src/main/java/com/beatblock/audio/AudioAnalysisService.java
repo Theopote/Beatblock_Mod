@@ -257,7 +257,7 @@ public final class AudioAnalysisService {
 		// 预检并补齐依赖（librosa / numpy / soundfile / scipy）
 		onProgress.accept("DEPENDENCY_INSTALL", 0);
 		Path requirementsPath = scriptPath.getParent().resolve("requirements.txt");
-		String dependencyError = ensurePythonDependencies(pythonExe, requirementsPath, control);
+		String dependencyError = ensurePythonDependencies(pythonExe, requirementsPath, control, onProgress);
 		if (dependencyError != null) {
 			if (allowDemucsFallback && useDemucs && looksLikeDemucsMissing(dependencyError)) {
 				LOGGER.warn("BeatBlock AudioAnalysis: Demucs dependencies unavailable, fallback to basic mode path={} reason={}",
@@ -694,7 +694,12 @@ public final class AudioAnalysisService {
 		return s.contains("inkscape") && s.contains("python.exe");
 	}
 
-	private String ensurePythonDependencies(String pythonExe, Path requirementsPath, AnalysisControl control) {
+	private String ensurePythonDependencies(
+		String pythonExe,
+		Path requirementsPath,
+		AnalysisControl control,
+		BiConsumer<String, Integer> onProgress
+	) {
 		try {
 			if (control.isCancelled()) return "分析被取消";
 
@@ -740,6 +745,7 @@ public final class AudioAnalysisService {
 			}
 
 			if (useDemucs) {
+				onProgress.accept("DEMUCS_DEP_CHECK", 0);
 				Process demucsCheck = new ProcessBuilder(
 					pythonExe,
 					"-c",
@@ -752,6 +758,7 @@ public final class AudioAnalysisService {
 				if (control.isCancelled()) return "分析被取消";
 
 				if (demucsCheckCode != 0) {
+					onProgress.accept("DEMUCS_DEP_INSTALL", 0);
 					Process demucsInstall = new ProcessBuilder(
 						pythonExe,
 						"-m",
@@ -769,6 +776,8 @@ public final class AudioAnalysisService {
 					if (demucsInstallCode != 0) {
 						String detail = sanitizeProcessOutput(demucsInstallOut);
 						if (detail.isEmpty()) detail = sanitizeProcessOutput(demucsCheckOut);
+						onProgress.accept(demucsInstallFailureStep(detail), 100);
+						onProgress.accept("DEMUCS_DEP_INSTALL_FAILED", 100);
 						String hint = explainPythonError(detail);
 						String resolvedExe = getPythonProbeInfo(pythonExe).executablePath;
 						String cmdExe = resolvedExe != null && !resolvedExe.isBlank() ? resolvedExe : pythonExe;
@@ -777,6 +786,11 @@ public final class AudioAnalysisService {
 							+ (hint.isEmpty() ? "" : ("\n" + hint + "\n"))
 							+ detail;
 					}
+					onProgress.accept("DEMUCS_DEP_INSTALL", 100);
+					onProgress.accept("DEMUCS_DEP_INSTALL_SUCCESS", 100);
+				} else {
+					onProgress.accept("DEMUCS_DEP_CHECK", 100);
+					onProgress.accept("DEMUCS_DEP_INSTALL_SUCCESS", 100);
 				}
 			}
 
@@ -887,6 +901,28 @@ public final class AudioAnalysisService {
 		if (detail == null || detail.isBlank()) return false;
 		String s = detail.toLowerCase();
 		return s.contains("demucs") || s.contains("torch") || s.contains("demucs.api");
+	}
+
+	private String demucsInstallFailureStep(String detail) {
+		if (detail == null || detail.isBlank()) return "DEMUCS_DEP_INSTALL_FAILED_UNKNOWN";
+		String s = detail.toLowerCase();
+		if (s.contains("permission denied") || s.contains("access is denied") || s.contains("errno 13")) {
+			return "DEMUCS_DEP_INSTALL_FAILED_PERMISSION";
+		}
+		if (s.contains("ssl") || s.contains("certificate verify failed")
+			|| s.contains("timed out") || s.contains("connection") || s.contains("proxy")) {
+			return "DEMUCS_DEP_INSTALL_FAILED_NETWORK";
+		}
+		if (s.contains("could not find a version that satisfies") || s.contains("no matching distribution found")) {
+			return "DEMUCS_DEP_INSTALL_FAILED_VERSION";
+		}
+		if (s.contains("pip is not recognized") || s.contains("no module named pip")) {
+			return "DEMUCS_DEP_INSTALL_FAILED_PIP";
+		}
+		if (s.contains("dll load failed") || s.contains("winerror 126") || s.contains("winerror 193")) {
+			return "DEMUCS_DEP_INSTALL_FAILED_DLL";
+		}
+		return "DEMUCS_DEP_INSTALL_FAILED_UNKNOWN";
 	}
 
 	@FunctionalInterface

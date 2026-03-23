@@ -315,6 +315,18 @@ public final class AudioAssetManager {
 					case "DEPENDENCY_INSTALL" -> {
 						// 依赖安装是前置步骤，不映射到 beatmap 步骤枚举
 					}
+					case "DEMUCS_DEP_CHECK" -> {
+						asset.setInfoMessage("正在检查 Demucs 依赖...");
+					}
+					case "DEMUCS_DEP_INSTALL" -> {
+						asset.setInfoMessage("正在自动安装 Demucs 依赖，请稍候...");
+					}
+					case "DEMUCS_DEP_INSTALL_SUCCESS" -> {
+						asset.setInfoMessage("Demucs 依赖已就绪，继续进行分轨分析");
+					}
+					case "DEMUCS_DEP_INSTALL_FAILED" -> {
+						asset.setInfoMessage("Demucs 依赖自动安装失败");
+					}
 					case "BPM_DETECTION" -> asset.markStepFinished(AudioAnalysisStep.BPM_DETECTION);
 					case "BEAT_DETECTION" -> {
 						asset.markStepFinished(AudioAnalysisStep.BEAT_DETECTION);
@@ -394,6 +406,10 @@ public final class AudioAssetManager {
 		if (step == null || step.isBlank()) return "处理中";
 		return switch (step) {
 			case "DEPENDENCY_INSTALL" -> "正在安装依赖";
+			case "DEMUCS_DEP_CHECK" -> "检查 Demucs 依赖";
+			case "DEMUCS_DEP_INSTALL" -> "自动安装 Demucs 依赖";
+			case "DEMUCS_DEP_INSTALL_SUCCESS" -> "Demucs 依赖就绪";
+			case "DEMUCS_DEP_INSTALL_FAILED" -> "Demucs 依赖安装失败";
 			case "BPM_DETECTION" -> "BPM 检测";
 			case "BEAT_DETECTION" -> "踩点检测";
 			case "DEMUCS_SEPARATE" -> "Demucs 茎分离";
