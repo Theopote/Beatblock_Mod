@@ -185,7 +185,7 @@ public final class TimelineInteraction {
 		boolean alt = ImGui.getIO().getKeyAlt();
 
 		if (ImGui.isKeyPressed(ImGuiKey.Delete)) {
-			deleteSelectedEvents(timeline, selectionState);
+			deleteSelectedEvents(timeline, selectionState, trackListState);
 		}
 		if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.C)) {
 			copySelectedEvents(timeline, selectionState);
@@ -196,7 +196,7 @@ public final class TimelineInteraction {
 				float localX = Math.max(0, Math.min(mx - layout.contentLeft, layout.contentWidth));
 				anchor = viewState.screenToTime(localX);
 			}
-			pasteClipboardEvents(timeline, selectionState, anchor);
+			pasteClipboardEvents(timeline, selectionState, anchor, trackListState);
 		}
 
 		float wheel = ImGui.getIO().getMouseWheel();
@@ -280,8 +280,8 @@ public final class TimelineInteraction {
 			}
 			ImGui.openPopup(POPUP_EVENT_CONTEXT);
 		}
-		renderContextMenu(timeline, selectionState);
-		renderPropertiesPopup(timeline);
+		renderContextMenu(timeline, selectionState, trackListState);
+		renderPropertiesPopup(timeline, trackListState);
 		renderMarkerContextPopup(timeline, clock);
 
 		if (ImGui.isMouseReleased(0)) {
@@ -331,6 +331,9 @@ public final class TimelineInteraction {
 			}
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT && interactionState.getActiveEventId() != null
 				&& interactionState.getActiveTrackId() != null && interactionState.getActiveClipId() != null) {
+				if (isTrackLocked(trackListState, interactionState.getActiveTrackId())) {
+					return;
+				}
 				double t = viewState.screenToTime(mx - layout.contentLeft);
 				DragController.dragEvent(timeline, interactionState.getActiveTrackId(), interactionState.getActiveClipId(), interactionState.getActiveEventId(), t, duration, toolbarState, viewState);
 				return;
@@ -395,6 +398,7 @@ public final class TimelineInteraction {
 			for (int i = 0; i < layout.getInteractiveRowCount() && i < INTERACTIVE_TRACK_IDS.length; i++) {
 				int logicalRow = TimelineLayout.INTERACTIVE_ROW_INDICES[i];
 				if (!layout.isRowVisible(logicalRow)) continue;
+				if (trackListState != null && trackListState.isLocked(logicalRow)) continue;
 				float rowScreenY = layout.getRowScreenY(logicalRow);
 				float rowH = layout.getRowHeight(logicalRow);
 				HitResult hit = HitTestSystem.hitTestTrackContent(timeline, INTERACTIVE_TRACK_IDS[i], mx, my,
@@ -655,23 +659,25 @@ public final class TimelineInteraction {
 		timeline.addMarker(new TimelineMarker(timeSeconds, "Marker " + markerIndex));
 	}
 
-	private void renderContextMenu(Timeline timeline, SelectionState selectionState) {
+	private void renderContextMenu(Timeline timeline, SelectionState selectionState,
+			TimelineTrackListState trackListState) {
 		if (!ImGui.beginPopup(POPUP_EVENT_CONTEXT)) return;
 		boolean hasSelection = selectionState != null && !selectionState.getSelectedEvents().isEmpty();
 		boolean hasClipboard = !clipboardEvents.isEmpty();
-		boolean canOpenProperties = resolvePropertiesEventRef(timeline, selectionState) != null;
+		EventRef propertiesRef = resolvePropertiesEventRef(timeline, selectionState);
+		boolean canOpenProperties = propertiesRef != null && !isTrackLocked(trackListState, propertiesRef.track.getId());
 		if (ImGui.menuItem("Copy", "Ctrl+C", false, hasSelection)) {
 			copySelectedEvents(timeline, selectionState);
 		}
 		if (ImGui.menuItem("Paste", "Ctrl+V", false, hasClipboard)) {
-			pasteClipboardEvents(timeline, selectionState, contextTimeSeconds);
+			pasteClipboardEvents(timeline, selectionState, contextTimeSeconds, trackListState);
 		}
 		if (ImGui.menuItem("Delete", "Del", false, hasSelection)) {
-			deleteSelectedEvents(timeline, selectionState);
+			deleteSelectedEvents(timeline, selectionState, trackListState);
 		}
 		ImGui.separator();
 		if (ImGui.menuItem("Properties", null, false, canOpenProperties)) {
-			openPropertiesPopup(timeline, selectionState);
+			openPropertiesPopup(timeline, selectionState, trackListState);
 		}
 		ImGui.endPopup();
 	}
@@ -718,9 +724,11 @@ public final class TimelineInteraction {
 		ImGui.endPopup();
 	}
 
-	private void openPropertiesPopup(Timeline timeline, SelectionState selectionState) {
+	private void openPropertiesPopup(Timeline timeline, SelectionState selectionState,
+			TimelineTrackListState trackListState) {
 		EventRef ref = resolvePropertiesEventRef(timeline, selectionState);
 		if (ref == null || ref.event == null) return;
+		if (isTrackLocked(trackListState, ref.track.getId())) return;
 		propertiesEventId = ref.event.getId();
 		propertiesTimeBuffer.set(String.format(java.util.Locale.ROOT, "%.6f", ref.event.getTimeSeconds()));
 		loadPropertiesParameterBuffers(ref.event);
@@ -763,7 +771,7 @@ public final class TimelineInteraction {
 		propertiesError = null;
 	}
 
-	private void renderPropertiesPopup(Timeline timeline) {
+	private void renderPropertiesPopup(Timeline timeline, TimelineTrackListState trackListState) {
 		if (!ImGui.beginPopup(POPUP_EVENT_PROPERTIES)) return;
 		EventRef ref = findEventRef(timeline, propertiesEventId);
 		if (ref == null || ref.event == null) {
@@ -772,12 +780,16 @@ public final class TimelineInteraction {
 			ImGui.endPopup();
 			return;
 		}
+		boolean trackLocked = isTrackLocked(trackListState, ref.track.getId());
 
 		boolean applyRequested = ImGui.isKeyPressed(ImGuiKey.Enter);
 		boolean closeRequested = ImGui.isKeyPressed(ImGuiKey.Escape);
 
 		ImGui.text("Event ID: " + ref.event.getId());
 		ImGui.text("Type: " + ref.event.getType().name());
+		if (trackLocked) {
+			ImGui.textDisabled("Track is locked. Editing is disabled.");
+		}
 		ImGui.separator();
 		ImGui.text("Time (seconds)");
 		ImGui.setNextItemWidth(170f);
@@ -806,7 +818,7 @@ public final class TimelineInteraction {
 					propertiesParamAsNumber.put(key, !numberFlag);
 				}
 				ImGui.sameLine();
-				if (ImGui.smallButton("X##param_remove_" + key)) {
+				if (!trackLocked && ImGui.smallButton("X##param_remove_" + key)) {
 					removedKeys.add(key);
 				}
 			}
@@ -829,49 +841,57 @@ public final class TimelineInteraction {
 		}
 		ImGui.sameLine();
 		if (ImGui.button("Add/Update##param_add")) {
-			String key = propertiesNewParamKey.get() != null ? propertiesNewParamKey.get().trim() : "";
-			if (key.isEmpty()) {
-				propertiesError = "Parameter key cannot be empty";
+			if (trackLocked) {
+				propertiesError = "Track is locked";
 			} else {
-				ImString valueBuf = propertiesParamBuffers.computeIfAbsent(key, k -> new ImString(PARAM_INPUT_BUFFER_SIZE));
-				valueBuf.set(propertiesNewParamValue.get() == null ? "" : propertiesNewParamValue.get());
-				propertiesParamAsNumber.put(key, propertiesNewParamAsNumber);
-				propertiesError = null;
+				String key = propertiesNewParamKey.get() != null ? propertiesNewParamKey.get().trim() : "";
+				if (key.isEmpty()) {
+					propertiesError = "Parameter key cannot be empty";
+				} else {
+					ImString valueBuf = propertiesParamBuffers.computeIfAbsent(key, k -> new ImString(PARAM_INPUT_BUFFER_SIZE));
+					valueBuf.set(propertiesNewParamValue.get() == null ? "" : propertiesNewParamValue.get());
+					propertiesParamAsNumber.put(key, propertiesNewParamAsNumber);
+					propertiesError = null;
+				}
 			}
 		}
 
 		if (ImGui.button("Apply") || applyRequested) {
-			String raw = propertiesTimeBuffer.get();
-			try {
-				double t = Math.max(0, Double.parseDouble(raw.trim()));
-				ref.event.setTimeSeconds(t);
-				Set<String> existing = new HashSet<>(ref.event.getParameters().keySet());
-				for (String key : existing) {
-					if (!propertiesParamBuffers.containsKey(key)) {
-						ref.event.removeParameter(key);
+			if (trackLocked) {
+				propertiesError = "Track is locked";
+			} else {
+				String raw = propertiesTimeBuffer.get();
+				try {
+					double t = Math.max(0, Double.parseDouble(raw.trim()));
+					ref.event.setTimeSeconds(t);
+					Set<String> existing = new HashSet<>(ref.event.getParameters().keySet());
+					for (String key : existing) {
+						if (!propertiesParamBuffers.containsKey(key)) {
+							ref.event.removeParameter(key);
+						}
 					}
-				}
-				for (Map.Entry<String, ImString> entry : propertiesParamBuffers.entrySet()) {
-					String key = entry.getKey();
-					String valueRaw = entry.getValue().get();
-					boolean asNumber = propertiesParamAsNumber.getOrDefault(key, false);
-					if (asNumber) {
-						ref.event.setParameter(key, Double.parseDouble(valueRaw.trim()));
-					} else {
-						ref.event.setParameter(key, valueRaw);
+					for (Map.Entry<String, ImString> entry : propertiesParamBuffers.entrySet()) {
+						String key = entry.getKey();
+						String valueRaw = entry.getValue().get();
+						boolean asNumber = propertiesParamAsNumber.getOrDefault(key, false);
+						if (asNumber) {
+							ref.event.setParameter(key, Double.parseDouble(valueRaw.trim()));
+						} else {
+							ref.event.setParameter(key, valueRaw);
+						}
 					}
+					timeline.markAnimationEventsDirty(ref.track.getId());
+					propertiesOriginalTime = String.format(java.util.Locale.ROOT, "%.6f", ref.event.getTimeSeconds());
+					for (Map.Entry<String, ImString> entry : propertiesParamBuffers.entrySet()) {
+						String key = entry.getKey();
+						propertiesOriginalParamValues.put(key, entry.getValue().get());
+						propertiesOriginalParamAsNumber.put(key, propertiesParamAsNumber.getOrDefault(key, false));
+					}
+					propertiesError = null;
+				} catch (Exception ex) {
+					propertiesError = "Invalid number in time/parameter";
 				}
-				timeline.markAnimationEventsDirty(ref.track.getId());
-				propertiesOriginalTime = String.format(java.util.Locale.ROOT, "%.6f", ref.event.getTimeSeconds());
-				for (Map.Entry<String, ImString> entry : propertiesParamBuffers.entrySet()) {
-					String key = entry.getKey();
-					propertiesOriginalParamValues.put(key, entry.getValue().get());
-					propertiesOriginalParamAsNumber.put(key, propertiesParamAsNumber.getOrDefault(key, false));
 				}
-				propertiesError = null;
-			} catch (Exception ex) {
-				propertiesError = "Invalid number in time/parameter";
-			}
 		}
 		ImGui.sameLine();
 		if (ImGui.button("Reset")) {
@@ -954,7 +974,8 @@ public final class TimelineInteraction {
 		clipboardEvents.sort(Comparator.comparingDouble(a -> a.timeSeconds));
 	}
 
-	private void pasteClipboardEvents(Timeline timeline, SelectionState selectionState, double anchorTimeSeconds) {
+	private void pasteClipboardEvents(Timeline timeline, SelectionState selectionState, double anchorTimeSeconds,
+			TimelineTrackListState trackListState) {
 		if (timeline == null || selectionState == null) return;
 		if (clipboardEvents.isEmpty()) return;
 
@@ -967,7 +988,7 @@ public final class TimelineInteraction {
 
 		for (ClipboardEvent src : clipboardEvents) {
 			double newTime = Math.max(0, anchorTimeSeconds + (src.timeSeconds - baseTime));
-			Track targetTrack = resolvePasteTargetTrack(timeline, src);
+			Track targetTrack = resolvePasteTargetTrack(timeline, src, trackListState);
 			if (targetTrack == null) continue;
 			Clip targetClip = resolveOrCreatePasteTargetClip(
 				timeline,
@@ -989,12 +1010,14 @@ public final class TimelineInteraction {
 		}
 	}
 
-	private Track resolvePasteTargetTrack(Timeline timeline, ClipboardEvent src) {
+	private Track resolvePasteTargetTrack(Timeline timeline, ClipboardEvent src, TimelineTrackListState trackListState) {
 		if (contextTrackId != null) {
 			Track t = timeline.getTrack(contextTrackId);
-			if (t != null) return t;
+			if (t != null && !isTrackLocked(trackListState, t.getId())) return t;
 		}
-		return timeline.getTrack(src.trackId);
+		Track fallback = timeline.getTrack(src.trackId);
+		if (fallback == null) return null;
+		return isTrackLocked(trackListState, fallback.getId()) ? null : fallback;
 	}
 
 	private Clip resolveOrCreatePasteTargetClip(
@@ -1031,12 +1054,13 @@ public final class TimelineInteraction {
 		return created;
 	}
 
-	private static void deleteSelectedEvents(Timeline timeline, SelectionState selectionState) {
+	private static void deleteSelectedEvents(Timeline timeline, SelectionState selectionState, TimelineTrackListState trackListState) {
 		if (timeline == null || selectionState == null) return;
 		if (selectionState.getSelectedEvents().isEmpty()) return;
 
 		List<String> eventIds = new ArrayList<>(selectionState.getSelectedEvents());
 		for (Track track : timeline.getTracks()) {
+			if (isTrackLocked(trackListState, track.getId())) continue;
 			for (Clip clip : track.getClips()) {
 				for (String eventId : eventIds) {
 					if (eventId == null) continue;
@@ -1047,6 +1071,23 @@ public final class TimelineInteraction {
 				}
 			}
 		}
+	}
+
+	private static boolean isTrackLocked(TimelineTrackListState trackListState, String trackId) {
+		if (trackListState == null || trackId == null || trackId.isBlank()) return false;
+		int logicalRow = logicalRowForTrackId(trackId);
+		if (logicalRow < 0) return false;
+		return trackListState.isLocked(logicalRow);
+	}
+
+	private static int logicalRowForTrackId(String trackId) {
+		if (trackId == null || trackId.isBlank()) return -1;
+		for (int i = 0; i < INTERACTIVE_TRACK_IDS.length && i < TimelineLayout.INTERACTIVE_ROW_INDICES.length; i++) {
+			if (trackId.equals(INTERACTIVE_TRACK_IDS[i])) {
+				return TimelineLayout.INTERACTIVE_ROW_INDICES[i];
+			}
+		}
+		return -1;
 	}
 
 	/** 鼠标是否在播放头竖线附近（轨道内容区 Y 内） */
