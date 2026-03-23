@@ -826,7 +826,7 @@ public final class AudioAnalysisPanel {
 
         if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
             ImGui.spacing();
-            ImGui.textDisabled(asset.getInfoMessage());
+            textDisabledWrapped(asset.getInfoMessage());
         }
 
         // 简易频段占比条（仅传统频段模式）
@@ -835,10 +835,12 @@ public final class AudioAnalysisPanel {
             renderBandBar(asset);
         }
 
-        // ── Demucs 茎分离详情 ─────────────────────────────────────────────
+        // ── Demucs 茎分离详情（无论是否拆分都显示状态）──────────────────────
+        ImGui.spacing();
+        sectionHeader("Demucs 拆分结果");
         if (hasStemSeparation) {
-            ImGui.spacing();
-            sectionHeader("Demucs 拆分结果");
+            detailRowColored("状态", "已生成", new ImVec4(0.36f, 0.79f, 0.65f, 1f));
+            ImGui.setNextItemOpen(true, ImGuiCond.Once);
             if (ImGui.treeNodeEx("查看拆分明细##demucsSplitDetails")) {
                 String separationMode = detailBm.meta.separationMode();
                 detailRowColored("分离模式", separationMode != null && !separationMode.isBlank() ? separationMode : "demucs", new ImVec4(0.22f, 0.78f, 0.82f, 1f));
@@ -848,6 +850,9 @@ public final class AudioAnalysisPanel {
                 renderStemDetailRow(detailBm, "other", "其他（other）", new ImVec4(0.58f, 0.72f, 0.30f, 1f));
                 ImGui.treePop();
             }
+        } else {
+            detailRowColored("状态", "未生成（当前为基础分析 Basic）", new ImVec4(0.94f, 0.62f, 0.16f, 1f));
+            textDisabledWrapped("当前结果来自基础分析缓存或 Demucs 回退模式，因此没有 drums/bass/vocals/other 的拆分文件。若需查看拆分结果，请确保 Demucs 依赖可用后重新解析。");
         }
 
         ImGui.spacing();
