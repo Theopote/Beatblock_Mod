@@ -72,7 +72,8 @@ def _detect_style(y: np.ndarray, sr: int) -> str:
     flatness = librosa.feature.spectral_flatness(y=y)[0]   # 每帧平坦度
     mean_flatness = float(np.median(flatness))             # 用中位数抗极端帧干扰
     style = "electronic" if mean_flatness > 0.3 else "acoustic"
-    print(f"PROGRESS STYLE_DETECT 0  # flatness={mean_flatness:.4f} → {style}", flush=True)
+    print(f"LOG flatness={mean_flatness:.4f} style={style}", file=sys.stderr, flush=True)
+    progress("STYLE_DETECT", 0)
     return style
 
 
@@ -164,7 +165,7 @@ def analyze(input_path: str, output_path: str, include_waveform: bool,
     # ── 为每个 onset 计算频谱重心：[低/中/高 能量占比] ─────────────────────
     # 结果完全由物理规律决定，无随机性，同一首歌多次运行结果完全一致。
     _WIN   = int(sr * 0.05)   # 50ms 分析窗（onset 瞬态持续时间）
-    _N_FFT = 512
+    _N_FFT = 2048  # 44.1kHz 下频率分辨率 ~21.5Hz/bin，250Hz 界限约 12 个 bin
 
     def _spectral_ratios(t):
         """返回 (low_ratio, mid_ratio, high_ratio)，三者之和为 1。"""
@@ -453,13 +454,16 @@ def _run_demucs(input_path: str, stems_dir: str) -> dict[str, str]:
     """
     import demucs.api
 
-    # 检查缓存：所有 4 条茎的 wav 文件都存在则直接返回
+    # 检查缓存：所有 4 条茎的 wav 文件都存在且有效才直接返回
+    # 最小有效大小 4096 字节，过滤中断产生的空文件或损坏文件
+    _MIN_STEM_BYTES = 4096
+
     stem_paths = {}
     all_cached = True
     for stem in _DEMUCS_STEMS:
         p = os.path.join(stems_dir, f"{stem}.wav")
         stem_paths[stem] = p
-        if not os.path.isfile(p):
+        if not (os.path.isfile(p) and os.path.getsize(p) > _MIN_STEM_BYTES):
             all_cached = False
 
     if all_cached:
@@ -556,7 +560,7 @@ def analyze_demucs(input_path: str, output_path: str,
 
         # 频谱比例分类
         _WIN = int(sr_drums * 0.05)
-        _N_FFT = 512
+        _N_FFT = 2048  # 44.1kHz 下频率分辨率 ~21.5Hz/bin，250Hz 界限约 12 个 bin
 
         def _spectral_ratios_drums(t):
             s = int(t * sr_drums)
