@@ -172,7 +172,9 @@ public final class TimelineRenderer {
 			float rowHeight = layout.getRowHeight(i);
 			boolean isGroup = TimelineTrackMeta.isGroupRow(i);
 			String displayName = resolveDisplayName(i, trackListState);
-			trackRenderer.drawTrackLabel(rowY, rowHeight, i, displayName, isGroup, trackListState, layout.trackHeaderLeft, layout.trackHeaderWidth);
+			boolean canControlPlayback = isPlaybackControlRow(i);
+			trackRenderer.drawTrackLabel(rowY, rowHeight, i, displayName, isGroup, trackListState,
+				layout.trackHeaderLeft, layout.trackHeaderWidth, canControlPlayback);
 			drawRowContent(i, rowY, timeline, viewState, selectionState, layout, trackListState);
 		}
 
@@ -318,6 +320,18 @@ public final class TimelineRenderer {
 			}
 		}
 		return trackListState != null ? trackListState.getDisplayName(rowIndex) : TimelineTrackMeta.getDefaultName(rowIndex);
+	}
+
+	/**
+	 * 仅主混音与 Demucs 茎波形轨是可真实发声轨道，才显示静音/独奏控制。
+	 */
+	private boolean isPlaybackControlRow(int rowIndex) {
+		if (!TimelineTrackMeta.isAudioSubRow(rowIndex)) return false;
+		int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
+		if (slot < 0 || slot >= currentAudioSubTracks.size()) return false;
+		String key = currentAudioSubTracks.get(slot).getKey();
+		if (key == null || key.isBlank()) return false;
+		return "waveform".equals(key) || key.startsWith("stem_wf_");
 	}
 
 	/**

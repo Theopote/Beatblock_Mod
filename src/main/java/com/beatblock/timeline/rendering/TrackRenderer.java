@@ -45,7 +45,8 @@ public final class TrackRenderer {
 		boolean isGroup,
 		TimelineTrackListState listState,
 		float trackHeaderLeft,
-		float trackHeaderWidth
+		float trackHeaderWidth,
+		boolean showMuteSolo
 	) {
 		ImGui.setCursorPosY(rowY);
 		float baseX = trackHeaderLeft;
@@ -63,7 +64,8 @@ public final class TrackRenderer {
 		float typeStartX = foldColLeft + foldColW;
 		float nameX = typeStartX + typeColW;
 
-		float iconBlockW = iconBtn * 4 + ICON_GAP * 3; // 静音+独奏+可见+锁定
+		int iconCount = showMuteSolo ? 4 : 2;
+		float iconBlockW = iconBtn * iconCount + ICON_GAP * (iconCount - 1);
 		float nameRight = headW - PAD - iconBlockW;   // 名称区右边界（对齐图标块左边）
 		float nameW = nameRight - nameX;
 		if (nameW < 24f) {
@@ -180,10 +182,10 @@ public final class TrackRenderer {
 
 		// —— 静音 / 独奏 / 可见 / 锁定：右对齐，纯图标按钮 —— //
 		if (listState != null && !isEditing) {
-			float lockRight = headW - PAD - iconBtn;
-			float visX   = lockRight - ICON_GAP - iconBtn;
-			float soloX  = visX     - ICON_GAP - iconBtn;
-			float muteX  = soloX    - ICON_GAP - iconBtn;
+			float lockX = headW - PAD - iconBtn;
+			float visX  = lockX - ICON_GAP - iconBtn;
+			float soloX = visX  - ICON_GAP - iconBtn;
+			float muteX = soloX - ICON_GAP - iconBtn;
 			String muteTooltip = null;
 			String soloTooltip = null;
 			String visTooltip = null;
@@ -191,28 +193,30 @@ public final class TrackRenderer {
 
 			IconButtonStyle.pushBeatBlockIconButton();
 
-			// ── 静音按钮 ────────────────────────────────────────────
-			boolean muted = listState.isMuted(rowIndex);
-			if (muted) ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.35f, 0.35f, 1f);
-			ImGui.setCursorScreenPos(baseX + muteX, rowOriginScreenY);
-			if (ImGui.button((muted ? Icons.Timeline.MUTE : Icons.Audio.VOLUME) + "##mute" + rowIndex, iconBtn, iconBtn)) {
-				listState.toggleMuted(rowIndex);
-			}
-			if (muted) ImGui.popStyleColor();
-			if (ImGui.isItemHovered()) {
-				muteTooltip = muted ? "已静音 (点击取消)" : "静音 (点击静音)";
-			}
+			if (showMuteSolo) {
+				// ── 静音按钮 ────────────────────────────────────────────
+				boolean muted = listState.isMuted(rowIndex);
+				if (muted) ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.35f, 0.35f, 1f);
+				ImGui.setCursorScreenPos(baseX + muteX, rowOriginScreenY);
+				if (ImGui.button((muted ? Icons.Timeline.MUTE : Icons.Audio.VOLUME) + "##mute" + rowIndex, iconBtn, iconBtn)) {
+					listState.toggleMuted(rowIndex);
+				}
+				if (muted) ImGui.popStyleColor();
+				if (ImGui.isItemHovered()) {
+					muteTooltip = muted ? "已静音 (点击取消)" : "静音 (点击静音)";
+				}
 
-			// ── 独奏按钮 ────────────────────────────────────────────
-			boolean solo = listState.isSoloed(rowIndex);
-			if (solo) ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.85f, 0.2f, 1f);
-			ImGui.setCursorScreenPos(baseX + soloX, rowOriginScreenY);
-			if (ImGui.button(Icons.Timeline.SOLO + "##solo" + rowIndex, iconBtn, iconBtn)) {
-				listState.toggleSoloed(rowIndex);
-			}
-			if (solo) ImGui.popStyleColor();
-			if (ImGui.isItemHovered()) {
-				soloTooltip = solo ? "独奏中 (点击取消)" : "独奏 (点击独奏)";
+				// ── 独奏按钮 ────────────────────────────────────────────
+				boolean solo = listState.isSoloed(rowIndex);
+				if (solo) ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.85f, 0.2f, 1f);
+				ImGui.setCursorScreenPos(baseX + soloX, rowOriginScreenY);
+				if (ImGui.button(Icons.Timeline.SOLO + "##solo" + rowIndex, iconBtn, iconBtn)) {
+					listState.toggleSoloed(rowIndex);
+				}
+				if (solo) ImGui.popStyleColor();
+				if (ImGui.isItemHovered()) {
+					soloTooltip = solo ? "独奏中 (点击取消)" : "独奏 (点击独奏)";
+				}
 			}
 
 			// ── 可见按钮 ────────────────────────────────────────────
@@ -226,7 +230,7 @@ public final class TrackRenderer {
 			}
 
 			boolean lock = listState.isLocked(rowIndex);
-			ImGui.setCursorScreenPos(baseX + lockRight, rowOriginScreenY);
+			ImGui.setCursorScreenPos(baseX + lockX, rowOriginScreenY);
 			if (ImGui.button((lock ? Icons.Action.LOCK : Icons.Action.UNLOCK) + "##lock" + rowIndex, iconBtn, iconBtn)) {
 				listState.toggleLocked(rowIndex);
 			}
