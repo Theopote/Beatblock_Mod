@@ -32,9 +32,9 @@ public final class TrackRenderer {
 	private static final String[] TYPE_LABELS = {"音频", "动画", "摄像机", "事件"};
 
 	private static final int MICRO_SEP_COLOR = 0x55_66_66_66; // ABGR
-	private static final float STATE_ACTIVE_GREEN_R = 0.70f;
-	private static final float STATE_ACTIVE_GREEN_G = 0.86f;
-	private static final float STATE_ACTIVE_GREEN_B = 0.78f;
+	private static final float STATE_ACTIVE_GREEN_R = 0.20f;
+	private static final float STATE_ACTIVE_GREEN_G = 0.95f;
+	private static final float STATE_ACTIVE_GREEN_B = 0.40f;
 	private static final float STATE_ALERT_RED_R = 0.95f;
 	private static final float STATE_ALERT_RED_G = 0.35f;
 	private static final float STATE_ALERT_RED_B = 0.35f;
@@ -232,18 +232,15 @@ public final class TrackRenderer {
 
 			// ── 可见按钮 ────────────────────────────────────────────
 			boolean vis = listState.isVisible(rowIndex);
+			// 用快照标记决定 push/pop，不受按钮点击后 vis 修改影响
+			boolean visStylePushed = !vis;
 			ImGui.setCursorScreenPos(baseX + visX, rowOriginScreenY + iconOffsetY);
-			if (vis) {
-				pushStateButtonStyle(STATE_ACTIVE_GREEN_R, STATE_ACTIVE_GREEN_G, STATE_ACTIVE_GREEN_B);
-			} else {
-				// 与静音图标保持一致：隐藏状态用红色强调
-				pushStateButtonStyle(STATE_ALERT_RED_R, STATE_ALERT_RED_G, STATE_ALERT_RED_B);
-			}
+			if (visStylePushed) pushStateButtonStyle(STATE_ALERT_RED_R, STATE_ALERT_RED_G, STATE_ALERT_RED_B);
 			if (ImGui.button((vis ? Icons.EYE : Icons.Action.HIDDEN) + "##vis" + rowIndex, iconBtn, iconBtn)) {
 				listState.toggleVisible(rowIndex);
 				vis = listState.isVisible(rowIndex);
 			}
-			popStateButtonStyle();
+			if (visStylePushed) popStateButtonStyle();
 			if (ImGui.isItemHovered()) {
 				visTooltip = vis ? "当前可见 (点击隐藏波形/轨道)" : "当前隐藏 (点击显示波形/轨道)";
 			}
