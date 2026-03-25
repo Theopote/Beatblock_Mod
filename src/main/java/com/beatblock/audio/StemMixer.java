@@ -1,25 +1,29 @@
 package com.beatblock.audio;
 
 import com.beatblock.timeline.IAudioPlayer;
+import net.fabricmc.loader.api.FabricLoader;
+import org.lwjgl.openal.AL10;
+import org.lwjgl.openal.AL11;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sound.sampled.*;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
- * 多茎软件混音播放器。
+ * 多茎播放器 —— 每条 Demucs 茎对应一个独立 OpenAL source，
+ * 通过 AL_GAIN 控制静音/独奏，避免依赖 JavaSound（在 Minecraft 环境下不可用）。
  *
- * <p>将 Demucs 分离的 4 条茎 WAV（drums / bass / vocals / other）加载为 PCM 字节数组，
- * 通过单条 {@link SourceDataLine} 实时软件混音输出。每条茎可独立静音 / 独奏。</p>
- *
- * <p>使用方：调用 {@link #loadStem(String, Path)} 加载所有茎后，即可通过
- * {@link #play()}/{@link #pause()}/{@link #stop()} 控制播放；通过
- * {@link #setStemMuted(String, boolean)} 控制单茎静音。
- * 调用 {@link #clearStems()} 停止并释放所有资源。</p>
+ * <p>WAV 加载优先直接解析 RIFF 头（支持 PCM-16 与 IEEE-float32），
+ * 失败时回退到 ffmpeg 进程解码。</p>
  */
 public final class StemMixer implements IAudioPlayer {
 
@@ -29,104 +33,116 @@ public final class StemMixer implements IAudioPlayer {
 
 	private static final class StemTrack {
 		final String key;
-		final byte[] pcm;          // 16-bit signed little-endian interleaved PCM
+		final int alSource;
+		final int alBuffer;
 		volatile boolean muted;
 
-		StemTrack(String key, byte[] pcm) {
-			this.key = key;
-			this.pcm = pcm;
+		StemTrack(String key, int alSource, int alBuffer) {
+			this.key     = key;
+			this.alSource = alSource;
+			this.alBuffer = alBuffer;
 		}
 	}
 
 	// ── 状态字段 ─────────────────────────────────────────────────────────────
 
 	private final Map<String, StemTrack> stems = new LinkedHashMap<>();
-	private AudioFormat sharedFormat;                   // 公共格式（首个茎决定）
-	private SourceDataLine outputLine;
-	private Thread mixThread;
-
-	private volatile boolean playing  = false;
-	private volatile boolean stopFlag = false;
-	/** 当前播放位置（字节偏移，对应 sharedFormat）。*/
-	private volatile int bytePos = 0;
+	private volatile boolean playing = false;
+	private double durationSeconds   = 0.0;
 
 	// ── 公共 API ─────────────────────────────────────────────────────────────
 
 	/**
-	 * 加载一条茎 WAV 文件。必须在 {@link #play()} 之前完成全部 loadStem 调用。
+	 * 加载一条茎 WAV 文件并上传到 OpenAL。
+	 * 必须从 OpenAL 上下文线程（渲染线程）调用。
 	 *
 	 * @param key     茎名称，如 "drums"、"bass"、"vocals"、"other"
 	 * @param wavPath WAV 文件绝对路径
+	 * @return true 表示加载成功
 	 */
 	public synchronized boolean loadStem(String key, Path wavPath) {
 		if (key == null || wavPath == null) return false;
 		try {
-			AudioInputStream raw = AudioSystem.getAudioInputStream(wavPath.toFile());
-			AudioFormat rawFmt = raw.getFormat();
+			// 1. 解码为原始 16-bit signed LE PCM
+			StemPcmData pcmData = decodeStemAudio(wavPath);
 
-			// 统一转为 16-bit signed little-endian，维持原采样率和声道数
-			AudioFormat pcmFmt = new AudioFormat(
-					AudioFormat.Encoding.PCM_SIGNED,
-					rawFmt.getSampleRate(),
-					16,
-					rawFmt.getChannels(),
-					rawFmt.getChannels() * 2,
-					rawFmt.getSampleRate(),
-					false);
+			// 2. 上传到 OpenAL buffer
+			ByteBuffer directBuf = ByteBuffer.allocateDirect(pcmData.pcm.length);
+			directBuf.put(pcmData.pcm).flip();
+			int alFormat = (pcmData.channels == 2) ? AL10.AL_FORMAT_STEREO16 : AL10.AL_FORMAT_MONO16;
 
-			AudioInputStream pcmAis;
-			if (rawFmt.matches(pcmFmt)) {
-				pcmAis = raw;
-			} else {
-				pcmAis = AudioSystem.getAudioInputStream(pcmFmt, raw);
+			int buf = AL10.alGenBuffers();
+			AL10.alBufferData(buf, alFormat, directBuf, pcmData.sampleRate);
+			int err = AL10.alGetError();
+			if (err != AL10.AL_NO_ERROR) {
+				AL10.alDeleteBuffers(buf);
+				LOGGER.warn("BeatBlock StemMixer: alBufferData failed key={} error=0x{}", key, Integer.toHexString(err));
+				return false;
 			}
 
-			byte[] pcm = pcmAis.readAllBytes();
-			pcmAis.close();
+			// 3. 创建并配置 source（SOURCE_RELATIVE 防止 Minecraft 3D 距离衰减）
+			int src = AL10.alGenSources();
+			AL10.alSourcei(src, AL10.AL_BUFFER, buf);
+			AL10.alSourcef(src, AL10.AL_GAIN, 1.0f);
+			AL10.alSourcei(src, AL10.AL_SOURCE_RELATIVE, AL10.AL_TRUE);
+			AL10.alSource3f(src, AL10.AL_POSITION, 0.0f, 0.0f, 0.0f);
+			AL10.alSource3f(src, AL10.AL_VELOCITY, 0.0f, 0.0f, 0.0f);
 
-			// 第一条茎的格式成为公共格式（Demucs 各茎格式相同）
-			if (sharedFormat == null) {
-				sharedFormat = pcmFmt;
+			// 4. 替换同名旧茎
+			StemTrack old = stems.get(key);
+			if (old != null) releaseTrack(old);
+			stems.put(key, new StemTrack(key, src, buf));
+
+			// 首条茎决定时长
+			if (durationSeconds <= 0.0) {
+				durationSeconds = pcmData.pcm.length / (double)(pcmData.sampleRate * pcmData.channels * 2);
 			}
 
-			stems.put(key, new StemTrack(key, pcm));
-			LOGGER.info("BeatBlock StemMixer: loaded stem key={} bytes={} format={}",
-					key, pcm.length, pcmFmt);
+			LOGGER.info("BeatBlock StemMixer: loaded stem key={} bytes={} {}Hz/{}ch",
+					key, pcmData.pcm.length, pcmData.sampleRate, pcmData.channels);
 			return true;
-		} catch (UnsupportedAudioFileException | IOException e) {
+
+		} catch (Exception e) {
 			LOGGER.warn("BeatBlock StemMixer: failed to load stem key={} path={} reason={}",
 					key, wavPath, e.getMessage());
 			return false;
 		}
 	}
 
-	/** @return 是否已加载至少一条茎（决定 StemMixer 是否为活跃状态）。 */
+	/** @return 是否至少有一条茎加载成功（决定 StemMixer 是否为活跃状态）。 */
 	public boolean hasStems() {
 		return !stems.isEmpty();
 	}
 
-	/**
-	 * 停止播放并释放所有茎数据与音频行资源。
-	 * 之后可再次调用 {@link #loadStem} 重新加载。
-	 */
-	public synchronized void clearStems() {
-		stopMixThread();
-		closeOutputLine();
-		stems.clear();
-		sharedFormat = null;
-		bytePos = 0;
-		playing = false;
+	/** 当前所有茎的总时长（秒，由首条茎计算）。 */
+	public double getDurationSeconds() {
+		return durationSeconds;
 	}
 
 	/**
-	 * 设置指定茎的静音状态。线程安全（混音线程实时读取 volatile muted）。
+	 * 停止播放并释放所有 OpenAL 资源。
+	 * 必须从渲染线程调用。
+	 */
+	public synchronized void clearStems() {
+		for (StemTrack t : stems.values()) releaseTrack(t);
+		stems.clear();
+		playing = false;
+		durationSeconds = 0.0;
+	}
+
+	/**
+	 * 设置指定茎的静音状态（立即生效：通过 AL_GAIN 为 0/1 实现）。
 	 *
 	 * @param key   茎名称
 	 * @param muted true = 静音，false = 恢复
 	 */
 	public void setStemMuted(String key, boolean muted) {
 		StemTrack t = stems.get(key);
-		if (t != null) t.muted = muted;
+		if (t == null) return;
+		t.muted = muted;
+		try {
+			AL10.alSourcef(t.alSource, AL10.AL_GAIN, muted ? 0.0f : 1.0f);
+		} catch (Throwable ignored) {}
 	}
 
 	// ── IAudioPlayer ─────────────────────────────────────────────────────────
@@ -138,177 +154,247 @@ public final class StemMixer implements IAudioPlayer {
 
 	@Override
 	public double getCurrentTimeSeconds() {
-		if (sharedFormat == null) return 0.0;
-		int frameSize = sharedFormat.getFrameSize();
-		float frameRate = sharedFormat.getFrameRate();
-		if (frameSize <= 0 || frameRate <= 0) return 0.0;
-		return (bytePos / (double) frameSize) / frameRate;
+		for (StemTrack t : stems.values()) {
+			try {
+				return AL11.alGetSourcef(t.alSource, AL11.AL_SEC_OFFSET);
+			} catch (Throwable ignored) {}
+		}
+		return 0.0;
 	}
 
 	@Override
 	public synchronized void setCurrentTimeSeconds(double seconds) {
-		if (sharedFormat == null) return;
-		int frameSize = sharedFormat.getFrameSize();
-		float frameRate = sharedFormat.getFrameRate();
-		if (frameSize <= 0 || frameRate <= 0) return;
-
-		int newPos = (int)(seconds * frameRate) * frameSize;
-		newPos = Math.max(0, newPos);
-		// 对齐到帧边界
-		newPos = (newPos / frameSize) * frameSize;
-
+		float secs = (float) Math.max(0.0, seconds);
 		boolean wasPlaying = playing;
-		if (wasPlaying) {
-			stopMixThread();
+		if (wasPlaying) pauseAll();
+		for (StemTrack t : stems.values()) {
+			try {
+				AL11.alSourcef(t.alSource, AL11.AL_SEC_OFFSET, secs);
+			} catch (Throwable ignored) {}
 		}
-		bytePos = newPos;
-		if (wasPlaying) {
-			startMixThread();
-		}
+		if (wasPlaying) playAll();
 	}
 
 	@Override
 	public synchronized void play() {
 		if (stems.isEmpty()) return;
-		if (playing) return;
-		if (!openOutputLine()) return;
-		startMixThread();
+		playAll();
 		playing = true;
 	}
 
 	@Override
 	public synchronized void pause() {
-		if (!playing) return;
-		stopMixThread();
+		pauseAll();
 		playing = false;
-		// 记录暂停时刻的字节位置（mixThread 退出时 bytePos 已更新）
 	}
 
 	@Override
 	public synchronized void stop() {
-		stopMixThread();
-		playing = false;
-		bytePos = 0;
-		if (outputLine != null) {
-			outputLine.flush();
-		}
-	}
-
-	// ── 内部：打开输出行 ──────────────────────────────────────────────────────
-
-	private boolean openOutputLine() {
-		if (outputLine != null && outputLine.isOpen()) return true;
-		if (sharedFormat == null) return false;
-		try {
-			DataLine.Info info = new DataLine.Info(SourceDataLine.class, sharedFormat);
-			outputLine = (SourceDataLine) AudioSystem.getLine(info);
-			outputLine.open(sharedFormat, 4096 * sharedFormat.getFrameSize());
-			outputLine.start();
-			return true;
-		} catch (LineUnavailableException e) {
-			LOGGER.error("BeatBlock StemMixer: cannot open SourceDataLine: {}", e.getMessage());
-			return false;
-		}
-	}
-
-	private void closeOutputLine() {
-		if (outputLine != null) {
+		for (StemTrack t : stems.values()) {
 			try {
-				outputLine.stop();
-				outputLine.close();
-			} catch (Exception ignored) {}
-			outputLine = null;
+				AL10.alSourceStop(t.alSource);
+				AL11.alSourcef(t.alSource, AL11.AL_SEC_OFFSET, 0.0f);
+			} catch (Throwable ignored) {}
 		}
+		playing = false;
 	}
 
-	// ── 内部：混音线程 ────────────────────────────────────────────────────────
+	// ── 内部：OpenAL 操作 ─────────────────────────────────────────────────────
 
-	private void startMixThread() {
-		stopFlag = false;
-		mixThread = new Thread(this::mixLoop, "beatblock-stem-mixer");
-		mixThread.setDaemon(true);
-		mixThread.start();
-	}
-
-	private void stopMixThread() {
-		stopFlag = true;
-		Thread t = mixThread;
-		if (t != null) {
-			t.interrupt();
-			try { t.join(2000); } catch (InterruptedException ignored) {
-				Thread.currentThread().interrupt();
+	private void playAll() {
+		for (StemTrack t : stems.values()) {
+			try {
+				AL10.alSourcePlay(t.alSource);
+			} catch (Throwable e) {
+				LOGGER.warn("BeatBlock StemMixer: alSourcePlay failed stem={}: {}", t.key, e.getMessage());
 			}
-			mixThread = null;
 		}
-		if (outputLine != null) {
-			outputLine.drain();
-			outputLine.stop();
+	}
+
+	private void pauseAll() {
+		for (StemTrack t : stems.values()) {
+			try {
+				AL10.alSourcePause(t.alSource);
+			} catch (Throwable ignored) {}
 		}
+	}
+
+	private void releaseTrack(StemTrack t) {
+		try {
+			AL10.alSourceStop(t.alSource);
+			AL10.alSourcei(t.alSource, AL10.AL_BUFFER, 0);
+			AL10.alDeleteSources(t.alSource);
+		} catch (Throwable ignored) {}
+		try {
+			AL10.alDeleteBuffers(t.alBuffer);
+		} catch (Throwable ignored) {}
+	}
+
+	// ── 内部：PCM 解码 ────────────────────────────────────────────────────────
+
+	private record StemPcmData(byte[] pcm, int sampleRate, int channels) {}
+
+	/**
+	 * 解码茎音频文件为原始 16-bit signed LE PCM 字节。
+	 * 优先直接解析 RIFF WAV（支持 PCM-16 和 IEEE-float32）；失败时回退 ffmpeg。
+	 */
+	private StemPcmData decodeStemAudio(Path wavPath) throws IOException {
+		try {
+			return readWavPcmDirect(wavPath);
+		} catch (Exception e) {
+			LOGGER.warn("BeatBlock StemMixer: direct WAV parse failed for {}, trying ffmpeg: {}",
+					wavPath.getFileName(), e.getMessage());
+		}
+		return decodePcmWithFfmpeg(wavPath);
 	}
 
 	/**
-	 * 混音循环：每次读取 CHUNK 帧，对所有非静音茎做 16-bit 整数加法混音，
-	 * 并截幅（-32768 ~ 32767），写入 SourceDataLine。
+	 * 直接解析 RIFF WAV 文件头，提取 PCM 字节数据。
+	 * 支持 audioFormat=1（PCM-16）和 audioFormat=3（IEEE-float32，转换为 PCM-16）。
 	 */
-	private void mixLoop() {
-		final int FRAMES_PER_CHUNK = 1024;
-		final AudioFormat fmt = sharedFormat;
-		if (fmt == null) return;
+	private StemPcmData readWavPcmDirect(Path wavPath) throws IOException {
+		byte[] file = Files.readAllBytes(wavPath);
+		if (file.length < 44) throw new IOException("file too small");
 
-		final int frameSize = fmt.getFrameSize();
-		final int chunkBytes = FRAMES_PER_CHUNK * frameSize;
-		final int channels = fmt.getChannels();
-
-		byte[] outBuf = new byte[chunkBytes];
-
-		// 求最长茎字节数（决定总时长）
-		int maxLen = 0;
-		for (StemTrack st : stems.values()) maxLen = Math.max(maxLen, st.pcm.length);
-
-		if (outputLine != null && !outputLine.isRunning()) {
-			outputLine.start();
+		// 验证 RIFF/WAVE 头
+		if (!matchesAscii(file, 0, "RIFF") || !matchesAscii(file, 8, "WAVE")) {
+			throw new IOException("not a RIFF/WAVE file");
 		}
 
-		while (!stopFlag && !Thread.currentThread().isInterrupted()) {
-			int pos = bytePos;
-			if (pos >= maxLen) break; // 到达末尾
+		ByteBuffer bb = ByteBuffer.wrap(file).order(ByteOrder.LITTLE_ENDIAN);
 
-			// 当帧实际可读长度（不超出任何茎末尾和块大小）
-			int actualBytes = Math.min(chunkBytes, maxLen - pos);
-			actualBytes = (actualBytes / frameSize) * frameSize; // 对齐帧
-			if (actualBytes <= 0) break;
+		int audioFormat = 0, channels = 0, sampleRate = 0, bitsPerSample = 0;
+		int dataOffset = -1, dataSize = -1;
 
-			// 清零输出缓冲
-			java.util.Arrays.fill(outBuf, 0, actualBytes, (byte) 0);
+		// 遍历 RIFF chunk
+		int pos = 12;
+		while (pos + 8 <= file.length) {
+			String chunkId   = new String(file, pos, 4);
+			int    chunkSize = bb.getInt(pos + 4);
+			int    dataStart = pos + 8;
 
-			// 逐茎混音
-			for (StemTrack st : stems.values()) {
-				if (st.muted) continue;
-				byte[] src = st.pcm;
-				for (int i = 0; i < actualBytes; i += 2) {
-					int srcOff = pos + i;
-					if (srcOff + 1 >= src.length) break;
-					// 读 16-bit signed little-endian sample
-					short sample = (short)((src[srcOff + 1] << 8) | (src[srcOff] & 0xFF));
-					// 读已有混音值
-					short mixed = (short)((outBuf[i + 1] << 8) | (outBuf[i] & 0xFF));
-					// 加法混音，截幅
-					int sum = (int) mixed + (int) sample;
-					if (sum > 32767) sum = 32767;
-					else if (sum < -32768) sum = -32768;
-					outBuf[i]     = (byte)(sum & 0xFF);
-					outBuf[i + 1] = (byte)((sum >> 8) & 0xFF);
+			if ("fmt ".equals(chunkId)) {
+				audioFormat   = bb.getShort(dataStart)      & 0xFFFF;
+				channels      = bb.getShort(dataStart + 2)  & 0xFFFF;
+				sampleRate    = bb.getInt(dataStart + 4);
+				bitsPerSample = bb.getShort(dataStart + 14) & 0xFFFF;
+			} else if ("data".equals(chunkId)) {
+				dataOffset = dataStart;
+				dataSize   = chunkSize;
+				break;
+			}
+			pos = dataStart + chunkSize;
+			if ((chunkSize & 1) != 0) pos++; // RIFF chunk word-align
+		}
+
+		if (dataOffset < 0 || channels == 0 || sampleRate == 0) {
+			throw new IOException("could not locate fmt/data chunks");
+		}
+		if (audioFormat != 1 && audioFormat != 3) {
+			throw new IOException("unsupported audioFormat=" + audioFormat);
+		}
+		if (bitsPerSample != 16 && bitsPerSample != 32) {
+			throw new IOException("unsupported bitsPerSample=" + bitsPerSample);
+		}
+
+		dataSize = Math.min(dataSize, file.length - dataOffset);
+		byte[] output;
+
+		if (audioFormat == 1 && bitsPerSample == 16) {
+			// PCM-16：直接拷贝 data chunk
+			output = new byte[dataSize];
+			System.arraycopy(file, dataOffset, output, 0, dataSize);
+
+		} else {
+			// IEEE float32 → 16-bit signed
+			int numSamples = dataSize / 4;
+			output = new byte[numSamples * 2];
+			for (int i = 0; i < numSamples; i++) {
+				float sample = bb.getFloat(dataOffset + i * 4);
+				int   s      = Math.round(sample * 32767.0f);
+				s = Math.max(-32768, Math.min(32767, s));
+				output[i * 2]     = (byte) (s & 0xFF);
+				output[i * 2 + 1] = (byte) ((s >> 8) & 0xFF);
+			}
+		}
+
+		return new StemPcmData(output, sampleRate, channels);
+	}
+
+	private static boolean matchesAscii(byte[] data, int offset, String s) {
+		if (offset + s.length() > data.length) return false;
+		for (int i = 0; i < s.length(); i++) {
+			if (data[offset + i] != (byte) s.charAt(i)) return false;
+		}
+		return true;
+	}
+
+	/**
+	 * 通过 ffmpeg 进程将任意音频文件解码为 44100Hz / 双声道 / 16-bit LE PCM。
+	 */
+	private StemPcmData decodePcmWithFfmpeg(Path inputFile) throws IOException {
+		String ffmpeg = resolveFfmpegExecutable();
+		if (ffmpeg == null) throw new IOException("ffmpeg not found");
+
+		final int sampleRate = 44100, channels = 2; // Demucs 总是输出 44100Hz 立体声
+		List<String> cmd = List.of(
+				ffmpeg, "-y", "-i", inputFile.toAbsolutePath().toString(),
+				"-vn", "-ar", String.valueOf(sampleRate), "-ac", String.valueOf(channels),
+				"-acodec", "pcm_s16le", "-f", "s16le", "pipe:1");
+
+		Process process = new ProcessBuilder(cmd).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+		ByteArrayOutputStream out = new ByteArrayOutputStream(1 << 22);
+		try (var in = process.getInputStream()) {
+			byte[] buf = new byte[8192];
+			int n;
+			while ((n = in.read(buf)) != -1) {
+				out.write(buf, 0, n);
+				if (out.size() > 512 * 1024 * 1024) {
+					process.destroyForcibly();
+					throw new IOException("stem audio too large");
 				}
 			}
-
-			// 写入 SourceDataLine（阻塞直到缓冲接受）
-			if (outputLine != null) {
-				outputLine.write(outBuf, 0, actualBytes);
-			}
-
-			bytePos = pos + actualBytes;
 		}
+		try {
+			int exitCode = process.waitFor();
+			if (exitCode != 0 || out.size() == 0) {
+				throw new IOException("ffmpeg exited code=" + exitCode + " outBytes=" + out.size());
+			}
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new IOException("interrupted waiting for ffmpeg");
+		}
+		return new StemPcmData(out.toByteArray(), sampleRate, channels);
+	}
 
-		playing = false;
+	private String resolveFfmpegExecutable() {
+		Path configPath = FabricLoader.getInstance().getConfigDir().resolve("beatblock/ffmpeg_path.txt");
+		if (Files.exists(configPath)) {
+			try {
+				String txt = Files.readString(configPath).trim();
+				if (!txt.isEmpty() && isExecutable(txt)) return txt;
+			} catch (IOException ignored) {}
+		}
+		Path gameDir = FabricLoader.getInstance().getGameDir();
+		for (Path p : List.of(
+				gameDir.resolve("ffmpeg.exe"),
+				gameDir.resolve("ffmpeg"),
+				gameDir.resolve("ffmpeg/bin/ffmpeg.exe"),
+				gameDir.resolve("ffmpeg/bin/ffmpeg"))) {
+			if (Files.isRegularFile(p) && isExecutable(p.toAbsolutePath().toString())) {
+				return p.toAbsolutePath().toString();
+			}
+		}
+		if (isExecutable("ffmpeg")) return "ffmpeg";
+		return null;
+	}
+
+	private boolean isExecutable(String exe) {
+		try {
+			Process p = new ProcessBuilder(exe, "-version").redirectErrorStream(true).start();
+			return p.waitFor(3, TimeUnit.SECONDS) && p.exitValue() == 0;
+		} catch (Exception e) {
+			return false;
+		}
 	}
 }

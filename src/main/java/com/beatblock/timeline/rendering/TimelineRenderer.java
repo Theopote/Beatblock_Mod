@@ -21,8 +21,6 @@ import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -445,11 +443,14 @@ public final class TimelineRenderer {
 			if (relPath == null || relPath.isBlank()) return false;
 			Path stemPath = beatmapDir.resolve(relPath).normalize();
 			try {
-				if (!java.nio.file.Files.isRegularFile(stemPath) || java.nio.file.Files.size(stemPath) <= 44) {
+				// Note: AudioSystem.getAudioFileFormat() is NOT used here because JavaSound
+				// is unavailable in Minecraft's LWJGL environment (0 mixers). We verify
+				// stems are present with a minimum size check instead; StemMixer's own
+				// WAV parser / ffmpeg fallback handles format validation at load time.
+				if (!java.nio.file.Files.isRegularFile(stemPath) || java.nio.file.Files.size(stemPath) <= 1024) {
 					return false;
 				}
-				AudioSystem.getAudioFileFormat(stemPath.toFile());
-			} catch (UnsupportedAudioFileException | IOException e) {
+			} catch (IOException e) {
 				return false;
 			}
 		}
