@@ -26,7 +26,7 @@ public final class TimelineTrackListState {
 	private float trackHeaderWidthPx = 220f;
 	private static final float TRACK_HEADER_WIDTH_MIN = 160f;
 	private static final float TRACK_HEADER_WIDTH_MAX = 420f;
-	private static final float AUDIO_ROW_HEIGHT_MIN = 16f;
+	private static final float AUDIO_ROW_HEIGHT_MIN = TimelineLayout.ROW_HEIGHT;
 	private static final float AUDIO_ROW_HEIGHT_MAX = 64f;
 	private static final float AUDIO_ROW_HEIGHT_DEFAULT = TimelineLayout.ROW_HEIGHT;
 

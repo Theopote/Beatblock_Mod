@@ -32,6 +32,15 @@ public final class TrackRenderer {
 	private static final String[] TYPE_LABELS = {"音频", "动画", "摄像机", "事件"};
 
 	private static final int MICRO_SEP_COLOR = 0x55_66_66_66; // ABGR
+	private static final float STATE_ACTIVE_GREEN_R = 0.70f;
+	private static final float STATE_ACTIVE_GREEN_G = 0.86f;
+	private static final float STATE_ACTIVE_GREEN_B = 0.78f;
+	private static final float STATE_ALERT_RED_R = 0.95f;
+	private static final float STATE_ALERT_RED_G = 0.35f;
+	private static final float STATE_ALERT_RED_B = 0.35f;
+	private static final float STATE_BG_ALPHA = 0.22f;
+	private static final float STATE_BG_HOVER_ALPHA = 0.30f;
+	private static final float STATE_BG_ACTIVE_ALPHA = 0.36f;
 	private float cachedTypeColumnWidth = -1f;
 
 	/**
@@ -51,10 +60,12 @@ public final class TrackRenderer {
 		ImGui.setCursorPosY(rowY);
 		float baseX = trackHeaderLeft;
 		float headW = trackHeaderWidth > 0 ? trackHeaderWidth : TimelineLayout.TRACK_LABEL_WIDTH;
-		float rowH = Math.max(14f, rowHeight);
-		/** 折叠槽宽 = 行高，折叠按钮与轨道行同高同宽 */
-		float foldColW = rowH;
-		float iconBtn = rowH;
+		float rowH = Math.max(TimelineLayout.ROW_HEIGHT, rowHeight);
+		/** 折叠槽固定宽度：与默认行高一致，避免音频轨增高时左侧布局被撑宽 */
+		float foldColW = TimelineLayout.ROW_HEIGHT;
+		float iconBtn = TimelineLayout.ROW_HEIGHT;
+		float iconOffsetY = Math.max(0f, (rowH - iconBtn) * 0.5f);
+		float foldIconOffsetX = Math.max(0f, (foldColW - iconBtn) * 0.5f);
 
 		// 类型列宽：取四种类型里“最宽”的文字宽度（加右内边距）
 		float typeColW = resolveTypeColumnWidth();
@@ -92,8 +103,8 @@ public final class TrackRenderer {
 
 		// —— 折叠槽：仅组轨道显示按钮；二级轨占位但无按钮 —— //
 		if (isGroup && listState != null) {
-			float btnX = baseX + foldColLeft;
-			float btnY = rowOriginScreenY;
+			float btnX = baseX + foldColLeft + foldIconOffsetX;
+			float btnY = rowOriginScreenY + iconOffsetY;
 			String foldTooltip = null;
 
 			IconButtonStyle.pushBeatBlockIconButton();
@@ -196,24 +207,24 @@ public final class TrackRenderer {
 			if (showMuteSolo) {
 				// ── 静音按钮 ────────────────────────────────────────────
 				boolean muted = listState.isMuted(rowIndex);
-				if (muted) ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.35f, 0.35f, 1f);
-				ImGui.setCursorScreenPos(baseX + muteX, rowOriginScreenY);
+				if (muted) pushStateButtonStyle(STATE_ALERT_RED_R, STATE_ALERT_RED_G, STATE_ALERT_RED_B);
+				ImGui.setCursorScreenPos(baseX + muteX, rowOriginScreenY + iconOffsetY);
 				if (ImGui.button((muted ? Icons.Timeline.MUTE : Icons.Audio.VOLUME) + "##mute" + rowIndex, iconBtn, iconBtn)) {
 					listState.toggleMuted(rowIndex);
 				}
-				if (muted) ImGui.popStyleColor();
+				if (muted) popStateButtonStyle();
 				if (ImGui.isItemHovered()) {
 					muteTooltip = muted ? "已静音 (点击取消)" : "静音 (点击静音)";
 				}
 
 				// ── 独奏按钮 ────────────────────────────────────────────
 				boolean solo = listState.isSoloed(rowIndex);
-				if (solo) ImGui.pushStyleColor(ImGuiCol.Text, 0.70f, 0.86f, 0.78f, 1f);
-				ImGui.setCursorScreenPos(baseX + soloX, rowOriginScreenY);
+				if (solo) pushStateButtonStyle(STATE_ACTIVE_GREEN_R, STATE_ACTIVE_GREEN_G, STATE_ACTIVE_GREEN_B);
+				ImGui.setCursorScreenPos(baseX + soloX, rowOriginScreenY + iconOffsetY);
 				if (ImGui.button(Icons.Timeline.SOLO + "##solo" + rowIndex, iconBtn, iconBtn)) {
 					listState.toggleSoloed(rowIndex);
 				}
-				if (solo) ImGui.popStyleColor();
+				if (solo) popStateButtonStyle();
 				if (ImGui.isItemHovered()) {
 					soloTooltip = solo ? "独奏中 (点击取消)" : "独奏 (点击独奏)";
 				}
@@ -221,30 +232,29 @@ public final class TrackRenderer {
 
 			// ── 可见按钮 ────────────────────────────────────────────
 			boolean vis = listState.isVisible(rowIndex);
-			boolean visHighlighted = true;
-			ImGui.setCursorScreenPos(baseX + visX, rowOriginScreenY);
+			ImGui.setCursorScreenPos(baseX + visX, rowOriginScreenY + iconOffsetY);
 			if (vis) {
-				ImGui.pushStyleColor(ImGuiCol.Text, 0.70f, 0.86f, 0.78f, 1f);
+				pushStateButtonStyle(STATE_ACTIVE_GREEN_R, STATE_ACTIVE_GREEN_G, STATE_ACTIVE_GREEN_B);
 			} else {
 				// 与静音图标保持一致：隐藏状态用红色强调
-				ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.35f, 0.35f, 1f);
+				pushStateButtonStyle(STATE_ALERT_RED_R, STATE_ALERT_RED_G, STATE_ALERT_RED_B);
 			}
 			if (ImGui.button((vis ? Icons.EYE : Icons.Action.HIDDEN) + "##vis" + rowIndex, iconBtn, iconBtn)) {
 				listState.toggleVisible(rowIndex);
 				vis = listState.isVisible(rowIndex);
 			}
-			if (visHighlighted) ImGui.popStyleColor();
+			popStateButtonStyle();
 			if (ImGui.isItemHovered()) {
 				visTooltip = vis ? "当前可见 (点击隐藏波形/轨道)" : "当前隐藏 (点击显示波形/轨道)";
 			}
 
 			boolean lock = listState.isLocked(rowIndex);
-			ImGui.setCursorScreenPos(baseX + lockX, rowOriginScreenY);
-			if (lock) ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.35f, 0.35f, 1f);
+			ImGui.setCursorScreenPos(baseX + lockX, rowOriginScreenY + iconOffsetY);
+			if (lock) pushStateButtonStyle(STATE_ALERT_RED_R, STATE_ALERT_RED_G, STATE_ALERT_RED_B);
 			if (ImGui.button((lock ? Icons.Action.LOCK : Icons.Action.UNLOCK) + "##lock" + rowIndex, iconBtn, iconBtn)) {
 				listState.toggleLocked(rowIndex);
 			}
-			if (lock) ImGui.popStyleColor();
+			if (lock) popStateButtonStyle();
 			if (ImGui.isItemHovered()) {
 				lockTooltip = lock ? "已锁定 (点击解锁)" : "未锁定 (点击锁定)";
 			}
@@ -257,6 +267,17 @@ public final class TrackRenderer {
 		}
 
 		return rowY + rowH;
+	}
+
+	private static void pushStateButtonStyle(float r, float g, float b) {
+		ImGui.pushStyleColor(ImGuiCol.Text, r, g, b, 1f);
+		ImGui.pushStyleColor(ImGuiCol.Button, r, g, b, STATE_BG_ALPHA);
+		ImGui.pushStyleColor(ImGuiCol.ButtonHovered, r, g, b, STATE_BG_HOVER_ALPHA);
+		ImGui.pushStyleColor(ImGuiCol.ButtonActive, r, g, b, STATE_BG_ACTIVE_ALPHA);
+	}
+
+	private static void popStateButtonStyle() {
+		ImGui.popStyleColor(4);
 	}
 
 	private float resolveTypeColumnWidth() {
