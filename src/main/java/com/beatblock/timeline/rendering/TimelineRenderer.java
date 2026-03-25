@@ -21,6 +21,9 @@ import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -382,6 +385,11 @@ public final class TimelineRenderer {
 		String droppedAudioKey = buildAudioAssetKey(asset);
 		lastAutoAppliedBeatmapSignature = null;
 		boolean canUseBeatmapNow = asset.getStatus() == AudioAssetStatus.COMPLETED && asset.getBeatmap() != null;
+		if (canUseBeatmapNow && !isBeatmapReadyForImmediateApply(asset.getBeatmap())) {
+			canUseBeatmapNow = false;
+			LOGGER.info("BeatBlock Timeline: cached beatmap has unreadable/missing demucs stems, scheduling re-analysis path={}", asset.getPath());
+			AudioAssetManager.getInstance().startAnalysis(asset);
+		}
 		if (canUseBeatmapNow) {
 			timeline.setMetadata("awaitingAnalyzedBeatmap", null);
 			BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
@@ -409,6 +417,29 @@ public final class TimelineRenderer {
 		if (BeatBlock.timelineEditor != null) {
 			BeatBlock.timelineEditor.syncClockDuration();
 		}
+	}
+
+	private boolean isBeatmapReadyForImmediateApply(com.beatblock.audio.beatmap.Beatmap beatmap) {
+		if (beatmap == null || beatmap.meta == null) return false;
+		if (!beatmap.meta.hasStemSeparation()) return true;
+		if (beatmap.beatmapFilePath == null || beatmap.meta.stems() == null) return false;
+		Path beatmapDir = beatmap.beatmapFilePath.getParent();
+		if (beatmapDir == null) return false;
+
+		for (Map.Entry<String, String> entry : beatmap.meta.stems().entrySet()) {
+			String relPath = entry.getValue();
+			if (relPath == null || relPath.isBlank()) return false;
+			Path stemPath = beatmapDir.resolve(relPath).normalize();
+			try {
+				if (!java.nio.file.Files.isRegularFile(stemPath) || java.nio.file.Files.size(stemPath) <= 44) {
+					return false;
+				}
+				AudioSystem.getAudioFileFormat(stemPath.toFile());
+			} catch (UnsupportedAudioFileException | IOException e) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private void populateAnimationTrackFromAudioFeatures(Timeline timeline, int targetRowIndex) {

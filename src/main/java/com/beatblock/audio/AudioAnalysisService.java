@@ -238,6 +238,7 @@ public final class AudioAnalysisService {
 						LOGGER.info("BeatBlock AudioAnalysis: beatmap cache stale (analyzerVersion={}), re-analyzing path={}",
 							cached.meta != null ? cached.meta.analyzerVersion() : "null",
 							audioPath.getFileName());
+						cleanupDemucsStemArtifacts(cached, beatmapPath);
 						// fall through to Python re-analysis
 					}
 				}
@@ -471,6 +472,18 @@ public final class AudioAnalysisService {
 			}
 		}
 		return true;
+	}
+
+	private void cleanupDemucsStemArtifacts(Beatmap beatmap, Path beatmapPath) {
+		if (beatmap == null || beatmap.meta == null || beatmap.meta.stems() == null || beatmapPath == null) return;
+		Path parent = beatmapPath.getParent();
+		if (parent == null) return;
+		for (Map.Entry<String, String> entry : beatmap.meta.stems().entrySet()) {
+			String relPath = entry.getValue();
+			if (relPath == null || relPath.isBlank()) continue;
+			Path stemPath = parent.resolve(relPath).normalize();
+			deleteIfExists(stemPath);
+		}
 	}
 
 	private String sanitizeBeatmapBaseName(String baseName) {
