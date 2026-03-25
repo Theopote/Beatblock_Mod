@@ -11,6 +11,7 @@ import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.audio.beatmap.Beatmap;
+import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
 import imgui.ImVec4;
 import imgui.flag.ImGuiCol;
@@ -35,6 +36,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Base64;
 import java.util.List;
 
@@ -1111,15 +1113,30 @@ public final class AudioAnalysisPanel {
             detailRowColored(label, "未生成", color);
             return;
         }
-        String path = bm.meta.stems().get(stemKey);
-        if (path == null || path.isBlank()) {
+        String relativePath = bm.meta.stems().get(stemKey);
+        if (relativePath == null || relativePath.isBlank()) {
             detailRowColored(label, "未生成", color);
             return;
         }
+        String path = resolveStemDisplayPath(bm, relativePath);
         boolean fileExists = new File(path).isFile();
         detailRowColored(label, fileExists ? "已生成" : "路径存在但文件缺失", color);
         detailRow(label + " 路径", path);
         renderCopyPathAction(path, stemKey, label);
+    }
+
+    private String resolveStemDisplayPath(Beatmap bm, String relativePath) {
+        if (bm == null || relativePath == null || relativePath.isBlank()) return relativePath;
+        try {
+            Path p = Path.of(relativePath);
+            if (p.isAbsolute()) return p.normalize().toString();
+            if (bm.beatmapFilePath != null && bm.beatmapFilePath.getParent() != null) {
+                return bm.beatmapFilePath.getParent().resolve(relativePath).normalize().toString();
+            }
+        } catch (Exception ignored) {
+            // ignore and fall back to raw path text
+        }
+        return relativePath;
     }
 
     private void renderCopyPathAction(String path, String stemKey, String label) {
@@ -1135,10 +1152,19 @@ public final class AudioAnalysisPanel {
     }
 
     private boolean copyToClipboard(String text) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null && mc.keyboard != null) {
+            try {
+                mc.keyboard.setClipboard(text);
+                return true;
+            } catch (RuntimeException ignored) {
+                // fallback to AWT system clipboard
+            }
+        }
         try {
             Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(text), null);
             return true;
-        } catch (IllegalStateException | HeadlessException e) {
+        } catch (IllegalStateException | UnsupportedOperationException | SecurityException e) {
             return false;
         }
     }

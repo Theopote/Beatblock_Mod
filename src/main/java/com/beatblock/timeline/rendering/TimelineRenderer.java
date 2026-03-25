@@ -920,14 +920,17 @@ public final class TimelineRenderer {
 		if (beatmapDir == null) return;
 
 		boolean anyLoaded = false;
+		int loadedCount = 0;
 		for (java.util.Map.Entry<String, String> entry : beatmap.meta.stems().entrySet()) {
 			String stemKey = entry.getKey();
 			String relativePath = entry.getValue();
 			if (relativePath == null || relativePath.isBlank()) continue;
 			java.nio.file.Path stemPath = beatmapDir.resolve(relativePath).normalize();
 			if (java.nio.file.Files.isRegularFile(stemPath)) {
-				BeatBlock.stemMixer.loadStem(stemKey, stemPath);
-				anyLoaded = true;
+				if (BeatBlock.stemMixer.loadStem(stemKey, stemPath)) {
+					anyLoaded = true;
+					loadedCount++;
+				}
 			} else {
 				LOGGER.warn("BeatBlock TimelineRenderer: stem WAV not found key={} path={}", stemKey, stemPath);
 			}
@@ -938,7 +941,9 @@ public final class TimelineRenderer {
 			if (BeatBlock.musicPlayer != null) {
 				BeatBlock.musicPlayer.stop();
 			}
-			LOGGER.info("BeatBlock TimelineRenderer: StemMixer loaded {} stems", beatmap.meta.stems().size());
+			LOGGER.info("BeatBlock TimelineRenderer: StemMixer loaded {} stems", loadedCount);
+		} else {
+			LOGGER.warn("BeatBlock TimelineRenderer: stem metadata present but no stems were loaded successfully");
 		}
 	}
 

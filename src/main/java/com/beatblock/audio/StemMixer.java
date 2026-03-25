@@ -58,8 +58,8 @@ public final class StemMixer implements IAudioPlayer {
 	 * @param key     茎名称，如 "drums"、"bass"、"vocals"、"other"
 	 * @param wavPath WAV 文件绝对路径
 	 */
-	public synchronized void loadStem(String key, Path wavPath) {
-		if (key == null || wavPath == null) return;
+	public synchronized boolean loadStem(String key, Path wavPath) {
+		if (key == null || wavPath == null) return false;
 		try {
 			AudioInputStream raw = AudioSystem.getAudioInputStream(wavPath.toFile());
 			AudioFormat rawFmt = raw.getFormat();
@@ -92,9 +92,11 @@ public final class StemMixer implements IAudioPlayer {
 			stems.put(key, new StemTrack(key, pcm));
 			LOGGER.info("BeatBlock StemMixer: loaded stem key={} bytes={} format={}",
 					key, pcm.length, pcmFmt);
+			return true;
 		} catch (UnsupportedAudioFileException | IOException e) {
 			LOGGER.warn("BeatBlock StemMixer: failed to load stem key={} path={} reason={}",
 					key, wavPath, e.getMessage());
+			return false;
 		}
 	}
 

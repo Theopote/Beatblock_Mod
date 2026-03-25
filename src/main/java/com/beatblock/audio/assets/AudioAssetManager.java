@@ -308,6 +308,7 @@ public final class AudioAssetManager {
 		asset.setQueueTicket(nextQueueTicket++);
 		asset.setAnalysisProgressPercent(0);
 		asset.setProcessingStatusText("排队中");
+		asset.setBeatmap(null); // 新一轮解析期间避免继续使用旧 beatmap/stem
 		asset.getFinishedSteps().clear();
 		asset.setErrorMessage(null);
 		asset.setInfoMessage(null);
