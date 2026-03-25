@@ -207,6 +207,11 @@ public final class TimelineRenderer {
 		float rowHeight = layout.getRowHeight(rowIndex);
 		float rowScreenY = layout.getRowScreenY(rowIndex);
 
+		// 可见性只控制内容区（波形/事件），不隐藏左侧轨道头，便于再次点击恢复显示。
+		if (trackListState != null && !trackListState.isVisible(rowIndex)) {
+			return;
+		}
+
 		// ── 音频组标题行 ──────────────────────────────────────────────────────
 		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) {
 			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout);

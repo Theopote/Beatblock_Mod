@@ -208,7 +208,7 @@ public final class TrackRenderer {
 
 				// ── 独奏按钮 ────────────────────────────────────────────
 				boolean solo = listState.isSoloed(rowIndex);
-				if (solo) ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.85f, 0.2f, 1f);
+				if (solo) ImGui.pushStyleColor(ImGuiCol.Text, 0.70f, 0.86f, 0.78f, 1f);
 				ImGui.setCursorScreenPos(baseX + soloX, rowOriginScreenY);
 				if (ImGui.button(Icons.Timeline.SOLO + "##solo" + rowIndex, iconBtn, iconBtn)) {
 					listState.toggleSoloed(rowIndex);
@@ -221,9 +221,14 @@ public final class TrackRenderer {
 
 			// ── 可见按钮 ────────────────────────────────────────────
 			boolean vis = listState.isVisible(rowIndex);
-			boolean visHighlighted = vis;
+			boolean visHighlighted = true;
 			ImGui.setCursorScreenPos(baseX + visX, rowOriginScreenY);
-			if (visHighlighted) ImGui.pushStyleColor(ImGuiCol.Text, 0.70f, 0.86f, 0.78f, 1f);
+			if (vis) {
+				ImGui.pushStyleColor(ImGuiCol.Text, 0.70f, 0.86f, 0.78f, 1f);
+			} else {
+				// 与静音图标保持一致：隐藏状态用红色强调
+				ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.35f, 0.35f, 1f);
+			}
 			if (ImGui.button((vis ? Icons.EYE : Icons.Action.HIDDEN) + "##vis" + rowIndex, iconBtn, iconBtn)) {
 				listState.toggleVisible(rowIndex);
 				vis = listState.isVisible(rowIndex);
@@ -235,9 +240,11 @@ public final class TrackRenderer {
 
 			boolean lock = listState.isLocked(rowIndex);
 			ImGui.setCursorScreenPos(baseX + lockX, rowOriginScreenY);
+			if (lock) ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.35f, 0.35f, 1f);
 			if (ImGui.button((lock ? Icons.Action.LOCK : Icons.Action.UNLOCK) + "##lock" + rowIndex, iconBtn, iconBtn)) {
 				listState.toggleLocked(rowIndex);
 			}
+			if (lock) ImGui.popStyleColor();
 			if (ImGui.isItemHovered()) {
 				lockTooltip = lock ? "已锁定 (点击解锁)" : "未锁定 (点击锁定)";
 			}
