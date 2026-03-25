@@ -5,6 +5,7 @@ import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.BeatBlockRuntime;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
+import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.FeatureTrack;
 import com.beatblock.timeline.FrequencyBand;
@@ -68,6 +69,7 @@ public final class TimelineRenderer {
 	private final ConcurrentMap<String, DenseApplyPayload> pendingDenseApplies = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, Boolean> denseAnalysisInFlight = new ConcurrentHashMap<>();
 	private final ConcurrentMap<String, Long> denseAnalysisFailureUntilMs = new ConcurrentHashMap<>();
+	private String lastAutoAppliedBeatmapSignature;
 
 	/**
 	 * 本帧计算出的音频子轨定义列表（由 TrackRegistry.buildAudioSubTracks 生成）。
@@ -121,6 +123,7 @@ public final class TimelineRenderer {
 		}
 
 		applyPendingDenseUpdates(timeline);
+		tryAutoApplyAnalyzedBeatmap(timeline);
 
 		// ── 音频子轨定义列表：仅在 featureTracks keySet 变化时重建 ─────────────
 		// TrackRegistry.buildAudioSubTracks 内部每次都分配新 ArrayList + TrackDefinition 对象，
@@ -376,15 +379,25 @@ public final class TimelineRenderer {
 		if (asset == null || BeatBlock.audioAnalysisEngine == null) return;
 
 		bindDroppedAudioToPlayback(timeline, asset);
-		if (asset.getBeatmap() != null) {
+		String droppedAudioKey = buildAudioAssetKey(asset);
+		lastAutoAppliedBeatmapSignature = null;
+		boolean canUseBeatmapNow = asset.getStatus() == AudioAssetStatus.COMPLETED && asset.getBeatmap() != null;
+		if (canUseBeatmapNow) {
+			timeline.setMetadata("awaitingAnalyzedBeatmap", null);
 			BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
 			requestDenseFeatureEnrichment(timeline, asset);
 			BeatBlockRuntime.getInstance().loadBeatmap(asset.getBeatmap());
 			// 若是 Demucs 模式，加载茎音频到 StemMixer
 			bindStemAudioIfDemucs(asset.getBeatmap());
 		} else if (asset.getFeatureTimeline() != null) {
+			timeline.setMetadata("awaitingAnalyzedBeatmap", droppedAudioKey);
+			LOGGER.info("BeatBlock Timeline: dropped asset not completed yet, using feature timeline temporarily path={} status={}",
+				asset.getPath(), asset.getStatus());
 			BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
 		} else {
+			timeline.setMetadata("awaitingAnalyzedBeatmap", droppedAudioKey);
+			LOGGER.info("BeatBlock Timeline: dropped asset pending analysis, waiting for auto-apply path={} status={}",
+				asset.getPath(), asset.getStatus());
 			requestDenseFeatureEnrichment(timeline, asset);
 		}
 
@@ -761,6 +774,51 @@ public final class TimelineRenderer {
 		if (BeatBlock.timelineEditor != null) {
 			BeatBlock.timelineEditor.syncClockDuration();
 		}
+	}
+
+	private void tryAutoApplyAnalyzedBeatmap(Timeline timeline) {
+		if (timeline == null || BeatBlock.audioAnalysisEngine == null) return;
+		String timelineAudioKey = getTimelineAudioPathKey(timeline);
+		if (timelineAudioKey == null) return;
+
+		Object awaitingRaw = timeline.getMetadata("awaitingAnalyzedBeatmap");
+		String awaitingKey = awaitingRaw != null ? normalizeAudioPath(awaitingRaw.toString()) : null;
+		if (!Objects.equals(awaitingKey, timelineAudioKey)) return;
+
+		AudioAsset matched = findAssetByAudioKey(timelineAudioKey);
+		if (matched == null || matched.getBeatmap() == null) return;
+
+		String signature = buildBeatmapApplySignature(timelineAudioKey, matched.getBeatmap());
+		if (Objects.equals(signature, lastAutoAppliedBeatmapSignature)) return;
+
+		BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, matched.getBeatmap());
+		requestDenseFeatureEnrichment(timeline, matched);
+		BeatBlockRuntime.getInstance().loadBeatmap(matched.getBeatmap());
+		bindStemAudioIfDemucs(matched.getBeatmap());
+		timeline.setMetadata("awaitingAnalyzedBeatmap", null);
+		lastAutoAppliedBeatmapSignature = signature;
+		if (BeatBlock.timelineEditor != null) {
+			BeatBlock.timelineEditor.syncClockDuration();
+		}
+		LOGGER.info("BeatBlock Timeline: auto-applied analyzed beatmap path={}", matched.getPath());
+	}
+
+	private AudioAsset findAssetByAudioKey(String audioKey) {
+		if (audioKey == null) return null;
+		for (AudioAsset asset : AudioAssetManager.getInstance().getAssets()) {
+			String key = buildAudioAssetKey(asset);
+			if (Objects.equals(key, audioKey)) {
+				return asset;
+			}
+		}
+		return null;
+	}
+
+	private String buildBeatmapApplySignature(String audioKey, com.beatblock.audio.beatmap.Beatmap beatmap) {
+		if (beatmap == null) return audioKey + "|none";
+		String beatmapPath = beatmap.beatmapFilePath != null ? beatmap.beatmapFilePath.toString() : "";
+		String generatedAt = (beatmap.meta != null && beatmap.meta.generatedAt() != null) ? beatmap.meta.generatedAt() : "";
+		return audioKey + "|" + beatmapPath + "|" + generatedAt;
 	}
 
 	private String buildAudioAssetKey(AudioAsset asset) {

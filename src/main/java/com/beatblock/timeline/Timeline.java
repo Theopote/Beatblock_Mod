@@ -57,7 +57,14 @@ public class Timeline {
 		return null;
 	}
 	public Map<String, Object> getMetadata() { return Collections.unmodifiableMap(metadata); }
-	public void setMetadata(String key, Object value) { if (key != null) metadata.put(key, value); }
+	public void setMetadata(String key, Object value) {
+		if (key == null) return;
+		if (value == null) {
+			metadata.remove(key);
+			return;
+		}
+		metadata.put(key, value);
+	}
 	public Object getMetadata(String key) { return metadata.get(key); }
 	public List<TimelineMarker> getMarkers() { return markerView; }
 	/** BPM（由音频分析填入 metadata["bpm"]），未设置时返回 0。 */
