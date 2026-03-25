@@ -123,8 +123,15 @@ public final class TimelineToolbar {
 		// 使用 BeatBlock.ttf（Icons），避免 ▶⏸■ 等未进 ImGui 图集显示为 ?
 		if (playing) {
 			if (ImGui.button(Icons.Play.PAUSE + "##tlPause", tBtn, tBtn)) {
+				// 暂停主音乐播放器
+				if (BeatBlock.musicPlayer != null) {
+					BeatBlock.musicPlayer.pause();
+				}
+				// 同时暂停任何其他活跃播放器
 				com.beatblock.timeline.IAudioPlayer ap = BeatBlock.getActiveAudioPlayer();
-				if (ap != null) ap.pause();
+				if (ap != null && ap != BeatBlock.musicPlayer) {
+					ap.pause();
+				}
 				// 同时暂停时间线时钟
 				if (BeatBlock.timelineEditor != null) {
 					BeatBlock.timelineEditor.getClock().pause();
@@ -134,12 +141,17 @@ public final class TimelineToolbar {
 		} else {
 			if (ImGui.button(Icons.Play.PLAY + "##tlPlay", tBtn, tBtn)) {
 				ensureMusicDurationForPlayback(editor);
-				com.beatblock.timeline.IAudioPlayer ap = BeatBlock.getActiveAudioPlayer();
-				if (ap != null) {
-					ap.play();
-					// 启动驱动以便每帧推进时间，播放头随音乐移动
-					if (!BeatBlockClientDriver.isDriving()) BeatBlockClientDriver.startDriving();
+				// 始终启动主音楽播放器（作为同步时钟源）
+				if (BeatBlock.musicPlayer != null) {
+					BeatBlock.musicPlayer.play();
 				}
+				// 同时启动任何活跃的音频播放器（如果有茎混音，也会由 BeatBlockClientDriver 同步）
+				com.beatblock.timeline.IAudioPlayer ap = BeatBlock.getActiveAudioPlayer();
+				if (ap != null && ap != BeatBlock.musicPlayer) {
+					ap.play();
+				}
+				// 启动驱动以便每帧推进时间，播放头随音乐移动
+				if (!BeatBlockClientDriver.isDriving()) BeatBlockClientDriver.startDriving();
 				// 同时启动时间线时钟
 				if (BeatBlock.timelineEditor != null) {
 					BeatBlock.timelineEditor.getClock().play();
@@ -149,8 +161,15 @@ public final class TimelineToolbar {
 		}
 		nextItemInGroup();
 		if (ImGui.button(Icons.Play.STOP + "##tlStop", tBtn, tBtn)) {
+			// 停止主音乐播放器
+			if (BeatBlock.musicPlayer != null) {
+				BeatBlock.musicPlayer.stop();
+			}
+			// 同时停止任何其他活跃播放器
 			com.beatblock.timeline.IAudioPlayer ap = BeatBlock.getActiveAudioPlayer();
-			if (ap != null) ap.stop();
+			if (ap != null && ap != BeatBlock.musicPlayer) {
+				ap.stop();
+			}
 			// 同时暂停和重置时间线时钟
 			if (BeatBlock.timelineEditor != null) {
 				BeatBlock.timelineEditor.getClock().pause();

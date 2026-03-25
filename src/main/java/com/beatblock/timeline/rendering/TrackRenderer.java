@@ -220,13 +220,17 @@ public final class TrackRenderer {
 			}
 
 			// ── 可见按钮 ────────────────────────────────────────────
-			boolean vis = true;
+			boolean vis = listState.isVisible(rowIndex);
+			boolean visHighlighted = vis;
 			ImGui.setCursorScreenPos(baseX + visX, rowOriginScreenY);
-			ImGui.beginDisabled();
-			ImGui.button((vis ? Icons.EYE : Icons.Action.HIDDEN) + "##vis" + rowIndex, iconBtn, iconBtn);
-			ImGui.endDisabled();
+			if (visHighlighted) ImGui.pushStyleColor(ImGuiCol.Text, 0.70f, 0.86f, 0.78f, 1f);
+			if (ImGui.button((vis ? Icons.EYE : Icons.Action.HIDDEN) + "##vis" + rowIndex, iconBtn, iconBtn)) {
+				listState.toggleVisible(rowIndex);
+				vis = listState.isVisible(rowIndex);
+			}
+			if (visHighlighted) ImGui.popStyleColor();
 			if (ImGui.isItemHovered()) {
-				visTooltip = "轨道可见性暂未接入时间线；后续与 Minecraft 场景交互时实现";
+				visTooltip = vis ? "当前可见 (点击隐藏波形/轨道)" : "当前隐藏 (点击显示波形/轨道)";
 			}
 
 			boolean lock = listState.isLocked(rowIndex);

@@ -219,8 +219,6 @@ public final class TimelineRenderer {
 			if (slot < 0 || slot >= currentAudioSubTracks.size()) return;
 			TrackDefinition td = currentAudioSubTracks.get(slot);
 			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout);
-			// 静音/独奏：有效静音时跳过内容渲染（保留拖放目标区）
-			if (isAudioRowEffectivelyMuted(trackListState, rowIndex)) return;
 			ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
 				rowScreenY + rowHeight, true);
 			renderAudioSubTrack(td, rowY, rowHeight, timeline, layout, viewState);
@@ -911,7 +909,7 @@ public final class TimelineRenderer {
 			if (!mapsToStemAudioControl(key, stemName)) continue;
 			hasMappedRow = true;
 			int rowIndex = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
-			if (!isStemControlRowEffectivelyMuted(trackListState, rowIndex)) {
+			if (!isPlayableAudioRowEffectivelyMuted(trackListState, rowIndex)) {
 				anyAudibleMappedRow = true;
 			}
 		}
@@ -929,42 +927,30 @@ public final class TimelineRenderer {
 		return false;
 	}
 
-	private boolean isStemControlRowEffectivelyMuted(TimelineTrackListState trackListState, int rowIndex) {
-		if (trackListState == null) return false;
-		if (trackListState.isMuted(rowIndex)) return true;
-
-		boolean groupSoloed = trackListState.isSoloed(TimelineTrackMeta.ROW_AUDIO_GROUP);
-		boolean anyStemControlSolo = groupSoloed;
-		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
-			TrackDefinition td = currentAudioSubTracks.get(slot);
-			if (!td.getKey().startsWith("stem_wf_")) continue;
-			int candidateRowIndex = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
-			if (trackListState.isSoloed(candidateRowIndex)) {
-				anyStemControlSolo = true;
-				break;
-			}
-		}
-
-		if (!anyStemControlSolo) return false;
-		if (groupSoloed) return false;
-		return !trackListState.isSoloed(rowIndex);
+	private boolean isPlayableAudioControlRow(int rowIndex) {
+		if (!TimelineTrackMeta.isAudioSubRow(rowIndex)) return false;
+		int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
+		if (slot < 0 || slot >= currentAudioSubTracks.size()) return false;
+		String key = currentAudioSubTracks.get(slot).getKey();
+		return "waveform".equals(key) || (key != null && key.startsWith("stem_wf_"));
 	}
 
-	private boolean isAudioRowEffectivelyMuted(TimelineTrackListState trackListState, int rowIndex) {
+	private boolean isPlayableAudioRowEffectivelyMuted(TimelineTrackListState trackListState, int rowIndex) {
 		if (trackListState == null) return false;
 		if (trackListState.isMuted(rowIndex)) return true;
 
 		boolean groupSoloed = trackListState.isSoloed(TimelineTrackMeta.ROW_AUDIO_GROUP);
-		boolean anyAudioSolo = groupSoloed;
-		int lastAudioRow = TimelineTrackMeta.ROW_AUDIO_SUBS_START + currentAudioSubTracks.size() - 1;
-		for (int r = TimelineTrackMeta.ROW_AUDIO_SUBS_START; r <= lastAudioRow; r++) {
-			if (trackListState.isSoloed(r)) {
-				anyAudioSolo = true;
+		boolean anyPlayableSolo = groupSoloed;
+		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
+			int candidateRowIndex = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
+			if (!isPlayableAudioControlRow(candidateRowIndex)) continue;
+			if (trackListState.isSoloed(candidateRowIndex)) {
+				anyPlayableSolo = true;
 				break;
 			}
 		}
 
-		if (!anyAudioSolo) return false;
+		if (!anyPlayableSolo) return false;
 		if (groupSoloed) return false;
 		return !trackListState.isSoloed(rowIndex);
 	}
@@ -972,18 +958,12 @@ public final class TimelineRenderer {
 	private void syncPrimaryPlayerMuteState(TimelineTrackListState trackListState) {
 		if (BeatBlock.musicPlayer == null) return;
 
-		// StemMixer 激活时，主播放器保持静音，避免潜在双路叠加。
-		if (BeatBlock.stemMixer != null && BeatBlock.stemMixer.hasStems()) {
-			BeatBlock.musicPlayer.setMuted(true);
-			return;
-		}
-
 		boolean anyAudioRowAudible = false;
 		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
 			TrackDefinition td = currentAudioSubTracks.get(slot);
 			if (!"waveform".equals(td.getKey())) continue;
 			int rowIndex = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
-			if (!isMainMixRowEffectivelyMuted(trackListState, rowIndex)) {
+			if (!isPlayableAudioRowEffectivelyMuted(trackListState, rowIndex)) {
 				anyAudioRowAudible = true;
 				break;
 			}
@@ -993,21 +973,9 @@ public final class TimelineRenderer {
 		BeatBlock.musicPlayer.setMuted(!anyAudioRowAudible);
 	}
 
-	private boolean isMainMixRowEffectivelyMuted(TimelineTrackListState trackListState, int rowIndex) {
-		if (trackListState == null) return false;
-		if (trackListState.isMuted(rowIndex)) return true;
-
-		boolean groupSoloed = trackListState.isSoloed(TimelineTrackMeta.ROW_AUDIO_GROUP);
-		boolean rowSoloed = trackListState.isSoloed(rowIndex);
-		boolean anyMainMixSolo = groupSoloed || rowSoloed;
-		if (!anyMainMixSolo) return false;
-		if (groupSoloed) return false;
-		return !rowSoloed;
-	}
-
 	/**
 	 * 若 beatmap 为 Demucs 茎分离模式，将各茎 WAV 加载进 {@link BeatBlock#stemMixer}，
-	 * 同时停止 musicPlayer（避免双轨输出）。若非 Demucs 模式则清空 stemMixer。
+	 * 若非 Demucs 模式则清空 stemMixer。
 	 */
 	private void bindStemAudioIfDemucs(com.beatblock.audio.beatmap.Beatmap beatmap) {
 		if (BeatBlock.stemMixer == null) return;
@@ -1037,10 +1005,6 @@ public final class TimelineRenderer {
 		}
 
 		if (anyLoaded) {
-			// 停止 MusicPlayer 以避免与 StemMixer 重叠输出
-			if (BeatBlock.musicPlayer != null) {
-				BeatBlock.musicPlayer.stop();
-			}
 			LOGGER.info("BeatBlock TimelineRenderer: StemMixer loaded {} stems", loadedCount);
 		} else {
 			LOGGER.warn("BeatBlock TimelineRenderer: stem metadata present but no stems were loaded successfully");

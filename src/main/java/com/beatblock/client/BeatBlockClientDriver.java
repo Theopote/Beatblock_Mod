@@ -33,6 +33,7 @@ public final class BeatBlockClientDriver {
 		lastTickNanos = now;
 
 		BeatBlock.musicPlayer.tick(delta);
+		syncStemMixerToMusicPlayer();
 		double currentTime = BeatBlock.musicPlayer.getCurrentTimeSeconds();
 
 		BeatBlockRuntime runtime = BeatBlockRuntime.getInstance();
@@ -54,6 +55,26 @@ public final class BeatBlockClientDriver {
 			.orElse(mc.player != null ? new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()) : Vec3d.ZERO);
 		BeatBlock.transformUpdater.setBasePosition(base);
 		BeatBlock.transformUpdater.tick(BeatBlock.animationManager.getActiveInstances(), currentTime);
+	}
+
+	private static void syncStemMixerToMusicPlayer() {
+		if (BeatBlock.stemMixer == null || !BeatBlock.stemMixer.hasStems()) return;
+		boolean musicPlaying = BeatBlock.musicPlayer.isPlaying();
+		double musicTime = BeatBlock.musicPlayer.getCurrentTimeSeconds();
+		double stemTime = BeatBlock.stemMixer.getCurrentTimeSeconds();
+
+		if (Math.abs(stemTime - musicTime) > 0.05) {
+			BeatBlock.stemMixer.setCurrentTimeSeconds(musicTime);
+		}
+
+		if (musicPlaying) {
+			if (!BeatBlock.stemMixer.isPlaying()) {
+				BeatBlock.stemMixer.setCurrentTimeSeconds(musicTime);
+				BeatBlock.stemMixer.play();
+			}
+		} else if (BeatBlock.stemMixer.isPlaying()) {
+			BeatBlock.stemMixer.pause();
+		}
 	}
 
 	public static void startDriving() {
@@ -128,6 +149,9 @@ public final class BeatBlockClientDriver {
 		BeatBlock.beatScheduler.reset();
 		BeatBlock.musicPlayer.setDurationSeconds(beatmap.getDurationSeconds());
 		BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
+		if (BeatBlock.stemMixer != null && BeatBlock.stemMixer.hasStems()) {
+			BeatBlock.stemMixer.setCurrentTimeSeconds(0);
+		}
 		BeatBlock.musicPlayer.play();
 		if (BeatBlock.stageManager.getCurrentStage().isEmpty()) {
 			MinecraftClient mc = MinecraftClient.getInstance();
@@ -147,6 +171,9 @@ public final class BeatBlockClientDriver {
 
 	public static void stopPlayback() {
 		BeatBlock.musicPlayer.pause();
+		if (BeatBlock.stemMixer != null && BeatBlock.stemMixer.hasStems()) {
+			BeatBlock.stemMixer.pause();
+		}
 		BeatBlockRuntime.getInstance().stop();
 		BeatBlock.animationManager.clear();
 		stopDriving();
