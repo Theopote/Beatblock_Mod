@@ -29,7 +29,7 @@ public final class TrackRenderer {
 	 */
 	private static final float LEFT_INSET = 0f;
 	private static final float TEXT_INSET = 4f;
-	private static final String[] TYPE_LABELS = {"音频", "动画", "摄像机", "事件"};
+	private static final String[] TYPE_LABELS = {"音频", "节奏特征", "动画", "摄像机", "事件"};
 
 	private static final int MICRO_SEP_COLOR = 0x55_66_66_66; // ABGR
 	private static final float STATE_ACTIVE_GREEN_R = 0.20f;
@@ -55,7 +55,8 @@ public final class TrackRenderer {
 		TimelineTrackListState listState,
 		float trackHeaderLeft,
 		float trackHeaderWidth,
-		boolean showMuteSolo
+		boolean showMuteSolo,
+		String typeLabel
 	) {
 		ImGui.setCursorPosY(rowY);
 		float baseX = trackHeaderLeft;
@@ -124,9 +125,11 @@ public final class TrackRenderer {
 		}
 
 		// —— 类型：左缘对齐（上下一致）—— //
+		String resolvedTypeLabel = (typeLabel != null && !typeLabel.isBlank())
+			? typeLabel : TimelineTrackMeta.getCategoryTypeLabel(rowIndex);
 		ImGui.setCursorScreenPos(baseX + typeStartX + TEXT_INSET, rowOriginScreenY + textOffsetY);
 		ImGui.pushStyleColor(ImGuiCol.Text, 0.55f, 0.52f, 0.62f, 1f);
-		ImGui.text(TimelineTrackMeta.getCategoryTypeLabel(rowIndex));
+		ImGui.text(resolvedTypeLabel);
 		ImGui.popStyleColor();
 
 		boolean isEditing = listState != null && listState.getEditingRowIndex() == rowIndex;
@@ -164,8 +167,8 @@ public final class TrackRenderer {
 			ImGui.pushClipRect(clipX1, clipY1, clipX1 + nameTextW, clipY1 + rowH, true);
 
 			ImGui.setCursorScreenPos(clipX1, rowOriginScreenY + textOffsetY);
-			boolean isAudioControlLane = displayName != null && (displayName.contains("主混音") || displayName.contains("音频"));
-			boolean isReferenceLane = displayName != null && displayName.contains("参考");
+			boolean isAudioControlLane = "音频".equals(resolvedTypeLabel);
+			boolean isReferenceLane = "节奏特征".equals(resolvedTypeLabel);
 			if (isGroup) {
 				ImGui.pushStyleColor(ImGuiCol.Text, 0.9f, 0.85f, 0.7f, 1f);
 			} else if (isAudioControlLane) {

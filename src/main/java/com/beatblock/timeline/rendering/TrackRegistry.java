@@ -140,11 +140,11 @@ public final class TrackRegistry {
 			}
 		} else {
 			// ── 遗留回退：生成 low/mid/high 三条轨道 ────────────────
-			result.add(new TrackDefinition("low",  "低频 参考", TrackDefinition.VisualType.IMPULSE,
+			result.add(new TrackDefinition("low",  "低频", TrackDefinition.VisualType.IMPULSE,
 				TrackDefinition.GROUP_RHYTHM, COLOR_LOW));
-			result.add(new TrackDefinition("mid",  "中频 参考", TrackDefinition.VisualType.IMPULSE,
+			result.add(new TrackDefinition("mid",  "中频", TrackDefinition.VisualType.IMPULSE,
 				TrackDefinition.GROUP_RHYTHM, COLOR_MID));
-			result.add(new TrackDefinition("high", "高频 参考", TrackDefinition.VisualType.IMPULSE,
+			result.add(new TrackDefinition("high", "高频", TrackDefinition.VisualType.IMPULSE,
 				TrackDefinition.GROUP_RHYTHM, COLOR_HIGH));
 		}
 
@@ -171,11 +171,11 @@ public final class TrackRegistry {
 	}
 
 	private static String audioDisplayName(String key) {
-		return localizedName(key) + " 音频";
+		return localizedName(key);
 	}
 
 	private static String referenceDisplayName(String key) {
-		return localizedName(key) + " 参考";
+		return localizedName(key);
 	}
 
 	/** 根据 key 选取预设颜色；extFallbackIndex 用于扩展 key 时循环色板。 */

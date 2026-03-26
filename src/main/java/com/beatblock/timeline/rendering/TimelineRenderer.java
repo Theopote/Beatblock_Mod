@@ -164,8 +164,9 @@ public final class TimelineRenderer {
 			boolean isGroup = TimelineTrackMeta.isGroupRow(i);
 			String displayName = resolveDisplayName(i, trackListState);
 			boolean canControlPlayback = isPlaybackControlRow(i);
+			String rowTypeLabel = resolveTypeLabel(i);
 			trackRenderer.drawTrackLabel(rowY, rowHeight, i, displayName, isGroup, trackListState,
-				layout.trackHeaderLeft, layout.trackHeaderWidth, canControlPlayback);
+				layout.trackHeaderLeft, layout.trackHeaderWidth, canControlPlayback, rowTypeLabel);
 			drawRowContent(i, rowY, timeline, viewState, selectionState, layout, trackListState);
 		}
 
@@ -328,12 +329,32 @@ public final class TimelineRenderer {
 			Object labelObj = timeline.getMetadata("clipLabel_" + clip.getId());
 			if (labelObj != null && x1 - x0 > 16f) {
 				float textY = y0 + Math.max(2f, (y1 - y0 - 13f) / 2f);
-				ImGui.getWindowDrawList().addText(x0 + 5f, textY, 0xFF_FF_FF_BB, labelObj.toString());
+				float maxTextWidth = Math.max(0f, x1 - x0 - 10f);
+				String label = fitLabelWithEllipsis(labelObj.toString(), maxTextWidth);
+				if (!label.isEmpty()) {
+					ImGui.getWindowDrawList().addText(x0 + 5f, textY, 0xFF_FF_FF_BB, label);
+				}
 			}
 		}
 
 
 		ImGui.setCursorPosY(rowY + rowHeight);
+	}
+
+	/** 将文本裁剪到指定宽度，超出时追加省略号。 */
+	private static String fitLabelWithEllipsis(String raw, float maxWidth) {
+		if (raw == null || raw.isBlank() || maxWidth <= 4f) return "";
+		if (ImGui.calcTextSize(raw).x <= maxWidth) return raw;
+		final String ellipsis = "...";
+		float ellipsisW = ImGui.calcTextSize(ellipsis).x;
+		if (ellipsisW >= maxWidth) return "";
+		int keep = raw.length();
+		while (keep > 0) {
+			String candidate = raw.substring(0, keep) + ellipsis;
+			if (ImGui.calcTextSize(candidate).x <= maxWidth) return candidate;
+			keep--;
+		}
+		return "";
 	}
 
 	/** 遗留频段回退：只在 featureTracks 为空且遗留列表有数据时触发。 */
@@ -373,6 +394,27 @@ public final class TimelineRenderer {
 			}
 		}
 		return trackListState != null ? trackListState.getDisplayName(rowIndex) : TimelineTrackMeta.getDefaultName(rowIndex);
+	}
+
+	/**
+	 * 解析行类型标签：Demucs 茎波形轨显示「音频」，librosa 特征轨显示「节奏特征」，
+	 * 音频组行显示「音频」，其他行由 TimelineTrackMeta.getCategoryTypeLabel 决定。
+	 */
+	private String resolveTypeLabel(int rowIndex) {
+		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) return "音频";
+		if (TimelineTrackMeta.isAudioSubRow(rowIndex)) {
+			int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
+			if (slot >= 0 && slot < currentAudioSubTracks.size()) {
+				String key = currentAudioSubTracks.get(slot).getKey();
+				// Demucs 茎波形行（key = "waveform" 或 "stem_wf_*"）→「音频」
+				if ("waveform".equals(key) || (key != null && key.startsWith("stem_wf_"))) {
+					return "音频";
+				}
+				// librosa 特征轨 → 「节奏特征」
+				return "节奏特征";
+			}
+		}
+		return TimelineTrackMeta.getCategoryTypeLabel(rowIndex);
 	}
 
 	/**
@@ -1193,9 +1235,7 @@ public final class TimelineRenderer {
 			start = Math.max(start, c.getEndTimeSeconds());
 		}
 
-		double duration = asset.getDurationSeconds();
-		if (duration <= 0) duration = timeline.getDurationSeconds();
-		duration = Math.max(0.1, duration);
+		double duration = resolveAssetDurationSeconds(asset, timeline);
 		double end = start + duration;
 
 		Clip rootClip = TimelineOperations.addClip(audioTrack, start, end);
@@ -1208,7 +1248,23 @@ public final class TimelineRenderer {
 			int dot = fn.lastIndexOf('.');
 			if (dot > 0) fn = fn.substring(0, dot);
 			timeline.setMetadata("clipLabel_" + rootClip.getId(), fn);
+			// 多段音频播放：为每个片段绑定独立音频路径
+			timeline.setMetadata("clipAudioPath_" + rootClip.getId(), asset.getPath().toAbsolutePath().normalize().toString());
 		}
+	}
+
+	private double resolveAssetDurationSeconds(AudioAsset asset, Timeline timeline) {
+		double duration = asset != null ? asset.getDurationSeconds() : 0.0;
+		if (duration > 0) return duration;
+		if (asset != null && asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
+			double beatmapDuration = asset.getBeatmap().meta.durationMs() / 1000.0;
+			if (beatmapDuration > 0) return beatmapDuration;
+		}
+		if (asset != null && asset.getFeatureTimeline() != null && asset.getFeatureTimeline().getDurationSeconds() > 0) {
+			return asset.getFeatureTimeline().getDurationSeconds();
+		}
+		double fallback = timeline != null ? timeline.getDurationSeconds() : 0.0;
+		return Math.max(0.1, fallback > 0 ? fallback : 1.0);
 	}
 
 	/**

@@ -1,5 +1,6 @@
 package com.beatblock.timeline;
 
+import com.beatblock.BeatBlock;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.interaction.TimelineInteraction;
@@ -163,27 +164,30 @@ public final class TimelineEditor {
 		if (timeline == null) return;
 		state.syncClockDuration();
 		if (audioPlayer != null && audioPlayer.isPlaying()) {
-			double t = audioPlayer.getCurrentTimeSeconds();
-			double dur = timeline.getDurationSeconds();
-			if (toolbarState.isLoop()) {
-				double loopIn = Math.max(0, toolbarState.getLoopInSeconds());
-				double loopOut = toolbarState.hasLoopRange() ? toolbarState.getLoopOutSeconds() : dur;
-				if (loopOut <= loopIn) loopOut = dur;
-				if (loopOut > 0) {
-					if (t >= loopOut) {
-						audioPlayer.setCurrentTimeSeconds(loopIn);
-						state.getClock().seek(loopIn);
-					} else if (t < loopIn) {
-						audioPlayer.setCurrentTimeSeconds(loopIn);
-						state.getClock().seek(loopIn);
+			boolean segmentedHandled = syncClockFromSegmentedAudioPlayback();
+			if (!segmentedHandled) {
+				double t = audioPlayer.getCurrentTimeSeconds();
+				double dur = timeline.getDurationSeconds();
+				if (toolbarState.isLoop()) {
+					double loopIn = Math.max(0, toolbarState.getLoopInSeconds());
+					double loopOut = toolbarState.hasLoopRange() ? toolbarState.getLoopOutSeconds() : dur;
+					if (loopOut <= loopIn) loopOut = dur;
+					if (loopOut > 0) {
+						if (t >= loopOut) {
+							audioPlayer.setCurrentTimeSeconds(loopIn);
+							state.getClock().seek(loopIn);
+						} else if (t < loopIn) {
+							audioPlayer.setCurrentTimeSeconds(loopIn);
+							state.getClock().seek(loopIn);
+						} else {
+							state.getClock().setCurrentTimeSeconds(t);
+						}
 					} else {
 						state.getClock().setCurrentTimeSeconds(t);
 					}
 				} else {
 					state.getClock().setCurrentTimeSeconds(t);
 				}
-			} else {
-				state.getClock().setCurrentTimeSeconds(t);
 			}
 		}
 		TimelineLayout layout = requireFrameLayout();
@@ -195,6 +199,58 @@ public final class TimelineEditor {
 			viewState.fitToDuration(duration, layout.contentWidth);
 		}
 		renderer.renderRulerRow(layout, viewState, timeline.getBpm(), toolbarState, timeline);
+	}
+
+	private boolean syncClockFromSegmentedAudioPlayback() {
+		if (timeline == null || BeatBlock.musicPlayer == null || audioPlayer != BeatBlock.musicPlayer) return false;
+		Track audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		if (audioTrack == null || audioTrack.getClips().isEmpty()) return false;
+
+		double clockTime = state.getClock().getCurrentTimeSeconds();
+		Clip active = null;
+		for (Clip c : audioTrack.getClips()) {
+			if (c == null) continue;
+			if (clockTime >= c.getStartTimeSeconds() && clockTime <= c.getEndTimeSeconds()) {
+				active = c;
+				break;
+			}
+		}
+		if (active == null) return false;
+
+		Object pathObj = timeline.getMetadata("clipAudioPath_" + active.getId());
+		if (pathObj == null) return false;
+		String targetPath = pathObj.toString();
+		String loadedPath = BeatBlock.musicPlayer.getLoadedAudioPath();
+		if (loadedPath == null || !loadedPath.equals(targetPath)) {
+			BeatBlock.musicPlayer.loadAudio(targetPath);
+			BeatBlock.musicPlayer.play();
+			double local = Math.max(0.0, Math.min(clockTime - active.getStartTimeSeconds(), active.getDurationSeconds()));
+			BeatBlock.musicPlayer.setCurrentTimeSeconds(local);
+		}
+
+		double globalTime = active.getStartTimeSeconds() + BeatBlock.musicPlayer.getCurrentTimeSeconds();
+		if (globalTime >= active.getEndTimeSeconds()) {
+			Clip next = null;
+			for (Clip c : audioTrack.getClips()) {
+				if (c != null && c.getStartTimeSeconds() >= active.getEndTimeSeconds()) {
+					if (next == null || c.getStartTimeSeconds() < next.getStartTimeSeconds()) next = c;
+				}
+			}
+			if (next != null) {
+				Object nextPathObj = timeline.getMetadata("clipAudioPath_" + next.getId());
+				if (nextPathObj != null) {
+					String nextPath = nextPathObj.toString();
+					if (!nextPath.equals(BeatBlock.musicPlayer.getLoadedAudioPath())) {
+						BeatBlock.musicPlayer.loadAudio(nextPath);
+					}
+					BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
+					BeatBlock.musicPlayer.play();
+					globalTime = next.getStartTimeSeconds();
+				}
+			}
+		}
+		state.getClock().setCurrentTimeSeconds(globalTime);
+		return true;
 	}
 
 	/**

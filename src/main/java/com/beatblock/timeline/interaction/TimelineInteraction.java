@@ -1,6 +1,9 @@
 package com.beatblock.timeline.interaction;
 
+import com.beatblock.BeatBlock;
 import com.beatblock.timeline.Clip;
+import com.beatblock.timeline.FeatureEvent;
+import com.beatblock.timeline.FeatureTrack;
 import com.beatblock.timeline.IAudioPlayer;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
@@ -103,6 +106,8 @@ public final class TimelineInteraction {
 	private double dragClipInitialMouseTime;
 	/** 其他轨道上需要联动的事件：eventId → 拖拽开始时的 timeSeconds */
 	private final Map<String, Double> dragLinkedEventOriginalTimes = new HashMap<>();
+	/** 拖拽开始时特征轨道快照：key → [{timeSeconds, energy}, ...] */
+	private final Map<String, List<double[]>> dragFeatureEventSnapshot = new HashMap<>();
 
 	public void setAudioPlayer(IAudioPlayer audioPlayer) {
 		this.audioPlayer = audioPlayer;
@@ -325,6 +330,7 @@ public final class TimelineInteraction {
 					selectionState.selectClip(interactionState.getActiveClipId());
 				}
 				dragLinkedEventOriginalTimes.clear();
+				dragFeatureEventSnapshot.clear();
 			}
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT && interactionState.getActiveEventId() != null) {
 				float dx = mx - interactionState.getMouseStartX();
@@ -379,6 +385,8 @@ public final class TimelineInteraction {
 					interactionState.getActiveClipId(), mouseTime, dragClipInitialMouseTime,
 					dragClipInitialStart, clipDuration, duration, toolbarState, viewState);
 				double actualDelta = newStart - dragClipInitialStart;
+				// 允许片段右移时自动扩展时间线总时长。
+				timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), newStart + clipDuration));
 				// 联动：将其他轨道上快照的事件按同样 delta 移动
 				String[] syncTrackIds = {
 					Timeline.TRACK_ID_ANIMATION_BLOCK, Timeline.TRACK_ID_ANIMATION_AUTO,
@@ -398,6 +406,18 @@ public final class TimelineInteraction {
 						}
 					}
 					if (dirtied) timeline.markAnimationEventsDirty(sid);
+				}
+				// 联动：特征轨道事件跟随片段移动
+				if (!dragFeatureEventSnapshot.isEmpty()) {
+					for (Map.Entry<String, FeatureTrack> entry : timeline.getFeatureTracks().entrySet()) {
+						List<double[]> snap = dragFeatureEventSnapshot.get(entry.getKey());
+						if (snap == null) continue;
+						FeatureTrack ft = entry.getValue();
+						ft.clear();
+						for (double[] pair : snap) {
+							ft.addEvent(new FeatureEvent(Math.max(0.0, pair[0] + actualDelta), (float) pair[1]));
+						}
+					}
 				}
 				return;
 			}
@@ -491,6 +511,7 @@ public final class TimelineInteraction {
 						dragClipInitialMouseTime = viewState.screenToTime(mx - layout.contentLeft);
 						// 快照其他轨道上位于该片段时间范围内的所有事件的原始时间
 						dragLinkedEventOriginalTimes.clear();
+						dragFeatureEventSnapshot.clear();
 						double cs = dragClipInitialStart;
 						double ce = dragClipInitialEnd;
 						String[] syncTrackIds = {
@@ -508,6 +529,13 @@ public final class TimelineInteraction {
 									}
 								}
 							}
+						}
+						// 快照特征轨道事件（第一次拖拽时登记）
+						for (Map.Entry<String, FeatureTrack> entry : timeline.getFeatureTracks().entrySet()) {
+							List<FeatureEvent> evts = entry.getValue().getEvents();
+							List<double[]> snap = new ArrayList<>(evts.size());
+							for (FeatureEvent fe : evts) snap.add(new double[]{fe.getTimeSeconds(), fe.getEnergy()});
+							dragFeatureEventSnapshot.put(entry.getKey(), snap);
 						}
 						if (!ctrl) selectionState.clearClips();
 						selectionState.selectClip(hit.getClipId());
@@ -716,9 +744,51 @@ public final class TimelineInteraction {
 	/** 拖动/点击标尺或播放头时，同时更新时钟和音乐进度 */
 	private void seekClockAndMusic(TimelineClock clock, double timeSeconds) {
 		clock.seek(timeSeconds);
-		if (audioPlayer != null) {
+		if (audioPlayer == null) return;
+
+		Timeline timeline = BeatBlock.timeline;
+		if (timeline == null || BeatBlock.musicPlayer == null || audioPlayer != BeatBlock.musicPlayer) {
 			audioPlayer.setCurrentTimeSeconds(clock.getCurrentTimeSeconds());
+			return;
 		}
+
+		Track audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		if (audioTrack == null || audioTrack.getClips().isEmpty()) {
+			audioPlayer.setCurrentTimeSeconds(clock.getCurrentTimeSeconds());
+			return;
+		}
+
+		Clip targetClip = null;
+		double t = clock.getCurrentTimeSeconds();
+		for (Clip c : audioTrack.getClips()) {
+			if (c == null) continue;
+			if (t >= c.getStartTimeSeconds() && t <= c.getEndTimeSeconds()) {
+				targetClip = c;
+				break;
+			}
+		}
+		if (targetClip == null) {
+			audioPlayer.setCurrentTimeSeconds(t);
+			return;
+		}
+
+		Object pathObj = timeline.getMetadata("clipAudioPath_" + targetClip.getId());
+		if (pathObj != null) {
+			String path = pathObj.toString();
+			String loadedPath = BeatBlock.musicPlayer.getLoadedAudioPath();
+			if (loadedPath == null || !loadedPath.equals(path)) {
+				boolean wasPlaying = BeatBlock.musicPlayer.isPlaying();
+				BeatBlock.musicPlayer.loadAudio(path);
+				if (wasPlaying) BeatBlock.musicPlayer.play();
+			}
+			double localTime = Math.max(0.0,
+				Math.min(t - targetClip.getStartTimeSeconds(), targetClip.getDurationSeconds()));
+			audioPlayer.setCurrentTimeSeconds(localTime);
+			timeline.setMetadata("activeAudioClipId", targetClip.getId());
+			return;
+		}
+
+		audioPlayer.setCurrentTimeSeconds(t);
 	}
 
 	private static boolean isMouseOverLoopInHandle(
@@ -775,6 +845,8 @@ public final class TimelineInteraction {
 		boolean hasSelection = selectionState != null
 			&& (!selectionState.getSelectedEvents().isEmpty() || !selectionState.getSelectedClips().isEmpty());
 		boolean canDeleteSelection = hasDeletableSelection(timeline, selectionState, trackListState);
+		boolean canDeleteContextClip = canDeleteContextClip(timeline, trackListState);
+		boolean canDeleteAny = canDeleteSelection || canDeleteContextClip;
 		boolean hasClipboard = !clipboardEvents.isEmpty();
 		EventRef propertiesRef = resolvePropertiesEventRef(timeline, selectionState);
 		boolean canOpenProperties = propertiesRef != null && !isTrackLocked(trackListState, propertiesRef.track.getId());
@@ -784,8 +856,13 @@ public final class TimelineInteraction {
 		if (ImGui.menuItem("Paste", "Ctrl+V", false, hasClipboard)) {
 			pasteClipboardEvents(timeline, selectionState, contextTimeSeconds, trackListState);
 		}
-		String deleteLabel = hasSelection && !canDeleteSelection ? "Delete (Locked)" : "Delete";
-		if (ImGui.menuItem(deleteLabel, "Del", false, canDeleteSelection)) {
+		String deleteLabel = canDeleteAny ? "Delete" : "Delete (Locked)";
+		if (ImGui.menuItem(deleteLabel, "Del", false, canDeleteAny)) {
+			if (selectionState != null && !hasSelection && contextClipId != null) {
+				selectionState.clearEvents();
+				selectionState.clearClips();
+				selectionState.selectClip(contextClipId);
+			}
 			ImGui.openPopup(POPUP_DELETE_CONFIRM);
 		}
 		ImGui.separator();
@@ -806,7 +883,8 @@ public final class TimelineInteraction {
 		if (!ImGui.beginPopup(POPUP_DELETE_CONFIRM)) return;
 		int selectedEventCount = selectionState != null ? selectionState.getSelectedEvents().size() : 0;
 		int selectedClipCount = selectionState != null ? selectionState.getSelectedClips().size() : 0;
-		boolean canDelete = hasDeletableSelection(timeline, selectionState, trackListState);
+		boolean canDelete = hasDeletableSelection(timeline, selectionState, trackListState)
+			|| canDeleteContextClip(timeline, trackListState);
 
 		ImGui.text("Delete Confirmation");
 		ImGui.separator();
@@ -842,6 +920,20 @@ public final class TimelineInteraction {
 		if (audioTrack == null) return false;
 		for (String clipId : selectionState.getSelectedClips()) {
 			if (clipId != null && audioTrack.getClip(clipId) != null) return true;
+		}
+		return false;
+	}
+
+	private boolean canDeleteContextClip(Timeline timeline, TimelineTrackListState trackListState) {
+		if (timeline == null || contextClipId == null) return false;
+		if (contextTrackId != null && !contextTrackId.isBlank()) {
+			Track track = timeline.getTrack(contextTrackId);
+			return track != null && track.getClip(contextClipId) != null && !isTrackLocked(trackListState, contextTrackId);
+		}
+		for (Track track : timeline.getTracks()) {
+			if (track.getClip(contextClipId) != null) {
+				return !isTrackLocked(trackListState, track.getId());
+			}
 		}
 		return false;
 	}

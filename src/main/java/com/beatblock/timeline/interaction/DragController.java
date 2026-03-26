@@ -62,8 +62,8 @@ public final class DragController {
 
 		double rawNewStart = dragInitialClipStart + (mouseTimeSeconds - dragInitialMouseTime);
 		double snappedStart = applySnap(rawNewStart, null, timeline, toolbarState, viewState);
-		double clampedStart = Math.max(0.0,
-			Math.min(snappedStart, maxDuration > 0 ? maxDuration - clipDuration : rawNewStart));
+		// 允许向右继续拖动，时间线时长由调用方在拖拽中按需扩展。
+		double clampedStart = Math.max(0.0, snappedStart);
 
 		clip.setStartTimeSeconds(clampedStart);
 		clip.setEndTimeSeconds(clampedStart + clipDuration);
