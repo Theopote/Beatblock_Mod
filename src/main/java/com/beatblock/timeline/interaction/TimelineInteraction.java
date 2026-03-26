@@ -102,10 +102,19 @@ public final class TimelineInteraction {
 	}
 
 	private static final String[] INTERACTIVE_TRACK_IDS = {
+		Timeline.TRACK_ID_AUDIO,
 		Timeline.TRACK_ID_ANIMATION_BLOCK,
 		Timeline.TRACK_ID_ANIMATION_AUTO,
 		Timeline.TRACK_ID_CAMERA,
 		Timeline.TRACK_ID_GLOBAL
+	};
+
+	private static final int[] INTERACTIVE_ROW_INDICES = {
+		TimelineTrackMeta.ROW_AUDIO_GROUP,
+		TimelineTrackMeta.ROW_ANIM_BLOCK,
+		TimelineTrackMeta.ROW_ANIM_AUTO,
+		TimelineTrackMeta.ROW_CAMERA,
+		TimelineTrackMeta.ROW_GLOBAL_EVENT
 	};
 
 	public void update(
@@ -185,8 +194,8 @@ public final class TimelineInteraction {
 		boolean alt = ImGui.getIO().getKeyAlt();
 
 		if (ImGui.isKeyPressed(ImGuiKey.Delete)
-				&& hasDeletableSelectedEvents(timeline, selectionState, trackListState)) {
-			deleteSelectedEvents(timeline, selectionState, trackListState);
+				&& hasDeletableSelection(timeline, selectionState, trackListState)) {
+			deleteSelectedEntries(timeline, selectionState, trackListState);
 		}
 		if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.C)) {
 			copySelectedEvents(timeline, selectionState);
@@ -300,8 +309,8 @@ public final class TimelineInteraction {
 				float boxMaxX = selectionBox.getMaxX();
 				float boxMinY = selectionBox.getMinY();
 				float boxMaxY = selectionBox.getMaxY();
-				for (int i = 0; i < layout.getInteractiveRowCount() && i < INTERACTIVE_TRACK_IDS.length; i++) {
-					int logicalRow = TimelineLayout.INTERACTIVE_ROW_INDICES[i];
+				for (int i = 0; i < INTERACTIVE_ROW_INDICES.length && i < INTERACTIVE_TRACK_IDS.length; i++) {
+					int logicalRow = INTERACTIVE_ROW_INDICES[i];
 					if (!layout.isRowVisible(logicalRow)) continue;
 					float rowTopY = layout.getRowScreenY(logicalRow);
 					float rowBotY = rowTopY + layout.getRowHeight(logicalRow);
@@ -396,8 +405,8 @@ public final class TimelineInteraction {
 				seekClockAndMusic(clock, Math.max(0, Math.min(t, duration)));
 				return;
 			}
-			for (int i = 0; i < layout.getInteractiveRowCount() && i < INTERACTIVE_TRACK_IDS.length; i++) {
-				int logicalRow = TimelineLayout.INTERACTIVE_ROW_INDICES[i];
+			for (int i = 0; i < INTERACTIVE_ROW_INDICES.length && i < INTERACTIVE_TRACK_IDS.length; i++) {
+				int logicalRow = INTERACTIVE_ROW_INDICES[i];
 				if (!layout.isRowVisible(logicalRow)) continue;
 				if (trackListState != null && trackListState.isLocked(logicalRow)) continue;
 				float rowScreenY = layout.getRowScreenY(logicalRow);
@@ -664,7 +673,7 @@ public final class TimelineInteraction {
 			TimelineTrackListState trackListState) {
 		if (!ImGui.beginPopup(POPUP_EVENT_CONTEXT)) return;
 		boolean hasSelection = selectionState != null && !selectionState.getSelectedEvents().isEmpty();
-		boolean canDeleteSelection = hasDeletableSelectedEvents(timeline, selectionState, trackListState);
+		boolean canDeleteSelection = hasDeletableSelection(timeline, selectionState, trackListState);
 		boolean hasClipboard = !clipboardEvents.isEmpty();
 		EventRef propertiesRef = resolvePropertiesEventRef(timeline, selectionState);
 		boolean canOpenProperties = propertiesRef != null && !isTrackLocked(trackListState, propertiesRef.track.getId());
@@ -676,7 +685,7 @@ public final class TimelineInteraction {
 		}
 		String deleteLabel = hasSelection && !canDeleteSelection ? "Delete (Locked)" : "Delete";
 		if (ImGui.menuItem(deleteLabel, "Del", false, canDeleteSelection)) {
-			deleteSelectedEvents(timeline, selectionState, trackListState);
+			deleteSelectedEntries(timeline, selectionState, trackListState);
 		}
 		ImGui.separator();
 		String propertiesLabel = propertiesRef != null && !canOpenProperties
@@ -1059,9 +1068,26 @@ public final class TimelineInteraction {
 		return created;
 	}
 
-	private static void deleteSelectedEvents(Timeline timeline, SelectionState selectionState, TimelineTrackListState trackListState) {
+	private static void deleteSelectedEntries(Timeline timeline, SelectionState selectionState, TimelineTrackListState trackListState) {
 		if (timeline == null || selectionState == null) return;
-		if (selectionState.getSelectedEvents().isEmpty()) return;
+		if (selectionState.getSelectedEvents().isEmpty() && selectionState.getSelectedClips().isEmpty()) return;
+
+		List<String> clipIds = new ArrayList<>(selectionState.getSelectedClips());
+		if (!clipIds.isEmpty()) {
+			for (Track track : timeline.getTracks()) {
+				if (isTrackLocked(trackListState, track.getId())) continue;
+				for (String clipId : clipIds) {
+					if (clipId == null) continue;
+					if (track.removeClip(clipId)) {
+						selectionState.deselectClip(clipId);
+						timeline.markAnimationEventsDirty(track.getId());
+						if (Timeline.TRACK_ID_AUDIO.equals(track.getId())) {
+							onAudioRootClipDeleted(timeline, clipId);
+						}
+					}
+				}
+			}
+		}
 
 		List<String> eventIds = new ArrayList<>(selectionState.getSelectedEvents());
 		for (Track track : timeline.getTracks()) {
@@ -1078,9 +1104,22 @@ public final class TimelineInteraction {
 		}
 	}
 
-	private static boolean hasDeletableSelectedEvents(Timeline timeline, SelectionState selectionState,
+	private static boolean hasDeletableSelection(Timeline timeline, SelectionState selectionState,
 			TimelineTrackListState trackListState) {
-		if (timeline == null || selectionState == null || selectionState.getSelectedEvents().isEmpty()) return false;
+		if (timeline == null || selectionState == null) return false;
+
+		if (!selectionState.getSelectedClips().isEmpty()) {
+			for (String clipId : selectionState.getSelectedClips()) {
+				if (clipId == null) continue;
+				for (Track track : timeline.getTracks()) {
+					if (track.getClip(clipId) != null && !isTrackLocked(trackListState, track.getId())) {
+						return true;
+					}
+				}
+			}
+		}
+
+		if (selectionState.getSelectedEvents().isEmpty()) return false;
 		for (String eventId : selectionState.getSelectedEvents()) {
 			EventRef ref = findEventRef(timeline, eventId);
 			if (ref != null && !isTrackLocked(trackListState, ref.track.getId())) {
@@ -1099,12 +1138,30 @@ public final class TimelineInteraction {
 
 	private static int logicalRowForTrackId(String trackId) {
 		if (trackId == null || trackId.isBlank()) return -1;
-		for (int i = 0; i < INTERACTIVE_TRACK_IDS.length && i < TimelineLayout.INTERACTIVE_ROW_INDICES.length; i++) {
+		for (int i = 0; i < INTERACTIVE_TRACK_IDS.length && i < INTERACTIVE_ROW_INDICES.length; i++) {
 			if (trackId.equals(INTERACTIVE_TRACK_IDS[i])) {
-				return TimelineLayout.INTERACTIVE_ROW_INDICES[i];
+				return INTERACTIVE_ROW_INDICES[i];
 			}
 		}
 		return -1;
+	}
+
+	private static void onAudioRootClipDeleted(Timeline timeline, String deletedClipId) {
+		if (timeline == null || deletedClipId == null || deletedClipId.isBlank()) return;
+		Object rootClipId = timeline.getMetadata("audioRootClipId");
+		if (rootClipId == null || !deletedClipId.equals(rootClipId.toString())) return;
+
+		Track audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		if (audioTrack != null && audioTrack.getAudioData() != null) {
+			audioTrack.getAudioData().setWaveform(null);
+			audioTrack.getAudioData().clearAll();
+			audioTrack.getAudioData().clearStemWaveforms();
+		}
+
+		timeline.setMetadata("audioRootClipId", null);
+		timeline.setMetadata("audioAssetId", null);
+		timeline.setMetadata("audioPath", null);
+		timeline.setMetadata("awaitingAnalyzedBeatmap", null);
 	}
 
 	/** 鼠标是否在播放头竖线附近（轨道内容区 Y 内） */

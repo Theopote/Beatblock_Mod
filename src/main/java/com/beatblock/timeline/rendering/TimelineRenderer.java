@@ -6,13 +6,7 @@ import com.beatblock.audio.BeatBlockRuntime;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.assets.AudioAssetStatus;
-import com.beatblock.timeline.FeatureEvent;
-import com.beatblock.timeline.FeatureTrack;
-import com.beatblock.timeline.FrequencyBand;
-import com.beatblock.timeline.FrequencyEvent;
-import com.beatblock.timeline.Timeline;
-import com.beatblock.timeline.TimelineAnimationEvent;
-import com.beatblock.timeline.WaveformData;
+import com.beatblock.timeline.*;
 import com.beatblock.timeline.editor.SelectionBox;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineClock;
@@ -48,6 +42,8 @@ public final class TimelineRenderer {
 	private static final int FREQ_LOW_COLOR = 0xFF_77_77_DD;
 	private static final int FREQ_MID_COLOR = 0xFF_57_C4_A0;
 	private static final int FREQ_HIGH_COLOR = 0xFF_27_A0_EF;
+	private static final int AUDIO_CLIP_FILL_COLOR = 0xAA_57_C4_A0;
+	private static final int AUDIO_CLIP_BORDER_COLOR = 0xFF_7F_D9_BB;
 	/** 轨道槽交替背景（深色），使轨道行更明显 */
 	private static final int ROW_BG_EVEN = 0xFF_28_28_2A;
 	private static final int ROW_BG_ODD = 0xFF_1E_1E_20;
@@ -215,6 +211,10 @@ public final class TimelineRenderer {
 		// ── 音频组标题行 ──────────────────────────────────────────────────────
 		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) {
 			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout);
+			ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
+				rowScreenY + rowHeight, true);
+			renderAudioRootTrackClips(rowY, rowHeight, timeline, layout, viewState, selectionState);
+			ImGui.popClipRect();
 			return;
 		}
 
@@ -278,6 +278,53 @@ public final class TimelineRenderer {
 				}
 			}
 		}
+	}
+
+	/**
+	 * 在顶部音频组轨道渲染可交互的音频片段条（来自 Timeline.TRACK_ID_AUDIO 的 Clip）。
+	 */
+	private void renderAudioRootTrackClips(
+		float rowY,
+		float rowHeight,
+		Timeline timeline,
+		TimelineLayout layout,
+		TimelineViewState viewState,
+		SelectionState selectionState
+	) {
+		if (timeline == null || layout == null || viewState == null) return;
+		Track audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		if (audioTrack == null || audioTrack.getClips().isEmpty()) return;
+
+		ImGui.setCursorPosY(rowY);
+		float baseX = layout.contentLeft;
+		float baseY = ImGui.getCursorScreenPosY();
+		double vs = viewState.getViewStartTimeSeconds();
+		double ve = viewState.getViewEndTimeSeconds();
+
+		for (Clip clip : audioTrack.getClips()) {
+			if (clip == null) continue;
+			double start = clip.getStartTimeSeconds();
+			double end = clip.getEndTimeSeconds();
+			if (end < vs || start > ve) continue;
+
+			float x0 = baseX + viewState.timeToScreen(start);
+			float x1 = baseX + viewState.timeToScreen(end);
+			if (x1 < layout.contentLeft || x0 > layout.contentLeft + layout.contentWidth) continue;
+			x0 = Math.max(x0, layout.contentLeft);
+			x1 = Math.min(x1, layout.contentLeft + layout.contentWidth);
+			if (x1 <= x0) continue;
+
+			float y0 = baseY + 2f;
+			float y1 = baseY + Math.max(6f, rowHeight - 2f);
+			ImGui.getWindowDrawList().addRectFilled(x0, y0, x1, y1, AUDIO_CLIP_FILL_COLOR, 3f);
+			ImGui.getWindowDrawList().addRect(x0, y0, x1, y1, AUDIO_CLIP_BORDER_COLOR, 3f, 0, 1.2f);
+
+			if (selectionState != null && selectionState.isClipSelected(clip.getId())) {
+				ImGui.getWindowDrawList().addRect(x0 - 1f, y0 - 1f, x1 + 1f, y1 + 1f, SELECTED_BORDER_COLOR, 3f, 0, 2f);
+			}
+		}
+
+		ImGui.setCursorPosY(rowY + rowHeight);
 	}
 
 	/** 遗留频段回退：只在 featureTracks 为空且遗留列表有数据时触发。 */
@@ -393,6 +440,7 @@ public final class TimelineRenderer {
 		if (asset == null || BeatBlock.audioAnalysisEngine == null) return;
 
 		bindDroppedAudioToPlayback(timeline, asset);
+		upsertAudioRootClip(timeline, asset);
 		String droppedAudioKey = buildAudioAssetKey(asset);
 		lastAutoAppliedBeatmapSignature = null;
 		boolean canUseBeatmapNow = asset.getStatus() == AudioAssetStatus.COMPLETED && asset.getBeatmap() != null;
@@ -1032,6 +1080,32 @@ public final class TimelineRenderer {
 			}
 		} else {
 			LOGGER.warn("BeatBlock Timeline: dropped audio asset has no MusicPlayer instance path={}", audioPath);
+		}
+	}
+
+	/**
+	 * 每次拖拽新音频到时间线时，在顶部音频轨创建（或替换）一个整段片段，支持点选与删除。
+	 */
+	private void upsertAudioRootClip(Timeline timeline, AudioAsset asset) {
+		if (timeline == null || asset == null) return;
+		Track audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		if (audioTrack == null) return;
+
+		java.util.List<String> clipIds = new java.util.ArrayList<>();
+		for (Clip c : audioTrack.getClips()) {
+			if (c != null && c.getId() != null && !c.getId().isBlank()) clipIds.add(c.getId());
+		}
+		for (String clipId : clipIds) {
+			audioTrack.removeClip(clipId);
+		}
+
+		double end = asset.getDurationSeconds();
+		if (end <= 0) end = timeline.getDurationSeconds();
+		end = Math.max(0.1, end);
+		Clip rootClip = TimelineOperations.addClip(audioTrack, 0.0, end);
+		if (rootClip != null) {
+			timeline.setMetadata("audioRootClipId", rootClip.getId());
+			timeline.setMetadata("audioAssetId", asset.getId());
 		}
 	}
 
