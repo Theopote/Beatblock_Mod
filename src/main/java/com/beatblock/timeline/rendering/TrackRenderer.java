@@ -41,6 +41,9 @@ public final class TrackRenderer {
 	private static final float STATE_BG_ALPHA = 0.22f;
 	private static final float STATE_BG_HOVER_ALPHA = 0.30f;
 	private static final float STATE_BG_ACTIVE_ALPHA = 0.36f;
+	private static final float[] GROUP_AUDIO_TEXT = {0.72f, 0.90f, 0.82f};
+	private static final float[] GROUP_FEATURE_TEXT = {0.74f, 0.84f, 0.97f};
+	private static final float[] GROUP_ACTION_TEXT = {0.95f, 0.84f, 0.66f};
 	private float cachedTypeColumnWidth = -1f;
 
 	/**
@@ -169,8 +172,13 @@ public final class TrackRenderer {
 			ImGui.setCursorScreenPos(clipX1, rowOriginScreenY + textOffsetY);
 			boolean isAudioControlLane = "音频".equals(resolvedTypeLabel);
 			boolean isReferenceLane = "节奏特征".equals(resolvedTypeLabel);
+			float[] groupColor = resolveGroupTitleColor(rowIndex);
 			if (isGroup) {
-				ImGui.pushStyleColor(ImGuiCol.Text, 0.9f, 0.85f, 0.7f, 1f);
+				if (groupColor != null) {
+					ImGui.pushStyleColor(ImGuiCol.Text, groupColor[0], groupColor[1], groupColor[2], 1f);
+				} else {
+					ImGui.pushStyleColor(ImGuiCol.Text, 0.9f, 0.85f, 0.7f, 1f);
+				}
 			} else if (isAudioControlLane) {
 				ImGui.pushStyleColor(ImGuiCol.Text, 0.70f, 0.86f, 0.78f, 1f);
 			} else if (isReferenceLane) {
@@ -289,6 +297,13 @@ public final class TrackRenderer {
 		}
 		cachedTypeColumnWidth = Math.max(MIN_TYPE_COL_W, maxTypeW + TYPE_COL_RIGHT_PAD);
 		return cachedTypeColumnWidth;
+	}
+
+	private static float[] resolveGroupTitleColor(int rowIndex) {
+		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) return GROUP_AUDIO_TEXT;
+		if (rowIndex == TimelineTrackMeta.ROW_ANIMATION_GROUP) return GROUP_FEATURE_TEXT;
+		if (rowIndex == TimelineTrackMeta.ROW_ACTION_GROUP) return GROUP_ACTION_TEXT;
+		return null;
 	}
 }
 

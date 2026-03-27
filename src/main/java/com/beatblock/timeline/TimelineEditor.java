@@ -6,9 +6,19 @@ import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.interaction.TimelineInteraction;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineRenderer;
+import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
+import com.beatblock.timeline.rendering.TrackDefinition;
+import com.beatblock.timeline.rendering.TrackRegistry;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import com.beatblock.timeline.rendering.TimelineUiStateStore;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * ImGui 时间线编辑器入口：协调渲染与交互，UI 与数据分离。
@@ -122,10 +132,95 @@ public final class TimelineEditor {
 	private TimelineLayout requireTrackAreaLayout() {
 		TimelineLayout layout = requireFrameLayout();
 		if (!trackAreaContextAttached) {
+			List<TrackDefinition> audioDefs = TrackRegistry.buildAudioSubTracks(timeline);
+			List<TrackDefinition> controlDefs = TrackRegistry.buildBlockAnimationControlTracks(timeline);
+			layout.setActiveAudioSubRowCount(audioDefs.size());
+			layout.setActiveAnimationSubRowCount(controlDefs.size());
+			layout.setCustomRowOrder(buildFeaturePairedRowOrder(audioDefs, controlDefs));
+			layout.setCustomRowParents(buildCustomRowParents(audioDefs, controlDefs));
 			layout.attachTrackAreaContext(trackListState);
 			trackAreaContextAttached = true;
 		}
 		return frameLayout;
+	}
+
+	private List<Integer> buildFeaturePairedRowOrder(List<TrackDefinition> audioDefs, List<TrackDefinition> controlDefs) {
+		List<Integer> ordered = new ArrayList<>(TimelineLayout.CONTENT_ROW_COUNT);
+		Set<Integer> addedRows = new HashSet<>();
+
+		addRow(ordered, addedRows, TimelineTrackMeta.ROW_AUDIO_GROUP);
+
+		Map<String, Integer> audioFeatureRows = new HashMap<>();
+		for (int slot = 0; slot < audioDefs.size() && slot < TimelineTrackMeta.MAX_AUDIO_SUB_ROWS; slot++) {
+			TrackDefinition td = audioDefs.get(slot);
+			int row = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
+			if (td.getVisualType() == TrackDefinition.VisualType.IMPULSE) {
+				audioFeatureRows.put(td.getKey(), row);
+			} else {
+				addRow(ordered, addedRows, row);
+			}
+		}
+
+		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIMATION_GROUP);
+
+		Map<String, Integer> controlFeatureRows = new HashMap<>();
+		for (int slot = 0; slot < controlDefs.size() && slot < TimelineTrackMeta.MAX_ANIMATION_SUB_ROWS; slot++) {
+			TrackDefinition td = controlDefs.get(slot);
+			String featureKey = Timeline.blockAnimationFeatureKeyFromTrackId(td.getKey());
+			if (featureKey == null || featureKey.isBlank()) continue;
+			controlFeatureRows.put(featureKey, TimelineTrackMeta.ROW_ANIM_FEATURES_START + slot);
+		}
+
+		for (int slot = 0; slot < audioDefs.size() && slot < TimelineTrackMeta.MAX_AUDIO_SUB_ROWS; slot++) {
+			TrackDefinition td = audioDefs.get(slot);
+			if (td.getVisualType() != TrackDefinition.VisualType.IMPULSE) continue;
+			String featureKey = td.getKey();
+			Integer audioRow = audioFeatureRows.get(featureKey);
+			Integer controlRow = controlFeatureRows.get(featureKey);
+			if (audioRow != null) addRow(ordered, addedRows, audioRow);
+			if (controlRow != null) addRow(ordered, addedRows, controlRow);
+		}
+
+		for (int slot = 0; slot < controlDefs.size() && slot < TimelineTrackMeta.MAX_ANIMATION_SUB_ROWS; slot++) {
+			addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_FEATURES_START + slot);
+		}
+
+		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ACTION_GROUP);
+		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_BLOCK);
+		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_AUTO);
+		addRow(ordered, addedRows, TimelineTrackMeta.ROW_CAMERA);
+		addRow(ordered, addedRows, TimelineTrackMeta.ROW_GLOBAL_EVENT);
+
+		for (int i = 0; i < TimelineLayout.CONTENT_ROW_COUNT; i++) {
+			addRow(ordered, addedRows, i);
+		}
+
+		return ordered;
+	}
+
+	private Map<Integer, Integer> buildCustomRowParents(List<TrackDefinition> audioDefs, List<TrackDefinition> controlDefs) {
+		Map<Integer, Integer> parents = new HashMap<>();
+		for (int slot = 0; slot < audioDefs.size() && slot < TimelineTrackMeta.MAX_AUDIO_SUB_ROWS; slot++) {
+			TrackDefinition td = audioDefs.get(slot);
+			int row = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
+			if (td.getVisualType() == TrackDefinition.VisualType.WAVEFORM) {
+				parents.put(row, TimelineTrackMeta.ROW_AUDIO_GROUP);
+			} else {
+				parents.put(row, TimelineTrackMeta.ROW_ANIMATION_GROUP);
+			}
+		}
+		for (int slot = 0; slot < controlDefs.size() && slot < TimelineTrackMeta.MAX_ANIMATION_SUB_ROWS; slot++) {
+			parents.put(TimelineTrackMeta.ROW_ANIM_FEATURES_START + slot, TimelineTrackMeta.ROW_ANIMATION_GROUP);
+		}
+		parents.put(TimelineTrackMeta.ROW_ACTION_GROUP, TimelineTrackMeta.NO_PARENT);
+		parents.put(TimelineTrackMeta.ROW_ANIM_BLOCK, TimelineTrackMeta.ROW_ACTION_GROUP);
+		parents.put(TimelineTrackMeta.ROW_ANIM_AUTO, TimelineTrackMeta.ROW_ACTION_GROUP);
+		return parents;
+	}
+
+	private static void addRow(List<Integer> ordered, Set<Integer> addedRows, int row) {
+		if (row < 0 || row >= TimelineLayout.CONTENT_ROW_COUNT) return;
+		if (addedRows.add(row)) ordered.add(row);
 	}
 
 	/**

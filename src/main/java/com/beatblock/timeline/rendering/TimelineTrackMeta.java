@@ -4,7 +4,7 @@ package com.beatblock.timeline.rendering;
  * 轨道行元数据：默认名称、层级（一级轨道 / 子轨道），与 TimelineLayout.CONTENT_ROW_COUNT 对应。
  *
  * <p>音频子轨支持最多 {@link #MAX_AUDIO_SUB_ROWS} 条动态轨道（由 TrackRegistry 填充）。
- * 动画组及其他固定轨道行索引从 {@link #ROW_ANIMATION_GROUP} 开始，固定偏移在 MAX_AUDIO_SUB_ROWS 之后。</p>
+ * 固定分组顺序：音频组 -> 节奏特征组 -> 动作组。</p>
  */
 public final class TimelineTrackMeta {
 
@@ -19,17 +19,18 @@ public final class TimelineTrackMeta {
 	public static final int ROW_AUDIO_SUBS_START = 1;
 	public static final int ROW_AUDIO_SUBS_END   = ROW_AUDIO_SUBS_START + MAX_AUDIO_SUB_ROWS - 1;
 
-	public static final int ROW_ANIMATION_GROUP = ROW_AUDIO_SUBS_END + 1;  // = 9
-	public static final int ROW_ANIM_BLOCK      = ROW_ANIMATION_GROUP + 1;
+	public static final int ROW_ANIMATION_GROUP = ROW_AUDIO_SUBS_END + 1;
 	public static final int MAX_ANIMATION_SUB_ROWS = 16;
-	public static final int ROW_ANIM_FEATURES_START = ROW_ANIM_BLOCK + 1;
+	public static final int ROW_ANIM_FEATURES_START = ROW_ANIMATION_GROUP + 1;
 	public static final int ROW_ANIM_FEATURES_END = ROW_ANIM_FEATURES_START + MAX_ANIMATION_SUB_ROWS - 1;
-	public static final int ROW_ANIM_AUTO       = ROW_ANIM_FEATURES_END + 1;
+	public static final int ROW_ACTION_GROUP    = ROW_ANIM_FEATURES_END + 1;
+	public static final int ROW_ANIM_BLOCK      = ROW_ACTION_GROUP + 1;
+	public static final int ROW_ANIM_AUTO       = ROW_ANIM_BLOCK + 1;
 	public static final int ROW_CAMERA          = ROW_ANIM_AUTO + 1;
 	public static final int ROW_GLOBAL_EVENT    = ROW_CAMERA + 1;
 
 	/** 总行槽数（最大值，含所有音频子轨槽位）。 */
-	private static final int ROW_COUNT = ROW_GLOBAL_EVENT + 1;             // = 14
+	private static final int ROW_COUNT = ROW_GLOBAL_EVENT + 1;
 
 	// ── 遗留常量（向后兼容，指向动态区的前三个槽）────────────────────────
 	/** @deprecated 使用 TrackRegistry 动态轨道，不要依赖固定槽索引。 */
@@ -55,7 +56,8 @@ public final class TimelineTrackMeta {
 		for (int i = ROW_AUDIO_SUBS_START; i <= ROW_AUDIO_SUBS_END; i++) {
 			DEFAULT_NAMES[i] = "";
 		}
-		DEFAULT_NAMES[ROW_ANIMATION_GROUP] = "动画";
+		DEFAULT_NAMES[ROW_ANIMATION_GROUP] = "节奏特征";
+		DEFAULT_NAMES[ROW_ACTION_GROUP]    = "动作";
 		DEFAULT_NAMES[ROW_ANIM_BLOCK]      = "方块动画";
 		for (int i = ROW_ANIM_FEATURES_START; i <= ROW_ANIM_FEATURES_END; i++) {
 			DEFAULT_NAMES[i] = "";
@@ -69,11 +71,12 @@ public final class TimelineTrackMeta {
 			PARENT_ROW[i] = ROW_AUDIO_GROUP;
 		}
 		PARENT_ROW[ROW_ANIMATION_GROUP] = NO_PARENT;
-		PARENT_ROW[ROW_ANIM_BLOCK]      = ROW_ANIMATION_GROUP;
 		for (int i = ROW_ANIM_FEATURES_START; i <= ROW_ANIM_FEATURES_END; i++) {
 			PARENT_ROW[i] = ROW_ANIMATION_GROUP;
 		}
-		PARENT_ROW[ROW_ANIM_AUTO]       = ROW_ANIMATION_GROUP;
+		PARENT_ROW[ROW_ACTION_GROUP]    = NO_PARENT;
+		PARENT_ROW[ROW_ANIM_BLOCK]      = ROW_ACTION_GROUP;
+		PARENT_ROW[ROW_ANIM_AUTO]       = ROW_ACTION_GROUP;
 		PARENT_ROW[ROW_CAMERA]          = NO_PARENT;
 		PARENT_ROW[ROW_GLOBAL_EVENT]    = NO_PARENT;
 	}
@@ -84,7 +87,7 @@ public final class TimelineTrackMeta {
 	}
 
 	public static boolean isGroupRow(int rowIndex) {
-		return rowIndex == ROW_AUDIO_GROUP || rowIndex == ROW_ANIMATION_GROUP;
+		return rowIndex == ROW_AUDIO_GROUP || rowIndex == ROW_ANIMATION_GROUP || rowIndex == ROW_ACTION_GROUP;
 	}
 
 	/** 是否是动态音频子轨槽位（行 ROW_AUDIO_SUBS_START … ROW_AUDIO_SUBS_END）。 */
@@ -125,7 +128,9 @@ public final class TimelineTrackMeta {
 		if (rowIndex < 0 || rowIndex >= DEFAULT_NAMES.length) return "";
 		if (rowIndex == ROW_AUDIO_GROUP) return "音频片段";
 		if (isAudioSubRow(rowIndex)) return "节奏特征";
-		if (rowIndex == ROW_ANIMATION_GROUP || rowIndex == ROW_ANIM_BLOCK || rowIndex == ROW_ANIM_AUTO) return "动画";
+		if (rowIndex == ROW_ANIMATION_GROUP) return "节奏特征";
+		if (rowIndex == ROW_ACTION_GROUP) return "动作";
+		if (rowIndex == ROW_ANIM_BLOCK || rowIndex == ROW_ANIM_AUTO) return "动画";
 		if (isAnimationFeatureSubRow(rowIndex)) return "动画控制";
 		if (rowIndex == ROW_CAMERA) return "摄像机";
 		if (rowIndex == ROW_GLOBAL_EVENT) return "事件";

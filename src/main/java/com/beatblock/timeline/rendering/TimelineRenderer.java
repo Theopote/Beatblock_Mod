@@ -50,8 +50,13 @@ public final class TimelineRenderer {
 	/** 轨道槽交替背景（深色），使轨道行更明显 */
 	private static final int ROW_BG_EVEN = 0xFF_28_28_2A;
 	private static final int ROW_BG_ODD = 0xFF_1E_1E_20;
+	/** 组头行专用背景与分段分隔线（增强三段式结构可读性） */
+	private static final int GROUP_ROW_BG = 0xFF_2E_2B_33;
+	private static final int GROUP_SEPARATOR_COLOR = 0x99_6E_7D_96;
 	/** 左侧轨道列表与右侧内容区的竖线分隔（ABGR，供面板贯通绘制） */
 	public static final int TIMELINE_DIVIDER_COLOR = 0x66_88_88_88;
+	private static final int PAIRED_ROW_HOVER_FILL = 0x33_8A_BA_FF;
+	private static final int PAIRED_ROW_HOVER_BORDER = 0x99_A0_D0_FF;
 
 	/** 音频组高亮颜色（紫色半透明边框，ABGR） */
 	private static final int AUDIO_GROUP_DROP_HIGHLIGHT_COLOR = 0x55_7F_77_DD;
@@ -162,13 +167,20 @@ public final class TimelineRenderer {
 			if (!layout.isRowVisible(i)) continue;
 			float rowScreenY = layout.getRowScreenY(i);
 			float rowH = layout.getRowHeight(i);
-			int vi = layout.getVisibleIndex(i);
-			int bg = (vi % 2 == 0) ? ROW_BG_EVEN : ROW_BG_ODD;
+			int bg;
+			if (TimelineTrackMeta.isGroupRow(i)) {
+				bg = GROUP_ROW_BG;
+			} else {
+				int vi = layout.getVisibleIndex(i);
+				bg = (vi % 2 == 0) ? ROW_BG_EVEN : ROW_BG_ODD;
+			}
 			ImGui.getWindowDrawList().addRectFilled(x0, rowScreenY, x1, rowScreenY + rowH, bg);
 		}
+		drawGroupSectionSeparators(layout, x0, x1);
 
 		// 网格竖线（仅时间轴方向，不画行间线）
 		gridRenderer.render(viewState, layout, layout.contentHeight);
+		drawPairedFeatureHoverHighlight(layout);
 
 		// 每帧重置音频组拖放高亮标记
 		audioGroupDropHighlight = false;
@@ -214,6 +226,84 @@ public final class TimelineRenderer {
 	private void drawDivider(TimelineLayout layout, float y0, float y1) {
 		if (layout == null || y1 <= y0) return;
 		ImGui.getWindowDrawList().addLine(layout.contentLeft, y0, layout.contentLeft, y1, TIMELINE_DIVIDER_COLOR, 1f);
+	}
+
+	private void drawGroupSectionSeparators(TimelineLayout layout, float x0, float x1) {
+		if (layout == null) return;
+		int[] groupRows = {
+			TimelineTrackMeta.ROW_AUDIO_GROUP,
+			TimelineTrackMeta.ROW_ANIMATION_GROUP,
+			TimelineTrackMeta.ROW_ACTION_GROUP
+		};
+		for (int idx = 1; idx < groupRows.length; idx++) {
+			int row = groupRows[idx];
+			if (!layout.isRowVisible(row)) continue;
+			float y = layout.getRowScreenY(row) - Math.max(1f, TimelineLayout.ROW_GAP * 0.5f);
+			ImGui.getWindowDrawList().addLine(x0, y, x1, y, GROUP_SEPARATOR_COLOR, 1.2f);
+		}
+	}
+
+	private void drawPairedFeatureHoverHighlight(TimelineLayout layout) {
+		if (layout == null) return;
+		if (!ImGui.isWindowHovered()) return;
+
+		float mx = ImGui.getMousePosX();
+		float my = ImGui.getMousePosY();
+		float x0 = layout.trackHeaderLeft;
+		float x1 = layout.contentLeft + layout.contentWidth;
+		if (mx < x0 || mx > x1 || my < layout.contentTop || my > layout.contentTop + layout.contentHeight) {
+			return;
+		}
+
+		int hoveredRow = layout.findRowAtScreenY(my);
+		if (hoveredRow < 0) return;
+
+		Map<String, Integer> audioFeatureRows = new HashMap<>();
+		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
+			TrackDefinition td = currentAudioSubTracks.get(slot);
+			if (td.getVisualType() != TrackDefinition.VisualType.IMPULSE) continue;
+			String key = td.getKey();
+			if (key == null || key.isBlank()) continue;
+			audioFeatureRows.put(key, TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot);
+		}
+
+		Map<String, Integer> controlFeatureRows = new HashMap<>();
+		for (int slot = 0; slot < currentAnimationSubTracks.size(); slot++) {
+			String key = Timeline.blockAnimationFeatureKeyFromTrackId(currentAnimationSubTracks.get(slot).getKey());
+			if (key == null || key.isBlank()) continue;
+			controlFeatureRows.put(key, TimelineTrackMeta.ROW_ANIM_FEATURES_START + slot);
+		}
+
+		String hoveredFeature = null;
+		if (TimelineTrackMeta.isAudioSubRow(hoveredRow)) {
+			int slot = TimelineTrackMeta.audioSubRowSlot(hoveredRow);
+			if (slot >= 0 && slot < currentAudioSubTracks.size()) {
+				TrackDefinition td = currentAudioSubTracks.get(slot);
+				if (td.getVisualType() == TrackDefinition.VisualType.IMPULSE) {
+					hoveredFeature = td.getKey();
+				}
+			}
+		} else if (TimelineTrackMeta.isAnimationFeatureSubRow(hoveredRow)) {
+			int slot = TimelineTrackMeta.animationFeatureSubRowSlot(hoveredRow);
+			if (slot >= 0 && slot < currentAnimationSubTracks.size()) {
+				hoveredFeature = Timeline.blockAnimationFeatureKeyFromTrackId(currentAnimationSubTracks.get(slot).getKey());
+			}
+		}
+
+		if (hoveredFeature == null || hoveredFeature.isBlank()) return;
+		Integer audioRow = audioFeatureRows.get(hoveredFeature);
+		Integer controlRow = controlFeatureRows.get(hoveredFeature);
+		if (audioRow != null) drawHoverRowHighlight(layout, audioRow, x0, x1);
+		if (controlRow != null) drawHoverRowHighlight(layout, controlRow, x0, x1);
+	}
+
+	private void drawHoverRowHighlight(TimelineLayout layout, int rowIndex, float x0, float x1) {
+		if (layout == null || !layout.isRowVisible(rowIndex)) return;
+		float y0 = layout.getRowScreenY(rowIndex);
+		float y1 = y0 + layout.getRowHeight(rowIndex);
+		if (y0 < 0 || y1 <= y0) return;
+		ImGui.getWindowDrawList().addRectFilled(x0, y0, x1, y1, PAIRED_ROW_HOVER_FILL, 2f);
+		ImGui.getWindowDrawList().addRect(x0, y0, x1, y1, PAIRED_ROW_HOVER_BORDER, 2f, 0, 1f);
 	}
 
 	private void drawRowContent(int rowIndex, float rowY, Timeline timeline, TimelineViewState viewState,

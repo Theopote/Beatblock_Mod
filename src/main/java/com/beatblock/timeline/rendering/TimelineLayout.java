@@ -3,7 +3,9 @@ package com.beatblock.timeline.rendering;
 import imgui.ImGui;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 时间线 UI 布局：4 个独立区域 + 行位置，渲染与交互共用，避免坐标不一致。
@@ -95,6 +97,8 @@ public final class TimelineLayout {
 	 */
 	private int activeAudioSubRowCount = 3;
 	private int activeAnimationSubRowCount = 0;
+	private List<Integer> customRowOrder = List.of();
+	private Map<Integer, Integer> customRowParents = Map.of();
 
 	/** 时间线区域在窗口内的起始 Y（用于 setCursorPosY） */
 	public float startY;
@@ -132,6 +136,8 @@ public final class TimelineLayout {
 		rowHeight = ROW_HEIGHT;
 		timelineWidth = contentWidth;
 		trackLabelWidth = headerW;
+		customRowOrder = List.of();
+		customRowParents = Map.of();
 		for (int i = 0; i < CONTENT_ROW_COUNT; i++) {
 			rowHeights[i] = ROW_HEIGHT;
 			rowCursorY[i] = -1f;
@@ -165,7 +171,7 @@ public final class TimelineLayout {
 		int v = 0;
 		float cursorY = 0f;
 		for (int rowIndex : buildLogicalRenderOrder()) {
-			boolean visible = isRowVisible(rowIndex, trackListState, activeAudioSubRowCount, activeAnimationSubRowCount);
+			boolean visible = isRowVisible(rowIndex, trackListState, activeAudioSubRowCount, activeAnimationSubRowCount, customRowParents);
 			float h = resolveRowHeight(rowIndex, trackListState);
 			rowHeights[rowIndex] = h;
 			if (visible) {
@@ -186,11 +192,48 @@ public final class TimelineLayout {
 		contentHeight = trackHeaderHeight;
 	}
 
-	private List<Integer> buildLogicalRenderOrder() {
-		List<Integer> ordered = new ArrayList<>(CONTENT_ROW_COUNT);
-		for (int i = 0; i < CONTENT_ROW_COUNT; i++) {
-			ordered.add(i);
+	public void setCustomRowOrder(List<Integer> rowOrder) {
+		if (rowOrder == null || rowOrder.isEmpty()) {
+			customRowOrder = List.of();
+			return;
 		}
+		boolean[] seen = new boolean[CONTENT_ROW_COUNT];
+		List<Integer> normalized = new ArrayList<>(CONTENT_ROW_COUNT);
+		for (Integer row : rowOrder) {
+			if (row == null || row < 0 || row >= CONTENT_ROW_COUNT) continue;
+			if (seen[row]) continue;
+			normalized.add(row);
+			seen[row] = true;
+		}
+		for (int i = 0; i < CONTENT_ROW_COUNT; i++) {
+			if (!seen[i]) normalized.add(i);
+		}
+		customRowOrder = List.copyOf(normalized);
+	}
+
+	public void setCustomRowParents(Map<Integer, Integer> rowParents) {
+		if (rowParents == null || rowParents.isEmpty()) {
+			customRowParents = Map.of();
+			return;
+		}
+		Map<Integer, Integer> normalized = new HashMap<>();
+		for (Map.Entry<Integer, Integer> e : rowParents.entrySet()) {
+			Integer row = e.getKey();
+			Integer parent = e.getValue();
+			if (row == null || row < 0 || row >= CONTENT_ROW_COUNT) continue;
+			if (parent == null) continue;
+			if (parent != TimelineTrackMeta.NO_PARENT && (parent < 0 || parent >= CONTENT_ROW_COUNT)) continue;
+			normalized.put(row, parent);
+		}
+		customRowParents = Map.copyOf(normalized);
+	}
+
+	private List<Integer> buildLogicalRenderOrder() {
+		if (!customRowOrder.isEmpty()) {
+			return customRowOrder;
+		}
+		List<Integer> ordered = new ArrayList<>(CONTENT_ROW_COUNT);
+		for (int i = 0; i < CONTENT_ROW_COUNT; i++) ordered.add(i);
 		return ordered;
 	}
 
@@ -202,7 +245,8 @@ public final class TimelineLayout {
 		return ROW_HEIGHT;
 	}
 
-	private static boolean isRowVisible(int rowIndex, TimelineTrackListState state, int activeAudioSubRowCount, int activeAnimationSubRowCount) {
+	private static boolean isRowVisible(int rowIndex, TimelineTrackListState state, int activeAudioSubRowCount, int activeAnimationSubRowCount,
+	                                   Map<Integer, Integer> parentOverrides) {
 		// 超出活跃音频子轨数量的槽位始终不可见
 		if (TimelineTrackMeta.isAudioSubRow(rowIndex)) {
 			int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
@@ -213,7 +257,9 @@ public final class TimelineLayout {
 			if (slot >= activeAnimationSubRowCount) return false;
 		}
 		if (state == null) return true;
-		int parent = TimelineTrackMeta.getParentRowIndex(rowIndex);
+		int parent = parentOverrides != null && parentOverrides.containsKey(rowIndex)
+			? parentOverrides.get(rowIndex)
+			: TimelineTrackMeta.getParentRowIndex(rowIndex);
 		if (parent == TimelineTrackMeta.NO_PARENT) return true;
 		return !state.isGroupCollapsed(parent);
 	}

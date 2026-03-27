@@ -60,7 +60,11 @@ public final class TimelineTrackListState {
 		if (TimelineTrackMeta.isAudioSubRow(rowIndex) && locked[TimelineTrackMeta.ROW_AUDIO_GROUP]) {
 			return true;
 		}
-		if (TimelineTrackMeta.isAnimationFeatureSubRow(rowIndex) && locked[TimelineTrackMeta.ROW_ANIM_BLOCK]) {
+		if (TimelineTrackMeta.isAnimationFeatureSubRow(rowIndex) && locked[TimelineTrackMeta.ROW_ANIMATION_GROUP]) {
+			return true;
+		}
+		if ((rowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK || rowIndex == TimelineTrackMeta.ROW_ANIM_AUTO)
+			&& locked[TimelineTrackMeta.ROW_ACTION_GROUP]) {
 			return true;
 		}
 		return locked[rowIndex];
@@ -211,20 +215,24 @@ public final class TimelineTrackListState {
 		return Math.abs(audioRowHeightPx - AUDIO_ROW_HEIGHT_DEFAULT) < 0.001f;
 	}
 
-	/** 组轨道是否已折叠（仅对组行 ROW_AUDIO_GROUP、ROW_ANIMATION_GROUP 有效） */
+	/** 组轨道是否已折叠（仅对组行 ROW_AUDIO_GROUP、ROW_ANIMATION_GROUP、ROW_ACTION_GROUP 有效） */
 	public boolean isGroupCollapsed(int groupRowIndex) {
 		return collapsedGroupRows.contains(groupRowIndex);
 	}
 
 	public void setGroupCollapsed(int groupRowIndex, boolean collapsed) {
-		if (groupRowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP || groupRowIndex == TimelineTrackMeta.ROW_ANIMATION_GROUP) {
+		if (groupRowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP
+			|| groupRowIndex == TimelineTrackMeta.ROW_ANIMATION_GROUP
+			|| groupRowIndex == TimelineTrackMeta.ROW_ACTION_GROUP) {
 			if (collapsed) collapsedGroupRows.add(groupRowIndex);
 			else collapsedGroupRows.remove(groupRowIndex);
 		}
 	}
 
 	public void toggleGroupCollapsed(int groupRowIndex) {
-		if (groupRowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP || groupRowIndex == TimelineTrackMeta.ROW_ANIMATION_GROUP) {
+		if (groupRowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP
+			|| groupRowIndex == TimelineTrackMeta.ROW_ANIMATION_GROUP
+			|| groupRowIndex == TimelineTrackMeta.ROW_ACTION_GROUP) {
 			if (collapsedGroupRows.contains(groupRowIndex)) collapsedGroupRows.remove(groupRowIndex);
 			else collapsedGroupRows.add(groupRowIndex);
 		}
@@ -257,7 +265,7 @@ public final class TimelineTrackListState {
 	 * @param visibleStates 可见状态（长度不足时忽略超出部分）
 	 * @param lockedStates 锁定状态（长度不足时忽略超出部分）
 	 * @param names 自定义名称
-	 * @param collapsedRows 折叠组行（仅接受 0、5）
+	 * @param collapsedRows 折叠组行（仅接受组轨道行）
 	 */
 	public void applyPersistedState(
 		float widthPx,
