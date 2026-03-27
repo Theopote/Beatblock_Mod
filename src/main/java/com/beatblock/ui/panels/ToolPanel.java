@@ -11,6 +11,7 @@ import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import net.minecraft.client.MinecraftClient;
@@ -37,6 +38,7 @@ public class ToolPanel {
 	private final ImString markerTimeBuffer = new ImString(32);
 	private final ImInt markerTypeIndex = new ImInt(0);
 	private final ImString stageObjectNameBuffer = new ImString(64);
+	private final ImBoolean stageObjectIncludeAir = new ImBoolean(false);
 	private BlockPos selectionPosA;
 	private BlockPos selectionPosB;
 	private String stageObjectMessage;
@@ -113,6 +115,14 @@ public class ToolPanel {
 
 		ImGui.textDisabled("A: " + formatPos(selectionPosA));
 		ImGui.textDisabled("B: " + formatPos(selectionPosB));
+		long selectionVolume = estimateSelectionVolume(selectionPosA, selectionPosB);
+		if (selectionVolume > 0) {
+			ImGui.textDisabled(String.format(Locale.ROOT, "选区体积: %d blocks", selectionVolume));
+		}
+		ImGui.checkbox("包含空气方块##stageObjIncludeAir", stageObjectIncludeAir);
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip("关闭后仅采集非空气方块，推荐用于已有建筑对象");
+		}
 
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText("对象名称##stageObjName", stageObjectNameBuffer);
@@ -145,9 +155,11 @@ public class ToolPanel {
 			return;
 		}
 
-		List<BlockPos> blocks = collectSelectionBlocks(selectionPosA, selectionPosB);
+		List<BlockPos> blocks = collectSelectionBlocks(selectionPosA, selectionPosB, stageObjectIncludeAir.get());
 		if (blocks.isEmpty()) {
-			stageObjectMessage = "选区为空，未创建对象。";
+			stageObjectMessage = stageObjectIncludeAir.get()
+				? "选区为空，未创建对象。"
+				: "选区内没有非空气方块，未创建对象。";
 			return;
 		}
 
@@ -160,9 +172,12 @@ public class ToolPanel {
 		stageObjectMessage = String.format(Locale.ROOT, "已创建 StageObject: %s (%d blocks)", id, blocks.size());
 	}
 
-	private List<BlockPos> collectSelectionBlocks(BlockPos a, BlockPos b) {
+	private List<BlockPos> collectSelectionBlocks(BlockPos a, BlockPos b, boolean includeAir) {
 		List<BlockPos> out = new ArrayList<>();
 		if (a == null || b == null) return out;
+		MinecraftClient mc = MinecraftClient.getInstance();
+		World world = mc != null ? mc.world : null;
+		if (world == null) return out;
 
 		int minX = Math.min(a.getX(), b.getX());
 		int maxX = Math.max(a.getX(), b.getX());
@@ -181,11 +196,21 @@ public class ToolPanel {
 		for (int x = minX; x <= maxX; x++) {
 			for (int y = minY; y <= maxY; y++) {
 				for (int z = minZ; z <= maxZ; z++) {
-					out.add(new BlockPos(x, y, z));
+					BlockPos pos = new BlockPos(x, y, z);
+					if (!includeAir && world.getBlockState(pos).isAir()) continue;
+					out.add(pos);
 				}
 			}
 		}
 		return out;
+	}
+
+	private static long estimateSelectionVolume(BlockPos a, BlockPos b) {
+		if (a == null || b == null) return 0;
+		long dx = Math.abs((long) a.getX() - b.getX()) + 1L;
+		long dy = Math.abs((long) a.getY() - b.getY()) + 1L;
+		long dz = Math.abs((long) a.getZ() - b.getZ()) + 1L;
+		return dx * dy * dz;
 	}
 
 	private String buildUniqueStageObjectId(String name) {

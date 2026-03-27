@@ -218,6 +218,7 @@ public final class BeatBlockClientDriver {
 
 	private static void applyTimelineActionEvent(TimelineAnimationEvent event) {
 		if (event == null || BeatBlock.blockAnimationEngine == null) return;
+		if (!passesEnergyThreshold(event)) return;
 		TimelineAnimationActionMode actionMode = event.getActionMode();
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
 			BeatBlock.blockAnimationEngine.scheduleTimelineEvent(event);
@@ -233,6 +234,23 @@ public final class BeatBlockClientDriver {
 			captureTimelineMutationOriginalState(world, mutation.pos(), mutation.fromState());
 		}
 		BeatBlock.blockAnimationEngine.applyControlMutations(world, mutations);
+	}
+
+	private static boolean passesEnergyThreshold(TimelineAnimationEvent event) {
+		if (event == null) return false;
+		Object raw = event.getParameters().get("energyThreshold");
+		double threshold = 0.0;
+		if (raw instanceof Number n) {
+			threshold = n.doubleValue();
+		} else if (raw != null) {
+			try {
+				threshold = Double.parseDouble(String.valueOf(raw).trim());
+			} catch (Exception ignored) {
+				threshold = 0.0;
+			}
+		}
+		threshold = Math.max(0.0, Math.min(1.0, threshold));
+		return event.getEnergy() + 1e-6 >= threshold;
 	}
 
 	private static void captureTimelineMutationOriginalState(World world, BlockPos pos, BlockState currentState) {
