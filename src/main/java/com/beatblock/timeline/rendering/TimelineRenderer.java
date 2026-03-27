@@ -212,7 +212,7 @@ public final class TimelineRenderer {
 
 		// ── 音频组标题行 ──────────────────────────────────────────────────────
 		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) {
-			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout);
+			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout, trackListState);
 			ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
 				rowScreenY + rowHeight, true);
 			renderAudioRootTrackClips(rowY, rowHeight, timeline, layout, viewState, selectionState);
@@ -225,7 +225,7 @@ public final class TimelineRenderer {
 			int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
 			if (slot < 0 || slot >= currentAudioSubTracks.size()) return;
 			TrackDefinition td = currentAudioSubTracks.get(slot);
-			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout);
+			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout, trackListState);
 			ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
 				rowScreenY + rowHeight, true);
 			renderAudioSubTrack(td, rowY, rowHeight, timeline, layout, viewState);
@@ -488,17 +488,22 @@ public final class TimelineRenderer {
 	 * 在指定行放置一个不可见按钮作为拖放目标（内容区），接受音频资产拖放。
 	 * 行 0~4（音频组/波形/低中高频）均调用此方法；松手后自动填充整组数据。
 	 */
-	private void renderAudioGroupDropTarget(int rowIndex, float rowY, float rowHeight, Timeline timeline, TimelineLayout layout) {
+	private void renderAudioGroupDropTarget(int rowIndex, float rowY, float rowHeight,
+	                                        Timeline timeline, TimelineLayout layout,
+	                                        TimelineTrackListState trackListState) {
 		float screenY = layout.getRowScreenY(rowIndex);
 		if (screenY < 0) return;
 		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
 		ImGui.invisibleButton("##AudioDropTarget_" + rowIndex, layout.contentWidth, rowHeight);
+		boolean audioGroupLocked = trackListState != null && trackListState.isLocked(TimelineTrackMeta.ROW_AUDIO_GROUP);
 
-		if (ImGui.isItemHovered()) {
+		if (!audioGroupLocked && ImGui.isItemHovered()) {
 			audioGroupDropHighlight = true;
 		}
 
-		acceptAudioAssetDrop(timeline);
+		if (!audioGroupLocked) {
+			acceptAudioAssetDrop(timeline);
+		}
 	}
 
 	/**

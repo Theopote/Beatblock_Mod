@@ -57,6 +57,9 @@ public final class TimelineTrackListState {
 
 	public boolean isLocked(int rowIndex) {
 		if (rowIndex < 0 || rowIndex >= locked.length) return false;
+		if (TimelineTrackMeta.isAudioSubRow(rowIndex) && locked[TimelineTrackMeta.ROW_AUDIO_GROUP]) {
+			return true;
+		}
 		return locked[rowIndex];
 	}
 
