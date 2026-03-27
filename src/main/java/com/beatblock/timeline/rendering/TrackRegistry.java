@@ -68,7 +68,6 @@ public final class TrackRegistry {
 		int extIdx = 0;
 		for (String key : orderedFeatureKeys(timeline)) {
 			String trackId = Timeline.blockAnimationFeatureTrackId(key);
-			if (timeline.getTrack(trackId) == null) continue;
 			result.add(new TrackDefinition(
 				trackId,
 				localizedName(key),
