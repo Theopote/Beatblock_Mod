@@ -583,10 +583,8 @@ public final class TimelineRenderer {
 			LOGGER.info("BeatBlock Timeline: dropped asset not completed yet, using feature timeline temporarily path={} status={}",
 				asset.getPath(), asset.getStatus());
 			double prevDuration = timeline.getDurationSeconds();
-			Map<String, SavedFeatureTrack> savedFeatureEvents = saveFeatureEvents(timeline);
 			BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
-			shiftFeatureEventsByOffset(timeline, startOffset);
-			restoreFeatureEvents(timeline, savedFeatureEvents);
+			shiftFrequencyEventsByOffset(timeline, startOffset);
 			timeline.setDurationSeconds(prevDuration);
 		} else {
 			timeline.setMetadata("awaitingAnalyzedBeatmap", droppedAudioKey);
@@ -988,10 +986,8 @@ public final class TimelineRenderer {
 
 		double startOffset = readClipOffset(timeline, expectedAudioKey);
 		double prevDuration = timeline.getDurationSeconds();
-		Map<String, SavedFeatureTrack> savedFeatureEvents = saveFeatureEvents(timeline);
 		BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, feature, asset.getSampleRate());
-		shiftFeatureEventsByOffset(timeline, startOffset);
-		restoreFeatureEvents(timeline, savedFeatureEvents);
+		shiftFrequencyEventsByOffset(timeline, startOffset);
 		timeline.setDurationSeconds(prevDuration);
 		if (asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
 			timeline.setMetadata("bpm", asset.getBeatmap().meta.bpm());
@@ -1108,6 +1104,21 @@ public final class TimelineRenderer {
 			for (FeatureEvent e : evts) {
 				ft.addEvent(new FeatureEvent(e.getTimeSeconds() + offset, e.getEnergy()));
 			}
+		}
+	}
+
+	/** 将遗留频段事件（low/mid/high）时间整体偏移 offset 秒（就地重建）。 */
+	private void shiftFrequencyEventsByOffset(Timeline timeline, double offset) {
+		if (offset <= 0 || timeline == null) return;
+		List<FrequencyEvent> events = timeline.getFrequencyEvents();
+		if (events == null || events.isEmpty()) return;
+		timeline.clearFrequencyEvents();
+		for (FrequencyEvent event : events) {
+			timeline.addFrequencyEvent(new FrequencyEvent(
+				event.getTimeSeconds() + offset,
+				event.getBand(),
+				event.getEnergy()
+			));
 		}
 	}
 
