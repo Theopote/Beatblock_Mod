@@ -47,7 +47,7 @@ public final class TimelineTrackMeta {
 	private static final int[] PARENT_ROW = new int[ROW_COUNT];
 
 	static {
-		DEFAULT_NAMES[ROW_AUDIO_GROUP]     = "节奏特征";
+		DEFAULT_NAMES[ROW_AUDIO_GROUP]     = "音频片段";
 		// 动态子轨槽：默认名称为空（由 TrackRegistry / TrackListState 提供）
 		for (int i = ROW_AUDIO_SUBS_START; i <= ROW_AUDIO_SUBS_END; i++) {
 			DEFAULT_NAMES[i] = "";
@@ -105,7 +105,8 @@ public final class TimelineTrackMeta {
 	 */
 	public static String getCategoryTypeLabel(int rowIndex) {
 		if (rowIndex < 0 || rowIndex >= DEFAULT_NAMES.length) return "";
-		if (rowIndex == ROW_AUDIO_GROUP || isAudioSubRow(rowIndex)) return "节奏特征";
+		if (rowIndex == ROW_AUDIO_GROUP) return "音频片段";
+		if (isAudioSubRow(rowIndex)) return "节奏特征";
 		if (rowIndex == ROW_ANIMATION_GROUP || rowIndex == ROW_ANIM_BLOCK || rowIndex == ROW_ANIM_AUTO) return "动画";
 		if (rowIndex == ROW_CAMERA) return "摄像机";
 		if (rowIndex == ROW_GLOBAL_EVENT) return "事件";

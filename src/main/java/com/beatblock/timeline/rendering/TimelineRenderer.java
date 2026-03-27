@@ -453,10 +453,10 @@ public final class TimelineRenderer {
 
 	/**
 	 * 解析行类型标签：Demucs 茎波形轨显示「音频」，librosa 特征轨显示「节奏特征」，
-	 * 音频组行显示「音频」，其他行由 TimelineTrackMeta.getCategoryTypeLabel 决定。
+	 * 音频组行显示「音频片段」，其他行由 TimelineTrackMeta.getCategoryTypeLabel 决定。
 	 */
 	private String resolveTypeLabel(int rowIndex) {
-		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) return "音频";
+		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) return "音频片段";
 		if (TimelineTrackMeta.isAudioSubRow(rowIndex)) {
 			int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
 			if (slot >= 0 && slot < currentAudioSubTracks.size()) {
