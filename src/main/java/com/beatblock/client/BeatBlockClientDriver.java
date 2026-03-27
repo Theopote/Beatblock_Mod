@@ -22,6 +22,7 @@ import net.minecraft.world.World;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +31,15 @@ import java.util.Set;
  * 客户端驱动：每帧推进 MusicPlayer、派发 BeatEvent、更新动画并应用变换。
  */
 public final class BeatBlockClientDriver {
+	public record TimelineActionExecutionReport(
+		long timestampMs,
+		String eventId,
+		String targetObjectId,
+		TimelineAnimationActionMode actionMode,
+		int mutationCount,
+		String status,
+		String detail
+	) {}
 
 	private static long lastTickNanos;
 	private static boolean driving;
@@ -38,6 +48,7 @@ public final class BeatBlockClientDriver {
 	private static double lastTimelineAnimationTime;
 	private static final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
 	private static RegistryKey<World> timelineMutationWorldKey;
+	private static volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
 
 	public static void onClientTick() {
 		if (!driving) return;
@@ -218,22 +229,50 @@ public final class BeatBlockClientDriver {
 
 	private static void applyTimelineActionEvent(TimelineAnimationEvent event) {
 		if (event == null || BeatBlock.blockAnimationEngine == null) return;
-		if (!passesEnergyThreshold(event)) return;
+		if (!passesEnergyThreshold(event)) {
+			recordActionReport(event, 0, "SKIPPED", "energy-below-threshold");
+			return;
+		}
 		TimelineAnimationActionMode actionMode = event.getActionMode();
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
 			BeatBlock.blockAnimationEngine.scheduleTimelineEvent(event);
+			recordActionReport(event, 0, "ANIMATE", "scheduled");
 			return;
 		}
 
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
-		if (world == null) return;
-		var mutations = BeatBlock.blockAnimationEngine.planControlMutations(event, world);
-		if (mutations == null || mutations.isEmpty()) return;
+		if (world == null) {
+			recordActionReport(event, 0, "SKIPPED", "no-world");
+			return;
+		}
+		var plan = BeatBlock.blockAnimationEngine.planControl(event, world);
+		var mutations = plan != null ? plan.mutations() : List.<BlockControlExecutor.BlockMutation>of();
+		if (mutations == null || mutations.isEmpty()) {
+			String detail = plan != null && plan.skipReason() != null
+				? "skip-" + plan.skipReason().name().toLowerCase(Locale.ROOT)
+				: "skip-no-change";
+			recordActionReport(event, 0, "SKIPPED", detail);
+			return;
+		}
 		for (BlockControlExecutor.BlockMutation mutation : mutations) {
 			captureTimelineMutationOriginalState(world, mutation.pos(), mutation.fromState());
 		}
 		BeatBlock.blockAnimationEngine.applyControlMutations(world, mutations);
+		recordActionReport(event, mutations.size(), "APPLIED", "ok");
+	}
+
+	private static void recordActionReport(TimelineAnimationEvent event, int mutationCount, String status, String detail) {
+		if (event == null) return;
+		lastTimelineActionExecutionReport = new TimelineActionExecutionReport(
+			System.currentTimeMillis(),
+			event.getEventId(),
+			event.getTargetObjectId(),
+			event.getActionMode(),
+			Math.max(0, mutationCount),
+			status != null ? status : "UNKNOWN",
+			detail != null ? detail : ""
+		);
 	}
 
 	private static boolean passesEnergyThreshold(TimelineAnimationEvent event) {
@@ -318,6 +357,10 @@ public final class BeatBlockClientDriver {
 			event.getTimeSeconds(),
 			event.getAnimationTypeId(),
 			event.getTargetObjectId());
+	}
+
+	public static TimelineActionExecutionReport getLastTimelineActionExecutionReport() {
+		return lastTimelineActionExecutionReport;
 	}
 
 	public static void togglePlayback() {

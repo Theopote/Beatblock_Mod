@@ -27,28 +27,79 @@ public final class BlockControlExecutor {
 
 	public record BlockMutation(BlockPos pos, BlockState fromState, BlockState toState) {}
 
+	public enum ControlSkipReason {
+		NONE,
+		INVALID_INPUT,
+		ANIMATE_MODE,
+		MISSING_TARGET,
+		EMPTY_TARGET,
+		NO_CHUNK_LOADED,
+		NO_STATE_CHANGE
+	}
+
+	public record ControlPlan(
+		TimelineAnimationActionMode actionMode,
+		String targetObjectId,
+		List<BlockMutation> mutations,
+		ControlSkipReason skipReason,
+		int scannedBlocks,
+		int loadedBlocks
+	) {
+		public boolean hasMutations() {
+			return mutations != null && !mutations.isEmpty();
+		}
+	}
+
 	public List<BlockMutation> planMutations(World world, TimelineAnimationEvent event) {
+		return plan(world, event).mutations();
+	}
+
+	public ControlPlan plan(World world, TimelineAnimationEvent event) {
 		List<BlockMutation> mutations = new ArrayList<>();
-		if (world == null || event == null) return mutations;
+		if (world == null || event == null) {
+			return new ControlPlan(TimelineAnimationActionMode.ANIMATE, "", mutations,
+				ControlSkipReason.INVALID_INPUT, 0, 0);
+		}
 
 		TimelineAnimationActionMode actionMode = event.getActionMode();
-		if (actionMode == TimelineAnimationActionMode.ANIMATE) return mutations;
+		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
+			return new ControlPlan(actionMode, event.getTargetObjectId(), mutations,
+				ControlSkipReason.ANIMATE_MODE, 0, 0);
+		}
 
 		StageObject target = stageObjectSystem != null ? stageObjectSystem.get(event.getTargetObjectId()) : null;
-		if (target == null || target.getBlocks().isEmpty()) return mutations;
+		if (target == null) {
+			return new ControlPlan(actionMode, event.getTargetObjectId(), mutations,
+				ControlSkipReason.MISSING_TARGET, 0, 0);
+		}
+		if (target.getBlocks().isEmpty()) {
+			return new ControlPlan(actionMode, event.getTargetObjectId(), mutations,
+				ControlSkipReason.EMPTY_TARGET, 0, 0);
+		}
 
 		BlockState toState = actionMode == TimelineAnimationActionMode.CLEAR
 			? Blocks.AIR.getDefaultState()
 			: resolvePlacementBlockState(event);
 
+		int scannedBlocks = 0;
+		int loadedBlocks = 0;
 		for (BlockPos pos : target.getBlocks()) {
+			scannedBlocks++;
 			if (pos == null || !world.isChunkLoaded(pos)) continue;
+			loadedBlocks++;
 			BlockState fromState = world.getBlockState(pos);
 			if (!fromState.equals(toState)) {
 				mutations.add(new BlockMutation(pos.toImmutable(), fromState, toState));
 			}
 		}
-		return mutations;
+
+		ControlSkipReason reason = ControlSkipReason.NONE;
+		if (loadedBlocks == 0) {
+			reason = ControlSkipReason.NO_CHUNK_LOADED;
+		} else if (mutations.isEmpty()) {
+			reason = ControlSkipReason.NO_STATE_CHANGE;
+		}
+		return new ControlPlan(actionMode, event.getTargetObjectId(), mutations, reason, scannedBlocks, loadedBlocks);
 	}
 
 	public void applyMutations(World world, List<BlockMutation> mutations) {

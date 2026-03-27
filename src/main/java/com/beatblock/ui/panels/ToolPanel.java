@@ -2,6 +2,7 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
+import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.engine.StageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.timeline.MarkerType;
@@ -74,6 +75,7 @@ public class ToolPanel {
 				lastAutoMapResult.getParticleEvents()));
 		}
 		renderStageObjectCreator();
+		renderLastActionExecutionStatus();
 
 		renderMarkerManager();
 
@@ -240,6 +242,34 @@ public class ToolPanel {
 	private static String formatPos(BlockPos pos) {
 		if (pos == null) return "(未设置)";
 		return String.format(Locale.ROOT, "%d, %d, %d", pos.getX(), pos.getY(), pos.getZ());
+	}
+
+	private void renderLastActionExecutionStatus() {
+		ImGui.spacing();
+		ImGui.separator();
+		ImGui.text("Action Runtime");
+
+		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getLastTimelineActionExecutionReport();
+		if (report == null) {
+			ImGui.textDisabled("暂无执行记录。");
+			return;
+		}
+		long ageMs = Math.max(0L, System.currentTimeMillis() - report.timestampMs());
+		ImGui.textDisabled(String.format(Locale.ROOT,
+			"%s | %s | mutations=%d | %dms ago",
+			report.actionMode().name(),
+			report.status(),
+			report.mutationCount(),
+			ageMs));
+		if (report.detail() != null && !report.detail().isBlank()) {
+			ImGui.textWrapped("detail: " + report.detail());
+		}
+		if (report.targetObjectId() != null && !report.targetObjectId().isBlank()) {
+			ImGui.textDisabled("target: " + report.targetObjectId());
+		}
+		if (report.eventId() != null && !report.eventId().isBlank()) {
+			ImGui.textDisabled("event: " + report.eventId());
+		}
 	}
 
 	private void renderMarkerManager() {

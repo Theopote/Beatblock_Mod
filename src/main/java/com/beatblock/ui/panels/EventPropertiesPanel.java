@@ -1,6 +1,7 @@
 package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.StageObject;
 import com.beatblock.timeline.Clip;
@@ -181,6 +182,7 @@ public class EventPropertiesPanel {
 		ImGui.text("Metadata");
 		ImGui.textDisabled(String.format(Locale.ROOT, "Mapping: %s", stringParam(params, "mappingProfile", "manual")));
 		ImGui.textDisabled(String.format(Locale.ROOT, "Source Stem: %s", stringParam(params, "sourceStem", "-")));
+		renderRuntimeStatus(ref);
 
 		if (validationError != null && !validationError.isBlank()) {
 			ImGui.spacing();
@@ -200,6 +202,25 @@ public class EventPropertiesPanel {
 		}
 		if (reset) {
 			bindBuffers(ref.event());
+		}
+	}
+
+	private void renderRuntimeStatus(EventRef ref) {
+		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getLastTimelineActionExecutionReport();
+		if (report == null) return;
+		String eventId = ref != null && ref.event() != null ? ref.event().getId() : "";
+		if (eventId == null || eventId.isBlank()) return;
+		if (!eventId.equals(report.eventId())) return;
+
+		long ageMs = Math.max(0L, System.currentTimeMillis() - report.timestampMs());
+		ImGui.textDisabled(String.format(Locale.ROOT,
+			"Runtime: %s | %s | mutations=%d | %dms ago",
+			report.actionMode().name(),
+			report.status(),
+			report.mutationCount(),
+			ageMs));
+		if (report.detail() != null && !report.detail().isBlank()) {
+			ImGui.textDisabled("detail: " + report.detail());
 		}
 	}
 

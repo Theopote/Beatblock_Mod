@@ -76,6 +76,20 @@ public final class BlockAnimationEngine {
 		return blockControlExecutor.planMutations(world, event);
 	}
 
+	public BlockControlExecutor.ControlPlan planControl(TimelineAnimationEvent event, World world) {
+		if (event == null || world == null) {
+			return new BlockControlExecutor.ControlPlan(
+				TimelineAnimationActionMode.ANIMATE,
+				"",
+				List.of(),
+				BlockControlExecutor.ControlSkipReason.INVALID_INPUT,
+				0,
+				0
+			);
+		}
+		return blockControlExecutor.plan(world, event);
+	}
+
 	public void applyControlMutations(World world, List<BlockControlExecutor.BlockMutation> mutations) {
 		if (world == null || mutations == null || mutations.isEmpty()) return;
 		blockControlExecutor.applyMutations(world, mutations);
