@@ -63,6 +63,7 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_TRACK_HEIGHT_RESET = "恢复音频轨默认高度";
 	private static final String TOOLTIP_DEMUCS_PRESET = "Demucs 映射预设：Drive=更强律动，Detail=更细节，Balanced=平衡";
 	private static final String TOOLTIP_DEMUCS_ADVANCED = "高级参数：时长/能量阈值/最小间隔";
+	private static final String TOOLTIP_ACTION_ROLLBACK = "PLACE/CLEAR 预览回滚策略：Preview 会在停止/回退时恢复方块；Persistent 会保留写入结果";
 
 	/** Zoom 预设：显示名与对应的缩放倍数（相对基准 1x） */
 	private static final String[] ZOOM_PRESET_LABELS = { "0.25x", "0.5x", "1x", "2x", "3x", "4x" };
@@ -72,6 +73,8 @@ public final class TimelineToolbar {
 	private static final double[] SPEED_VALUES = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
 	private static final String[] DEMUCS_PRESET_LABELS = { "Drive", "Balanced", "Detail" };
 	private static final String[] DEMUCS_PRESET_VALUES = { "drive", "balanced", "detail" };
+	private static final String[] ACTION_ROLLBACK_LABELS = { "Preview", "Persistent" };
+	private static final String[] ACTION_ROLLBACK_VALUES = { "preview", "persistent" };
 	private static final String[] DEMUCS_FEATURE_KEYS = {
 		"kick", "snare", "hihat", "hihat_open", "snare_hi", "bass", "vocals", "other"
 	};
@@ -93,7 +96,9 @@ public final class TimelineToolbar {
 	private final ImInt zoomComboIndex = new ImInt(2); // 默认 1x
 	private final ImInt speedComboIndex = new ImInt(2); // 默认 1x
 	private final ImInt demucsPresetComboIndex = new ImInt(1); // 默认 balanced
+	private final ImInt actionRollbackComboIndex = new ImInt(0); // 默认 preview
 	private boolean demucsMappingConfigLoaded;
+	private boolean actionExecutionConfigLoaded;
 
 	public void render(TimelineEditor editor, TimelineToolbarState toolbarState) {
 		if (editor == null) return;
@@ -251,6 +256,8 @@ public final class TimelineToolbar {
 			}
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_SPEED);
+		nextItemInGroup();
+		renderActionRollbackControl(false);
 		nextGroup();
 
 		// ----- 2. 吸附与网格 -----
@@ -374,6 +381,7 @@ public final class TimelineToolbar {
 			}
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_SPEED);
+		renderActionRollbackControl(true);
 
 		ImGui.separator();
 		ImGui.textDisabled("Snap & Grid");
@@ -446,6 +454,25 @@ public final class TimelineToolbar {
 		renderDemucsMappingPresetControl(true);
 
 		ImGui.endPopup();
+	}
+
+	private void renderActionRollbackControl(boolean compactMode) {
+		ensureActionExecutionConfigLoaded();
+		actionRollbackComboIndex.set(indexOfActionRollbackValue(readActionRollbackModeFromTimeline()));
+		if (compactMode) {
+			ImGui.setNextItemWidth(comboWidthForLabels(ACTION_ROLLBACK_LABELS));
+			if (ImGui.combo("Rollback##tlMoreActionRollback", actionRollbackComboIndex, ACTION_ROLLBACK_LABELS)) {
+				writeActionRollbackModeToTimeline(ACTION_ROLLBACK_VALUES[actionRollbackComboIndex.get()]);
+			}
+			if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_ACTION_ROLLBACK);
+			return;
+		}
+
+		ImGui.setNextItemWidth(comboWidthForLabels(ACTION_ROLLBACK_LABELS));
+		if (ImGui.combo("Rollback", actionRollbackComboIndex, ACTION_ROLLBACK_LABELS)) {
+			writeActionRollbackModeToTimeline(ACTION_ROLLBACK_VALUES[actionRollbackComboIndex.get()]);
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_ACTION_ROLLBACK);
 	}
 
 	private static boolean shouldUseCompactToolbar(float tBtn) {
@@ -771,6 +798,71 @@ public final class TimelineToolbar {
 		}
 	}
 
+	private String readActionRollbackModeFromTimeline() {
+		if (BeatBlock.timeline == null) return "preview";
+		Object mode = BeatBlock.timeline.getMetadata("timelineActionRollbackMode");
+		if (mode == null) return "preview";
+		String value = mode.toString().trim().toLowerCase(Locale.ROOT);
+		if ("preview".equals(value) || "persistent".equals(value) || "performance".equals(value)) {
+			return "performance".equals(value) ? "persistent" : value;
+		}
+		return "preview";
+	}
+
+	private void writeActionRollbackModeToTimeline(String mode) {
+		if (BeatBlock.timeline == null) return;
+		String normalized = ("persistent".equalsIgnoreCase(mode) || "performance".equalsIgnoreCase(mode))
+			? "persistent"
+			: "preview";
+		BeatBlock.timeline.setMetadata("timelineActionRollbackMode", normalized);
+		persistActionExecutionConfig();
+	}
+
+	private void ensureActionExecutionConfigLoaded() {
+		if (actionExecutionConfigLoaded || BeatBlock.timeline == null) return;
+		actionExecutionConfigLoaded = true;
+		if (BeatBlock.timeline.getMetadata("timelineActionRollbackMode") != null) return;
+		Path configPath = getUiConfigPath();
+		if (!Files.isRegularFile(configPath)) return;
+		try {
+			String txt = Files.readString(configPath, StandardCharsets.UTF_8);
+			if (txt == null || txt.isBlank()) return;
+			JsonObject root = JsonParser.parseString(txt).getAsJsonObject();
+			if (!root.has("timelineActionExecution") || !root.get("timelineActionExecution").isJsonObject()) return;
+			JsonObject action = root.getAsJsonObject("timelineActionExecution");
+			if (!action.has("rollbackMode")) return;
+			String mode = action.get("rollbackMode").getAsString();
+			writeActionRollbackModeToTimeline(mode);
+		} catch (Exception e) {
+			LOGGER.debug("BeatBlock TimelineToolbar: failed to read ui.json timeline action config reason={}", e.toString());
+		}
+	}
+
+	private void persistActionExecutionConfig() {
+		if (BeatBlock.timeline == null) return;
+		Path configPath = getUiConfigPath();
+		try {
+			JsonObject root = new JsonObject();
+			if (Files.isRegularFile(configPath)) {
+				String existing = Files.readString(configPath, StandardCharsets.UTF_8);
+				if (existing != null && !existing.isBlank()) {
+					root = JsonParser.parseString(existing).getAsJsonObject();
+				}
+			}
+
+			JsonObject action = root.has("timelineActionExecution") && root.get("timelineActionExecution").isJsonObject()
+				? root.getAsJsonObject("timelineActionExecution")
+				: new JsonObject();
+			action.addProperty("rollbackMode", readActionRollbackModeFromTimeline());
+			root.add("timelineActionExecution", action);
+
+			Files.createDirectories(configPath.getParent());
+			Files.writeString(configPath, UI_CONFIG_GSON.toJson(root), StandardCharsets.UTF_8);
+		} catch (Exception e) {
+			LOGGER.debug("BeatBlock TimelineToolbar: failed to persist ui.json timeline action config reason={}", e.toString());
+		}
+	}
+
 	private double readTimelineScale(String key, double defaultValue, double min, double max) {
 		if (BeatBlock.timeline == null || key == null || key.isBlank()) return defaultValue;
 		Object raw = BeatBlock.timeline.getMetadata(key);
@@ -866,6 +958,14 @@ public final class TimelineToolbar {
 			}
 		}
 		return best;
+	}
+
+	private static int indexOfActionRollbackValue(String value) {
+		if (value == null || value.isBlank()) return 0;
+		for (int i = 0; i < ACTION_ROLLBACK_VALUES.length; i++) {
+			if (ACTION_ROLLBACK_VALUES[i].equalsIgnoreCase(value)) return i;
+		}
+		return 0;
 	}
 
 	private static void seekBy(TimelineEditor editor, double deltaSeconds) {

@@ -258,6 +258,7 @@ public final class BeatBlockClientDriver {
 	}
 
 	private static void captureTimelineMutationOriginalState(World world, BlockPos pos, BlockState currentState) {
+		if (!shouldRestoreTimelineMutations()) return;
 		if (world == null || pos == null || currentState == null) return;
 		RegistryKey<World> worldKey = world.getRegistryKey();
 		if (timelineMutationWorldKey == null) {
@@ -271,6 +272,11 @@ public final class BeatBlockClientDriver {
 
 	private static void restoreTimelineMutationSnapshot() {
 		if (timelineMutationSnapshot.isEmpty()) {
+			timelineMutationWorldKey = null;
+			return;
+		}
+		if (!shouldRestoreTimelineMutations()) {
+			timelineMutationSnapshot.clear();
 			timelineMutationWorldKey = null;
 			return;
 		}
@@ -288,6 +294,14 @@ public final class BeatBlockClientDriver {
 		}
 		timelineMutationSnapshot.clear();
 		timelineMutationWorldKey = null;
+	}
+
+	private static boolean shouldRestoreTimelineMutations() {
+		if (BeatBlock.timeline == null) return true;
+		Object raw = BeatBlock.timeline.getMetadata("timelineActionRollbackMode");
+		if (raw == null) return true;
+		String mode = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
+		return !"persistent".equals(mode) && !"performance".equals(mode);
 	}
 
 	private static BlockState resolvePlacementBlockState(TimelineAnimationEvent event) {
