@@ -1,5 +1,6 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.*;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineViewState;
@@ -21,6 +22,10 @@ public final class EventRenderer {
 	private static final int ACTION_CLEAR_COLOR = 0xFF_66_66_FF;
 	private static final int GLOBAL_EVENT_COLOR = 0xFF_AA_FF_AA;
 	private static final int SELECTED_BORDER_COLOR = 0xFF_FF_FF_00;
+	private static final int STATUS_APPLIED_COLOR = 0xFF_57_C4_A0;
+	private static final int STATUS_SKIPPED_COLOR = 0xFF_44_AA_FF;
+	private static final int STATUS_ANIMATE_COLOR = 0xFF_FF_CC_66;
+	private static final int STATUS_UNKNOWN_COLOR = 0xFF_99_99_99;
 	private static final float MIN_BAR_HALF_WIDTH = 1.25f;
 
 	private static int withAlpha(int abgr, int alpha) {
@@ -174,6 +179,7 @@ public final class EventRenderer {
 		ImGui.setCursorPosY(rowY);
 		float baseX = layout.contentLeft;
 		float baseY = ImGui.getCursorScreenPosY() + layout.rowHeight * 0.5f;
+		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getLastTimelineActionExecutionReport();
 		double vs = view.getViewStartTimeSeconds();
 		double ve = view.getViewEndTimeSeconds();
 		// 动画块有时长：起点 < vs 的块可能仍与视口重叠，不能跳过，下界从 0 开始；
@@ -195,11 +201,42 @@ public final class EventRenderer {
 				case ANIMATE -> fillColor;
 			};
 			ImGui.getWindowDrawList().addRectFilled(baseX + x, y0, baseX + x + w, y1, resolvedFillColor, 2f);
+			renderRuntimeBadge(baseX + x, y0, baseX + x + w, y1, e, report);
 			if (selection != null && selection.isEventSelected(e.getEventId())) {
 				ImGui.getWindowDrawList().addRect(baseX + x, y0, baseX + x + w, y1, SELECTED_BORDER_COLOR, 0f, 0, 2f);
 			}
 		}
 		ImGui.setCursorPosY(rowY + layout.rowHeight);
+	}
+
+	private void renderRuntimeBadge(float x0, float y0, float x1, float y1,
+	                              TimelineAnimationEvent event,
+	                              BeatBlockClientDriver.TimelineActionExecutionReport report) {
+		if (event == null || report == null) return;
+		String eventId = event.getEventId();
+		if (eventId == null || eventId.isBlank() || !eventId.equals(report.eventId())) return;
+
+		int badgeColor = switch (report.status()) {
+			case "APPLIED" -> STATUS_APPLIED_COLOR;
+			case "SKIPPED" -> STATUS_SKIPPED_COLOR;
+			case "ANIMATE" -> STATUS_ANIMATE_COLOR;
+			default -> STATUS_UNKNOWN_COLOR;
+		};
+
+		float cx = x1 - 5f;
+		float cy = y0 + 5f;
+		ImGui.getWindowDrawList().addCircleFilled(cx, cy, 3f, badgeColor);
+
+		if (ImGui.isMouseHoveringRect(Math.max(x0, x1 - 12f), y0, x1, Math.min(y1, y0 + 12f))) {
+			long ageMs = Math.max(0L, System.currentTimeMillis() - report.timestampMs());
+			String detail = report.detail() != null ? report.detail() : "";
+			ImGui.setTooltip(String.format("%s | mutations=%d | %dms ago%s%s",
+				report.status(),
+				report.mutationCount(),
+				ageMs,
+				detail.isBlank() ? "" : " | ",
+				detail));
+		}
 	}
 
 	public void renderCameraKeyframeRow(float rowY, List<CameraKeyframe> keyframes, TimelineLayout layout, TimelineViewState view) {
