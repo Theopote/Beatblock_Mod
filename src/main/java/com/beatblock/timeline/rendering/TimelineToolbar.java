@@ -64,6 +64,7 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_DEMUCS_PRESET = "Demucs 映射预设：Drive=更强律动，Detail=更细节，Balanced=平衡";
 	private static final String TOOLTIP_DEMUCS_ADVANCED = "高级参数：时长/能量阈值/最小间隔";
 	private static final String TOOLTIP_ACTION_ROLLBACK = "PLACE/CLEAR 预览回滚策略：Preview 会在停止/回退时恢复方块；Persistent 会保留写入结果";
+	private static final String TOOLTIP_ACTION_ROLLBACK_STATUS = "当前 PLACE/CLEAR 执行策略状态";
 
 	/** Zoom 预设：显示名与对应的缩放倍数（相对基准 1x） */
 	private static final String[] ZOOM_PRESET_LABELS = { "0.25x", "0.5x", "1x", "2x", "3x", "4x" };
@@ -258,6 +259,8 @@ public final class TimelineToolbar {
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_SPEED);
 		nextItemInGroup();
 		renderActionRollbackControl(false);
+		nextItemInGroup();
+		renderActionRollbackStatus();
 		nextGroup();
 
 		// ----- 2. 吸附与网格 -----
@@ -382,6 +385,7 @@ public final class TimelineToolbar {
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_SPEED);
 		renderActionRollbackControl(true);
+		renderActionRollbackStatus();
 
 		ImGui.separator();
 		ImGui.textDisabled("Snap & Grid");
@@ -473,6 +477,15 @@ public final class TimelineToolbar {
 			writeActionRollbackModeToTimeline(ACTION_ROLLBACK_VALUES[actionRollbackComboIndex.get()]);
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_ACTION_ROLLBACK);
+	}
+
+	private void renderActionRollbackStatus() {
+		String mode = readActionRollbackModeFromTimeline();
+		String label = "persistent".equalsIgnoreCase(mode)
+			? "Action: Persistent"
+			: "Action: Preview";
+		ImGui.textDisabled(label);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_ACTION_ROLLBACK_STATUS);
 	}
 
 	private static boolean shouldUseCompactToolbar(float tBtn) {
