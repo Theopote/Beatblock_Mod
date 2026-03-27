@@ -2,6 +2,9 @@ package com.beatblock.timeline.rendering;
 
 import imgui.ImGui;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 时间线 UI 布局：4 个独立区域 + 行位置，渲染与交互共用，避免坐标不一致。
  *
@@ -161,26 +164,70 @@ public final class TimelineLayout {
 
 		int v = 0;
 		float cursorY = 0f;
-		for (int i = 0; i < CONTENT_ROW_COUNT; i++) {
-			boolean visible = isRowVisible(i, trackListState, activeAudioSubRowCount, activeAnimationSubRowCount);
-			float h = resolveRowHeight(i, trackListState);
-			rowHeights[i] = h;
+		for (int rowIndex : buildLogicalRenderOrder()) {
+			boolean visible = isRowVisible(rowIndex, trackListState, activeAudioSubRowCount, activeAnimationSubRowCount);
+			float h = resolveRowHeight(rowIndex, trackListState);
+			rowHeights[rowIndex] = h;
 			if (visible) {
-				logicalToVisibleIndex[i] = v;
-				visibleToLogicalRow[v] = i;
-				rowCursorY[i] = cursorY;
-				rowScreenY[i] = trackHeaderTop + cursorY;
+				logicalToVisibleIndex[rowIndex] = v;
+				visibleToLogicalRow[v] = rowIndex;
+				rowCursorY[rowIndex] = cursorY;
+				rowScreenY[rowIndex] = trackHeaderTop + cursorY;
 				cursorY += h + ROW_GAP;
 				v++;
 			} else {
-				logicalToVisibleIndex[i] = -1;
-				rowScreenY[i] = -1f;
-				rowCursorY[i] = -1f;
+				logicalToVisibleIndex[rowIndex] = -1;
+				rowScreenY[rowIndex] = -1f;
+				rowCursorY[rowIndex] = -1f;
 			}
 		}
 		visibleRowCount = v;
 		trackHeaderHeight = visibleRowCount > 0 ? Math.max(0f, cursorY - ROW_GAP) : 0f;
 		contentHeight = trackHeaderHeight;
+	}
+
+	private List<Integer> buildLogicalRenderOrder() {
+		List<Integer> ordered = new ArrayList<>(CONTENT_ROW_COUNT);
+		boolean[] added = new boolean[CONTENT_ROW_COUNT];
+
+		ordered.add(TimelineTrackMeta.ROW_AUDIO_GROUP);
+		added[TimelineTrackMeta.ROW_AUDIO_GROUP] = true;
+		ordered.add(TimelineTrackMeta.ROW_ANIMATION_GROUP);
+		added[TimelineTrackMeta.ROW_ANIMATION_GROUP] = true;
+
+		int pairedSlots = Math.max(activeAudioSubRowCount, activeAnimationSubRowCount);
+		for (int slot = 0; slot < pairedSlots; slot++) {
+			if (slot < activeAudioSubRowCount) {
+				int audioRow = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
+				ordered.add(audioRow);
+				added[audioRow] = true;
+			}
+			if (slot < activeAnimationSubRowCount) {
+				int controlRow = TimelineTrackMeta.ROW_ANIM_FEATURES_START + slot;
+				ordered.add(controlRow);
+				added[controlRow] = true;
+			}
+		}
+
+		int[] fixedRows = {
+			TimelineTrackMeta.ROW_ANIM_BLOCK,
+			TimelineTrackMeta.ROW_ANIM_AUTO,
+			TimelineTrackMeta.ROW_CAMERA,
+			TimelineTrackMeta.ROW_GLOBAL_EVENT
+		};
+		for (int row : fixedRows) {
+			if (!added[row]) {
+				ordered.add(row);
+				added[row] = true;
+			}
+		}
+
+		for (int i = 0; i < CONTENT_ROW_COUNT; i++) {
+			if (!added[i]) {
+				ordered.add(i);
+			}
+		}
+		return ordered;
 	}
 
 	private static float resolveRowHeight(int rowIndex, TimelineTrackListState state) {

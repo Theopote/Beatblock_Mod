@@ -4,6 +4,7 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.Track;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -65,7 +66,7 @@ public final class TrackRegistry {
 		if (timeline == null) return List.of();
 
 		int extIdx = 0;
-		for (String key : timeline.getFeatureTracks().keySet()) {
+		for (String key : orderedFeatureKeys(timeline)) {
 			String trackId = Timeline.blockAnimationFeatureTrackId(key);
 			if (timeline.getTrack(trackId) == null) continue;
 			result.add(new TrackDefinition(
@@ -94,6 +95,25 @@ public final class TrackRegistry {
 		}
 
 		return List.copyOf(result);
+	}
+
+	private static List<String> orderedFeatureKeys(Timeline timeline) {
+		if (timeline == null) return List.of();
+		Set<String> featureKeys = timeline.getFeatureTracks().keySet();
+		if (featureKeys.isEmpty()) return List.of();
+		LinkedHashSet<String> ordered = new LinkedHashSet<>();
+
+		for (String key : RHYTHM_KEYS) {
+			if (featureKeys.contains(key)) ordered.add(key);
+		}
+		for (String key : MELODIC_STEM_KEYS) {
+			if (featureKeys.contains(key)) ordered.add(key);
+		}
+		featureKeys.stream()
+			.filter(k -> !RHYTHM_KEYS.contains(k) && !MELODIC_STEM_KEYS.contains(k))
+			.sorted()
+			.forEach(ordered::add);
+		return List.copyOf(ordered);
 	}
 
 	/**

@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -80,11 +81,16 @@ public final class TimelineRenderer {
 	/** 上次构建 currentAudioSubTracks 时的 featureTracks key 快照，用于脏检测。 */
 	private Set<String> lastFeatureTrackKeys = Set.of();
 	private Set<String> lastAnimationTrackIds = Set.of();
+	private final Map<String, PairVisibilitySnapshot> pairedFeatureVisibility = new HashMap<>();
+	private Boolean lastAudioGroupCollapsed;
+	private Boolean lastAnimationGroupCollapsed;
 
 	/** 当前帧音频组是否有拖拽悬停高亮（任意 row 0~4 悬停且有 audio payload 时置 true） */
 	private boolean audioGroupDropHighlight;
 	/** 已注册静音回调的 TrackListState 对象（避免重复注册）。 */
 	private TimelineTrackListState registeredMuteListenerFor;
+
+	private record PairVisibilitySnapshot(boolean audioVisible, boolean controlVisible) {}
 
 	/**
 	 * 固定区域：只绘制时间刻度行（左侧「时间」标签 + 标尺），分界线与轨道区对齐，并占位。
@@ -139,6 +145,7 @@ public final class TimelineRenderer {
 			lastAnimationTrackIds = currentAnimationIds;
 			currentAnimationSubTracks = TrackRegistry.buildBlockAnimationControlTracks(timeline);
 		}
+		syncPairedFeatureLaneState(trackListState);
 		layout.setActiveAnimationSubRowCount(currentAnimationSubTracks.size());
 		if (trackListState != null) {
 			syncPrimaryPlayerMuteState(trackListState);
@@ -476,13 +483,22 @@ public final class TimelineRenderer {
 		if (TimelineTrackMeta.isAudioSubRow(rowIndex)) {
 			int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
 			if (slot >= 0 && slot < currentAudioSubTracks.size()) {
-				return currentAudioSubTracks.get(slot).getDisplayName();
+				TrackDefinition td = currentAudioSubTracks.get(slot);
+				if (td.getVisualType() == TrackDefinition.VisualType.IMPULSE) {
+					String key = td.getKey();
+					return TrackRegistry.localizedName(key) + " 特征";
+				}
+				return td.getDisplayName();
 			}
 		}
 		if (TimelineTrackMeta.isAnimationFeatureSubRow(rowIndex)) {
 			int slot = TimelineTrackMeta.animationFeatureSubRowSlot(rowIndex);
 			if (slot >= 0 && slot < currentAnimationSubTracks.size()) {
-				return currentAnimationSubTracks.get(slot).getDisplayName();
+				String featureKey = Timeline.blockAnimationFeatureKeyFromTrackId(currentAnimationSubTracks.get(slot).getKey());
+				String base = featureKey != null && !featureKey.isBlank()
+					? TrackRegistry.localizedName(featureKey)
+					: currentAnimationSubTracks.get(slot).getDisplayName();
+				return base + " 控制";
 			}
 		}
 		return trackListState != null ? trackListState.getDisplayName(rowIndex) : TimelineTrackMeta.getDefaultName(rowIndex);
@@ -510,6 +526,88 @@ public final class TimelineRenderer {
 			return "动画控制";
 		}
 		return TimelineTrackMeta.getCategoryTypeLabel(rowIndex);
+	}
+
+	private void syncPairedFeatureLaneState(TimelineTrackListState trackListState) {
+		if (trackListState == null) return;
+		syncFeatureGroupCollapse(trackListState);
+
+		Map<String, Integer> audioRowsByFeature = new HashMap<>();
+		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
+			TrackDefinition td = currentAudioSubTracks.get(slot);
+			if (td.getVisualType() != TrackDefinition.VisualType.IMPULSE) continue;
+			String key = td.getKey();
+			if (key == null || key.isBlank()) continue;
+			audioRowsByFeature.put(key, TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot);
+		}
+
+		Map<String, Integer> controlRowsByFeature = new HashMap<>();
+		for (int slot = 0; slot < currentAnimationSubTracks.size(); slot++) {
+			TrackDefinition td = currentAnimationSubTracks.get(slot);
+			String key = Timeline.blockAnimationFeatureKeyFromTrackId(td.getKey());
+			if (key == null || key.isBlank()) continue;
+			controlRowsByFeature.put(key, TimelineTrackMeta.ROW_ANIM_FEATURES_START + slot);
+		}
+
+		Set<String> pairedKeys = new HashSet<>(audioRowsByFeature.keySet());
+		pairedKeys.retainAll(controlRowsByFeature.keySet());
+		pairedFeatureVisibility.keySet().retainAll(pairedKeys);
+
+		for (String key : pairedKeys) {
+			int audioRow = audioRowsByFeature.get(key);
+			int controlRow = controlRowsByFeature.get(key);
+			boolean audioVisible = trackListState.isVisible(audioRow);
+			boolean controlVisible = trackListState.isVisible(controlRow);
+			PairVisibilitySnapshot previous = pairedFeatureVisibility.get(key);
+
+			if (audioVisible != controlVisible) {
+				if (previous == null) {
+					trackListState.setVisible(controlRow, audioVisible);
+				} else {
+					boolean audioChanged = previous.audioVisible() != audioVisible;
+					boolean controlChanged = previous.controlVisible() != controlVisible;
+					if (audioChanged && !controlChanged) {
+						trackListState.setVisible(controlRow, audioVisible);
+					} else if (controlChanged && !audioChanged) {
+						trackListState.setVisible(audioRow, controlVisible);
+					} else {
+						trackListState.setVisible(controlRow, audioVisible);
+					}
+				}
+			}
+
+			pairedFeatureVisibility.put(key, new PairVisibilitySnapshot(
+				trackListState.isVisible(audioRow),
+				trackListState.isVisible(controlRow)
+			));
+		}
+	}
+
+	private void syncFeatureGroupCollapse(TimelineTrackListState trackListState) {
+		boolean audioCollapsed = trackListState.isGroupCollapsed(TimelineTrackMeta.ROW_AUDIO_GROUP);
+		boolean animationCollapsed = trackListState.isGroupCollapsed(TimelineTrackMeta.ROW_ANIMATION_GROUP);
+
+		if (lastAudioGroupCollapsed == null || lastAnimationGroupCollapsed == null) {
+			if (audioCollapsed != animationCollapsed) {
+				trackListState.setGroupCollapsed(TimelineTrackMeta.ROW_ANIMATION_GROUP, audioCollapsed);
+			}
+			lastAudioGroupCollapsed = trackListState.isGroupCollapsed(TimelineTrackMeta.ROW_AUDIO_GROUP);
+			lastAnimationGroupCollapsed = trackListState.isGroupCollapsed(TimelineTrackMeta.ROW_ANIMATION_GROUP);
+			return;
+		}
+
+		boolean audioChanged = !lastAudioGroupCollapsed.equals(audioCollapsed);
+		boolean animationChanged = !lastAnimationGroupCollapsed.equals(animationCollapsed);
+		if (audioChanged && !animationChanged) {
+			trackListState.setGroupCollapsed(TimelineTrackMeta.ROW_ANIMATION_GROUP, audioCollapsed);
+		} else if (animationChanged && !audioChanged) {
+			trackListState.setGroupCollapsed(TimelineTrackMeta.ROW_AUDIO_GROUP, animationCollapsed);
+		} else if (audioCollapsed != animationCollapsed) {
+			trackListState.setGroupCollapsed(TimelineTrackMeta.ROW_ANIMATION_GROUP, audioCollapsed);
+		}
+
+		lastAudioGroupCollapsed = trackListState.isGroupCollapsed(TimelineTrackMeta.ROW_AUDIO_GROUP);
+		lastAnimationGroupCollapsed = trackListState.isGroupCollapsed(TimelineTrackMeta.ROW_ANIMATION_GROUP);
 	}
 
 	/**
@@ -1412,14 +1510,21 @@ public final class TimelineRenderer {
 	 */
 	private void drawAudioGroupDropHighlight(TimelineLayout layout) {
 		if (!audioGroupDropHighlight) return;
-		// 寻找音频组内第一个和最后一个可见行（组头 + 所有活跃子轨）
+		// 寻找音频组内第一个和最后一个可见行（组头 + 所有活跃子轨）。
+		// 注意：行顺序可能为「特征/控制交错」，因此不能依赖连续行号区间。
 		float y0 = -1f, y1 = -1f;
-		int lastAudioRow = TimelineTrackMeta.ROW_AUDIO_SUBS_START + layout.getActiveAudioSubRowCount() - 1;
-		for (int r = TimelineTrackMeta.ROW_AUDIO_GROUP; r <= lastAudioRow; r++) {
+		float groupY = layout.getRowScreenY(TimelineTrackMeta.ROW_AUDIO_GROUP);
+		if (groupY >= 0f) {
+			y0 = groupY;
+			y1 = groupY + layout.getRowHeight(TimelineTrackMeta.ROW_AUDIO_GROUP);
+		}
+		for (int slot = 0; slot < layout.getActiveAudioSubRowCount(); slot++) {
+			int r = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
 			float ry = layout.getRowScreenY(r);
-			if (ry < 0) continue;
-			if (y0 < 0) y0 = ry;
-			y1 = ry + layout.getRowHeight(r);
+			if (ry < 0f) continue;
+			if (y0 < 0f || ry < y0) y0 = ry;
+			float bottom = ry + layout.getRowHeight(r);
+			if (bottom > y1) y1 = bottom;
 		}
 		if (y0 >= 0 && y1 > y0) {
 			ImGui.getWindowDrawList().addRect(
