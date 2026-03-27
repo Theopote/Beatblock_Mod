@@ -179,7 +179,6 @@ public final class EventRenderer {
 		ImGui.setCursorPosY(rowY);
 		float baseX = layout.contentLeft;
 		float baseY = ImGui.getCursorScreenPosY() + layout.rowHeight * 0.5f;
-		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getLastTimelineActionExecutionReport();
 		double vs = view.getViewStartTimeSeconds();
 		double ve = view.getViewEndTimeSeconds();
 		// 动画块有时长：起点 < vs 的块可能仍与视口重叠，不能跳过，下界从 0 开始；
@@ -201,6 +200,7 @@ public final class EventRenderer {
 				case ANIMATE -> fillColor;
 			};
 			ImGui.getWindowDrawList().addRectFilled(baseX + x, y0, baseX + x + w, y1, resolvedFillColor, 2f);
+			BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getTimelineActionExecutionReport(e.getEventId());
 			renderRuntimeBadge(baseX + x, y0, baseX + x + w, y1, e, report);
 			if (selection != null && selection.isEventSelected(e.getEventId())) {
 				ImGui.getWindowDrawList().addRect(baseX + x, y0, baseX + x + w, y1, SELECTED_BORDER_COLOR, 0f, 0, 2f);

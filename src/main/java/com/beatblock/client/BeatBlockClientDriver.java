@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 客户端驱动：每帧推进 MusicPlayer、派发 BeatEvent、更新动画并应用变换。
@@ -49,6 +50,8 @@ public final class BeatBlockClientDriver {
 	private static final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
 	private static RegistryKey<World> timelineMutationWorldKey;
 	private static volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
+	private static final Map<String, TimelineActionExecutionReport> timelineActionReportByEventId = new ConcurrentHashMap<>();
+	private static final int MAX_ACTION_REPORT_CACHE_SIZE = 4096;
 
 	public static void onClientTick() {
 		if (!driving) return;
@@ -264,7 +267,7 @@ public final class BeatBlockClientDriver {
 
 	private static void recordActionReport(TimelineAnimationEvent event, int mutationCount, String status, String detail) {
 		if (event == null) return;
-		lastTimelineActionExecutionReport = new TimelineActionExecutionReport(
+		TimelineActionExecutionReport report = new TimelineActionExecutionReport(
 			System.currentTimeMillis(),
 			event.getEventId(),
 			event.getTargetObjectId(),
@@ -273,6 +276,14 @@ public final class BeatBlockClientDriver {
 			status != null ? status : "UNKNOWN",
 			detail != null ? detail : ""
 		);
+		lastTimelineActionExecutionReport = report;
+		String eventId = event.getEventId();
+		if (eventId != null && !eventId.isBlank()) {
+			if (timelineActionReportByEventId.size() > MAX_ACTION_REPORT_CACHE_SIZE) {
+				timelineActionReportByEventId.clear();
+			}
+			timelineActionReportByEventId.put(eventId, report);
+		}
 	}
 
 	private static boolean passesEnergyThreshold(TimelineAnimationEvent event) {
@@ -361,6 +372,11 @@ public final class BeatBlockClientDriver {
 
 	public static TimelineActionExecutionReport getLastTimelineActionExecutionReport() {
 		return lastTimelineActionExecutionReport;
+	}
+
+	public static TimelineActionExecutionReport getTimelineActionExecutionReport(String eventId) {
+		if (eventId == null || eventId.isBlank()) return null;
+		return timelineActionReportByEventId.get(eventId);
 	}
 
 	public static void togglePlayback() {

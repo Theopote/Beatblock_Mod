@@ -206,11 +206,10 @@ public class EventPropertiesPanel {
 	}
 
 	private void renderRuntimeStatus(EventRef ref) {
-		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getLastTimelineActionExecutionReport();
-		if (report == null) return;
 		String eventId = ref != null && ref.event() != null ? ref.event().getId() : "";
 		if (eventId == null || eventId.isBlank()) return;
-		if (!eventId.equals(report.eventId())) return;
+		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getTimelineActionExecutionReport(eventId);
+		if (report == null) return;
 
 		long ageMs = Math.max(0L, System.currentTimeMillis() - report.timestampMs());
 		ImGui.textDisabled(String.format(Locale.ROOT,
