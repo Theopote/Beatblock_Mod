@@ -106,8 +106,6 @@ public final class AudioAnalysisPanel {
 	private long panelHintExpireAtMs;
     private final ImBoolean demucsToggle = new ImBoolean(false);
     private final Set<String> expandedDetailRows = new HashSet<>();
-    private static final float MAIN_PANEL_PADDING = 8f;
-
     // ── 公共入口 ─────────────────────────────────────────────────────────────
 
     public void render() {
@@ -119,10 +117,9 @@ public final class AudioAnalysisPanel {
         renderToolbar();
 		renderPythonRuntimeHint();
 
-        ImGui.setCursorPosX(ImGui.getCursorPosX() + MAIN_PANEL_PADDING);
         List<AudioAsset> assets = AudioAssetManager.getInstance().getAssets();
 
-        float totalW = Math.max(0f, ImGui.getContentRegionAvailX() - MAIN_PANEL_PADDING * 2f);
+        float totalW = Math.max(0f, ImGui.getContentRegionAvailX());
         float totalH = ImGui.getContentRegionAvailY() - 32f; // 为底栏留空间
         float splitterW = detailExpanded ? PANEL_GAP : 0f;
 
@@ -141,7 +138,10 @@ public final class AudioAnalysisPanel {
         }
 
         // ── 左侧：列表 ──────────────────────────────────────────────────────
+        // 顶层子面板不再叠加额外 WindowPadding，避免看起来超过 8px 外边距。
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f);
         ImGui.beginChild("##AudioList", listW, totalH, false, ImGuiWindowFlags.NoScrollbar);
+        ImGui.popStyleVar();
         renderDropZone();
         ImGui.spacing();
         renderAssetList(assets);
@@ -169,8 +169,9 @@ public final class AudioAnalysisPanel {
 
             ImGui.sameLine(0f, 0f);
             ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 4f);
+            ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0f, 0f);
             ImGui.beginChild("##AudioDetail", detailW, totalH, true, ImGuiWindowFlags.NoScrollbar);
-            ImGui.popStyleVar();
+            ImGui.popStyleVar(2);
             renderDetailPanel(selectedAsset);
             ImGui.endChild();
         } else {
@@ -184,7 +185,6 @@ public final class AudioAnalysisPanel {
 
         // ── 底栏：批量操作 ──────────────────────────────────────────────────
         ImGui.separator();
-        ImGui.setCursorPosX(ImGui.getCursorPosX() + MAIN_PANEL_PADDING);
         renderFooter(assets);
 
         ImGui.end();
@@ -420,8 +420,16 @@ public final class AudioAnalysisPanel {
         return switch (asset.getStatus()) {
             case PENDING   -> lineH * 2f + 28f;            // 文件名 + 按钮行
             case QUEUED    -> lineH * 3f + 20f;            // 排队信息 + 操作按钮
-            case ANALYZING -> lineH * 2f + 12f
-                    + AudioAnalysisStep.values().length * lineH; // 步骤列表
+            case ANALYZING -> {
+                // 解析中行在不同状态文本长度下高度波动较大，留更保守余量避免进度条底部被 child 裁剪。
+                float base = lineH * 3f + 28f; // 标题(2行)+进度条行(1行)+子窗口内边距/边框/间距余量
+                String statusText = asset.getProcessingStatusText();
+                if (statusText != null && !statusText.isBlank()) {
+                    float infoExtra = (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) ? lineH * 2f : 0f;
+                    yield base + lineH * 3f + infoExtra; // 状态文本 + 阶段 + 可能的提示信息
+                }
+                yield base + lineH + AudioAnalysisStep.values().length * lineH; // 空隙 + 步骤列表
+            }
             case COMPLETED -> lineH * 4f + 18f;            // 紧凑信息 + 拖拽提示
             case FAILED    -> lineH * 3f + 28f;            // 文件名 + 错误 + 按钮
         };
@@ -474,7 +482,7 @@ public final class AudioAnalysisPanel {
                 COLOR_PROGRESS_FG.x, COLOR_PROGRESS_FG.y, COLOR_PROGRESS_FG.z, COLOR_PROGRESS_FG.w);
         ImGui.pushStyleColor(ImGuiCol.FrameBg,
                 COLOR_PROGRESS_BG.x, COLOR_PROGRESS_BG.y, COLOR_PROGRESS_BG.z, COLOR_PROGRESS_BG.w);
-        ImGui.progressBar(progress, barW, 6f, "");
+        ImGui.progressBar(progress, barW, 10f, "");
         ImGui.popStyleColor(2);
 
         // 百分比文字
