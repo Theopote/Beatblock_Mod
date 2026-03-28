@@ -79,7 +79,7 @@ public final class BlockAnimationEngine {
 
 		Map<String, Object> params = event.getParameters();
 		SpatialDispatchMode spatialMode = SpatialDispatchMode.fromValue(params.get("spatialMode"));
-		double stepDelay = Math.max(0.0, readDouble(params.get("sequentialDelaySeconds"), 0.0));
+		double stepDelay = resolveSpatialStepDelay(params, spatialMode, event.getDurationSeconds(), target.getBlocks().size());
 		if (spatialMode == SpatialDispatchMode.ALL || stepDelay <= 0.0 || target.getBlocks().size() <= 1) {
 			scheduleFromTimelineEvent(
 				event.getAnimationTypeId(),
@@ -108,6 +108,17 @@ public final class BlockAnimationEngine {
 			);
 			animationPlayer.addInstance(new EngineAnimationInstance(def, perBlockTarget, start, end, energy));
 		}
+	}
+
+	private static double resolveSpatialStepDelay(Map<String, Object> params, SpatialDispatchMode mode, double durationSeconds, int blockCount) {
+		if (mode == null || mode == SpatialDispatchMode.ALL || blockCount <= 1) return 0.0;
+		Object raw = params != null ? params.get("sequentialDelaySeconds") : null;
+		double explicit = readDouble(raw, -1.0);
+		if (explicit >= 0.0) return explicit;
+
+		double duration = Math.max(0.05, durationSeconds);
+		double byDuration = duration / Math.max(2.0, Math.min(28.0, blockCount * 0.6));
+		return Math.max(0.01, Math.min(0.06, byDuration));
 	}
 
 	private List<BlockPos> sortBlocksForSpatialMode(StageObject target, SpatialDispatchMode mode, TimelineAnimationEvent event) {
