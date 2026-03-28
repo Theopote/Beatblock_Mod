@@ -1,21 +1,25 @@
 package com.beatblock.selection;
 
+import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * BeatBlock 方块选区（精简复刻 ChronoBlocks 点击 + 框选工具）。
+ * BeatBlock 方块选区（复刻 ChronoBlocks 类：点击、框选、线选、球、连通、整列）。
  * <p>
- * 优化：大框选一次性合并，避免在热路径上分配过多中间集合；超过上限则拒绝并提示。
+ * 大体积一次性合并；超过上限则拒绝或截断（连通）并提示。
  */
 public final class BeatBlockSelectionManager {
 
@@ -31,8 +35,11 @@ public final class BeatBlockSelectionManager {
 	private SelectionOperation operation = SelectionOperation.NEW;
 	private final LinkedHashSet<BlockPos> selected = new LinkedHashSet<>();
 	private BlockPos boxFirstCorner;
+	private BlockPos lineFirstCorner;
 	private boolean includeAir;
 	private int maxBlocks = 100_000;
+	private int sphereBrushRadius = 3;
+	private boolean connectedMatchFullState = true;
 	private String lastMessage = "";
 
 	private BeatBlockSelectionManager() {}
@@ -45,6 +52,9 @@ public final class BeatBlockSelectionManager {
 		this.mode = mode != null ? mode : SelectionMode.OFF;
 		if (this.mode != SelectionMode.BOX) {
 			boxFirstCorner = null;
+		}
+		if (this.mode != SelectionMode.LINE) {
+			lineFirstCorner = null;
 		}
 	}
 
@@ -72,6 +82,22 @@ public final class BeatBlockSelectionManager {
 		this.maxBlocks = Math.max(1024, maxBlocks);
 	}
 
+	public int getSphereBrushRadius() {
+		return sphereBrushRadius;
+	}
+
+	public void setSphereBrushRadius(int sphereBrushRadius) {
+		this.sphereBrushRadius = Math.min(32, Math.max(1, sphereBrushRadius));
+	}
+
+	public boolean isConnectedMatchFullState() {
+		return connectedMatchFullState;
+	}
+
+	public void setConnectedMatchFullState(boolean connectedMatchFullState) {
+		this.connectedMatchFullState = connectedMatchFullState;
+	}
+
 	public Set<BlockPos> getSelectedBlocks() {
 		return Collections.unmodifiableSet(selected);
 	}
@@ -82,6 +108,10 @@ public final class BeatBlockSelectionManager {
 
 	public BlockPos getBoxFirstCorner() {
 		return boxFirstCorner;
+	}
+
+	public BlockPos getLineFirstCorner() {
+		return lineFirstCorner;
 	}
 
 	public String getLastMessage() {
@@ -95,12 +125,18 @@ public final class BeatBlockSelectionManager {
 	public void clearSelection() {
 		selected.clear();
 		boxFirstCorner = null;
+		lineFirstCorner = null;
 		lastMessage = "已清空选区。";
 	}
 
 	public void cancelBoxCorner() {
 		boxFirstCorner = null;
 		lastMessage = "已取消框选第一点。";
+	}
+
+	public void cancelLineCorner() {
+		lineFirstCorner = null;
+		lastMessage = "已取消线选第一点。";
 	}
 
 	/**
@@ -111,7 +147,10 @@ public final class BeatBlockSelectionManager {
 		operation = SelectionOperation.NEW;
 		selected.clear();
 		boxFirstCorner = null;
+		lineFirstCorner = null;
 		includeAir = false;
+		sphereBrushRadius = 3;
+		connectedMatchFullState = true;
 		lastMessage = "";
 	}
 
@@ -123,13 +162,14 @@ public final class BeatBlockSelectionManager {
 			return;
 		}
 
-		if (mode == SelectionMode.CLICK) {
-			handleClickTool(world, pos, shiftDown);
-			return;
-		}
-
-		if (mode == SelectionMode.BOX) {
-			handleBoxTool(world, pos);
+		switch (mode) {
+			case OFF -> {}
+			case CLICK -> handleClickTool(world, pos, shiftDown);
+			case BOX -> handleBoxTool(world, pos);
+			case LINE -> handleLineTool(world, pos);
+			case SPHERE -> handleSphereTool(world, pos, shiftDown);
+			case CONNECTED -> handleConnectedTool(world, pos, shiftDown);
+			case COLUMN -> handleColumnTool(world, pos, shiftDown);
 		}
 	}
 
@@ -180,7 +220,50 @@ public final class BeatBlockSelectionManager {
 		if (boxBlocks == null) {
 			return;
 		}
-		mergeBoxIntoSelection(boxBlocks);
+		mergeBlockListIntoSelection(boxBlocks, operation);
+	}
+
+	private void handleLineTool(World world, BlockPos pos) {
+		BlockPos immutable = pos.toImmutable();
+		if (lineFirstCorner == null) {
+			lineFirstCorner = immutable;
+			lastMessage = "线选：已设端点 A，再点端点 B";
+			return;
+		}
+
+		BlockPos a = lineFirstCorner;
+		BlockPos b = immutable;
+		lineFirstCorner = null;
+
+		List<BlockPos> lineBlocks = collectLine(world, a, b);
+		if (lineBlocks == null) {
+			return;
+		}
+		mergeBlockListIntoSelection(lineBlocks, operation);
+	}
+
+	private void handleSphereTool(World world, BlockPos pos, boolean shiftDown) {
+		SelectionOperation op = shiftDown ? SelectionOperation.ADD : operation;
+		List<BlockPos> blocks = collectSphere(world, pos, sphereBrushRadius);
+		if (blocks == null) {
+			return;
+		}
+		mergeBlockListIntoSelection(blocks, op);
+	}
+
+	private void handleConnectedTool(World world, BlockPos pos, boolean shiftDown) {
+		SelectionOperation op = shiftDown ? SelectionOperation.ADD : operation;
+		List<BlockPos> blocks = collectConnected(world, pos);
+        mergeBlockListIntoSelection(blocks, op);
+	}
+
+	private void handleColumnTool(World world, BlockPos pos, boolean shiftDown) {
+		SelectionOperation op = shiftDown ? SelectionOperation.ADD : operation;
+		List<BlockPos> blocks = collectColumn(world, pos);
+		if (blocks == null) {
+			return;
+		}
+		mergeBlockListIntoSelection(blocks, op);
 	}
 
 	private List<BlockPos> collectBox(World world, BlockPos a, BlockPos b) {
@@ -211,28 +294,168 @@ public final class BeatBlockSelectionManager {
 		return out;
 	}
 
-	private void mergeBoxIntoSelection(List<BlockPos> boxBlocks) {
-		switch (operation) {
-			case NEW -> {
-				selected.clear();
-				selected.addAll(boxBlocks);
-				lastMessage = "新建框选：" + boxBlocks.size() + " 个方块";
-			}
-			case ADD -> {
-				selected.addAll(boxBlocks);
-				lastMessage = "加选框后共 " + selected.size() + " 个方块";
-			}
-			case SUBTRACT -> {
-				selected.removeAll(boxBlocks);
-				lastMessage = "减选框后共 " + selected.size() + " 个方块";
-			}
-			case INTERSECT -> {
-				Set<BlockPos> boxSet = Set.copyOf(boxBlocks);
-				selected.retainAll(boxSet);
-				lastMessage = "与框求交后共 " + selected.size() + " 个方块";
+	private List<BlockPos> collectLine(World world, BlockPos a, BlockPos b) {
+		List<BlockPos> raw = BlockSelectionLine.between(a, b);
+		if (raw.size() > maxBlocks) {
+			lastMessage = String.format("线选经过 %d 格，超过上限 %d。", raw.size(), maxBlocks);
+			return null;
+		}
+		List<BlockPos> out = new ArrayList<>();
+		for (BlockPos p : raw) {
+			if (!includeAir && world.getBlockState(p).isAir()) continue;
+			out.add(p.toImmutable());
+		}
+		return out;
+	}
+
+	private List<BlockPos> collectSphere(World world, BlockPos center, int r) {
+		int rr = r * r;
+		long worst = (2L * r + 1) * (2L * r + 1) * (2L * r + 1);
+		if (worst > maxBlocks) {
+			lastMessage = String.format("球体包络方块数约 %d，超过上限 %d，请缩小半径。", worst, maxBlocks);
+			return null;
+		}
+		List<BlockPos> out = new ArrayList<>();
+		for (int dx = -r; dx <= r; dx++) {
+			for (int dy = -r; dy <= r; dy++) {
+				for (int dz = -r; dz <= r; dz++) {
+					if (dx * dx + dy * dy + dz * dz > rr) continue;
+					BlockPos p = center.add(dx, dy, dz);
+					if (!includeAir && world.getBlockState(p).isAir()) continue;
+					out.add(p.toImmutable());
+					if (out.size() > maxBlocks) {
+						lastMessage = String.format("球体选区超过上限 %d。", maxBlocks);
+						return null;
+					}
+				}
 			}
 		}
-		LOGGER.debug("[BeatBlockSelection] box op={} size={}", operation, selected.size());
+		return out;
+	}
+
+	private List<BlockPos> collectColumn(World world, BlockPos pos) {
+		int x = pos.getX();
+		int z = pos.getZ();
+		int minY = world.getBottomY();
+		int maxY = minY + world.getHeight() - 1;
+		int span = maxY - minY + 1;
+		if (span > maxBlocks) {
+			lastMessage = String.format("整列高度 %d 超过上限 %d。", span, maxBlocks);
+			return null;
+		}
+		List<BlockPos> out = new ArrayList<>(Math.min(span, 4096));
+		for (int y = minY; y <= maxY; y++) {
+			BlockPos p = new BlockPos(x, y, z);
+			if (!includeAir && world.getBlockState(p).isAir()) continue;
+			out.add(p.toImmutable());
+		}
+		return out;
+	}
+
+	private List<BlockPos> collectConnected(World world, BlockPos start) {
+		BlockState anchor = world.getBlockState(start);
+		ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+		HashSet<BlockPos> visited = new HashSet<>();
+		List<BlockPos> result = new ArrayList<>();
+
+		BlockPos startImm = start.toImmutable();
+		queue.add(startImm);
+		visited.add(startImm);
+
+		while (!queue.isEmpty()) {
+			if (result.size() >= maxBlocks) {
+				lastMessage = String.format("连通选区已达上限 %d，已选 %d 个方块（未完全展开）。", maxBlocks, result.size());
+				break;
+			}
+			BlockPos p = queue.removeFirst();
+			result.add(p);
+
+			for (Direction d : Direction.values()) {
+				BlockPos n = p.offset(d);
+				if (visited.contains(n)) continue;
+				BlockState st = world.getBlockState(n);
+				if (!includeAir && st.isAir()) continue;
+				if (!connectedMatches(st, anchor)) continue;
+				visited.add(n);
+				queue.add(n.toImmutable());
+			}
+		}
+
+		return result;
+	}
+
+	private boolean connectedMatches(BlockState state, BlockState anchor) {
+		return connectedMatchFullState ? state.equals(anchor) : state.getBlock() == anchor.getBlock();
+	}
+
+	private void mergeBlockListIntoSelection(List<BlockPos> blocks, SelectionOperation op) {
+		switch (op) {
+			case NEW -> {
+				selected.clear();
+				selected.addAll(blocks);
+				lastMessage = mergeMessageNew(blocks.size());
+			}
+			case ADD -> {
+				selected.addAll(blocks);
+				lastMessage = mergeMessageAfterAdd();
+			}
+			case SUBTRACT -> {
+				blocks.forEach(selected::remove);
+				lastMessage = mergeMessageAfterSubtract();
+			}
+			case INTERSECT -> {
+				selected.retainAll(Set.copyOf(blocks));
+				lastMessage = mergeMessageAfterIntersect();
+			}
+		}
+		LOGGER.debug("[BeatBlockSelection] merge op={} size={}", op, selected.size());
+	}
+
+	private String mergeMessageNew(int count) {
+		return switch (mode) {
+			case BOX -> "新建框选：" + count + " 个方块";
+			case LINE -> "新建线选：" + count + " 个方块";
+			case SPHERE -> "新建球选：" + count + " 个方块";
+			case CONNECTED -> "新建连通选区：" + count + " 个方块";
+			case COLUMN -> "新建整列：" + count + " 个方块";
+			default -> "新建选区：" + count + " 个方块";
+		};
+	}
+
+	private String mergeMessageAfterAdd() {
+		int n = selected.size();
+		return switch (mode) {
+			case BOX -> "加选框后共 " + n + " 个方块";
+			case LINE -> "加选线后共 " + n + " 个方块";
+			case SPHERE -> "加选球后共 " + n + " 个方块";
+			case CONNECTED -> "加选连通区域后共 " + n + " 个方块";
+			case COLUMN -> "加选整列后共 " + n + " 个方块";
+			default -> "加选后共 " + n + " 个方块";
+		};
+	}
+
+	private String mergeMessageAfterSubtract() {
+		int n = selected.size();
+		return switch (mode) {
+			case BOX -> "减选框后共 " + n + " 个方块";
+			case LINE -> "减选线后共 " + n + " 个方块";
+			case SPHERE -> "减选球后共 " + n + " 个方块";
+			case CONNECTED -> "减选连通区域后共 " + n + " 个方块";
+			case COLUMN -> "减选整列后共 " + n + " 个方块";
+			default -> "减选后共 " + n + " 个方块";
+		};
+	}
+
+	private String mergeMessageAfterIntersect() {
+		int n = selected.size();
+		return switch (mode) {
+			case BOX -> "与框求交后共 " + n + " 个方块";
+			case LINE -> "与线求交后共 " + n + " 个方块";
+			case SPHERE -> "与球求交后共 " + n + " 个方块";
+			case CONNECTED -> "与连通区域求交后共 " + n + " 个方块";
+			case COLUMN -> "与整列求交后共 " + n + " 个方块";
+			default -> "求交后共 " + n + " 个方块";
+		};
 	}
 
 	/**

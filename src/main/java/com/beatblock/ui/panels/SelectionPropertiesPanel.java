@@ -16,7 +16,9 @@ public class SelectionPropertiesPanel {
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private final int[] maxBlocksScratch = new int[1];
+	private final int[] sphereRadiusScratch = new int[1];
 	private final ImBoolean includeAirProxy = new ImBoolean(false);
+	private final ImBoolean connectedFullStateProxy = new ImBoolean(true);
 
 	public void render() {
 		if (!ImGui.begin(BeatBlockDockSpaceLayoutBuilder.SELECTION_PROPERTIES_WINDOW, WINDOW_FLAGS)) {
@@ -34,7 +36,23 @@ public class SelectionPropertiesPanel {
 				mgr.setOperation(op);
 			}
 		}
-		ImGui.textWrapped("说明：新建=替换选区。点击模式下按住 Shift 可强制加选（与 ChronoBlocks 一致）。");
+		ImGui.textWrapped("说明：新建=替换选区。点击 / 球 / 连通 / 整列 下按住 Shift 可强制加选（与点击工具一致）。");
+
+		sphereRadiusScratch[0] = mgr.getSphereBrushRadius();
+		ImGui.setNextItemWidth(160f);
+		if (ImGui.sliderInt("球选半径（格）##selSphereR", sphereRadiusScratch, 1, 32)) {
+			mgr.setSphereBrushRadius(sphereRadiusScratch[0]);
+		}
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip("欧氏距离 ≤ 半径的方块计入球选（预览为包络盒）。");
+		}
+
+		connectedFullStateProxy.set(mgr.isConnectedMatchFullState());
+		ImGui.checkbox("魔棒：完整方块状态一致##selConnFull", connectedFullStateProxy);
+		mgr.setConnectedMatchFullState(connectedFullStateProxy.get());
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip("勾选：与起点 BlockState 完全相同才算同色；关闭：仅方块类型一致。");
+		}
 
 		includeAirProxy.set(mgr.isIncludeAir());
 		ImGui.checkbox("包含空气方块##selIncludeAir", includeAirProxy);
@@ -46,7 +64,7 @@ public class SelectionPropertiesPanel {
 			mgr.setMaxBlocks(maxBlocksScratch[0]);
 		}
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("长方体框选包含的方块数超过此值时将拒绝，避免误操作卡死。");
+			ImGui.setTooltip("框选体积、线选经过格数、球内方块数、连通展开数等超过此值时拒绝或截断，避免卡死。");
 		}
 
 		ImGui.separator();
@@ -65,6 +83,15 @@ public class SelectionPropertiesPanel {
 				"框选进行中：角点 A = %d, %d, %d。在场景区移动鼠标可预览选框，再左键点 B。", c.getX(), c.getY(), c.getZ()));
 			if (ImGui.button("取消角点 A##selCancelBoxA")) {
 				mgr.cancelBoxCorner();
+			}
+		}
+
+		if (mgr.getMode() == SelectionMode.LINE && mgr.getLineFirstCorner() != null) {
+			var c = mgr.getLineFirstCorner();
+			ImGui.textWrapped(String.format(Locale.ROOT,
+				"线选进行中：端点 A = %d, %d, %d。移动鼠标可预览范围，再左键点 B。", c.getX(), c.getY(), c.getZ()));
+			if (ImGui.button("取消端点 A##selCancelLineA")) {
+				mgr.cancelLineCorner();
 			}
 		}
 

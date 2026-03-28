@@ -105,10 +105,22 @@ public class ToolPanel {
 		if (ImGui.radioButton("点击选择##bselClick", mgr.getMode() == SelectionMode.CLICK)) {
 			mgr.setMode(SelectionMode.CLICK);
 		}
-		if (ImGui.radioButton("框选（先点一角，移动预览，再点对角）##bselBox", mgr.getMode() == SelectionMode.BOX)) {
+		if (ImGui.radioButton("框选（两角 + 预览）##bselBox", mgr.getMode() == SelectionMode.BOX)) {
 			mgr.setMode(SelectionMode.BOX);
 		}
-		ImGui.textWrapped("在场景区用左键选方块。详细模式、上限见菜单「视图 → 选择属性」。选区以金色包围盒显示。");
+		if (ImGui.radioButton("线选（两端点 + 预览）##bselLine", mgr.getMode() == SelectionMode.LINE)) {
+			mgr.setMode(SelectionMode.LINE);
+		}
+		if (ImGui.radioButton("球选（单击中心，属性里调半径）##bselSphere", mgr.getMode() == SelectionMode.SPHERE)) {
+			mgr.setMode(SelectionMode.SPHERE);
+		}
+		if (ImGui.radioButton("连通 / 魔棒（同色块六邻域）##bselConn", mgr.getMode() == SelectionMode.CONNECTED)) {
+			mgr.setMode(SelectionMode.CONNECTED);
+		}
+		if (ImGui.radioButton("整列（同 XZ 全高度）##bselCol", mgr.getMode() == SelectionMode.COLUMN)) {
+			mgr.setMode(SelectionMode.COLUMN);
+		}
+		ImGui.textWrapped("在场景区左键操作。框选/线选为两点；球/连通/列为单击。操作模式、空气、上限、球半径与魔棒匹配见「视图 → 选择属性」。选区以金色包围盒显示。");
 		ImGui.separator();
 	}
 

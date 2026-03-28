@@ -18,13 +18,14 @@ import net.minecraft.util.shape.VoxelShapes;
 
 /**
  * 在世界中绘制当前选区的总包围盒线框（优化：不按方块逐个描边，大选区仍保持低开销）。
- * 框选模式下在设定第一角点后，沿光标射线实时绘制第二角预览盒。
+ * 框选 / 线选：第一点后沿光标预览第二角包围盒；球选：预览球体包络盒。
  */
 public final class BeatBlockSelectionRenderer {
 
 	private static final int COLOR_ARGB = 0xE6FFB833;
-	/** 框选预览：略淡的青色线框，与金色已定选区区分开 */
 	private static final int BOX_PREVIEW_ARGB = 0xAABBDDFF;
+	private static final int LINE_PREVIEW_ARGB = 0xAAFFCC66;
+	private static final int SPHERE_PREVIEW_ARGB = 0xAADD88FF;
 
 	private BeatBlockSelectionRenderer() {}
 
@@ -44,33 +45,68 @@ public final class BeatBlockSelectionRenderer {
 		}
 
 		renderBoxDragPreviewIfNeeded(matrices, consumers, mc, mgr);
+		renderLineDragPreviewIfNeeded(matrices, consumers, mc, mgr);
+		renderSphereBrushPreviewIfNeeded(matrices, consumers, mc, mgr);
 	}
 
 	private static void renderBoxDragPreviewIfNeeded(
 			MatrixStack matrices, VertexConsumerProvider consumers,
 			MinecraftClient mc, BeatBlockSelectionManager mgr) {
 		if (mgr.getMode() != SelectionMode.BOX || mgr.getBoxFirstCorner() == null) return;
-		if (BeatBlockUIScreen.isMouseOverUI()) return;
+		BlockHitResult hit = raycastForPreview(mc);
+		if (hit == null) return;
+		drawAabbBetweenCorners(matrices, consumers, mc, mgr.getBoxFirstCorner(), hit.getBlockPos(), BOX_PREVIEW_ARGB, 2.0f);
+	}
 
+	private static void renderLineDragPreviewIfNeeded(
+			MatrixStack matrices, VertexConsumerProvider consumers,
+			MinecraftClient mc, BeatBlockSelectionManager mgr) {
+		if (mgr.getMode() != SelectionMode.LINE || mgr.getLineFirstCorner() == null) return;
+		BlockHitResult hit = raycastForPreview(mc);
+		if (hit == null) return;
+		drawAabbBetweenCorners(matrices, consumers, mc, mgr.getLineFirstCorner(), hit.getBlockPos(), LINE_PREVIEW_ARGB, 2.0f);
+	}
+
+	private static void renderSphereBrushPreviewIfNeeded(
+			MatrixStack matrices, VertexConsumerProvider consumers,
+			MinecraftClient mc, BeatBlockSelectionManager mgr) {
+		if (mgr.getMode() != SelectionMode.SPHERE) return;
+		BlockHitResult hit = raycastForPreview(mc);
+		if (hit == null) return;
+		BlockPos c = hit.getBlockPos();
+		int r = mgr.getSphereBrushRadius();
+		int minX = c.getX() - r;
+		int minY = c.getY() - r;
+		int minZ = c.getZ() - r;
+		int maxX = c.getX() + r;
+		int maxY = c.getY() + r;
+		int maxZ = c.getZ() + r;
+		drawInclusiveBoundingBox(matrices, consumers, mc,
+				new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ),
+				SPHERE_PREVIEW_ARGB, 1.75f);
+	}
+
+	private static BlockHitResult raycastForPreview(MinecraftClient mc) {
+		if (BeatBlockUIScreen.isMouseOverUI()) return null;
 		BlockHitResult hit = BeatBlockInputSystem.raycastFromImGui();
-		if (hit == null || hit.getType() != HitResult.Type.BLOCK) return;
-
+		if (hit == null || hit.getType() != HitResult.Type.BLOCK) return null;
 		Vec3d cam = mc.gameRenderer.getCamera().getCameraPos();
 		double maxSq = BeatBlockInputSystem.MAX_RAYCAST_DISTANCE * BeatBlockInputSystem.MAX_RAYCAST_DISTANCE;
-		if (cam.squaredDistanceTo(hit.getPos()) > maxSq) return;
+		if (cam.squaredDistanceTo(hit.getPos()) > maxSq) return null;
+		return hit;
+	}
 
-		BlockPos first = mgr.getBoxFirstCorner();
-		BlockPos second = hit.getBlockPos();
+	private static void drawAabbBetweenCorners(
+			MatrixStack matrices, VertexConsumerProvider consumers, MinecraftClient mc,
+			BlockPos first, BlockPos second, int argb, float lineWidth) {
 		int minX = Math.min(first.getX(), second.getX());
 		int minY = Math.min(first.getY(), second.getY());
 		int minZ = Math.min(first.getZ(), second.getZ());
 		int maxX = Math.max(first.getX(), second.getX());
 		int maxY = Math.max(first.getY(), second.getY());
 		int maxZ = Math.max(first.getZ(), second.getZ());
-		drawInclusiveBoundingBox(
-				matrices, consumers, mc,
-				new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ),
-				BOX_PREVIEW_ARGB, 2.0f);
+		drawInclusiveBoundingBox(matrices, consumers, mc,
+				new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ), argb, lineWidth);
 	}
 
 	private static void drawInclusiveBoundingBox(
