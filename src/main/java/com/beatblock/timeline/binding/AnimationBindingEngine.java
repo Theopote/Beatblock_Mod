@@ -4,8 +4,10 @@ import com.beatblock.BeatBlock;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.FeatureTrack;
+import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.TrackType;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
@@ -58,6 +60,7 @@ public final class AnimationBindingEngine {
 
 			for (FeatureEvent event : sourceTrack.getEvents()) {
 				if (event == null) continue;
+				if (!passesSectionFilter(rule, timeline, event)) continue;
 				if (!passesThreshold(rule, event)) continue;
 				if (!passesProbability(rule, event)) continue;
 				if (!passesCooldown(rule, event, lastAcceptedByRule)) continue;
@@ -203,6 +206,45 @@ public final class AnimationBindingEngine {
 
 	private static boolean passesThreshold(AnimationBindingRule rule, FeatureEvent event) {
 		return event.getEnergy() + 1e-6f >= rule.energyThreshold();
+	}
+
+	private static boolean passesSectionFilter(AnimationBindingRule rule, Timeline timeline, FeatureEvent event) {
+		if (rule == null || timeline == null || event == null) return false;
+		String wanted = normalizeSectionLabel(rule.sectionFilter());
+		if (wanted.isBlank() || "all".equals(wanted) || "any".equals(wanted) || "*".equals(wanted)) return true;
+		String current = sectionLabelAtTime(timeline, event.getTimeSeconds());
+		if (current.isBlank()) return false;
+		return wanted.equals(current);
+	}
+
+	private static String sectionLabelAtTime(Timeline timeline, double timeSeconds) {
+		if (timeline == null) return "";
+		String current = "";
+		for (TimelineMarker marker : timeline.getMarkers()) {
+			if (marker == null || marker.getType() != MarkerType.SECTION) continue;
+			if (marker.getTimeSeconds() > timeSeconds) break;
+			String label = extractSectionLabel(marker.getName());
+			if (!label.isBlank()) current = label;
+		}
+		return current;
+	}
+
+	private static String extractSectionLabel(String markerName) {
+		if (markerName == null) return "";
+		String raw = markerName.trim();
+		if (raw.isBlank()) return "";
+		String upper = raw.toUpperCase(Locale.ROOT);
+		if (upper.startsWith("SECTION ")) {
+			raw = raw.substring("SECTION ".length()).trim();
+		}
+		return normalizeSectionLabel(raw);
+	}
+
+	private static String normalizeSectionLabel(String value) {
+		if (value == null) return "";
+		String s = value.trim().toLowerCase(Locale.ROOT);
+		if (s.isBlank()) return "";
+		return s;
 	}
 
 	private static boolean passesProbability(AnimationBindingRule rule, FeatureEvent event) {

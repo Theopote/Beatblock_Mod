@@ -7,6 +7,7 @@ import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.binding.AnimationBindingEngine;
 import com.beatblock.timeline.binding.AnimationBindingRule;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
+import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
@@ -104,6 +105,7 @@ public final class TimelineToolbar {
 	private static final String[] BINDING_ACTION_VALUES = { "ANIMATE", "PLACE", "CLEAR" };
 	private static final String[] BINDING_SPATIAL_LABELS = { "ALL", "SEQUENTIAL", "RADIAL", "RANDOM", "SPIRAL" };
 	private static final String[] BINDING_SPATIAL_VALUES = { "ALL", "SEQUENTIAL", "RADIAL", "RANDOM", "SPIRAL" };
+    private static final String BINDING_SECTION_ALL = "ALL";
 	private static final Gson UI_CONFIG_GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final float TOOLBAR_ITEM_SPACING = 4f;
 	private static final float TOOLBAR_GROUP_SPACING = 8f;
@@ -690,6 +692,7 @@ public final class TimelineToolbar {
 		Map<String, String> targetDisplayToId = new HashMap<>();
 		List<String> targetDisplays = collectTargetDisplays(targetDisplayToId);
 		List<String> animationIds = collectAnimationIds();
+		List<String> sectionFilters = collectSectionFilters(timeline);
 
 		ImGui.textDisabled("Binding Rules");
 		ImGui.sameLine();
@@ -763,6 +766,12 @@ public final class TimelineToolbar {
 				targetIndex = targetCombo.get();
 				if (targetIndex < 0 || targetIndex >= targetDisplays.size()) targetIndex = 0;
 
+				int sectionIndex = indexOfSectionFilter(sectionFilters, rule.sectionFilter());
+				ImInt sectionCombo = new ImInt(Math.max(0, sectionIndex));
+				if (!sectionFilters.isEmpty() && ImGui.combo("Section", sectionCombo, toArray(sectionFilters))) changed = true;
+				sectionIndex = sectionCombo.get();
+				if (sectionIndex < 0 || sectionIndex >= sectionFilters.size()) sectionIndex = 0;
+
 				float[] threshold = new float[] { rule.energyThreshold() };
 				if (ImGui.sliderFloat("Threshold", threshold, 0f, 1f, "%.2f")) changed = true;
 
@@ -781,12 +790,38 @@ public final class TimelineToolbar {
 				float[] seqDelay = new float[] { (float) rule.sequentialDelaySeconds() };
 				if (ImGui.sliderFloat("Step Delay", seqDelay, 0f, 0.5f, "%.2f s")) changed = true;
 
+				Map<String, Object> extraCopy = new HashMap<>(rule.extraParams());
+				String uiAnimation = animationIds.isEmpty() ? rule.animationTypeId() : animationIds.get(animationIndex);
+				if ("WaveMotion".equalsIgnoreCase(uiAnimation)) {
+					float[] waveAmp = new float[] { (float) extraParamAsDouble(extraCopy, "waveAmplitude", 0.5) };
+					float[] wavePhase = new float[] { (float) extraParamAsDouble(extraCopy, "wavePhaseOffset", 0.5) };
+					if (ImGui.sliderFloat("Wave Amp", waveAmp, 0f, 3f, "%.2f")) changed = true;
+					if (ImGui.sliderFloat("Wave Phase", wavePhase, 0f, 3f, "%.2f")) changed = true;
+					extraCopy.put("waveAmplitude", waveAmp[0]);
+					extraCopy.put("wavePhaseOffset", wavePhase[0]);
+				} else if ("BlockExplosion".equalsIgnoreCase(uiAnimation)) {
+					float[] impactRadius = new float[] { (float) extraParamAsDouble(extraCopy, "impactRadius", 4.0) };
+					float[] impactBurst = new float[] { (float) extraParamAsDouble(extraCopy, "impactBurst", 1.0) };
+					if (ImGui.sliderFloat("Impact Radius", impactRadius, 1f, 16f, "%.1f")) changed = true;
+					if (ImGui.sliderFloat("Impact Burst", impactBurst, 0f, 3f, "%.2f")) changed = true;
+					extraCopy.put("impactRadius", impactRadius[0]);
+					extraCopy.put("impactBurst", impactBurst[0]);
+				} else if ("BlockDrop".equalsIgnoreCase(uiAnimation)) {
+					float[] meteorHeight = new float[] { (float) extraParamAsDouble(extraCopy, "meteorHeight", 8.0) };
+					float[] meteorScatter = new float[] { (float) extraParamAsDouble(extraCopy, "meteorScatter", 2.0) };
+					if (ImGui.sliderFloat("Meteor Height", meteorHeight, 2f, 32f, "%.1f")) changed = true;
+					if (ImGui.sliderFloat("Meteor Scatter", meteorScatter, 0f, 8f, "%.1f")) changed = true;
+					extraCopy.put("meteorHeight", meteorHeight[0]);
+					extraCopy.put("meteorScatter", meteorScatter[0]);
+				}
+
 				if (changed) {
 					String selectedFeature = featureKeys.get(featureIndex);
 					String selectedAnimation = animationIds.isEmpty() ? rule.animationTypeId() : animationIds.get(animationIndex);
 					String selectedTargetDisplay = targetDisplays.isEmpty() ? "" : targetDisplays.get(targetIndex);
 					String selectedTargetId = targetDisplayToId.getOrDefault(selectedTargetDisplay, rule.targetObjectId());
-					Map<String, Object> extraCopy = new HashMap<>(rule.extraParams());
+					String selectedSection = sectionFilters.isEmpty() ? BINDING_SECTION_ALL : sectionFilters.get(sectionIndex);
+					String sectionFilter = BINDING_SECTION_ALL.equalsIgnoreCase(selectedSection) ? "" : selectedSection.toLowerCase(Locale.ROOT);
 					AnimationBindingRule updated = AnimationBindingRule.builder()
 						.id(rule.id())
 						.name(nameBuf.get() == null || nameBuf.get().isBlank() ? rule.name() : nameBuf.get().trim())
@@ -802,7 +837,7 @@ public final class TimelineToolbar {
 						.probability(probability[0])
 						.spatialMode(SpatialDispatchMode.fromValue(BINDING_SPATIAL_VALUES[spatialIndex]))
 						.sequentialDelaySeconds(seqDelay[0])
-						.sectionFilter(rule.sectionFilter())
+						.sectionFilter(sectionFilter)
 						.extraParams(extraCopy)
 						.build();
 					rules.set(i, updated);
@@ -877,6 +912,29 @@ public final class TimelineToolbar {
 		return ids;
 	}
 
+	private List<String> collectSectionFilters(Timeline timeline) {
+		LinkedHashSet<String> filters = new LinkedHashSet<>();
+		filters.add(BINDING_SECTION_ALL);
+		if (timeline == null) return new ArrayList<>(filters);
+		for (TimelineMarker marker : timeline.getMarkers()) {
+			if (marker == null || marker.getType() != MarkerType.SECTION) continue;
+			String label = extractSectionFilterLabel(marker.getName());
+			if (!label.isBlank()) filters.add(label.toUpperCase(Locale.ROOT));
+		}
+		return new ArrayList<>(filters);
+	}
+
+	private static String extractSectionFilterLabel(String markerName) {
+		if (markerName == null) return "";
+		String text = markerName.trim();
+		if (text.isBlank()) return "";
+		String upper = text.toUpperCase(Locale.ROOT);
+		if (upper.startsWith("SECTION ")) {
+			text = text.substring("SECTION ".length()).trim();
+		}
+		return text;
+	}
+
 	private List<String> collectTargetDisplays(Map<String, String> outDisplayToId) {
 		List<String> displays = new ArrayList<>();
 		if (outDisplayToId == null) return displays;
@@ -927,6 +985,28 @@ public final class TimelineToolbar {
 			if (targetId.equals(id)) return i;
 		}
 		return 0;
+	}
+
+	private static int indexOfSectionFilter(List<String> filters, String ruleSectionFilter) {
+		if (filters == null || filters.isEmpty()) return 0;
+		if (ruleSectionFilter == null || ruleSectionFilter.isBlank()) return 0;
+		String wanted = ruleSectionFilter.trim().toUpperCase(Locale.ROOT);
+		for (int i = 0; i < filters.size(); i++) {
+			if (wanted.equalsIgnoreCase(filters.get(i))) return i;
+		}
+		return 0;
+	}
+
+	private static double extraParamAsDouble(Map<String, Object> params, String key, double fallback) {
+		if (params == null || key == null || key.isBlank()) return fallback;
+		Object raw = params.get(key);
+		if (raw instanceof Number n) return n.doubleValue();
+		if (raw == null) return fallback;
+		try {
+			return Double.parseDouble(String.valueOf(raw).trim());
+		} catch (Exception ex) {
+			return fallback;
+		}
 	}
 
 	private void renderDemucsAdvancedPopup() {
