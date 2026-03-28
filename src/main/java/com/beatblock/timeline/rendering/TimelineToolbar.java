@@ -80,7 +80,7 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_ACTION_ROLLBACK_STATUS = "当前 PLACE/CLEAR 执行策略状态";
 	private static final String TOOLTIP_BINDING_MAP = "按绑定规则将音频特征批量转换为动画事件；无规则时自动创建默认规则";
 	private static final String TOOLTIP_BINDING_EDITOR = "编辑特征绑定规则：来源特征、动作、目标对象、阈值和冷却";
-	private static final String TOOLTIP_BINDING_TEMPLATE = "规则模板：一键覆盖当前绑定规则集";
+	private static final String TOOLTIP_BINDING_TEMPLATE = "规则模板：可覆盖（Replace）或合并（Append）到当前规则集";
 
 	/** Zoom 预设：显示名与对应的缩放倍数（相对基准 1x） */
 	private static final String[] ZOOM_PRESET_LABELS = { "0.25x", "0.5x", "1x", "2x", "3x", "4x" };
@@ -131,6 +131,7 @@ public final class TimelineToolbar {
 	private final ImInt clipGenerationModeComboIndex = new ImInt(0); // 默认 mixed
 	private final ImInt actionRollbackComboIndex = new ImInt(0); // 默认 preview
 	private final ImInt bindingTemplateComboIndex = new ImInt(0);
+	private String lastTemplateApplyFeedback = "";
 	private boolean demucsMappingConfigLoaded;
 	private boolean actionExecutionConfigLoaded;
 
@@ -722,14 +723,37 @@ public final class TimelineToolbar {
 		ImGui.combo("Template##bindingTemplate", bindingTemplateComboIndex, BINDING_TEMPLATE_LABELS);
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BINDING_TEMPLATE);
 		ImGui.sameLine();
-		if (ImGui.button("Apply Template##bindingApplyTemplate")) {
+		if (ImGui.button("Replace##bindingApplyTemplate")) {
 			int idx = Math.max(0, Math.min(bindingTemplateComboIndex.get(), BINDING_TEMPLATE_VALUES.length - 1));
 			List<AnimationBindingRule> templated = new ArrayList<>(
 				AnimationBindingEngine.createTemplateRules(timeline, BINDING_TEMPLATE_VALUES[idx]));
 			if (!templated.isEmpty()) {
 				rules = templated;
 				AnimationBindingEngine.saveRules(timeline, rules);
+				lastTemplateApplyFeedback = "Template " + BINDING_TEMPLATE_LABELS[idx] + " replaced all rules: " + rules.size();
+			} else {
+				lastTemplateApplyFeedback = "Template " + BINDING_TEMPLATE_LABELS[idx] + " produced no rules";
 			}
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip("覆盖当前规则集");
+		ImGui.sameLine();
+		if (ImGui.button("Append##bindingAppendTemplate")) {
+			int idx = Math.max(0, Math.min(bindingTemplateComboIndex.get(), BINDING_TEMPLATE_VALUES.length - 1));
+			List<AnimationBindingRule> templated = new ArrayList<>(
+				AnimationBindingEngine.createTemplateRules(timeline, BINDING_TEMPLATE_VALUES[idx]));
+			if (!templated.isEmpty()) {
+				TemplateMergeResult merge = mergeTemplateRules(rules, templated);
+				rules = merge.merged();
+				AnimationBindingEngine.saveRules(timeline, rules);
+				lastTemplateApplyFeedback = "Template " + BINDING_TEMPLATE_LABELS[idx]
+					+ " appended: +" + merge.added() + ", skipped " + merge.skipped();
+			} else {
+				lastTemplateApplyFeedback = "Template " + BINDING_TEMPLATE_LABELS[idx] + " produced no rules";
+			}
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip("保留现有规则并追加模板（自动去重）");
+		if (!lastTemplateApplyFeedback.isBlank()) {
+			ImGui.textDisabled(lastTemplateApplyFeedback);
 		}
 
 		if (featureKeys.isEmpty()) {
@@ -1047,6 +1071,61 @@ public final class TimelineToolbar {
 		} catch (Exception ex) {
 			return fallback;
 		}
+	}
+
+	private record TemplateMergeResult(List<AnimationBindingRule> merged, int added, int skipped) {}
+
+	private static TemplateMergeResult mergeTemplateRules(List<AnimationBindingRule> existing, List<AnimationBindingRule> incoming) {
+		List<AnimationBindingRule> out = new ArrayList<>();
+		if (existing != null) out.addAll(existing);
+		if (incoming == null || incoming.isEmpty()) return new TemplateMergeResult(out, 0, 0);
+
+		LinkedHashSet<String> fingerprints = new LinkedHashSet<>();
+		int added = 0;
+		int skipped = 0;
+		for (AnimationBindingRule rule : out) {
+			if (rule == null) continue;
+			fingerprints.add(ruleFingerprint(rule));
+		}
+		for (AnimationBindingRule rule : incoming) {
+			if (rule == null) continue;
+			String fp = ruleFingerprint(rule);
+			if (fingerprints.contains(fp)) {
+				skipped++;
+				continue;
+			}
+			fingerprints.add(fp);
+			out.add(rule);
+			added++;
+		}
+		return new TemplateMergeResult(out, added, skipped);
+	}
+
+	private static String ruleFingerprint(AnimationBindingRule rule) {
+		if (rule == null) return "";
+		StringBuilder sb = new StringBuilder(256);
+		sb.append(rule.sourceFeatureKey().toLowerCase(Locale.ROOT)).append('|');
+		sb.append(rule.animationTypeId().toLowerCase(Locale.ROOT)).append('|');
+		sb.append(rule.actionMode().name()).append('|');
+		sb.append(rule.targetObjectId().toLowerCase(Locale.ROOT)).append('|');
+		sb.append(rule.sectionFilter().toLowerCase(Locale.ROOT)).append('|');
+		sb.append(rule.spatialMode().name()).append('|');
+		sb.append(String.format(Locale.ROOT, "%.3f|%.3f|%.3f|%.3f|%.3f|%.3f",
+			rule.energyThreshold(),
+			rule.energyScale(),
+			rule.durationSeconds(),
+			rule.cooldownSeconds(),
+			rule.probability(),
+			rule.sequentialDelaySeconds()));
+		if (!rule.extraParams().isEmpty()) {
+			Map<String, String> sorted = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+			for (Map.Entry<String, Object> e : rule.extraParams().entrySet()) {
+				if (e.getKey() == null) continue;
+				sorted.put(e.getKey().toLowerCase(Locale.ROOT), String.valueOf(e.getValue()));
+			}
+			sb.append('|').append(sorted);
+		}
+		return sb.toString();
 	}
 
 	private void renderDemucsAdvancedPopup() {
