@@ -15,6 +15,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.util.MusicTimeFormatter;
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.StageObject;
 import com.google.gson.Gson;
@@ -252,6 +253,15 @@ public final class TimelineToolbar {
 			ImGui.setTooltip(transportTooltip);
 		}
 
+		// ----- 时间显示（始终可见）-----
+		{
+			double posTime = editor.getClock().getCurrentTimeSeconds();
+			double posDur = getDuration(editor);
+			double posBpm = BeatBlock.timeline != null ? BeatBlock.timeline.getBpm() : 0;
+			nextGroup();
+			ImGui.textDisabled(MusicTimeFormatter.formatPositionDisplay(posTime, posDur, posBpm));
+		}
+
 		if (compactToolbar) {
 			nextGroup();
 			renderOverflowMenu(editor, toolbarState, seekStep);
@@ -298,8 +308,6 @@ public final class TimelineToolbar {
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_SPEED);
 		nextItemInGroup();
 		renderActionRollbackControl(false);
-		nextItemInGroup();
-		renderActionRollbackStatus();
 		nextGroup();
 
 		// ----- 2. 吸附与网格 -----
@@ -442,7 +450,6 @@ public final class TimelineToolbar {
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_SPEED);
 		renderActionRollbackControl(true);
-		renderActionRollbackStatus();
 
 		ImGui.separator();
 		ImGui.textDisabled("Snap & Grid");
@@ -497,6 +504,23 @@ public final class TimelineToolbar {
 
 		ImGui.separator();
 		ImGui.textDisabled("Tools");
+		if (ImGui.button("Binding Map##tlMoreBindingMap")) {
+			if (BeatBlock.timeline != null) {
+				lastBindingMapCount = AnimationBindingEngine.applyRules(BeatBlock.timeline, TimelineTrackMeta.ROW_ANIM_BLOCK, true);
+				editor.syncClockDuration();
+				setToolActionFeedback("Binding Map generated " + lastBindingMapCount + " events", lastBindingMapCount > 0);
+			} else {
+				lastBindingMapCount = -1;
+				setToolActionFeedback("Binding Map skipped: timeline unavailable", false);
+			}
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BINDING_MAP);
+		ImGui.sameLine();
+		if (ImGui.button("Bindings...##tlMoreBindingEditorOpen")) {
+			ImGui.openPopup(BINDING_EDITOR_POPUP_ID);
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BINDING_EDITOR);
+		renderBindingEditorPopup();
 		if (ImGui.button("Auto Map##tlMoreAutoMap")) {
 			if (BeatBlock.timeline != null) {
 				AutoMapConfig config = AutoMapConfig.createDefault();
@@ -552,10 +576,12 @@ public final class TimelineToolbar {
 
 	private static float estimateExpandedToolbarWidth(float tBtn) {
 		float transportWidth = estimateTransportWidth(tBtn);
+		float timeDisplayWidth = 130f; // "m:ss / m:ss  |  Bar N Beat M" 近似宽度
 		float loopAndSpeedWidth = buttonWidth("In") + TOOLBAR_ITEM_SPACING
 			+ buttonWidth("Out") + TOOLBAR_ITEM_SPACING
 			+ buttonWidth("Clr") + TOOLBAR_ITEM_SPACING
-			+ comboTotalWidth("Speed", SPEED_LABELS);
+			+ comboTotalWidth("Speed", SPEED_LABELS) + TOOLBAR_ITEM_SPACING
+			+ comboTotalWidth("Rollback", ACTION_ROLLBACK_LABELS);
 
 		float snapGroupWidth = checkboxWidth("Snap") + TOOLBAR_ITEM_SPACING
 			+ checkboxWidth("Beat Snap") + TOOLBAR_ITEM_SPACING
@@ -565,19 +591,17 @@ public final class TimelineToolbar {
 
 		float viewGroupWidth = comboTotalWidth("Zoom", ZOOM_PRESET_LABELS) + TOOLBAR_ITEM_SPACING + buttonWidth("Fit");
 		float trackHeightGroupWidth = sliderTotalWidth(120f) + TOOLBAR_ITEM_SPACING + buttonWidth("Reset");
-		float autoMapWidth = buttonWidth("Auto Map") + 70f;
+		float bindingGroupWidth = buttonWidth("Binding Map") + TOOLBAR_ITEM_SPACING
+			+ buttonWidth("Bindings...") + TOOLBAR_ITEM_SPACING
+			+ buttonWidth("Auto Map");
 
 		return transportWidth
-			+ TOOLBAR_GROUP_SPACING
-			+ loopAndSpeedWidth
-			+ TOOLBAR_GROUP_SPACING
-			+ snapGroupWidth
-			+ TOOLBAR_GROUP_SPACING
-			+ viewGroupWidth
-			+ TOOLBAR_GROUP_SPACING
-			+ trackHeightGroupWidth
-			+ TOOLBAR_GROUP_SPACING
-			+ autoMapWidth;
+			+ TOOLBAR_GROUP_SPACING + timeDisplayWidth
+			+ TOOLBAR_GROUP_SPACING + loopAndSpeedWidth
+			+ TOOLBAR_GROUP_SPACING + snapGroupWidth
+			+ TOOLBAR_GROUP_SPACING + viewGroupWidth
+			+ TOOLBAR_GROUP_SPACING + trackHeightGroupWidth
+			+ TOOLBAR_GROUP_SPACING + bindingGroupWidth;
 	}
 
 	private static float estimateTransportWidth(float tBtn) {
