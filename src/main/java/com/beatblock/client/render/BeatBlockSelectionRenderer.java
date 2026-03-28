@@ -149,19 +149,19 @@ public final class BeatBlockSelectionRenderer {
 			Vec3d a = Vec3d.ofCenter(cells.get(i)).subtract(cam);
 			Vec3d b = Vec3d.ofCenter(cells.get(i + 1)).subtract(cam);
 			VertexConsumer buf = consumers.getBuffer(RenderLayers.LINES);
-			emitLineSegment(buf, mat, a.x, a.y, a.z, b.x, b.y, b.z, argb);
+			emitLineSegment(buf, mat, a.x, a.y, a.z, b.x, b.y, b.z, argb, 2.0f);
 		}
 		matrices.pop();
 	}
 
 	private static void emitLineSegment(VertexConsumer buf, Matrix4f mat,
-			double x0, double y0, double z0, double x1, double y1, double z1, int argb) {
+			double x0, double y0, double z0, double x1, double y1, double z1, int argb, float lineWidth) {
 		float ca = ((argb >>> 24) & 255) / 255f;
 		float cr = ((argb >>> 16) & 255) / 255f;
 		float cg = ((argb >>> 8) & 255) / 255f;
 		float cb = (argb & 255) / 255f;
-		buf.vertex(mat, (float) x0, (float) y0, (float) z0).color(cr, cg, cb, ca).normal(0f, 1f, 0f);
-		buf.vertex(mat, (float) x1, (float) y1, (float) z1).color(cr, cg, cb, ca).normal(0f, 1f, 0f);
+		buf.vertex(mat, (float) x0, (float) y0, (float) z0).color(cr, cg, cb, ca).normal(0f, 1f, 0f).lineWidth(lineWidth);
+		buf.vertex(mat, (float) x1, (float) y1, (float) z1).color(cr, cg, cb, ca).normal(0f, 1f, 0f).lineWidth(lineWidth);
 	}
 
 	private static void drawInclusiveBoundingBox(
