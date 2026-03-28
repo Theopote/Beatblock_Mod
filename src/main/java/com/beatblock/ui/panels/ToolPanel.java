@@ -49,6 +49,7 @@ public class ToolPanel {
 	private BlockPos selectionPosA;
 	private BlockPos selectionPosB;
 	private String stageObjectMessage;
+	private long stageObjectMessageTimeMs;
 	private static final int MAX_STAGE_OBJECT_BLOCKS = 32768;
 	private static final String[] MARKER_TYPE_LABELS = MarkerType.displayNames();
 
@@ -73,6 +74,7 @@ public class ToolPanel {
 
 	public ToolPanel(Runnable onSelectionToolChosen) {
 		this.onSelectionToolChosen = onSelectionToolChosen;
+		stageObjectNameBuffer.set("selection_object");
 	}
 
 	/** 由菜单栏「演出 → Smart Auto Map」调用，打开设置弹窗 */
@@ -171,33 +173,38 @@ public class ToolPanel {
 			if (smin != null && smax != null) {
 				selectionPosA = smin.toImmutable();
 				selectionPosB = smax.toImmutable();
-				stageObjectMessage = "已用当前选区包围角填入 A、B。";
+				setStageObjectMessage("已用当前选区包围角填入 A、B。");
 			} else {
-				stageObjectMessage = "当前没有选区。";
+				setStageObjectMessage("当前没有选区。");
 			}
 		}
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip("将「方块选择工具」选中的整体包围盒对角填入下方 A/B，便于创建 StageObject");
 		}
 
-		if (stageObjectNameBuffer.get() == null || stageObjectNameBuffer.get().isBlank()) {
-			stageObjectNameBuffer.set("selection_object");
-		}
-
-		if (ImGui.button("Set A (光标下方方块)##stageObjSetA")) {
+		if (ImGui.button("设置 A##stageObjSetA")) {
 			selectionPosA = readCrosshairBlockPos();
-			stageObjectMessage = selectionPosA != null ? "已设置 A 点。" : "未命中方块，无法设置 A 点。";
+			setStageObjectMessage(selectionPosA != null ? "已设置 A 点。" : "未命中方块，无法设置 A 点。");
+		}
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip("设置 A 角点为准星命中的方块坐标");
 		}
 		ImGui.sameLine();
-		if (ImGui.button("Set B (光标下方方块)##stageObjSetB")) {
+		if (ImGui.button("设置 B##stageObjSetB")) {
 			selectionPosB = readCrosshairBlockPos();
-			stageObjectMessage = selectionPosB != null ? "已设置 B 点。" : "未命中方块，无法设置 B 点。";
+			setStageObjectMessage(selectionPosB != null ? "已设置 B 点。" : "未命中方块，无法设置 B 点。");
+		}
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip("设置 B 角点为准星命中的方块坐标");
 		}
 		ImGui.sameLine();
-		if (ImGui.button("Clear##stageObjClearSelection")) {
+		if (ImGui.button("清空##stageObjClearSelection")) {
 			selectionPosA = null;
 			selectionPosB = null;
-			stageObjectMessage = "已清空选区。";
+			setStageObjectMessage("已清空选区。");
+		}
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip("清空 A/B 角点");
 		}
 
 		ImGui.textDisabled("A: " + formatPos(selectionPosA));
@@ -225,7 +232,8 @@ public class ToolPanel {
 		}
 		if (!canCreate) ImGui.endDisabled();
 
-		if (stageObjectMessage != null && !stageObjectMessage.isBlank()) {
+		if (stageObjectMessage != null && !stageObjectMessage.isBlank()
+				&& System.currentTimeMillis() - stageObjectMessageTimeMs < 5000L) {
 			ImGui.textWrapped(stageObjectMessage);
 		}
 
@@ -260,31 +268,36 @@ public class ToolPanel {
 
 		if (removeId != null) {
 			sys.remove(removeId);
-			stageObjectMessage = "已删除 StageObject: " + removeId;
+			setStageObjectMessage("已删除 StageObject: " + removeId);
 		}
+	}
+
+	private void setStageObjectMessage(String msg) {
+		stageObjectMessage = msg;
+		stageObjectMessageTimeMs = System.currentTimeMillis();
 	}
 
 	private void createStageObjectFromSelection() {
 		if (BeatBlock.blockAnimationEngine == null) {
-			stageObjectMessage = "动画引擎未初始化，无法创建对象。";
+			setStageObjectMessage("动画引擎未初始化，无法创建对象。");
 			return;
 		}
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
 		if (world == null) {
-			stageObjectMessage = "当前无世界上下文，无法读取选区。";
+			setStageObjectMessage("当前无世界上下文，无法读取选区。");
 			return;
 		}
 		if (selectionPosA == null || selectionPosB == null) {
-			stageObjectMessage = "请先设置 A/B 两个选区点。";
+			setStageObjectMessage("请先设置 A/B 两个选区点。");
 			return;
 		}
 
 		List<BlockPos> blocks = collectSelectionBlocks(selectionPosA, selectionPosB, stageObjectIncludeAir.get());
 		if (blocks.isEmpty()) {
-			stageObjectMessage = stageObjectIncludeAir.get()
+			setStageObjectMessage(stageObjectIncludeAir.get()
 				? "选区为空，未创建对象。"
-				: "选区内没有非空气方块，未创建对象。";
+				: "选区内没有非空气方块，未创建对象。");
 			return;
 		}
 
@@ -294,7 +307,7 @@ public class ToolPanel {
 
 		StageObject obj = StageObjectSystem.fromBlocks(id, name, blocks);
 		BeatBlock.blockAnimationEngine.getStageObjectSystem().register(obj);
-		stageObjectMessage = String.format(Locale.ROOT, "已创建 StageObject: %s (%d blocks)", id, blocks.size());
+		setStageObjectMessage(String.format(Locale.ROOT, "已创建 StageObject: %s (%d blocks)", id, blocks.size()));
 	}
 
 	private List<BlockPos> collectSelectionBlocks(BlockPos a, BlockPos b, boolean includeAir) {
@@ -313,8 +326,8 @@ public class ToolPanel {
 
 		long volume = (long) (maxX - minX + 1) * (long) (maxY - minY + 1) * (long) (maxZ - minZ + 1);
 		if (volume > MAX_STAGE_OBJECT_BLOCKS) {
-			stageObjectMessage = String.format(Locale.ROOT,
-				"选区过大（%d blocks），上限为 %d。", volume, MAX_STAGE_OBJECT_BLOCKS);
+			setStageObjectMessage(String.format(Locale.ROOT,
+				"选区过大（%d blocks），上限为 %d。", volume, MAX_STAGE_OBJECT_BLOCKS));
 			return out;
 		}
 
@@ -428,7 +441,8 @@ public class ToolPanel {
 					marker.getTimeSeconds(),
 					marker.getName() == null || marker.getName().isBlank() ? "(unnamed)" : marker.getName(),
 					markerId);
-				ImGui.pushStyleColor(ImGuiCol.Text, abgrToR(marker.getType().getColorAbgr()), abgrToG(marker.getType().getColorAbgr()), abgrToB(marker.getType().getColorAbgr()), abgrToA(marker.getType().getColorAbgr()));
+				int abgr = marker.getType().getColorAbgr();
+				ImGui.pushStyleColor(ImGuiCol.Text, abgrToR(abgr), abgrToG(abgr), abgrToB(abgr), abgrToA(abgr));
 				if (ImGui.selectable(label, selected)) {
 					selectedMarkerId = markerId;
 					markerNameBuffer.set(marker.getName());
