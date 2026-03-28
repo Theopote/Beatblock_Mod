@@ -418,7 +418,7 @@ public class ToolPanel {
 		}
 	}
 
-	private static float abgrToR(int abgr) { return ((abgr >> 0) & 0xFF) / 255f; }
+	private static float abgrToR(int abgr) { return ((abgr) & 0xFF) / 255f; }
 	private static float abgrToG(int abgr) { return ((abgr >> 8) & 0xFF) / 255f; }
 	private static float abgrToB(int abgr) { return ((abgr >> 16) & 0xFF) / 255f; }
 	private static float abgrToA(int abgr) { return ((abgr >> 24) & 0xFF) / 255f; }

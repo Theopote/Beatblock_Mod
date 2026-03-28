@@ -29,9 +29,9 @@ public final class BeatBlockHoverOutlineRenderer {
 		BlockHitResult hit = BeatBlockInputSystem.raycastFromImGui();
 		if (hit == null || hit.getType() != HitResult.Type.BLOCK) return;
 
-		double reach = mc.player != null ? mc.player.getBlockInteractionRange() : 4.5;
 		Vec3d cam = mc.gameRenderer.getCamera().getCameraPos();
-		if (cam.squaredDistanceTo(hit.getPos()) > reach * reach) return;
+		double maxSq = BeatBlockInputSystem.MAX_RAYCAST_DISTANCE * BeatBlockInputSystem.MAX_RAYCAST_DISTANCE;
+		if (cam.squaredDistanceTo(hit.getPos()) > maxSq) return;
 
 		BlockPos pos = hit.getBlockPos();
 		var shape = mc.world.getBlockState(pos).getOutlineShape(mc.world, pos);

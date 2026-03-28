@@ -21,7 +21,11 @@ import org.joml.Vector4f;
 public final class BeatBlockInputSystem {
 
 	private static final MinecraftClient MC = MinecraftClient.getInstance();
-	private static final double MAX_RAYCAST_DISTANCE = 256.0;
+	/**
+	 * 与 ChronoBlocks {@code ChronoBlocksInputSystem} 一致：光标射线长度，远大于原版手臂距离，
+	 * 便于在打开 UI 时从任意屏幕位置指向远处方块（高亮、选点、左键拾取等）。
+	 */
+	public static final double MAX_RAYCAST_DISTANCE = 256.0;
 	private static final double CACHE_POSITION_EPSILON = 0.001;
 
 	private static Vec3d lastCameraPos;
@@ -107,7 +111,7 @@ public final class BeatBlockInputSystem {
 	}
 
 	/**
-	 * 与打开 BeatBlock UI 时的交互一致：方块优先（在交互距离内），否则检测实体。
+	 * 与打开 BeatBlock UI 时的交互一致：沿光标射线先判定方块（距离上限同 {@link #MAX_RAYCAST_DISTANCE}，与 ChronoBlocks 一致），否则检测实体（仍用原版实体交互距离）。
 	 */
 	public static HitResult pickTargetFromImGui() {
 		if (MC.world == null || MC.player == null || MC.getCameraEntity() == null) {
@@ -120,11 +124,11 @@ public final class BeatBlockInputSystem {
 
 		BlockHitResult blockHit = raycastFromImGui();
 		Vec3d camPos = camera.getCameraPos();
-		double blockReach = MC.player.getBlockInteractionRange();
+		double blockReachSq = MAX_RAYCAST_DISTANCE * MAX_RAYCAST_DISTANCE;
 		double entityReach = MC.player.getEntityInteractionRange();
 
 		if (blockHit != null && blockHit.getType() == HitResult.Type.BLOCK) {
-			if (camPos.squaredDistanceTo(blockHit.getPos()) <= blockReach * blockReach) {
+			if (camPos.squaredDistanceTo(blockHit.getPos()) <= blockReachSq) {
 				return blockHit;
 			}
 		}
@@ -177,7 +181,7 @@ public final class BeatBlockInputSystem {
 			return entityHit;
 		}
 		if (blockHit != null && blockHit.getType() == HitResult.Type.BLOCK
-			&& camPos.squaredDistanceTo(blockHit.getPos()) <= blockReach * blockReach) {
+			&& camPos.squaredDistanceTo(blockHit.getPos()) <= blockReachSq) {
 			return blockHit;
 		}
 		return null;
