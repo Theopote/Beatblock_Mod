@@ -141,6 +141,13 @@ public final class AudioAnalysisEngine {
 		}
 		timeline.clearFrequencyEvents();
 		for (FrequencyEvent e : events) timeline.addFrequencyEvent(e);
+
+		// FFT → FeatureTrack 桥接：当 Python/Demucs 未提供特征轨道时，
+		// 从 FFT 频段数据自动生成 low/mid/high 特征轨道，作为绑定规则的 fallback 数据源。
+		if (!timeline.hasFeatureTracks()) {
+			bridgeFrequencyBandsToFeatureTracks(timeline, bandFrames, absFloor);
+		}
+
 		timeline.sortAll();
 
 		timeline.setMetadata("bpm", ft.getBpm());
@@ -238,6 +245,44 @@ public final class AudioAnalysisEngine {
 		}
 
 		timeline.sortAll();
+	}
+
+	/**
+	 * 将 FFT 频段数据桥接为 FeatureTrack（low/mid/high），
+	 * 在 Python/Demucs 未运行时为绑定规则提供 fallback 数据源。
+	 * 只对主导频段中属于局部峰值的帧生成事件，避免过度密集。
+	 */
+	private void bridgeFrequencyBandsToFeatureTracks(Timeline timeline, List<FrequencyBands> bandFrames, float absFloor) {
+		if (timeline == null || bandFrames == null || bandFrames.size() < 3) return;
+
+		for (int i = 1; i < bandFrames.size() - 1; i++) {
+			FrequencyBands prev = bandFrames.get(i - 1);
+			FrequencyBands cur  = bandFrames.get(i);
+			FrequencyBands next = bandFrames.get(i + 1);
+
+			float low = cur.getLow(), mid = cur.getMid(), high = cur.getHigh();
+			float sum = low + mid + high;
+			if (sum < 1e-10f || sum < absFloor) continue;
+
+			double t = cur.getTimeSeconds();
+
+			// low → "low" (对应 kick fallback), 局部峰值检测
+			if (low >= prev.getLow() && low >= next.getLow() && low / sum > 0.35f) {
+				timeline.addFeatureEvent("low", localizedFeatureLabel("low"),
+					new FeatureEvent(t, Math.min(1f, low / sum * 2f)));
+			}
+			// mid → "mid" (对应 snare fallback)
+			if (mid >= prev.getMid() && mid >= next.getMid() && mid / sum > 0.30f) {
+				timeline.addFeatureEvent("mid", localizedFeatureLabel("mid"),
+					new FeatureEvent(t, Math.min(1f, mid / sum * 2f)));
+			}
+			// high → "high" (对应 hihat fallback)
+			if (high >= prev.getHigh() && high >= next.getHigh() && high / sum > 0.25f) {
+				timeline.addFeatureEvent("high", localizedFeatureLabel("high"),
+					new FeatureEvent(t, Math.min(1f, high / sum * 2f)));
+			}
+		}
+		LOGGER.info("BeatBlock AudioAnalysis: FFT→FeatureTrack bridge generated low/mid/high tracks");
 	}
 
 	/** 已知 key 的中文显示名称（未知 key 直接返回 key）。 */

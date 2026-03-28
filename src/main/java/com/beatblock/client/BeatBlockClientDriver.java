@@ -45,8 +45,10 @@ public final class BeatBlockClientDriver {
 	private static long lastTickNanos;
 	private static boolean driving;
 	private static final Set<String> scheduledTimelineAnimationIds = new HashSet<>();
+	private static final Set<String> scheduledAutoAnimationIds = new HashSet<>();
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
 	private static double lastTimelineAnimationTime;
+	private static double lastAutoAnimationTime;
 	private static final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
 	private static RegistryKey<World> timelineMutationWorldKey;
 	private static volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
@@ -79,6 +81,7 @@ public final class BeatBlockClientDriver {
 		BeatBlock.animationManager.tick(currentTime);
 		if (BeatBlock.blockAnimationEngine != null) {
 			syncTimelineBlockAnimationEvents(currentTime);
+			syncTimelineAutoAnimationEvents(currentTime);
 			BeatBlock.blockAnimationEngine.tick(currentTime);
 			MinecraftClient mc2 = MinecraftClient.getInstance();
 			World tickWorld = mc2 != null ? mc2.world : null;
@@ -235,6 +238,23 @@ public final class BeatBlockClientDriver {
 		lastTimelineAnimationTime = currentTime;
 	}
 
+	private static void syncTimelineAutoAnimationEvents(double currentTime) {
+		if (BeatBlock.timeline == null || BeatBlock.blockAnimationEngine == null) return;
+		if (currentTime + TIMELINE_EVENT_EPSILON < lastAutoAnimationTime) {
+			scheduledAutoAnimationIds.clear();
+			lastAutoAnimationTime = 0.0;
+		}
+		for (TimelineAnimationEvent event : BeatBlock.timeline.getAutoAnimationEvents()) {
+			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
+				break;
+			}
+			String key = scheduleKey(event);
+			if (!scheduledAutoAnimationIds.add(key)) continue;
+			applyTimelineActionEvent(event);
+		}
+		lastAutoAnimationTime = currentTime;
+	}
+
 	private static void applyTimelineActionEvent(TimelineAnimationEvent event) {
 		if (event == null || BeatBlock.blockAnimationEngine == null) return;
 		if (!passesEnergyThreshold(event)) {
@@ -368,7 +388,9 @@ public final class BeatBlockClientDriver {
 	private static void resetTimelineAnimationScheduling() {
 		restoreTimelineMutationSnapshot();
 		scheduledTimelineAnimationIds.clear();
+		scheduledAutoAnimationIds.clear();
 		lastTimelineAnimationTime = 0.0;
+		lastAutoAnimationTime = 0.0;
 		if (BeatBlock.blockAnimationEngine != null) {
 			BeatBlock.blockAnimationEngine.clear();
 		}

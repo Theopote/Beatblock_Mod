@@ -74,7 +74,8 @@ public final class AnimationBindingEngine {
 				params.put("bindingRuleId", rule.id());
 				params.put("bindingRuleName", rule.name());
 				params.put("sourceFeature", rule.sourceFeatureKey());
-				params.put("energyThreshold", rule.energyThreshold());
+				// energyThreshold 不写入：绑定引擎已在生成时做过阈值过滤，
+				// 运行时 passesEnergyThreshold() 默认 0.0 直接通过，避免双重过滤。
 				params.put("energyScale", rule.energyScale());
 				params.put("probability", rule.probability());
 				params.put("cooldownSeconds", rule.cooldownSeconds());

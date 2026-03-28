@@ -84,12 +84,16 @@ public final class TimelineBuilder {
 	}
 
 	private static String resolveTargetId(List<String> targetObjectIds) {
-		if (targetObjectIds != null && !targetObjectIds.isEmpty()) return targetObjectIds.get(0);
+		if (targetObjectIds != null && !targetObjectIds.isEmpty()) {
+			for (String id : targetObjectIds) {
+				if (id != null && !id.isBlank()) return id;
+			}
+		}
 		if (BeatBlock.blockAnimationEngine != null) {
 			var sys = BeatBlock.blockAnimationEngine.getStageObjectSystem();
 			var all = sys != null ? sys.getAll() : null;
 			if (all != null && !all.isEmpty()) return all.iterator().next().getId();
 		}
-		return DEFAULT_TARGET_ID;
+		return "";
 	}
 }

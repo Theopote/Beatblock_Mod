@@ -9,7 +9,7 @@ import java.util.*;
  */
 public final class StageObjectSystem {
 
-	private final Map<String, StageObject> objects = new HashMap<>();
+	private final Map<String, StageObject> objects = new LinkedHashMap<>();
 
 	public void register(StageObject stageObject) {
 		if (stageObject != null) objects.put(stageObject.getId(), stageObject);
