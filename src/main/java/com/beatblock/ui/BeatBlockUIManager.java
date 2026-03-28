@@ -31,8 +31,10 @@ public class BeatBlockUIManager {
 	private final EventPropertiesPanel eventPropertiesPanel;
 	private final TimelinePanel timelinePanel;
 	private final AnimationLibraryPanel animationLibraryPanel;
+	private final SelectionPropertiesPanel selectionPropertiesPanel;
 
 	private boolean animationLibraryVisible = false;
+	private boolean selectionPropertiesVisible = false;
 	private boolean firstLayout = true;
 	private Runnable onCloseRequest;
 
@@ -40,10 +42,12 @@ public class BeatBlockUIManager {
 		this.onCloseRequest = onCloseRequest;
 		this.toolPanel = new ToolPanel();
 		this.audioAnalysisPanel = new AudioAnalysisPanel();
-		this.menuBarPanel = new MenuBarPanel(onCloseRequest, this::toggleAnimationLibrary, () -> toolPanel.setShowAutoMapSettings(true));
+		this.menuBarPanel = new MenuBarPanel(onCloseRequest, this::toggleAnimationLibrary,
+			() -> toolPanel.setShowAutoMapSettings(true), this::toggleSelectionProperties);
 		this.eventPropertiesPanel = new EventPropertiesPanel();
 		this.timelinePanel = new TimelinePanel();
 		this.animationLibraryPanel = new AnimationLibraryPanel();
+		this.selectionPropertiesPanel = new SelectionPropertiesPanel();
 	}
 
 	public void setOnCloseRequest(Runnable onCloseRequest) {
@@ -53,6 +57,11 @@ public class BeatBlockUIManager {
 	private void toggleAnimationLibrary() {
 		animationLibraryVisible = !animationLibraryVisible;
 		menuBarPanel.setAnimationLibraryVisible(animationLibraryVisible);
+	}
+
+	private void toggleSelectionProperties() {
+		selectionPropertiesVisible = !selectionPropertiesVisible;
+		menuBarPanel.setSelectionPropertiesVisible(selectionPropertiesVisible);
 	}
 
 	public void render() {
@@ -109,6 +118,16 @@ public class BeatBlockUIManager {
 			ImGui.pushStyleColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.18f, 1f);
 			ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, 0.11f, 0.11f, 0.12f, 1f);
 			animationLibraryPanel.render();
+			ImGui.popStyleColor(5);
+		}
+
+		if (selectionPropertiesVisible) {
+			ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.09f, 0.09f, 0.1f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.Text, 0.86f, 0.86f, 0.86f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.TitleBg, 0.125f, 0.125f, 0.14f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.TitleBgActive, 0.16f, 0.16f, 0.18f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, 0.11f, 0.11f, 0.12f, 1f);
+			selectionPropertiesPanel.render();
 			ImGui.popStyleColor(5);
 		}
 	}

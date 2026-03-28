@@ -2,6 +2,8 @@ package com.beatblock.client;
 
 import com.beatblock.client.imgui.ImGuiRenderer;
 import com.beatblock.client.input.BeatBlockInputSystem;
+import com.beatblock.selection.BeatBlockSelectionManager;
+import com.beatblock.selection.SelectionMode;
 import com.beatblock.ui.BeatBlockUIManager;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
@@ -13,6 +15,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,6 +104,7 @@ public class BeatBlockUIScreen extends Screen {
 		restoreVanillaBackgroundMusic(client);
 		BeatBlockInputSystem.clearCache();
 		BeatBlockWorldPick.clear();
+		BeatBlockSelectionManager.get().reset();
 		// 仅当关闭后没有其他 Screen 时恢复锁定（回到游戏视角）
 		if (client != null && client.mouse != null && client.currentScreen == null) {
 			client.mouse.lockCursor();
@@ -161,6 +165,13 @@ public class BeatBlockUIScreen extends Screen {
 		if (hit == null) return;
 		if (click.button() == 0) { // left：不破坏方块，仅记录拾取（工具面板等可用）
 			if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult blockHit) {
+				var sel = BeatBlockSelectionManager.get();
+				if (sel.getMode() != SelectionMode.OFF) {
+					long win = client.getWindow().getHandle();
+					boolean shift = GLFW.glfwGetKey(win, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+						|| GLFW.glfwGetKey(win, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+					sel.handleLeftClick(client.world, blockHit.getBlockPos(), shift);
+				}
 				BeatBlockWorldPick.setLastLeftClickedBlock(blockHit.getBlockPos());
 			} else if (hit.getType() == HitResult.Type.ENTITY && hit instanceof EntityHitResult entityHit) {
 				client.interactionManager.attackEntity(client.player, entityHit.getEntity());

@@ -6,6 +6,8 @@ import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.client.BeatBlockUIScreen;
 import com.beatblock.client.BeatBlockWorldPick;
 import com.beatblock.client.input.BeatBlockInputSystem;
+import com.beatblock.selection.BeatBlockSelectionManager;
+import com.beatblock.selection.SelectionMode;
 import com.beatblock.engine.StageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.timeline.MarkerType;
@@ -64,6 +66,8 @@ public class ToolPanel {
 		ImGui.text("工具");
 		ImGui.separator();
 
+		renderBlockSelectionTools();
+
 		if (ImGui.button("Smart Auto Map")) {
 			showAutoMapSettings = true;
 		}
@@ -82,8 +86,6 @@ public class ToolPanel {
 
 		renderMarkerManager();
 
-		ImGui.spacing();
-		ImGui.textWrapped("选择、画笔、橡皮等工具将在此列出。");
 		ImGui.end();
 
 		// 设置弹窗（独立窗口）
@@ -93,10 +95,42 @@ public class ToolPanel {
 		}
 	}
 
+	private void renderBlockSelectionTools() {
+		ImGui.text("方块选择工具");
+		var mgr = BeatBlockSelectionManager.get();
+		if (ImGui.radioButton("关闭##bselOff", mgr.getMode() == SelectionMode.OFF)) {
+			mgr.setMode(SelectionMode.OFF);
+		}
+		if (ImGui.radioButton("点击选择##bselClick", mgr.getMode() == SelectionMode.CLICK)) {
+			mgr.setMode(SelectionMode.CLICK);
+		}
+		if (ImGui.radioButton("框选（两次左键对角）##bselBox", mgr.getMode() == SelectionMode.BOX)) {
+			mgr.setMode(SelectionMode.BOX);
+		}
+		ImGui.textWrapped("在场景区用左键选方块。详细模式、上限见菜单「视图 → 选择属性」。选区以金色包围盒显示。");
+		ImGui.separator();
+	}
+
 	private void renderStageObjectCreator() {
 		ImGui.spacing();
 		ImGui.separator();
 		ImGui.text("Stage Object");
+
+		if (ImGui.button("从选区包围盒填入 A/B##stageFromSel")) {
+			var mgr = BeatBlockSelectionManager.get();
+			BlockPos smin = mgr.getBoundingMin();
+			BlockPos smax = mgr.getBoundingMax();
+			if (smin != null && smax != null) {
+				selectionPosA = smin.toImmutable();
+				selectionPosB = smax.toImmutable();
+				stageObjectMessage = "已用当前选区包围角填入 A、B。";
+			} else {
+				stageObjectMessage = "当前没有选区。";
+			}
+		}
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip("将「方块选择工具」选中的整体包围盒对角填入下方 A/B，便于创建 StageObject");
+		}
 
 		if (stageObjectNameBuffer.get() == null || stageObjectNameBuffer.get().isBlank()) {
 			stageObjectNameBuffer.set("selection_object");

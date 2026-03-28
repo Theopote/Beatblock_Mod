@@ -3,6 +3,7 @@ package com.beatblock;
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.client.BeatBlockUIScreen;
 import com.beatblock.client.render.BeatBlockHoverOutlineRenderer;
+import com.beatblock.client.render.BeatBlockSelectionRenderer;
 import com.beatblock.ui.EditorScreen;
 import com.beatblock.ui.HUD;
 import com.beatblock.ui.ImportScreen;
@@ -35,8 +36,12 @@ public class BeatBlockClient implements ClientModInitializer {
 
 		BeatBlock.openUICallback = () -> MinecraftClient.getInstance().setScreen(new BeatBlockUIScreen());
 
-		WorldRenderEvents.END_MAIN.register(context ->
-			BeatBlockHoverOutlineRenderer.renderIfNeeded(context.matrices(), context.consumers()));
+		WorldRenderEvents.END_MAIN.register(context -> {
+			var consumers = context.consumers();
+			var matrices = context.matrices();
+			BeatBlockSelectionRenderer.renderIfNeeded(matrices, consumers);
+			BeatBlockHoverOutlineRenderer.renderIfNeeded(matrices, consumers);
+		});
 
 		BeatBlockClientDriver.setupBeatEventHandler();
 

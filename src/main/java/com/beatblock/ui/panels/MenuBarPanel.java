@@ -18,7 +18,9 @@ public class MenuBarPanel {
 	private final Runnable onCloseRequest;
 	private final Runnable onToggleAnimationLibrary;
 	private final Runnable onOpenSmartAutoMap;
+	private final Runnable onToggleSelectionProperties;
 	private boolean animationLibraryVisible;
+	private boolean selectionPropertiesVisible;
 	private boolean showImportDialog;
 	private boolean showOpenProjectDialog;
 	private boolean showSaveProjectDialog;
@@ -28,10 +30,12 @@ public class MenuBarPanel {
 	private final ImString saveProjectPath = new ImString(IMPORT_PATH_CAPACITY);
 	private String projectDialogMessage = "";
 
-	public MenuBarPanel(Runnable onCloseRequest, Runnable onToggleAnimationLibrary, Runnable onOpenSmartAutoMap) {
+	public MenuBarPanel(Runnable onCloseRequest, Runnable onToggleAnimationLibrary, Runnable onOpenSmartAutoMap,
+		Runnable onToggleSelectionProperties) {
 		this.onCloseRequest = onCloseRequest;
 		this.onToggleAnimationLibrary = onToggleAnimationLibrary;
 		this.onOpenSmartAutoMap = onOpenSmartAutoMap != null ? onOpenSmartAutoMap : () -> {};
+		this.onToggleSelectionProperties = onToggleSelectionProperties != null ? onToggleSelectionProperties : () -> {};
 	}
 
 	public void setAnimationLibraryVisible(boolean visible) {
@@ -40,6 +44,10 @@ public class MenuBarPanel {
 
 	public boolean isAnimationLibraryVisible() {
 		return animationLibraryVisible;
+	}
+
+	public void setSelectionPropertiesVisible(boolean visible) {
+		selectionPropertiesVisible = visible;
 	}
 
 	public void render() {
@@ -88,6 +96,10 @@ public class MenuBarPanel {
 				if (ImGui.menuItem("动画库", null, animationLibraryVisible)) {
 					animationLibraryVisible = !animationLibraryVisible;
 					if (onToggleAnimationLibrary != null) onToggleAnimationLibrary.run();
+				}
+				if (ImGui.menuItem("选择属性", null, selectionPropertiesVisible)) {
+					selectionPropertiesVisible = !selectionPropertiesVisible;
+					if (onToggleSelectionProperties != null) onToggleSelectionProperties.run();
 				}
 				ImGui.endMenu();
 			}
