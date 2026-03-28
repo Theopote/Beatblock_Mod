@@ -1,6 +1,7 @@
 package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.audio.AudioAnalysisService;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.client.imgui.ImGuiFontManager;
@@ -232,6 +233,7 @@ public final class AudioAnalysisPanel {
         String py = BeatBlock.externalAudioAnalyzer.getPythonRuntimeSummary();
         if (py == null || py.isBlank()) return;
         ImGui.textDisabled(py);
+        renderRuntimeHealth(BeatBlock.externalAudioAnalyzer.getRuntimeHealthSnapshot());
         ImGui.separator();
     }
 
@@ -430,6 +432,9 @@ public final class AudioAnalysisPanel {
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - 20f);
         ImGui.text(asset.getFileName());
 
+        ImGui.sameLine();
+        renderModeBadge(asset);
+
         // 文件元信息（灰色，小字）
         ImGui.textDisabled(String.format("%.1fs · %dHz",
                 asset.getDurationSeconds(), asset.getSampleRate()));
@@ -471,6 +476,7 @@ public final class AudioAnalysisPanel {
                 COLOR_PROGRESS_FG.x, COLOR_PROGRESS_FG.y, COLOR_PROGRESS_FG.z, COLOR_PROGRESS_FG.w);
             ImGui.textWrapped("正在处理：" + statusText);
             ImGui.popStyleColor();
+            ImGui.textDisabled("阶段：" + analysisPhaseLabel(statusText));
         }
 
         if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
@@ -924,6 +930,7 @@ public final class AudioAnalysisPanel {
                 COLOR_PROGRESS_FG.x, COLOR_PROGRESS_FG.y, COLOR_PROGRESS_FG.z, COLOR_PROGRESS_FG.w);
             ImGui.textWrapped("正在处理：" + statusText);
             ImGui.popStyleColor();
+            ImGui.textDisabled("当前阶段：" + analysisPhaseLabel(statusText));
         }
 
         if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
@@ -1214,6 +1221,59 @@ public final class AudioAnalysisPanel {
             case "unknown" -> "未知";
             default -> cacheSource;
         };
+    }
+
+    private void renderRuntimeHealth(AudioAnalysisService.RuntimeHealthSnapshot snapshot) {
+        if (snapshot == null) return;
+        ImGui.textDisabled("环境健康");
+        renderHealthInline("Python", snapshot.python());
+        ImGui.sameLine();
+        renderHealthInline("pip", snapshot.pip());
+        ImGui.sameLine();
+        renderHealthInline("librosa", snapshot.librosa());
+        ImGui.sameLine();
+        renderHealthInline("Demucs", snapshot.demucs());
+        ImGui.sameLine();
+        renderHealthInline("torch", snapshot.torch());
+        ImGui.sameLine();
+        renderHealthInline("ffmpeg", snapshot.ffmpeg());
+    }
+
+    private void renderHealthInline(String label, AudioAnalysisService.HealthItem item) {
+        ImVec4 color = switch (item != null ? item.state() : "unknown") {
+            case "ok" -> new ImVec4(0.36f, 0.79f, 0.65f, 1f);
+            case "warn" -> new ImVec4(0.94f, 0.62f, 0.16f, 1f);
+            case "error", "missing" -> new ImVec4(0.87f, 0.30f, 0.30f, 1f);
+            default -> new ImVec4(0.62f, 0.64f, 0.70f, 1f);
+        };
+        ImGui.pushStyleColor(ImGuiCol.Text, color.x, color.y, color.z, color.w);
+        ImGui.text(label + ": " + (item != null ? item.detail() : "未知"));
+        ImGui.popStyleColor();
+        if (ImGui.isItemHovered() && item != null) {
+            ImGui.setTooltip(label + " 状态: " + item.state());
+        }
+    }
+
+    private void renderModeBadge(AudioAsset asset) {
+        AudioAnalysisMode mode = asset.getRequestedAnalysisMode();
+        ImVec4 color = mode == AudioAnalysisMode.DEMUCS
+            ? new ImVec4(0.22f, 0.78f, 0.82f, 1f)
+            : new ImVec4(0.94f, 0.62f, 0.16f, 1f);
+        ImGui.pushStyleColor(ImGuiCol.Text, color.x, color.y, color.z, color.w);
+        ImGui.textDisabled("[" + analysisModeLabel(mode) + "]");
+        ImGui.popStyleColor();
+    }
+
+    private String analysisPhaseLabel(String statusText) {
+        if (statusText == null || statusText.isBlank()) return "-";
+        String s = statusText.toLowerCase();
+        if (s.contains("安装") || s.contains("依赖") || s.contains("检查")) return "环境准备";
+        if (s.contains("demucs") || s.contains("茎")) return "茎分离";
+        if (s.contains("bpm") || s.contains("踩点") || s.contains("频段")) return "节拍分析";
+        if (s.contains("段落")) return "结构分析";
+        if (s.contains("wave") || s.contains("波形")) return "波形生成";
+        if (s.contains("beatmap") || s.contains("写入")) return "结果写入";
+        return "分析中";
     }
 
     private boolean handleIncomingAudioPath(String path) {

@@ -4,6 +4,7 @@ import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.audio.beatmap.BeatmapReader;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.fabricmc.loader.api.FabricLoader;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
@@ -59,6 +61,9 @@ public final class AudioAnalysisService {
 	private volatile String cachedPythonSummary = "Python: 检测中...";
 	private volatile long nextPythonSummaryRefreshAtMs;
 	private volatile boolean pythonSummaryRefreshInFlight;
+	private volatile RuntimeHealthSnapshot cachedRuntimeHealthSnapshot = RuntimeHealthSnapshot.empty();
+	private volatile long nextRuntimeHealthRefreshAtMs;
+	private final AtomicBoolean runtimeHealthRefreshInFlight = new AtomicBoolean();
 	private static final long PYTHON_PROBE_CACHE_TTL_MS = 5 * 60 * 1000L;
 	private static final long PYTHON_PROBE_TIMEOUT_MS = 3000L;
 	private final Map<String, PythonProbeInfo> pythonProbeCache = new ConcurrentHashMap<>();
@@ -180,6 +185,14 @@ public final class AudioAnalysisService {
 		return cachedPythonSummary;
 	}
 
+	public RuntimeHealthSnapshot getRuntimeHealthSnapshot() {
+		long now = System.currentTimeMillis();
+		if (now >= nextRuntimeHealthRefreshAtMs) {
+			triggerRuntimeHealthRefreshAsync();
+		}
+		return cachedRuntimeHealthSnapshot;
+	}
+
 	private void triggerPythonSummaryRefreshAsync() {
 		if (pythonSummaryRefreshInFlight) return;
 
@@ -201,6 +214,20 @@ public final class AudioAnalysisService {
 			} finally {
 				nextPythonSummaryRefreshAtMs = System.currentTimeMillis() + 5000L;
 				pythonSummaryRefreshInFlight = false;
+			}
+		});
+	}
+
+	private void triggerRuntimeHealthRefreshAsync() {
+		if (!runtimeHealthRefreshInFlight.compareAndSet(false, true)) return;
+		summaryExecutor.submit(() -> {
+			try {
+				cachedRuntimeHealthSnapshot = probeRuntimeHealthSnapshot();
+			} catch (Exception e) {
+				LOGGER.debug("BeatBlock AudioAnalysis: runtime health probe failed: {}", e.toString());
+			} finally {
+				nextRuntimeHealthRefreshAtMs = System.currentTimeMillis() + 5000L;
+				runtimeHealthRefreshInFlight.set(false);
 			}
 		});
 	}
@@ -728,6 +755,126 @@ public final class AudioAnalysisService {
 		return "Python: " + version + " · " + path;
 	}
 
+	private RuntimeHealthSnapshot probeRuntimeHealthSnapshot() {
+		Path configDir = AnalyzerInstaller.getScriptPath().getParent();
+		String pythonExe = configDir != null ? resolvePythonExe(configDir) : null;
+		HealthItem ffmpeg = probeFfmpegHealth();
+		if (pythonExe == null || pythonExe.isBlank()) {
+			HealthItem missing = new HealthItem("missing", "未找到");
+			return new RuntimeHealthSnapshot(
+				new HealthItem("missing", "未配置"),
+				missing,
+				new HealthItem("unknown", "未知"),
+				new HealthItem("unknown", "未知"),
+				new HealthItem("unknown", "未知"),
+				ffmpeg
+			);
+		}
+
+		PythonProbeInfo info = getPythonProbeInfo(pythonExe);
+		HealthItem python = !info.probeOk
+			? new HealthItem("error", detailOrDefault(info.detail, "探测失败"))
+			: !info.isSupportedVersion()
+				? new HealthItem("warn", "版本 " + info.versionString())
+				: new HealthItem("ok", info.versionString());
+		HealthItem pip = !info.probeOk
+			? new HealthItem("unknown", "未知")
+			: info.hasPip
+				? new HealthItem("ok", "可用")
+				: new HealthItem("missing", "缺少");
+
+		String script = String.join("\n",
+			"import importlib.util",
+			"mods = ['librosa','soundfile','demucs','torch']",
+			"print('|'.join('1' if importlib.util.find_spec(m) else '0' for m in mods))"
+		);
+		try {
+			Process p = new ProcessBuilder(pythonExe, "-c", script)
+				.redirectErrorStream(true)
+				.start();
+			boolean finished = p.waitFor(PYTHON_PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+			if (!finished) {
+				p.destroyForcibly();
+				HealthItem unknown = new HealthItem("unknown", "探测超时");
+				return new RuntimeHealthSnapshot(python, pip, unknown, unknown, unknown, ffmpeg);
+			}
+			String out = readProcessOutput(p).trim();
+			if (p.exitValue() != 0) {
+				HealthItem unknown = new HealthItem("unknown", sanitizeProcessOutput(out));
+				return new RuntimeHealthSnapshot(python, pip, unknown, unknown, unknown, ffmpeg);
+			}
+			String[] parts = out.split("\\|");
+			return new RuntimeHealthSnapshot(
+				python,
+				pip,
+				moduleHealth(parts, 0, "librosa"),
+				moduleHealth(parts, 2, "demucs"),
+				moduleHealth(parts, 3, "torch"),
+				ffmpeg
+			);
+		} catch (Exception e) {
+			HealthItem unknown = new HealthItem("unknown", e.getClass().getSimpleName());
+			return new RuntimeHealthSnapshot(python, pip, unknown, unknown, unknown, ffmpeg);
+		}
+	}
+
+	private HealthItem moduleHealth(String[] parts, int index, String label) {
+		boolean ok = parts != null && index >= 0 && index < parts.length && "1".equals(parts[index].trim());
+		return ok ? new HealthItem("ok", "已安装") : new HealthItem("missing", "缺少 " + label);
+	}
+
+	private HealthItem probeFfmpegHealth() {
+		String executable = resolveFfmpegExecutable();
+		if (executable == null || executable.isBlank()) {
+			return new HealthItem("missing", "未找到");
+		}
+		return new HealthItem("ok", executable);
+	}
+
+	private String resolveFfmpegExecutable() {
+		Path configPath = FabricLoader.getInstance().getConfigDir().resolve("beatblock/ffmpeg_path.txt");
+		if (Files.exists(configPath)) {
+			try {
+				String txt = Files.readString(configPath).trim();
+				if (!txt.isEmpty() && isExecutable(txt, "-version")) return txt;
+			} catch (IOException ignored) {
+				// ignore and fall back to common locations
+			}
+		}
+
+		Path gameDir = FabricLoader.getInstance().getGameDir();
+		List<Path> candidates = List.of(
+			gameDir.resolve("ffmpeg.exe"),
+			gameDir.resolve("ffmpeg"),
+			gameDir.resolve("ffmpeg/bin/ffmpeg.exe"),
+			gameDir.resolve("ffmpeg/bin/ffmpeg")
+		);
+		for (Path p : candidates) {
+			if (Files.isRegularFile(p) && isExecutable(p.toAbsolutePath().toString(), "-version")) {
+				return p.toAbsolutePath().toString();
+			}
+		}
+
+		if (isExecutable("ffmpeg", "-version")) return "ffmpeg";
+		return null;
+	}
+
+	private boolean isExecutable(String executable, String arg) {
+		try {
+			Process p = new ProcessBuilder(executable, arg)
+				.redirectErrorStream(true)
+				.start();
+			boolean finished = p.waitFor(3, TimeUnit.SECONDS);
+			return finished && p.exitValue() == 0;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	private String detailOrDefault(String detail, String fallback) {
+		return detail == null || detail.isBlank() ? fallback : detail;
+	}
+
 	private boolean isUsablePythonForAnalyzer(String pythonExe) {
 		PythonProbeInfo info = getPythonProbeInfo(pythonExe);
 		if (!info.probeOk) return false;
@@ -1082,6 +1229,22 @@ public final class AudioAnalysisService {
 		String separationMode,
 		String cacheSource
 	) {}
+
+	public record HealthItem(String state, String detail) {}
+
+	public record RuntimeHealthSnapshot(
+		HealthItem python,
+		HealthItem pip,
+		HealthItem librosa,
+		HealthItem demucs,
+		HealthItem torch,
+		HealthItem ffmpeg
+	) {
+		private static RuntimeHealthSnapshot empty() {
+			HealthItem unknown = new HealthItem("unknown", "检查中");
+			return new RuntimeHealthSnapshot(unknown, unknown, unknown, unknown, unknown, unknown);
+		}
+	}
 
 	private static final class PythonProbeInfo {
 		private final boolean probeOk;
