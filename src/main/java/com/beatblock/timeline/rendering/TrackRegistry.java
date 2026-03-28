@@ -65,8 +65,18 @@ public final class TrackRegistry {
 		List<TrackDefinition> result = new ArrayList<>();
 		if (timeline == null) return List.of();
 
+		Set<String> controlFeatureKeys = new LinkedHashSet<>();
+		for (Track track : timeline.getTracks()) {
+			if (!Timeline.isBlockAnimationFeatureTrackId(track.getId())) continue;
+			String key = Timeline.blockAnimationFeatureKeyFromTrackId(track.getId());
+			if (key != null && !key.isBlank()) {
+				controlFeatureKeys.add(key);
+			}
+		}
+		if (controlFeatureKeys.isEmpty()) return List.of();
+
 		int extIdx = 0;
-		for (String key : orderedFeatureKeys(timeline)) {
+		for (String key : orderedControlFeatureKeys(controlFeatureKeys)) {
 			String trackId = Timeline.blockAnimationFeatureTrackId(key);
 			result.add(new TrackDefinition(
 				trackId,
@@ -78,22 +88,24 @@ public final class TrackRegistry {
 			extIdx++;
 		}
 
-		for (Track track : timeline.getTracks()) {
-			if (!Timeline.isBlockAnimationFeatureTrackId(track.getId())) continue;
-			String key = Timeline.blockAnimationFeatureKeyFromTrackId(track.getId());
-			boolean alreadyIncluded = result.stream().anyMatch(td -> td.getKey().equals(track.getId()));
-			if (alreadyIncluded) continue;
-			result.add(new TrackDefinition(
-				track.getId(),
-				localizedName(key),
-				TrackDefinition.VisualType.ANIMATION_CLIP,
-				TrackDefinition.GROUP_EXTENDED,
-				colorForKey(key, extIdx)
-			));
-			extIdx++;
-		}
-
 		return List.copyOf(result);
+	}
+
+	private static List<String> orderedControlFeatureKeys(Set<String> featureKeys) {
+		if (featureKeys == null || featureKeys.isEmpty()) return List.of();
+		LinkedHashSet<String> ordered = new LinkedHashSet<>();
+
+		for (String key : RHYTHM_KEYS) {
+			if (featureKeys.contains(key)) ordered.add(key);
+		}
+		for (String key : MELODIC_STEM_KEYS) {
+			if (featureKeys.contains(key)) ordered.add(key);
+		}
+		featureKeys.stream()
+			.filter(k -> !RHYTHM_KEYS.contains(k) && !MELODIC_STEM_KEYS.contains(k))
+			.sorted()
+			.forEach(ordered::add);
+		return List.copyOf(ordered);
 	}
 
 	private static List<String> orderedFeatureKeys(Timeline timeline) {
