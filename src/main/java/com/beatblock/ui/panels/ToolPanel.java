@@ -17,6 +17,7 @@ import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
@@ -33,7 +34,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 左侧工具面板。提供 Smart Auto Map：点击后弹出设置（风格/复杂度/镜头/粒子），生成完整编排。
+ * 左侧工具面板：层次为「场景选区 → 自动化编排 → 动画场景对象 → 时间线调试」。
+ * 方块选择由 {@link BeatBlockSelectionManager} 管理；StageObject 创建使用轴对齐包围盒，
+ * 默认从当前方块选区的外接 AABB 一键填入，避免与「框选工具」语义重复。
  */
 public class ToolPanel {
 
@@ -99,19 +102,23 @@ public class ToolPanel {
 
 			renderBlockSelectionTools();
 
+			ImGui.spacing();
+			ImGui.textDisabled("自动化编排");
+			ImGui.separator();
 			if (ImGui.button("Smart Auto Map")) {
 				showAutoMapSettings = true;
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip("自动编排：根据音乐生成方块动画、摄像机、粒子与节奏结构（先导入音乐）");
+				ImGui.setTooltip("根据已导入音乐生成时间线事件（方块动画、镜头、粒子等），与当前选区无绑定。");
 			}
 			if (lastAutoMapResult != null) {
 				ImGui.sameLine();
-				ImGui.textDisabled(String.format("动画 %d, 镜头 %d, 粒子 %d",
+				ImGui.textDisabled(String.format("上次：动 %d · 镜 %d · 粒 %d",
 					lastAutoMapResult.getAnimationEvents(),
 					lastAutoMapResult.getCameraEvents(),
 					lastAutoMapResult.getParticleEvents()));
 			}
+
 			renderStageObjectCreator();
 			renderLastActionExecutionStatus();
 
@@ -168,60 +175,73 @@ public class ToolPanel {
 
 	private void renderStageObjectCreator() {
 		ImGui.spacing();
+		ImGui.textDisabled("动画场景对象（StageObject）");
 		ImGui.separator();
-		ImGui.text("Stage Object");
+		ImGui.textWrapped(
+				"时间线里的方块动画事件通过名称引用 StageObject。创建时需要一块「轴对齐长方体」内的方块："
+						+ "请优先用上方「方块选择工具」做出选区（任意形状均可），再点下面按钮把该选区的外接包围盒填入；"
+						+ "只有不打算用选区工具时，才展开「手动角点」用准星点两个角。");
 
-		if (ImGui.button("从选区包围盒填入 A/B##stageFromSel")) {
-			var mgr = BeatBlockSelectionManager.get();
-			BlockPos smin = mgr.getBoundingMin();
-			BlockPos smax = mgr.getBoundingMax();
-			if (smin != null && smax != null) {
+		var selMgr = BeatBlockSelectionManager.get();
+		int selCount = selMgr.getSelectionCount();
+		if (selCount > 0) {
+			ImGui.textDisabled(String.format(Locale.ROOT, "当前方块选区：%d 个方块（包围盒用于下方创建）", selCount));
+		} else {
+			ImGui.textDisabled("当前无方块选区：可先用框选/魔棒等建立选区，或展开「手动角点」。");
+		}
+
+		if (ImGui.button("用当前方块选区包围盒填入##stageFromSel", -1f, 0f)) {
+			BlockPos smin = selMgr.getBoundingMin();
+			BlockPos smax = selMgr.getBoundingMax();
+			if (smin != null && smax != null && selCount > 0) {
 				selectionPosA = smin.toImmutable();
 				selectionPosB = smax.toImmutable();
-				setStageObjectMessage("已用当前选区包围角填入 A、B。");
+				setStageObjectMessage("已从方块选区外接包围盒填入 A、B。");
 			} else {
-				setStageObjectMessage("当前没有选区。");
+				setStageObjectMessage("没有可用的方块选区或包围盒。");
 			}
 		}
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("将「方块选择工具」选中的整体包围盒对角填入下方 A/B，便于创建 StageObject");
+			ImGui.setTooltip("与上方选区工具联动：取 BeatBlock 选择管理器中已选方块的最小/最大角作为创建包围盒（与框选完成后的结果一致，无需再点「设置 A/B」）。");
 		}
 
-		if (ImGui.button("设置 A##stageObjSetA")) {
-			selectionPosA = readCrosshairBlockPos();
-			setStageObjectMessage(selectionPosA != null ? "已设置 A 点。" : "未命中方块，无法设置 A 点。");
-		}
-		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("设置 A 角点为准星命中的方块坐标");
-		}
-		ImGui.sameLine();
-		if (ImGui.button("设置 B##stageObjSetB")) {
-			selectionPosB = readCrosshairBlockPos();
-			setStageObjectMessage(selectionPosB != null ? "已设置 B 点。" : "未命中方块，无法设置 B 点。");
-		}
-		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("设置 B 角点为准星命中的方块坐标");
-		}
-		ImGui.sameLine();
-		if (ImGui.button("清空##stageObjClearSelection")) {
-			selectionPosA = null;
-			selectionPosB = null;
-			setStageObjectMessage("已清空选区。");
-		}
-		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("清空 A/B 角点");
-		}
-
-		ImGui.textDisabled("A: " + formatPos(selectionPosA));
-		ImGui.textDisabled("B: " + formatPos(selectionPosB));
-		BlockPos lastLeft = BeatBlockWorldPick.getLastLeftClickedBlock();
-		if (lastLeft != null) {
-			ImGui.textDisabled("左键最近选中: " + formatPos(lastLeft));
-		}
+		ImGui.textDisabled("创建包围盒角点");
+		ImGui.textDisabled("  A: " + formatPos(selectionPosA));
+		ImGui.textDisabled("  B: " + formatPos(selectionPosB));
 		long selectionVolume = estimateSelectionVolume(selectionPosA, selectionPosB);
 		if (selectionVolume > 0) {
-			ImGui.textDisabled(String.format(Locale.ROOT, "选区体积: %d blocks", selectionVolume));
+			ImGui.textDisabled(String.format(Locale.ROOT, "  包围盒体积（估算）: %d 方块", selectionVolume));
 		}
+
+		ImGui.setNextItemOpen(false, ImGuiCond.Once);
+		if (ImGui.collapsingHeader("手动角点（准星拾取，可选）##stageManualHdr")) {
+			ImGui.textWrapped("与「方块选择」独立：在场景区用准星对准方块，分别指定长方体的两个对角。");
+			if (ImGui.button("准星 → A##stageObjSetA")) {
+				selectionPosA = readCrosshairBlockPos();
+				setStageObjectMessage(selectionPosA != null ? "已设置 A。" : "未命中方块。");
+			}
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip("使用当前光标射线击中的方块坐标");
+			}
+			ImGui.sameLine();
+			if (ImGui.button("准星 → B##stageObjSetB")) {
+				selectionPosB = readCrosshairBlockPos();
+				setStageObjectMessage(selectionPosB != null ? "已设置 B。" : "未命中方块。");
+			}
+			if (ImGui.button("清空手动角点##stageObjClearSelection")) {
+				selectionPosA = null;
+				selectionPosB = null;
+				setStageObjectMessage("已清空 A/B。");
+			}
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip("仅清除此处角点，不影响上方「方块选择工具」的选区");
+			}
+			BlockPos lastLeft = BeatBlockWorldPick.getLastLeftClickedBlock();
+			if (lastLeft != null) {
+				ImGui.textDisabled("最近左键方块: " + formatPos(lastLeft));
+			}
+		}
+
 		ImGui.checkbox("包含空气方块##stageObjIncludeAir", stageObjectIncludeAir);
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip("关闭后仅采集非空气方块，推荐用于已有建筑对象");
@@ -392,8 +412,8 @@ public class ToolPanel {
 
 	private void renderLastActionExecutionStatus() {
 		ImGui.spacing();
+		ImGui.textDisabled("时间线动作（调试）");
 		ImGui.separator();
-		ImGui.text("Action Runtime");
 
 		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getLastTimelineActionExecutionReport();
 		if (report == null) {
@@ -423,8 +443,8 @@ public class ToolPanel {
 		if (timeline == null) return;
 
 		ImGui.spacing();
+		ImGui.textDisabled("时间线 Marker");
 		ImGui.separator();
-		ImGui.text("Marker");
 
 		if (timeline.getMarkers().isEmpty()) {
 			selectedMarkerId = null;
