@@ -33,7 +33,6 @@ public final class BeatBlockSelectedBlocksRenderer {
 		if (n == 0 || n > MAX_BLOCKS_FOR_PER_BLOCK_RENDER) return;
 
 		Vec3d cam = mc.gameRenderer.getCamera().getCameraPos();
-		VertexConsumer lineBuffer = consumers.getBuffer(RenderLayers.LINES);
 
 		for (BlockPos p : mgr.getSelectedBlocks()) {
 			if (cam.squaredDistanceTo(Vec3d.ofCenter(p)) > RENDER_DISTANCE_SQ) continue;
@@ -45,6 +44,9 @@ public final class BeatBlockSelectedBlocksRenderer {
 			double oy = p.getY() - cam.y;
 			double oz = p.getZ() - cam.z;
 
+			// 每次迭代重新取 LINES：若上一格画了 debugFilledBox，Immediate 会结束 LINES，
+			// 复用旧 consumer 会触发 BufferBuilder「Not building!」。
+			VertexConsumer lineBuffer = consumers.getBuffer(RenderLayers.LINES);
 			matrices.push();
 			VertexRendering.drawOutline(matrices, lineBuffer, shape, ox, oy, oz, OUTLINE_ARGB, OUTLINE_WIDTH);
 			matrices.pop();
