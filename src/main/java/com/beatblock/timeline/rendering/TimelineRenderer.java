@@ -86,7 +86,7 @@ public final class TimelineRenderer {
 	private List<TrackDefinition> currentAudioSubTracks = Collections.emptyList();
 	private List<TrackDefinition> currentAnimationSubTracks = Collections.emptyList();
 	/** 上次构建 currentAudioSubTracks 时的 featureTracks key 快照，用于脏检测。 */
-	private Set<String> lastFeatureTrackKeys = Set.of();
+	private AudioSubTrackCacheKey lastAudioSubTrackCacheKey = AudioSubTrackCacheKey.empty();
 	private Set<String> lastAnimationTrackIds = Set.of();
 	private final Map<String, PairVisibilitySnapshot> pairedFeatureVisibility = new HashMap<>();
 
@@ -96,6 +96,17 @@ public final class TimelineRenderer {
 	private TimelineTrackListState registeredMuteListenerFor;
 
 	private record PairVisibilitySnapshot(boolean audioVisible, boolean controlVisible) {}
+
+	private record AudioSubTrackCacheKey(
+		boolean hasWaveform,
+		boolean hasStemWaveforms,
+		boolean hasLegacyFrequencyEvents,
+		Set<String> featureKeys
+	) {
+		private static AudioSubTrackCacheKey empty() {
+			return new AudioSubTrackCacheKey(false, false, false, Set.of());
+		}
+	}
 
 	/**
 	 * 固定区域：只绘制时间刻度行（左侧「时间」标签 + 标尺），分界线与轨道区对齐，并占位。
@@ -136,9 +147,14 @@ public final class TimelineRenderer {
 		// ── 音频子轨定义列表：仅在 featureTracks keySet 变化时重建 ─────────────
 		// TrackRegistry.buildAudioSubTracks 内部每次都分配新 ArrayList + TrackDefinition 对象，
 		// 60fps 下产生持续 GC 压力。轨道定义只在 featureTracks 内容发生变化时才需要重建。
-		Set<String> currentKeys = timeline.getFeatureTracks().keySet();
-		if (!lastFeatureTrackKeys.equals(currentKeys)) {
-			lastFeatureTrackKeys   = Set.copyOf(currentKeys);
+		AudioSubTrackCacheKey currentAudioCacheKey = new AudioSubTrackCacheKey(
+			timeline.getWaveform() != null,
+			timeline.hasStemWaveforms(),
+			!timeline.getFrequencyEvents().isEmpty(),
+			Set.copyOf(timeline.getFeatureTracks().keySet())
+		);
+		if (!lastAudioSubTrackCacheKey.equals(currentAudioCacheKey)) {
+			lastAudioSubTrackCacheKey = currentAudioCacheKey;
 			currentAudioSubTracks  = TrackRegistry.buildAudioSubTracks(timeline);
 		}
 		layout.setActiveAudioSubRowCount(currentAudioSubTracks.size());
@@ -1871,4 +1887,3 @@ public final class TimelineRenderer {
 		audioGroupDropHighlight = false;
 	}
 }
-

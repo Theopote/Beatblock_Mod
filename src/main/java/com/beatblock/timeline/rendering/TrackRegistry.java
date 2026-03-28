@@ -123,6 +123,16 @@ public final class TrackRegistry {
 	 * @return 不可变的轨道定义列表，按「主混音 → Demucs 音频茎 → librosa 参考轨」顺序排列
 	 */
 	public static List<TrackDefinition> buildAudioSubTracks(Timeline timeline) {
+		if (timeline == null) return List.of();
+
+		Set<String> featureKeys = timeline.getFeatureTracks().keySet();
+		boolean hasWaveform = timeline.getWaveform() != null;
+		boolean hasStemWaveforms = timeline.hasStemWaveforms();
+		boolean hasLegacyFrequencyEvents = !timeline.getFrequencyEvents().isEmpty();
+		if (!hasWaveform && !hasStemWaveforms && featureKeys.isEmpty() && !hasLegacyFrequencyEvents) {
+			return List.of();
+		}
+
 		List<TrackDefinition> result = new ArrayList<>();
 
 		// 1. 主混音波形（非 Demucs 模式下为唯一可听音轨）
@@ -131,8 +141,6 @@ public final class TrackRegistry {
 			TrackDefinition.VisualType.WAVEFORM,
 			TrackDefinition.GROUP_NONE
 		));
-
-		if (timeline == null) return List.copyOf(result);
 
 		// 2. 茎波形行（Demucs 模式下，每条茎一条波形子轨）
 		Set<String> stemWaveformKeys = timeline.getStemWaveformKeys();
@@ -147,8 +155,6 @@ public final class TrackRegistry {
 				));
 			}
 		}
-
-		Set<String> featureKeys = timeline.getFeatureTracks().keySet();
 
 		if (!featureKeys.isEmpty()) {
 			// ── 新路径：命名特征轨道 ──────────────────────────────────
@@ -194,7 +200,7 @@ public final class TrackRegistry {
 				));
 				extIdx++;
 			}
-		} else {
+		} else if (hasLegacyFrequencyEvents) {
 			// ── 遗留回退：生成 low/mid/high 三条轨道 ────────────────
 			result.add(new TrackDefinition("low",  "低频", TrackDefinition.VisualType.IMPULSE,
 				TrackDefinition.GROUP_RHYTHM, COLOR_LOW));
