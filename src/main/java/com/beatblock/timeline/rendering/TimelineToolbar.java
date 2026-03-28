@@ -132,6 +132,8 @@ public final class TimelineToolbar {
 	private final ImInt actionRollbackComboIndex = new ImInt(0); // 默认 preview
 	private final ImInt bindingTemplateComboIndex = new ImInt(0);
 	private String lastTemplateApplyFeedback = "";
+	private long lastTemplateApplyFeedbackAtMs = 0L;
+	private boolean lastTemplateApplyFeedbackSuccess = false;
 	private boolean demucsMappingConfigLoaded;
 	private boolean actionExecutionConfigLoaded;
 
@@ -730,9 +732,9 @@ public final class TimelineToolbar {
 			if (!templated.isEmpty()) {
 				rules = templated;
 				AnimationBindingEngine.saveRules(timeline, rules);
-				lastTemplateApplyFeedback = "Template " + BINDING_TEMPLATE_LABELS[idx] + " replaced all rules: " + rules.size();
+				setTemplateApplyFeedback("Template " + BINDING_TEMPLATE_LABELS[idx] + " replaced all rules: " + rules.size(), true);
 			} else {
-				lastTemplateApplyFeedback = "Template " + BINDING_TEMPLATE_LABELS[idx] + " produced no rules";
+				setTemplateApplyFeedback("Template " + BINDING_TEMPLATE_LABELS[idx] + " produced no rules", false);
 			}
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip("覆盖当前规则集");
@@ -745,16 +747,15 @@ public final class TimelineToolbar {
 				TemplateMergeResult merge = mergeTemplateRules(rules, templated);
 				rules = merge.merged();
 				AnimationBindingEngine.saveRules(timeline, rules);
-				lastTemplateApplyFeedback = "Template " + BINDING_TEMPLATE_LABELS[idx]
-					+ " appended: +" + merge.added() + ", skipped " + merge.skipped();
+				setTemplateApplyFeedback(
+					"Template " + BINDING_TEMPLATE_LABELS[idx] + " appended: +" + merge.added() + ", skipped " + merge.skipped(),
+					merge.added() > 0);
 			} else {
-				lastTemplateApplyFeedback = "Template " + BINDING_TEMPLATE_LABELS[idx] + " produced no rules";
+				setTemplateApplyFeedback("Template " + BINDING_TEMPLATE_LABELS[idx] + " produced no rules", false);
 			}
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip("保留现有规则并追加模板（自动去重）");
-		if (!lastTemplateApplyFeedback.isBlank()) {
-			ImGui.textDisabled(lastTemplateApplyFeedback);
-		}
+		renderTemplateApplyFeedback();
 
 		if (featureKeys.isEmpty()) {
 			ImGui.textDisabled("当前没有可用特征轨，请先导入并分析音频。\n");
@@ -1126,6 +1127,37 @@ public final class TimelineToolbar {
 			sb.append('|').append(sorted);
 		}
 		return sb.toString();
+	}
+
+	private void setTemplateApplyFeedback(String message, boolean success) {
+		lastTemplateApplyFeedback = message != null ? message : "";
+		lastTemplateApplyFeedbackSuccess = success;
+		lastTemplateApplyFeedbackAtMs = System.currentTimeMillis();
+	}
+
+	private void renderTemplateApplyFeedback() {
+		if (lastTemplateApplyFeedback == null || lastTemplateApplyFeedback.isBlank()) return;
+		final long now = System.currentTimeMillis();
+		final long ageMs = Math.max(0L, now - lastTemplateApplyFeedbackAtMs);
+		final long holdMs = 1700L;
+		final long fadeMs = 1300L;
+		final long ttlMs = holdMs + fadeMs;
+		if (ageMs >= ttlMs) {
+			lastTemplateApplyFeedback = "";
+			return;
+		}
+
+		float alpha = 1.0f;
+		if (ageMs > holdMs) {
+			float t = (ageMs - holdMs) / (float) fadeMs;
+			alpha = Math.max(0f, 1.0f - t);
+		}
+
+		if (lastTemplateApplyFeedbackSuccess) {
+			ImGui.textColored(0.55f, 0.92f, 0.62f, alpha, lastTemplateApplyFeedback);
+		} else {
+			ImGui.textColored(0.95f, 0.80f, 0.42f, alpha, lastTemplateApplyFeedback);
+		}
 	}
 
 	private void renderDemucsAdvancedPopup() {
