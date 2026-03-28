@@ -21,13 +21,15 @@ public final class ExplosionEffect implements AnimationEffect {
 
 	@Override
 	public void apply(AnimatedBlock block, float t, float energy, EffectContext ctx) {
+		float str = (float) ctx.paramDouble("impactRadius", strength);
+		float burst = (float) ctx.paramDouble("impactBurst", 1.0);
 		Vec3d center = centerOverride.lengthSquared() > 1e-6 ? centerOverride : ctx.getStageCenter();
 		Vec3d pos = block.getPosition();
 		Vec3d dir = pos.subtract(center);
 		double len = dir.length();
 		if (len < 1e-6) return;
 		dir = dir.multiply(1.0 / len);
-		double move = strength * t * energy;
+		double move = str * t * energy * burst;
 		Vec3d delta = dir.multiply(move);
 		block.setPosition(pos.add(delta));
 	}

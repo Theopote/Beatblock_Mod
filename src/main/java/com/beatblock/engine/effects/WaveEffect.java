@@ -20,8 +20,10 @@ public final class WaveEffect implements AnimationEffect {
 
 	@Override
 	public void apply(AnimatedBlock block, float t, float energy, EffectContext ctx) {
+		float amp = (float) ctx.paramDouble("waveAmplitude", amplitude);
+		float phase = (float) ctx.paramDouble("wavePhaseOffset", 0.0);
 		Vec3d pos = block.getPosition();
-		double wave = Math.sin(pos.x * frequency + t * 6) * amplitude * energy;
+		double wave = Math.sin(pos.x * frequency + t * 6 + phase) * amp * energy;
 		block.setPosition(pos.x, pos.y + wave, pos.z);
 	}
 }

@@ -81,13 +81,9 @@ public final class BlockAnimationEngine {
 		SpatialDispatchMode spatialMode = SpatialDispatchMode.fromValue(params.get("spatialMode"));
 		double stepDelay = resolveSpatialStepDelay(params, spatialMode, event.getDurationSeconds(), target.getBlocks().size());
 		if (spatialMode == SpatialDispatchMode.ALL || stepDelay <= 0.0 || target.getBlocks().size() <= 1) {
-			scheduleFromTimelineEvent(
-				event.getAnimationTypeId(),
-				event.getTargetObjectId(),
-				event.getTimeSeconds(),
-				event.getDurationSeconds(),
-				event.getEnergy()
-			);
+			double endTime = event.getTimeSeconds() + Math.max(0.01, event.getDurationSeconds());
+			animationPlayer.addInstance(new EngineAnimationInstance(
+				def, target, event.getTimeSeconds(), endTime, event.getEnergy(), params));
 			return;
 		}
 
@@ -106,7 +102,7 @@ public final class BlockAnimationEngine {
 				List.of(block),
 				center
 			);
-			animationPlayer.addInstance(new EngineAnimationInstance(def, perBlockTarget, start, end, energy));
+			animationPlayer.addInstance(new EngineAnimationInstance(def, perBlockTarget, start, end, energy, params));
 		}
 	}
 

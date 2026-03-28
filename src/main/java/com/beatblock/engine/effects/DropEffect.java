@@ -18,8 +18,12 @@ public final class DropEffect implements AnimationEffect {
 
 	@Override
 	public void apply(AnimatedBlock block, float t, float energy, EffectContext ctx) {
-		float y = t * height * energy;
+		float h = (float) ctx.paramDouble("meteorHeight", height);
+		float scatter = (float) ctx.paramDouble("meteorScatter", 0.0);
 		Vec3d pos = block.getPosition();
-		block.setPosition(pos.x, pos.y - y, pos.z);
+		double y = t * h * energy;
+		double xOff = scatter * Math.sin(pos.x * 3.7 + t * 2) * energy;
+		double zOff = scatter * Math.cos(pos.z * 3.7 + t * 2) * energy;
+		block.setPosition(pos.x + xOff, pos.y - y, pos.z + zOff);
 	}
 }

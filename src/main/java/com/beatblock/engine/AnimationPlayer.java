@@ -47,7 +47,7 @@ public final class AnimationPlayer {
 		StageObject target = anim.getTarget();
 		if (target == null) return;
 		float energy = anim.getEnergy();
-		EffectContext ctx = new EffectContext(target.getCenter());
+		EffectContext ctx = new EffectContext(target.getCenter(), anim.getExtraParams());
 		for (BlockPos pos : target.getBlocks()) {
 			AnimatedBlock block = currentFrameBlocks.computeIfAbsent(pos.toImmutable(), p -> new AnimatedBlock(p));
 			block.resetToOriginal();
