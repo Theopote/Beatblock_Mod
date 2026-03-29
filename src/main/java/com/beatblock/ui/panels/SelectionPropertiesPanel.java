@@ -24,6 +24,7 @@ public class SelectionPropertiesPanel {
 	private final int[] sphereRadiusScratch = new int[1];
 	private final int[] maxCameraDistScratch = new int[1];
 	private final int[] maxWandSpreadScratch = new int[1];
+	private final int[] lineThicknessScratch = new int[1];
 	private final ImBoolean includeAirProxy = new ImBoolean(false);
 	private final ImBoolean connectedFullStateProxy = new ImBoolean(false);
 
@@ -97,7 +98,20 @@ public class SelectionPropertiesPanel {
 			mgr.setMaxBlocks(maxBlocksScratch[0]);
 		}
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("框/线/笔刷/列/切片体积、连通与选区魔棒展开、笔刷单次盖章等超过此值时拒绝或截断。");
+			ImGui.setTooltip("框/线（含圆柱线粗）/笔刷/列/切片体积、连通与选区魔棒展开、笔刷单次盖章等超过此值时拒绝或截断。");
+		}
+
+		if (mgr.getMode() == SelectionMode.LINE) {
+			ImGui.separator();
+			ImGui.textDisabled("线选");
+			lineThicknessScratch[0] = mgr.getLineThicknessRadius();
+			ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
+			if (ImGui.sliderInt("线粗细（半径，格）##selLineThick", lineThicknessScratch, 0, 32)) {
+				mgr.setLineThicknessRadius(lineThicknessScratch[0]);
+			}
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip("0：仅穿过中心折线上的方块；大于 0：以两端中心连线为轴、该半径的圆柱形范围（欧氏距离到轴线）。");
+			}
 		}
 
 		if (mgr.getMode() == SelectionMode.BRUSH) {

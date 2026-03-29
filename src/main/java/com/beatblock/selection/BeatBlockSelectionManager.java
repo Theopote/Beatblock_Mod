@@ -41,6 +41,8 @@ public final class BeatBlockSelectionManager {
 	private boolean includeAir;
 	private int maxBlocks = 100_000;
 	private int sphereBrushRadius = 3;
+	/** 线选：0 = 仅体素中心折线；&gt;0 = 以两端中心连线为轴的圆柱半径（格）。 */
+	private int lineThicknessRadius;
 	/** false：同类型方块即可连通（魔棒更直观）；true：BlockState 完全一致才算「同色」。 */
 	private boolean connectedMatchFullState;
 	private BrushShape brushShape = BrushShape.SPHERE;
@@ -113,6 +115,14 @@ public final class BeatBlockSelectionManager {
 
 	public void setSphereBrushRadius(int sphereBrushRadius) {
 		this.sphereBrushRadius = Math.min(32, Math.max(1, sphereBrushRadius));
+	}
+
+	public int getLineThicknessRadius() {
+		return lineThicknessRadius;
+	}
+
+	public void setLineThicknessRadius(int lineThicknessRadius) {
+		this.lineThicknessRadius = Math.min(32, Math.max(0, lineThicknessRadius));
 	}
 
 	public boolean isConnectedMatchFullState() {
@@ -248,6 +258,7 @@ public final class BeatBlockSelectionManager {
 		planeSliceFaceOverride = null;
 		maxDistanceFromCamera = 128;
 		maxMagicWandSpreadFromSeed = 64;
+		lineThicknessRadius = 0;
 		interactionCameraPos = null;
 		selectionFillEnabled = false;
 		clearBrushAnchor();
@@ -654,9 +665,9 @@ public final class BeatBlockSelectionManager {
 	}
 
 	private List<BlockPos> collectLine(World world, BlockPos a, BlockPos b) {
-		List<BlockPos> raw = BlockSelectionLine.between(a, b);
-		if (raw.size() > maxBlocks) {
-			lastMessage = String.format("线选经过 %d 格，超过上限 %d。", raw.size(), maxBlocks);
+		List<BlockPos> raw = BlockSelectionLine.blocksForSegment(a, b, lineThicknessRadius, maxBlocks);
+		if (raw == null) {
+			lastMessage = String.format("线选候选方块超过上限 %d（可缩小线粗细或框选上限）。", maxBlocks);
 			return null;
 		}
 		List<BlockPos> out = new ArrayList<>();

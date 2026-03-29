@@ -70,8 +70,29 @@ public final class BeatBlockSelectionRenderer {
 		if (mgr.getMode() != SelectionMode.LINE || mgr.getLineFirstCorner() == null) return;
 		BlockHitResult hit = raycastForPreview(mc);
 		if (hit == null) return;
-		List<BlockPos> cells = BlockSelectionLine.between(mgr.getLineFirstCorner(), hit.getBlockPos());
+		BlockPos a = mgr.getLineFirstCorner();
+		BlockPos b = hit.getBlockPos();
+		int tr = mgr.getLineThicknessRadius();
+		if (tr > 0) {
+			drawLineCylinderPreviewEnvelope(matrices, consumers, mc, a, b, tr, LINE_PREVIEW_ARGB, 2.0f);
+		}
+		List<BlockPos> cells = BlockSelectionLine.between(a, b);
 		drawVoxelCenterPolyline(matrices, consumers, mc, cells, LINE_PREVIEW_ARGB);
+	}
+
+	/** 圆柱线选预览：轴对齐包围盒包住线段各向扩展 r（略大于真实圆柱，便于辨认范围）。 */
+	private static void drawLineCylinderPreviewEnvelope(
+			MatrixStack matrices, VertexConsumerProvider consumers,
+			MinecraftClient mc, BlockPos a, BlockPos b, int radiusBlocks, int argb, float lineWidth) {
+		int r = Math.max(0, radiusBlocks);
+		int minX = Math.min(a.getX(), b.getX()) - r;
+		int minY = Math.min(a.getY(), b.getY()) - r;
+		int minZ = Math.min(a.getZ(), b.getZ()) - r;
+		int maxX = Math.max(a.getX(), b.getX()) + r;
+		int maxY = Math.max(a.getY(), b.getY()) + r;
+		int maxZ = Math.max(a.getZ(), b.getZ()) + r;
+		drawInclusiveBoundingBox(matrices, consumers, mc,
+				new BlockPos(minX, minY, minZ), new BlockPos(maxX, maxY, maxZ), argb, lineWidth);
 	}
 
 	private static void renderPlaneSlicePreviewIfNeeded(

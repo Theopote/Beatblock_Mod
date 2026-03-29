@@ -154,7 +154,7 @@ public class ToolPanel {
 			}
 			ImGui.endCombo();
 		}
-		ImGui.textWrapped("笔刷含球体/立方等形状：单击盖章或按住涂抹。框选/线选为两点；套索为拖画。详情与范围见「视图 → 选择属性」（切换工具时会自动打开该面板）。");
+		ImGui.textWrapped("笔刷含球体/立方等形状：单击盖章或按住涂抹。框选/线选为两点；套索为拖画。线粗细等在「视图 → 选择属性」；换选择工具不会自动打开该面板。");
 		ImGui.separator();
 	}
 
