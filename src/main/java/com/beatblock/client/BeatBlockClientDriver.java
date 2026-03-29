@@ -147,9 +147,17 @@ public final class BeatBlockClientDriver {
 	 * 避免仅存在摄像机片段或曾点过播放后暂停时仍锁死鼠标视角。
 	 */
 	public static boolean shouldApplyTimelineCameraToView() {
-		if (!driving) return false;
-		if (BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getClock().isPlaying()) return true;
-		return BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.isPlaying();
+		// 1. 当主音乐或时间线在播放时，锁定视角应用摄像机轨
+		if (BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.isPlaying()) return true;
+		if (BeatBlock.timelineEditor != null) {
+			if (BeatBlock.timelineEditor.getClock().isPlaying()) return true;
+			// 2. 当手动拖动播放头（标尺定位）时，类似播放，锁定视角
+			if (BeatBlock.timelineEditor.getInteractionState().getMode() == com.beatblock.timeline.editor.InteractionMode.SCRUB_TIME) {
+				return true;
+			}
+		}
+		// 3. 否则（暂停状态且未拖动播放头），允许玩家在 Minecraft 中操作视角
+		return false;
 	}
 
 	public static void setupBeatEventHandler() {
