@@ -418,30 +418,100 @@ public class EventPropertiesPanel {
 		}
 	}
 
+	private static final String[] CAM_KIND_LABELS = { "路径 [PATH]", "推拉 [DOLLY]", "环绕 [ORBIT]", "升降 [CRANE]", "震动 [SHAKE]" };
+	private static final CameraSegmentKind[] CAM_KINDS = CameraSegmentKind.values();
+
+	private static int kindIndex(CameraSegmentKind kind) {
+		for (int i = 0; i < CAM_KINDS.length; i++) {
+			if (CAM_KINDS[i] == kind) return i;
+		}
+		return 0;
+	}
+
 	private void renderCameraSegmentPanel(EventRef ref, Timeline timeline) {
 		CameraSegmentKind kind = CameraSegmentKind.fromParam(ref.event().getParameters().get("kind"));
-		ImGui.textDisabled("镜头类型");
-		ImGui.sameLine();
-		ImGui.text(kind.name());
+
+		// 镜头类型下拉选择
+		ImInt kindIdx = new ImInt(kindIndex(kind));
+		ImGui.setNextItemWidth(-1f);
+		if (ImGui.combo("镜头类型##camSegKind", kindIdx, CAM_KIND_LABELS)) {
+			CameraSegmentKind newKind = CAM_KINDS[kindIdx.get()];
+			if (newKind != kind) {
+				ref.event().setParameter("kind", newKind.name());
+				kind = newKind;
+				bindBuffers(ref);
+			}
+		}
+
 		ImGui.text("片段时长（秒）");
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText("##camSegDurInp", camSegDurBuffer);
 		ImGui.checkbox("显示路径##camSegPathVis", camSegPathVisibleProxy);
-		if (!camSegParamBuffers.isEmpty()) {
-			ImGui.separator();
-			ImGui.textDisabled("镜头参数");
-			for (String key : new TreeMap<>(camSegParamBuffers).keySet()) {
-				ImString buf = camSegParamBuffers.get(key);
-				ImGui.text(key);
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText("##camSegP_" + key, buf);
+
+		// 按镜头类型分组显示对应参数
+		ImGui.separator();
+		switch (kind) {
+			case PATH -> {
+				ImGui.textDisabled("路径模式：关键帧插值，参数在关键帧事件上编辑。");
+			}
+			case DOLLY -> {
+				ImGui.textDisabled("推拉参数");
+				renderSegParam("起点 X", "startX");
+				renderSegParam("起点 Y", "startY");
+				renderSegParam("起点 Z", "startZ");
+				renderSegParam("终点 X", "endX");
+				renderSegParam("终点 Y", "endY");
+				renderSegParam("终点 Z", "endZ");
+				renderSegParam("基准 Yaw (°)", "baseYawDeg");
+			}
+			case ORBIT -> {
+				ImGui.textDisabled("环绕参数");
+				renderSegParam("目标 X", "targetX");
+				renderSegParam("目标 Y", "targetY");
+				renderSegParam("目标 Z", "targetZ");
+				renderSegParam("半径", "radius");
+				renderSegParam("高度偏移", "height");
+				renderSegParam("起始角度 (°)", "yawStartDeg");
+				renderSegParam("终止角度 (°)", "yawEndDeg");
+			}
+			case CRANE -> {
+				ImGui.textDisabled("升降参数");
+				renderSegParam("起点 X", "startX");
+				renderSegParam("起点 Y", "startY");
+				renderSegParam("起点 Z", "startZ");
+				renderSegParam("终点 X", "endX");
+				renderSegParam("终点 Y", "endY");
+				renderSegParam("终点 Z", "endZ");
+				renderSegParam("Yaw (°)", "yawDeg");
+				renderSegParam("Pitch (°)", "pitchDeg");
+			}
+			case SHAKE -> {
+				ImGui.textDisabled("震动参数");
+				renderSegParam("锚点 X", "anchorX");
+				renderSegParam("锚点 Y", "anchorY");
+				renderSegParam("锚点 Z", "anchorZ");
+				renderSegParam("Yaw (°)", "yawDeg");
+				renderSegParam("Pitch (°)", "pitchDeg");
+				renderSegParam("距离", "distance");
+				renderSegParam("振幅", "amplitude");
+				renderSegParam("频率 (Hz)", "frequencyHz");
+				renderSegParam("节拍同步", "beatSync");
+				renderSegParam("每拍脉冲", "beatsPerPulse");
 			}
 		}
+
 		if (validationError != null && !validationError.isBlank()) {
 			ImGui.spacing();
 			ImGui.textColored(1f, 0.45f, 0.45f, 1f, validationError);
 		}
 		ImGui.spacing();
+
+		if (kind != CameraSegmentKind.PATH) {
+			if (ImGui.button("捕获当前视角##camSegCapture", 160f, 0f)) {
+				captureCurrentViewToSegment(kind);
+			}
+			ImGui.sameLine();
+		}
 		if (ImGui.button("应用##camSegApply", 120f, 0f)) {
 			applyCameraSegmentPanel(ref, timeline);
 		}
@@ -449,6 +519,56 @@ public class EventPropertiesPanel {
 		if (ImGui.button("重置##camSegReset", 120f, 0f)) {
 			bindBuffers(ref);
 		}
+	}
+
+	private void renderSegParam(String label, String key) {
+		ImString buf = camSegParamBuffers.get(key);
+		if (buf == null) {
+			buf = new ImString("", INPUT_BUFFER_SIZE);
+			camSegParamBuffers.put(key, buf);
+		}
+		ImGui.text(label);
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputText("##camSegP_" + key, buf);
+	}
+
+	private void captureCurrentViewToSegment(CameraSegmentKind kind) {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc == null || mc.player == null) {
+			validationError = "无本地玩家，无法捕获。";
+			return;
+		}
+		net.minecraft.util.math.Vec3d eye = mc.player.getEyePos();
+		float yaw = mc.player.getYaw();
+		float pitch = mc.player.getPitch();
+		switch (kind) {
+			case DOLLY -> {
+				setSegBuf("startX", eye.x); setSegBuf("startY", eye.y); setSegBuf("startZ", eye.z);
+				setSegBuf("baseYawDeg", yaw);
+			}
+			case ORBIT -> {
+				setSegBuf("targetX", eye.x); setSegBuf("targetY", eye.y); setSegBuf("targetZ", eye.z);
+			}
+			case CRANE -> {
+				setSegBuf("startX", eye.x); setSegBuf("startY", eye.y); setSegBuf("startZ", eye.z);
+				setSegBuf("yawDeg", yaw); setSegBuf("pitchDeg", pitch);
+			}
+			case SHAKE -> {
+				setSegBuf("anchorX", eye.x); setSegBuf("anchorY", eye.y); setSegBuf("anchorZ", eye.z);
+				setSegBuf("yawDeg", yaw); setSegBuf("pitchDeg", pitch);
+			}
+			default -> {}
+		}
+		validationError = null;
+	}
+
+	private void setSegBuf(String key, double value) {
+		ImString buf = camSegParamBuffers.get(key);
+		if (buf == null) {
+			buf = new ImString(INPUT_BUFFER_SIZE);
+			camSegParamBuffers.put(key, buf);
+		}
+		buf.set(String.format(Locale.ROOT, "%.6f", value));
 	}
 
 	private void applyCameraSegmentPanel(EventRef ref, Timeline timeline) {
@@ -475,6 +595,25 @@ public class EventPropertiesPanel {
 	}
 
 	private void renderCameraKeyframePanel(EventRef ref, Timeline timeline, SelectionState selectionState) {
+		// 所属片段上下文
+		if (ref.clip() != null) {
+			TimelineEvent seg = CameraTrackFactory.findSegmentHeadEvent(ref.clip());
+			CameraSegmentKind clipKind = seg != null
+				? CameraSegmentKind.fromParam(seg.getParameters().get("kind"))
+				: null;
+			ImGui.textDisabled("所属片段");
+			ImGui.sameLine();
+			ImGui.text(ref.clip().getId());
+			if (clipKind != null) {
+				ImGui.textDisabled("片段类型");
+				ImGui.sameLine();
+				ImGui.text(clipKind.name());
+			}
+			ImGui.textDisabled(String.format(Locale.ROOT, "片段范围: %.3fs — %.3fs",
+				ref.clip().getStartTimeSeconds(), ref.clip().getEndTimeSeconds()));
+			ImGui.separator();
+		}
+
 		ImGui.text("时间与位姿");
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText("时间 (s)##camKfTime", timeBuffer);
@@ -489,7 +628,12 @@ public class EventPropertiesPanel {
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText("Pitch (°)##camKfPitch", camPitchBuffer);
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("过渡 ease (LINEAR/SMOOTH)##camKfEase", camEaseBuffer);
+		String[] easeOptions = { "SMOOTH", "LINEAR" };
+		int easeIdx = "LINEAR".equalsIgnoreCase(valueOf(camEaseBuffer).trim()) ? 1 : 0;
+		ImInt easeInt = new ImInt(easeIdx);
+		if (ImGui.combo("过渡方式##camKfEase", easeInt, easeOptions)) {
+			camEaseBuffer.set(easeOptions[easeInt.get()]);
+		}
 		if (validationError != null && !validationError.isBlank()) {
 			ImGui.spacing();
 			ImGui.textColored(1f, 0.45f, 0.45f, 1f, validationError);
@@ -497,10 +641,11 @@ public class EventPropertiesPanel {
 		ImGui.spacing();
 		if (ImGui.button("捕获当前视角##camKfCapture", 160f, 0f)) {
 			MinecraftClient mc = MinecraftClient.getInstance();
-			if (mc.player != null) {
-				camXBuffer.set(String.format(Locale.ROOT, "%.6f", mc.player.getX()));
-				camYBuffer.set(String.format(Locale.ROOT, "%.6f", mc.player.getEyeY()));
-				camZBuffer.set(String.format(Locale.ROOT, "%.6f", mc.player.getZ()));
+			if (mc != null && mc.player != null) {
+				net.minecraft.util.math.Vec3d eye = mc.player.getEyePos();
+				camXBuffer.set(String.format(Locale.ROOT, "%.6f", eye.x));
+				camYBuffer.set(String.format(Locale.ROOT, "%.6f", eye.y));
+				camZBuffer.set(String.format(Locale.ROOT, "%.6f", eye.z));
 				camYawBuffer.set(String.format(Locale.ROOT, "%.3f", mc.player.getYaw()));
 				camPitchBuffer.set(String.format(Locale.ROOT, "%.3f", mc.player.getPitch()));
 				validationError = null;
