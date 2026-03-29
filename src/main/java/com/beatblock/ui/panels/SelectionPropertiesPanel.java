@@ -85,7 +85,7 @@ public class SelectionPropertiesPanel {
 		ImGui.checkbox("选区半透明填充（与描边叠加）##selFill", selectionFillProxy);
 		mgr.setSelectionFillEnabled(selectionFillProxy.get());
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("在方块选择 UI 打开且选中方块数量不太多时，为每个格子绘制略缩小的半透明面；大量选区时仅显示总包围盒。");
+			ImGui.setTooltip("在方块选择 UI 打开且选中方块数量不太多时，对选区外表面做贪婪合并后绘制半透明面（与合并后的轮廓线叠加）；大量选区时仅显示总包围盒。");
 		}
 
 		includeAirProxy.set(mgr.isIncludeAir());
