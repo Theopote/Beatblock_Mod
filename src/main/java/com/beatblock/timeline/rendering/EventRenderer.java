@@ -2,6 +2,8 @@ package com.beatblock.timeline.rendering;
 
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.*;
+import com.beatblock.timeline.camera.CameraSegmentKind;
+import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineViewState;
 import imgui.ImGui;
@@ -22,6 +24,11 @@ public final class EventRenderer {
 	private static final int ACTION_CLEAR_COLOR = 0xFF_66_66_FF;
 	private static final int ACTION_BUILD_COLOR = 0xFF_FF_99_33;
 	private static final int GLOBAL_EVENT_COLOR = 0xFF_AA_FF_AA;
+	private static final int CAMERA_PATH_COLOR = 0xCC_FF_CC_66;
+	private static final int CAMERA_DOLLY_COLOR = 0xCC_66_CC_FF;
+	private static final int CAMERA_ORBIT_COLOR = 0xCC_DD_77_FF;
+	private static final int CAMERA_CRANE_COLOR = 0xCC_77_DD_88;
+	private static final int CAMERA_SHAKE_COLOR = 0xCC_FF_77_77;
 	private static final int SELECTED_BORDER_COLOR = 0xFF_FF_FF_00;
 	private static final int STATUS_APPLIED_COLOR = 0xFF_57_C4_A0;
 	private static final int STATUS_SKIPPED_COLOR = 0xFF_44_AA_FF;
@@ -260,6 +267,82 @@ public final class EventRenderer {
 				KEYFRAME_COLOR
 			);
 		}
+		ImGui.setCursorPosY(rowY + layout.rowHeight);
+	}
+
+	/**
+	 * 摄像机轨：绘制镜头片段条；可选绘制路径关键帧菱形（含仅关键帧的遗留自动镜头）。
+	 */
+	public void renderCameraTrackRow(
+		float rowY,
+		Timeline timeline,
+		TimelineLayout layout,
+		TimelineViewState view,
+		SelectionState selection,
+		boolean showKeyframeMarkers
+	) {
+		if (view == null || layout == null || timeline == null) return;
+		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		if (cam == null) return;
+		ImGui.setCursorPosY(rowY);
+		float baseX = layout.contentLeft;
+		float baseY = ImGui.getCursorScreenPosY() + layout.rowHeight * 0.5f;
+		double vs = view.getViewStartTimeSeconds();
+		double ve = view.getViewEndTimeSeconds();
+
+		for (Clip clip : cam.getClips()) {
+			if (clip == null) continue;
+			double cs = clip.getStartTimeSeconds();
+			double ce = clip.getEndTimeSeconds();
+			if (ce < vs || cs > ve) continue;
+			TimelineEvent seg = CameraTrackFactory.findSegmentHeadEvent(clip);
+			if (seg != null) {
+				CameraSegmentKind kind = CameraSegmentKind.fromParam(seg.getParameters().get("kind"));
+				int fill = switch (kind) {
+					case PATH -> CAMERA_PATH_COLOR;
+					case DOLLY -> CAMERA_DOLLY_COLOR;
+					case ORBIT -> CAMERA_ORBIT_COLOR;
+					case CRANE -> CAMERA_CRANE_COLOR;
+					case SHAKE -> CAMERA_SHAKE_COLOR;
+				};
+				float x0 = baseX + view.timeToScreen(cs);
+				float x1 = baseX + view.timeToScreen(ce);
+				x1 = Math.max(x0 + 6f, x1);
+				float y0 = baseY - layout.rowHeight * 0.35f;
+				float y1 = baseY + layout.rowHeight * 0.35f;
+				ImGui.getWindowDrawList().addRectFilled(x0, y0, x1, y1, fill, 2f);
+				if (selection != null && selection.isClipSelected(clip.getId())) {
+					ImGui.getWindowDrawList().addRect(x0, y0, x1, y1, SELECTED_BORDER_COLOR, 0f, 0, 2f);
+				}
+				if (selection != null && selection.isEventSelected(seg.getId())) {
+					ImGui.getWindowDrawList().addRect(x0, y0, x1, y1, SELECTED_BORDER_COLOR, 0f, 0, 2f);
+				}
+			}
+		}
+
+		if (!showKeyframeMarkers) {
+			ImGui.setCursorPosY(rowY + layout.rowHeight);
+			return;
+		}
+
+		for (Clip clip : cam.getClips()) {
+			for (TimelineEvent e : clip.getEvents()) {
+				if (e.getType() != EventType.CAMERA_KEYFRAME) continue;
+				double t = e.getTimeSeconds();
+				if (t < vs || t > ve) continue;
+				float x = baseX + view.timeToScreen(t);
+				ImGui.getWindowDrawList().addTriangleFilled(
+					x, baseY - 6,
+					x - 5, baseY + 5,
+					x + 5, baseY + 5,
+					KEYFRAME_COLOR
+				);
+				if (selection != null && selection.isEventSelected(e.getId())) {
+					ImGui.getWindowDrawList().addRect(x - 6, baseY - 7, x + 6, baseY + 6, SELECTED_BORDER_COLOR, 0f, 0, 1.5f);
+				}
+			}
+		}
+
 		ImGui.setCursorPosY(rowY + layout.rowHeight);
 	}
 

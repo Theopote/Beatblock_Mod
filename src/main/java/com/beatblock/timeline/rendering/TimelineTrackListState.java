@@ -36,6 +36,9 @@ public final class TimelineTrackListState {
 	/** 已折叠的组轨道行号（0=音频，5=动画），折叠后其子轨道不显示 */
 	private final Set<Integer> collapsedGroupRows = new HashSet<>();
 
+	/** 摄像机轨：是否绘制路径关键帧菱形（片段条始终绘制）。 */
+	private boolean cameraKeyframeOverlayVisible = true;
+
 	public TimelineTrackListState() {
 		for (int i = 0; i < visible.length; i++) {
 			visible[i] = true;
@@ -236,6 +239,18 @@ public final class TimelineTrackListState {
 			if (collapsedGroupRows.contains(groupRowIndex)) collapsedGroupRows.remove(groupRowIndex);
 			else collapsedGroupRows.add(groupRowIndex);
 		}
+	}
+
+	public boolean isCameraKeyframeOverlayVisible() {
+		return cameraKeyframeOverlayVisible;
+	}
+
+	public void setCameraKeyframeOverlayVisible(boolean v) {
+		this.cameraKeyframeOverlayVisible = v;
+	}
+
+	public void toggleCameraKeyframeOverlayVisible() {
+		this.cameraKeyframeOverlayVisible = !this.cameraKeyframeOverlayVisible;
 	}
 
 	/** 可持久化：复制可见状态数组。 */

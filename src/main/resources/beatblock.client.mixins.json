@@ -3,6 +3,7 @@
 	"package": "com.beatblock.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"CameraMixin",
 		"GameRendererAccessor",
 		"InGameHudMixin",
 		"KeyboardMixin",

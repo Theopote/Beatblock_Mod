@@ -2,6 +2,7 @@ package com.beatblock.timeline.interaction;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.BeatBlockClient;
+import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.FeatureTrack;
@@ -26,6 +27,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import net.minecraft.client.MinecraftClient;
 
 /**
  * 时间线输入：鼠标按下/拖拽/释放，使用 TimelineLayout 四区域做 HitTest，驱动状态与 Clock。
@@ -106,6 +109,8 @@ public final class TimelineInteraction {
 	private final Map<String, Double> dragLinkedEventOriginalTimes = new HashMap<>();
 	/** 拖拽开始时特征轨道快照：key → [{timeSeconds, energy}, ...] */
 	private final Map<String, List<double[]>> dragFeatureEventSnapshot = new HashMap<>();
+	/** 摄像机片段整体拖动：片内事件的原始时间 */
+	private final Map<String, Double> dragCameraClipEventOriginalTimes = new HashMap<>();
 
 	public void setAudioPlayer(IAudioPlayer audioPlayer) {
 		this.audioPlayer = audioPlayer;
@@ -354,6 +359,7 @@ public final class TimelineInteraction {
 				}
 				dragLinkedEventOriginalTimes.clear();
 				dragFeatureEventSnapshot.clear();
+				dragCameraClipEventOriginalTimes.clear();
 			}
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT && interactionState.getActiveEventId() != null) {
 				float dx = mx - interactionState.getMouseStartX();
@@ -410,6 +416,22 @@ public final class TimelineInteraction {
 				double actualDelta = newStart - dragClipInitialStart;
 				// 允许片段右移时自动扩展时间线总时长。
 				timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), newStart + clipDuration));
+				if (Timeline.TRACK_ID_CAMERA.equals(interactionState.getActiveTrackId())) {
+					Track ct = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+					Clip cc = ct != null ? ct.getClip(interactionState.getActiveClipId()) : null;
+					if (cc != null) {
+						for (TimelineEvent se : cc.getEvents()) {
+							Double orig = dragCameraClipEventOriginalTimes.get(se.getId());
+							if (orig != null) {
+								se.setTimeSeconds(Math.max(0.0, orig + actualDelta));
+							}
+						}
+					}
+					if (clock != null) {
+						seekClockAndMusic(clock, clock.getCurrentTimeSeconds());
+					}
+					return;
+				}
 				// 联动：将其他轨道上快照的事件按同样 delta 移动
 				for (Track st : timeline.getTracks()) {
 					if (Timeline.TRACK_ID_AUDIO.equals(st.getId())) continue;
@@ -534,6 +556,7 @@ public final class TimelineInteraction {
 						// 快照其他轨道上位于该片段时间范围内的所有事件的原始时间
 						dragLinkedEventOriginalTimes.clear();
 						dragFeatureEventSnapshot.clear();
+						dragCameraClipEventOriginalTimes.clear();
 						double cs = dragClipInitialStart;
 						double ce = dragClipInitialEnd;
 						for (Track st : timeline.getTracks()) {
@@ -554,6 +577,29 @@ public final class TimelineInteraction {
 							List<double[]> snap = new ArrayList<>(evts.size());
 							for (FeatureEvent fe : evts) snap.add(new double[]{fe.getTimeSeconds(), fe.getEnergy()});
 							dragFeatureEventSnapshot.put(entry.getKey(), snap);
+						}
+						if (!ctrl) selectionState.clearClips();
+						selectionState.selectClip(hit.getClipId());
+					}
+					return;
+				}
+				if (hit.getHitType() == HitType.CLIP && hit.getEventId() == null
+						&& Timeline.TRACK_ID_CAMERA.equals(hit.getTrackId())) {
+					Track cameraTrack = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+					Clip hitClip = cameraTrack != null ? cameraTrack.getClip(hit.getClipId()) : null;
+					if (hitClip != null) {
+						interactionState.setMode(InteractionMode.DRAG_CLIP);
+						interactionState.setMouseStart(mx, my);
+						interactionState.setActiveClipId(hit.getClipId());
+						interactionState.setActiveTrackId(hit.getTrackId());
+						dragClipInitialStart = hitClip.getStartTimeSeconds();
+						dragClipInitialEnd = hitClip.getEndTimeSeconds();
+						dragClipInitialMouseTime = viewState.screenToTime(mx - layout.contentLeft);
+						dragLinkedEventOriginalTimes.clear();
+						dragFeatureEventSnapshot.clear();
+						dragCameraClipEventOriginalTimes.clear();
+						for (TimelineEvent se : hitClip.getEvents()) {
+							dragCameraClipEventOriginalTimes.put(se.getId(), se.getTimeSeconds());
 						}
 						if (!ctrl) selectionState.clearClips();
 						selectionState.selectClip(hit.getClipId());
@@ -912,6 +958,28 @@ public final class TimelineInteraction {
 		if (ImGui.menuItem("Paste", "Ctrl+V", false, hasClipboard)) {
 			BeatBlockClient.LOGGER.info("[TimelineInteraction] Paste clicked");
 			pasteClipboardEvents(timeline, selectionState, contextTimeSeconds, trackListState);
+		}
+		if (timeline != null && Timeline.TRACK_ID_CAMERA.equals(contextTrackId)
+				&& !isTrackLocked(timeline, trackListState, contextTrackId)) {
+			if (ImGui.beginMenu("添加镜头片段")) {
+				double[] a = readCameraAnchorFive();
+				if (ImGui.menuItem("正常路径（关键帧）")) {
+					CameraTrackFactory.addPathSegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3], a[4]);
+				}
+				if (ImGui.menuItem("推进（Dolly）")) {
+					CameraTrackFactory.addDollySegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3]);
+				}
+				if (ImGui.menuItem("环绕（Orbit）")) {
+					CameraTrackFactory.addOrbitSegment(timeline, contextTimeSeconds, a[0], a[1], a[2]);
+				}
+				if (ImGui.menuItem("升降（Crane）")) {
+					CameraTrackFactory.addCraneSegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3], a[4]);
+				}
+				if (ImGui.menuItem("节拍震动（Shake）")) {
+					CameraTrackFactory.addShakeSegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3], a[4]);
+				}
+				ImGui.endMenu();
+			}
 		}
 		String deleteLabel = canDeleteAny ? "Delete" : "Delete (Locked)";
 		BeatBlockClient.LOGGER.debug(String.format(
@@ -1577,5 +1645,20 @@ public final class TimelineInteraction {
 			interactionState.setMouseStart(mx, my);
 			interactionState.setResizeStartHeaderWidth(trackListState.getTrackHeaderWidth());
 		}
+	}
+
+	/** x, y, z, yawDeg, pitchDeg — 无玩家时为原点与水平朝向 */
+	private static double[] readCameraAnchorFive() {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc != null && mc.player != null) {
+			return new double[]{
+				mc.player.getX(),
+				mc.player.getEyeY(),
+				mc.player.getZ(),
+				mc.player.getYaw(),
+				mc.player.getPitch()
+			};
+		}
+		return new double[]{0.0, 0.0, 0.0, 0.0, 0.0};
 	}
 }

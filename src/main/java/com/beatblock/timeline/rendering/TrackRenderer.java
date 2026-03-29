@@ -80,6 +80,9 @@ public final class TrackRenderer {
 		float nameX = typeStartX + typeColW;
 
 		int iconCount = showMuteSolo ? 4 : 2;
+		if (!showMuteSolo && rowIndex == TimelineTrackMeta.ROW_CAMERA) {
+			iconCount = 3;
+		}
 		float iconBlockW = iconBtn * iconCount + ICON_GAP * (iconCount - 1);
 		float nameRight = headW - PAD - iconBlockW;   // 名称区右边界（对齐图标块左边）
 		float nameW = nameRight - nameX;
@@ -206,11 +209,13 @@ public final class TrackRenderer {
 		if (listState != null && !isEditing) {
 			float lockX = headW - PAD - iconBtn;
 			float visX  = lockX - ICON_GAP - iconBtn;
+			float camKfX = visX - ICON_GAP - iconBtn;
 			float soloX = visX  - ICON_GAP - iconBtn;
 			float muteX = soloX - ICON_GAP - iconBtn;
 			String muteTooltip = null;
 			String soloTooltip = null;
 			String visTooltip = null;
+			String camKfTooltip = null;
 			String lockTooltip = null;
 
 			IconButtonStyle.pushBeatBlockIconButton();
@@ -238,6 +243,21 @@ public final class TrackRenderer {
 				if (solo) popStateButtonStyle();
 				if (ImGui.isItemHovered()) {
 					soloTooltip = solo ? "独奏中 (点击取消)" : "独奏 (点击独奏)";
+				}
+			}
+
+			// ── 摄像机轨：关键帧叠加开关（位于可见按钮左侧）──────────────────
+			if (!showMuteSolo && rowIndex == TimelineTrackMeta.ROW_CAMERA) {
+				boolean kfOn = listState.isCameraKeyframeOverlayVisible();
+				boolean kfStylePushed = !kfOn;
+				ImGui.setCursorScreenPos(baseX + camKfX, rowOriginScreenY + iconOffsetY);
+				if (kfStylePushed) pushStateButtonStyle(STATE_ALERT_RED_R, STATE_ALERT_RED_G, STATE_ALERT_RED_B);
+				if (ImGui.button(Icons.Timeline.KEYFRAME + "##camKf" + rowIndex, iconBtn, iconBtn)) {
+					listState.toggleCameraKeyframeOverlayVisible();
+				}
+				if (kfStylePushed) popStateButtonStyle();
+				if (ImGui.isItemHovered()) {
+					camKfTooltip = kfOn ? "隐藏路径关键帧标记" : "显示路径关键帧标记";
 				}
 			}
 
@@ -271,6 +291,7 @@ public final class TrackRenderer {
 			if (muteTooltip != null) ImGui.setTooltip(muteTooltip);
 			if (soloTooltip != null) ImGui.setTooltip(soloTooltip);
 			if (visTooltip != null) ImGui.setTooltip(visTooltip);
+			if (camKfTooltip != null) ImGui.setTooltip(camKfTooltip);
 			if (lockTooltip != null) ImGui.setTooltip(lockTooltip);
 		}
 
