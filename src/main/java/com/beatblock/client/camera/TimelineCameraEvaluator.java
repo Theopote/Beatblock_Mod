@@ -171,7 +171,8 @@ public final class TimelineCameraEvaluator {
 			if (horiz < 1e-4 && Math.abs(d.y) < 1e-4) {
 				// 起终点重合：fallback 到参数中指定的朝向或调用者传入的默认值
 				float outYaw = (float) num(p, "baseYawDeg", yawDeg);
-				return new CameraSample(pos, outYaw, pitchDeg);
+				float outPitch = (float) num(p, "basePitchDeg", pitchDeg);
+				return new CameraSample(pos, outYaw, outPitch);
 			}
 			float outYaw = horiz > 1e-4
 				? (float) Math.toDegrees(Math.atan2(-d.x, d.z))

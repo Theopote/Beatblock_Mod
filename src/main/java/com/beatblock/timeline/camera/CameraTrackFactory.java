@@ -62,6 +62,7 @@ public final class CameraTrackFactory {
 		p.put("endY", endY);
 		p.put("endZ", endZ);
 		p.put("baseYawDeg", yawDeg);
+		p.put("basePitchDeg", 0.0);
 		addProcSegment(timeline, timeSeconds, CameraSegmentKind.DOLLY, p);
 	}
 
@@ -107,6 +108,7 @@ public final class CameraTrackFactory {
 			"anchorZ", anchorZ,
 			"yawDeg", yawDeg,
 			"pitchDeg", pitchDeg,
+			"distance", 10.0,
 			"amplitude", 0.35,
 			"frequencyHz", 18.0,
 			"beatSync", 1.0,
