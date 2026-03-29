@@ -243,7 +243,7 @@ public class ImGuiRenderer {
 		beatblockDropCallback = (window, count, names) -> {
 			for (int i = 0; i < count; i++) {
 				String path = GLFWDropCallback.getName(names, i);
-				if (path != null && !path.isBlank()) {
+				if (!path.isBlank()) {
 					droppedFileQueue.offer(path);
 				}
 			}

@@ -63,8 +63,7 @@ public final class CameraPathWorldRenderer {
 			if (kind == CameraSegmentKind.SHAKE) continue;
 
 			int lineArgb = switch (kind) {
-				case PATH -> COLOR_PATH;
-				case DOLLY -> COLOR_DOLLY;
+                case DOLLY -> COLOR_DOLLY;
 				case ORBIT -> COLOR_ORBIT;
 				case CRANE -> COLOR_CRANE;
 				default -> COLOR_PATH;
@@ -97,7 +96,7 @@ public final class CameraPathWorldRenderer {
 				VertexConsumer kbuf = consumers.getBuffer(RenderLayers.LINES);
 				for (TimelineEvent e : kf) {
 					Vec3d kp = keyframePos(e);
-					drawCross(kbuf, mat, camPos, kp, KEY_CROSS, COLOR_KEYFRAME);
+					drawCross(kbuf, mat, camPos, kp);
 				}
 			}
 		}
@@ -127,23 +126,23 @@ public final class CameraPathWorldRenderer {
 	private static void emitLine(VertexConsumer buf, Matrix4f mat, Vec3d cam, Vec3d a, Vec3d b, int argb) {
 		Vec3d ra = a.subtract(cam);
 		Vec3d rb = b.subtract(cam);
-		emitLineSegment(buf, mat, ra.x, ra.y, ra.z, rb.x, rb.y, rb.z, argb, LINE_WIDTH);
+		emitLineSegment(buf, mat, ra.x, ra.y, ra.z, rb.x, rb.y, rb.z, argb);
 	}
 
-	private static void drawCross(VertexConsumer buf, Matrix4f mat, Vec3d cam, Vec3d center, double h, int argb) {
+	private static void drawCross(VertexConsumer buf, Matrix4f mat, Vec3d cam, Vec3d center) {
 		Vec3d c = center.subtract(cam);
-		emitLineSegment(buf, mat, c.x - h, c.y, c.z, c.x + h, c.y, c.z, argb, LINE_WIDTH);
-		emitLineSegment(buf, mat, c.x, c.y - h, c.z, c.x, c.y + h, c.z, argb, LINE_WIDTH);
-		emitLineSegment(buf, mat, c.x, c.y, c.z - h, c.x, c.y, c.z + h, argb, LINE_WIDTH);
+		emitLineSegment(buf, mat, c.x - (double) CameraPathWorldRenderer.KEY_CROSS, c.y, c.z, c.x + (double) CameraPathWorldRenderer.KEY_CROSS, c.y, c.z, CameraPathWorldRenderer.COLOR_KEYFRAME);
+		emitLineSegment(buf, mat, c.x, c.y - (double) CameraPathWorldRenderer.KEY_CROSS, c.z, c.x, c.y + (double) CameraPathWorldRenderer.KEY_CROSS, c.z, CameraPathWorldRenderer.COLOR_KEYFRAME);
+		emitLineSegment(buf, mat, c.x, c.y, c.z - (double) CameraPathWorldRenderer.KEY_CROSS, c.x, c.y, c.z + (double) CameraPathWorldRenderer.KEY_CROSS, CameraPathWorldRenderer.COLOR_KEYFRAME);
 	}
 
 	private static void emitLineSegment(VertexConsumer buf, Matrix4f mat,
-			double x0, double y0, double z0, double x1, double y1, double z1, int argb, float lineWidth) {
+			double x0, double y0, double z0, double x1, double y1, double z1, int argb) {
 		float ca = ((argb >>> 24) & 255) / 255f;
 		float cr = ((argb >>> 16) & 255) / 255f;
 		float cg = ((argb >>> 8) & 255) / 255f;
 		float cb = (argb & 255) / 255f;
-		buf.vertex(mat, (float) x0, (float) y0, (float) z0).color(cr, cg, cb, ca).normal(0f, 1f, 0f).lineWidth(lineWidth);
-		buf.vertex(mat, (float) x1, (float) y1, (float) z1).color(cr, cg, cb, ca).normal(0f, 1f, 0f).lineWidth(lineWidth);
+		buf.vertex(mat, (float) x0, (float) y0, (float) z0).color(cr, cg, cb, ca).normal(0f, 1f, 0f).lineWidth(CameraPathWorldRenderer.LINE_WIDTH);
+		buf.vertex(mat, (float) x1, (float) y1, (float) z1).color(cr, cg, cb, ca).normal(0f, 1f, 0f).lineWidth(CameraPathWorldRenderer.LINE_WIDTH);
 	}
 }
