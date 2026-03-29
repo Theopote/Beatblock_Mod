@@ -2,6 +2,10 @@ package com.beatblock.timeline.interaction;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.BeatBlockClient;
+import com.beatblock.client.camera.CameraKeyframeActions;
+import com.beatblock.timeline.EventType;
+import com.beatblock.timeline.camera.CameraPathMetadata;
+import com.beatblock.timeline.camera.CameraSegmentKind;
 import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.FeatureEvent;
@@ -18,6 +22,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseCursor;
+import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
 import java.util.ArrayList;
@@ -29,6 +34,8 @@ import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.Vec3d;
 
 /**
  * 时间线输入：鼠标按下/拖拽/释放，使用 TimelineLayout 四区域做 HitTest，驱动状态与 Clock。
@@ -111,6 +118,13 @@ public final class TimelineInteraction {
 	private final Map<String, List<double[]>> dragFeatureEventSnapshot = new HashMap<>();
 	/** 摄像机片段整体拖动：片内事件的原始时间 */
 	private final Map<String, Double> dragCameraClipEventOriginalTimes = new HashMap<>();
+
+	private static final float CAMERA_EDGE_HIT_PX = 6f;
+	private static final double CAMERA_MIN_CLIP_DURATION = 0.05;
+	private double cameraResizeInitialStart;
+	private double cameraResizeInitialEnd;
+	private final Map<String, Double> cameraResizeEventOrigTimes = new HashMap<>();
+	private final ImBoolean contextCameraShowPath = new ImBoolean(true);
 
 	public void setAudioPlayer(IAudioPlayer audioPlayer) {
 		this.audioPlayer = audioPlayer;
@@ -293,6 +307,19 @@ public final class TimelineInteraction {
 				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
 			}
 		}
+		if (trackListState != null && layout.contentContains(mx, my)
+				&& interactionState.getMode() == InteractionMode.NONE
+				&& !isTrackLocked(timeline, trackListState, Timeline.TRACK_ID_CAMERA)) {
+			int camRow = layout.findRowAtScreenY(my);
+			if (camRow == TimelineTrackMeta.ROW_CAMERA && layout.isRowVisible(camRow)) {
+				float rowSy = layout.getRowScreenY(camRow);
+				float rowH = layout.getRowHeight(camRow);
+				if (CameraTrackHitTest.hitClipEdge(timeline, mx, my, rowSy, rowH,
+						layout.contentLeft, layout.contentWidth, viewState, CAMERA_EDGE_HIT_PX) != null) {
+					ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+				}
+			}
+		}
 
 		if (alt && toolbarState != null && layout.rulerContains(mx, my) && ImGui.isMouseClicked(1)) {
 			double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
@@ -332,23 +359,44 @@ public final class TimelineInteraction {
 				"[TimelineInteraction.handleMouse] Right-click detected: contextTrackId=%s, contextClipId=%s, hitTrackId=%s, hitClipId=%s, hitEventId=%s",
 				contextTrackId, contextClipId, hit.getTrackId(), hit.getClipId(), hit.getEventId()
 			));
-			// 右键命中片段时自动将其加入选中，确保右键菜单的 Delete 项可用
-			if (hit.getClipId() != null && !selectionState.isClipSelected(hit.getClipId())) {
-				BeatBlockClient.LOGGER.info(String.format(
-					"[TimelineInteraction.handleMouse] Auto-selecting context clip: %s",
-					hit.getClipId()
-				));
-				selectionState.clearEvents();
-				selectionState.clearClips();
-				selectionState.selectClip(hit.getClipId());
-			}
-			if (hit.getEventId() != null) {
-				propertiesEventId = hit.getEventId();
+			if (Timeline.TRACK_ID_CAMERA.equals(hit.getTrackId())) {
+				if (hit.getClipId() != null) {
+					contextCameraShowPath.set(CameraPathMetadata.isPathVisible(timeline, hit.getClipId()));
+				}
+				if (hit.getEventId() != null) {
+					propertiesEventId = hit.getEventId();
+					selectionState.clearEvents();
+					selectionState.selectEvent(hit.getEventId());
+					if (hit.getClipId() != null) {
+						selectionState.selectClip(hit.getClipId());
+					}
+				} else if (hit.getClipId() != null && !selectionState.isClipSelected(hit.getClipId())) {
+					selectionState.clearEvents();
+					selectionState.clearClips();
+					selectionState.selectClip(hit.getClipId());
+				}
+			} else {
+				// 右键命中片段时自动将其加入选中，确保右键菜单的 Delete 项可用
+				if (hit.getClipId() != null && !selectionState.isClipSelected(hit.getClipId())) {
+					BeatBlockClient.LOGGER.info(String.format(
+						"[TimelineInteraction.handleMouse] Auto-selecting context clip: %s",
+						hit.getClipId()
+					));
+					selectionState.clearEvents();
+					selectionState.clearClips();
+					selectionState.selectClip(hit.getClipId());
+				}
+				if (hit.getEventId() != null) {
+					propertiesEventId = hit.getEventId();
+				}
 			}
 			ImGui.openPopup(POPUP_EVENT_CONTEXT);
 		}
 
 		if (ImGui.isMouseReleased(0)) {
+			if (interactionState.getMode() == InteractionMode.RESIZE_CLIP) {
+				cameraResizeEventOrigTimes.clear();
+			}
 			if (interactionState.getMode() == InteractionMode.DRAG_CLIP && interactionState.getActiveClipId() != null) {
 				float dx = mx - interactionState.getMouseStartX();
 				float dy = my - interactionState.getMouseStartY();
@@ -403,6 +451,41 @@ public final class TimelineInteraction {
 			if (interactionState.getMode() == InteractionMode.SCRUB_TIME && clock != null) {
 				double t = viewState.screenToTime(mx - layout.contentLeft);
 				seekClockAndMusic(clock, Math.max(0, Math.min(t, duration)));
+				return;
+			}
+			if (interactionState.getMode() == InteractionMode.RESIZE_CLIP
+					&& Timeline.TRACK_ID_CAMERA.equals(interactionState.getActiveTrackId())
+					&& interactionState.getActiveClipId() != null) {
+				if (isTrackLocked(timeline, trackListState, Timeline.TRACK_ID_CAMERA)) return;
+				Track ct = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+				Clip c = ct != null ? ct.getClip(interactionState.getActiveClipId()) : null;
+				if (c != null) {
+					double mouseT = viewState.screenToTime(mx - layout.contentLeft);
+					double snapped = DragController.snapTime(mouseT, null, timeline, toolbarState, viewState);
+					if (interactionState.isResizeLeft()) {
+						double newStart = Math.max(0.0, Math.min(snapped, cameraResizeInitialEnd - CAMERA_MIN_CLIP_DURATION));
+						double delta = newStart - cameraResizeInitialStart;
+						c.setStartTimeSeconds(newStart);
+						for (TimelineEvent se : c.getEvents()) {
+							Double o = cameraResizeEventOrigTimes.get(se.getId());
+							if (o != null) {
+								se.setTimeSeconds(o + delta);
+							}
+						}
+					} else {
+						double newEnd = Math.max(cameraResizeInitialStart + CAMERA_MIN_CLIP_DURATION, snapped);
+						c.setEndTimeSeconds(newEnd);
+						for (TimelineEvent se : c.getEvents()) {
+							if (se.getTimeSeconds() > newEnd) {
+								se.setTimeSeconds(newEnd);
+							}
+						}
+					}
+					timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), c.getEndTimeSeconds()));
+					if (clock != null) {
+						seekClockAndMusic(clock, clock.getCurrentTimeSeconds());
+					}
+				}
 				return;
 			}
 			if (interactionState.getMode() == InteractionMode.DRAG_CLIP
@@ -530,6 +613,34 @@ public final class TimelineInteraction {
 				interactionState.setMouseStart(mx, my);
 				if (clock != null) seekClockAndMusic(clock, Math.max(0, Math.min(t, duration)));
 				return;
+			}
+			if (layout.contentContains(mx, my) && trackListState != null
+					&& !isTrackLocked(timeline, trackListState, Timeline.TRACK_ID_CAMERA)) {
+				int camRow = layout.findRowAtScreenY(my);
+				if (camRow == TimelineTrackMeta.ROW_CAMERA && layout.isRowVisible(camRow)) {
+					float rowSy = layout.getRowScreenY(camRow);
+					float rowH = layout.getRowHeight(camRow);
+					CameraTrackHitTest.EdgeHit edge = CameraTrackHitTest.hitClipEdge(timeline, mx, my,
+						rowSy, rowH, layout.contentLeft, layout.contentWidth, viewState, CAMERA_EDGE_HIT_PX);
+					if (edge != null) {
+						Track ct = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+						Clip c = ct != null ? ct.getClip(edge.clipId()) : null;
+						if (c != null) {
+							interactionState.setMode(InteractionMode.RESIZE_CLIP);
+							interactionState.setMouseStart(mx, my);
+							interactionState.setActiveClipId(edge.clipId());
+							interactionState.setActiveTrackId(Timeline.TRACK_ID_CAMERA);
+							interactionState.setResizeLeft(edge.leftEdge());
+							cameraResizeInitialStart = c.getStartTimeSeconds();
+							cameraResizeInitialEnd = c.getEndTimeSeconds();
+							cameraResizeEventOrigTimes.clear();
+							for (TimelineEvent se : c.getEvents()) {
+								cameraResizeEventOrigTimes.put(se.getId(), se.getTimeSeconds());
+							}
+							return;
+						}
+					}
+				}
 			}
 			for (InteractiveTrackSlot slot : interactiveTrackSlots(timeline)) {
 				int logicalRow = slot.rowIndex();
@@ -961,19 +1072,51 @@ public final class TimelineInteraction {
 		}
 		if (timeline != null && Timeline.TRACK_ID_CAMERA.equals(contextTrackId)
 				&& !isTrackLocked(timeline, trackListState, contextTrackId)) {
+			if (contextClipId != null) {
+				if (ImGui.checkbox("显示路径##camCtxPathVis", contextCameraShowPath)) {
+					CameraPathMetadata.setPathVisible(timeline, contextClipId, contextCameraShowPath.get());
+				}
+			}
+			EventRef ctxEv = propertiesEventId != null ? findEventRef(timeline, propertiesEventId) : null;
+			if (ctxEv != null && ctxEv.event != null && ctxEv.event.getType() == EventType.CAMERA_KEYFRAME) {
+				if (ImGui.menuItem("删除关键帧##camDelKf")) {
+					TimelineOperations.removeEvent(ctxEv.clip, ctxEv.event.getId());
+					if (selectionState != null) {
+						selectionState.deselectEvent(ctxEv.event.getId());
+					}
+					ImGui.closeCurrentPopup();
+				}
+			}
+			boolean canAddPathKf = false;
+			if (contextClipId != null) {
+				Track camT = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+				Clip ctxClip = camT != null ? camT.getClip(contextClipId) : null;
+				if (ctxClip != null) {
+					TimelineEvent seg = CameraTrackFactory.findSegmentHeadEvent(ctxClip);
+					CameraSegmentKind k = seg != null
+						? CameraSegmentKind.fromParam(seg.getParameters().get("kind"))
+						: CameraSegmentKind.PATH;
+					canAddPathKf = k == CameraSegmentKind.PATH;
+				}
+			}
+			if (ImGui.menuItem("添加路径关键帧（当前位置）##camAddKfCtx", null, false, canAddPathKf)) {
+				CameraKeyframeActions.addKeyframeAtTime(timeline, contextTimeSeconds);
+			}
 			if (ImGui.beginMenu("添加镜头片段")) {
 				double[] a = readCameraAnchorFive();
 				if (ImGui.menuItem("正常路径（关键帧）")) {
 					CameraTrackFactory.addPathSegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3], a[4]);
 				}
 				if (ImGui.menuItem("推进（Dolly）")) {
-					CameraTrackFactory.addDollySegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3]);
+					CameraTrackFactory.addDollySegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3], 8.0);
 				}
 				if (ImGui.menuItem("环绕（Orbit）")) {
-					CameraTrackFactory.addOrbitSegment(timeline, contextTimeSeconds, a[0], a[1], a[2]);
+					double[] o = readOrbitParamsFromView();
+					CameraTrackFactory.addOrbitSegment(timeline, contextTimeSeconds,
+						o[0], o[1], o[2], o[3], o[4], o[5], o[6]);
 				}
 				if (ImGui.menuItem("升降（Crane）")) {
-					CameraTrackFactory.addCraneSegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3], a[4]);
+					CameraTrackFactory.addCraneSegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3], a[4], 6.0);
 				}
 				if (ImGui.menuItem("节拍震动（Shake）")) {
 					CameraTrackFactory.addShakeSegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3], a[4]);
@@ -1651,14 +1794,45 @@ public final class TimelineInteraction {
 	private static double[] readCameraAnchorFive() {
 		MinecraftClient mc = MinecraftClient.getInstance();
 		if (mc != null && mc.player != null) {
+			Vec3d eye = mc.player.getEyePos();
 			return new double[]{
-				mc.player.getX(),
-				mc.player.getEyeY(),
-				mc.player.getZ(),
+				eye.x,
+				eye.y,
+				eye.z,
 				mc.player.getYaw(),
 				mc.player.getPitch()
 			};
 		}
 		return new double[]{0.0, 0.0, 0.0, 0.0, 0.0};
+	}
+
+	/**
+	 * 环绕片段默认值：目标为准星方块命中点（否则为视线前方约 10m），半径/高度/起始角由当前眼点相对目标拟合，弧长默认 270°。
+	 */
+	private static double[] readOrbitParamsFromView() {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc == null || mc.player == null) {
+			return new double[]{0.0, 0.0, 0.0, 10.0, 4.0, 0.0, 270.0};
+		}
+		Vec3d eye = mc.player.getEyePos();
+		Vec3d target;
+		net.minecraft.util.hit.HitResult ch = mc.crosshairTarget;
+		if (ch instanceof BlockHitResult bhr && ch.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK) {
+			target = bhr.getPos();
+		} else {
+			Vec3d dir = mc.player.getRotationVec(1f);
+			target = eye.add(dir.multiply(10.0));
+		}
+		double tx = target.x;
+		double ty = target.y;
+		double tz = target.z;
+		double dx = eye.x - tx;
+		double dz = eye.z - tz;
+		double horiz = Math.sqrt(dx * dx + dz * dz);
+		double radius = Math.max(0.75, horiz);
+		double height = eye.y - ty;
+		double yawStartDeg = Math.toDegrees(Math.atan2(-dx, dz));
+		double yawEndDeg = yawStartDeg + 270.0;
+		return new double[]{tx, ty, tz, radius, height, yawStartDeg, yawEndDeg};
 	}
 }

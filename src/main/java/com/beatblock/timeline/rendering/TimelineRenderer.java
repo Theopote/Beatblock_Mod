@@ -388,8 +388,7 @@ public final class TimelineRenderer {
 			renderAnimationTrackDropTarget(rowIndex, rowHeight, timeline, layout);
 			eventRenderer.renderAnimationEventBlocks(rowY, timeline.getAutoAnimationEvents(), layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_CAMERA) {
-			boolean kfOn = trackListState == null || trackListState.isCameraKeyframeOverlayVisible();
-			eventRenderer.renderCameraTrackRow(rowY, timeline, layout, viewState, selectionState, kfOn);
+			eventRenderer.renderCameraTrackRow(rowY, timeline, layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_GLOBAL_EVENT) {
 			eventRenderer.renderGlobalEventRow(rowY, timeline.getGlobalEvents(), layout, viewState);
 		}

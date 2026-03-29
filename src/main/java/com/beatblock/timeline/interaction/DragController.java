@@ -70,6 +70,12 @@ public final class DragController {
 		return clampedStart;
 	}
 
+	/** 供片段边缘拖拽等复用：与 {@link #dragEvent} 相同的吸附规则。 */
+	public static double snapTime(double timeSeconds, String excludeEventId, Timeline timeline,
+			TimelineToolbarState toolbarState, TimelineViewState viewState) {
+		return applySnap(timeSeconds, excludeEventId, timeline, toolbarState, viewState);
+	}
+
 	private static double applySnap(double timeSeconds, String excludeEventId, Timeline timeline,
 			TimelineToolbarState toolbarState, TimelineViewState viewState) {
 		if (toolbarState == null) return timeSeconds;

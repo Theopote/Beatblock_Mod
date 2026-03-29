@@ -153,14 +153,33 @@ public final class TimelineCameraEvaluator {
 	}
 
 	private static CameraSample evaluateDolly(Map<String, Object> p, double u, Vec3d anchor, float yawDeg, float pitchDeg) {
+		double w = smoothstep(u);
+		if (p != null && p.containsKey("endX")) {
+			double sx = num(p, "startX", anchor.x);
+			double sy = num(p, "startY", anchor.y);
+			double sz = num(p, "startZ", anchor.z);
+			double ex = num(p, "endX", sx);
+			double ey = num(p, "endY", sy);
+			double ez = num(p, "endZ", sz);
+			Vec3d start = new Vec3d(sx, sy, sz);
+			Vec3d end = new Vec3d(ex, ey, ez);
+			Vec3d pos = start.lerp(end, w);
+			Vec3d d = end.subtract(start);
+			double horiz = Math.sqrt(d.x * d.x + d.z * d.z);
+			float outYaw = horiz > 1e-4
+				? (float) Math.toDegrees(Math.atan2(-d.x, d.z))
+				: (float) num(p, "baseYawDeg", yawDeg);
+			float outPitch = (float) Math.toDegrees(-Math.atan2(d.y, horiz));
+			return new CameraSample(pos, outYaw, outPitch);
+		}
 		double ax = num(p, "anchorX", anchor.x);
 		double ay = num(p, "anchorY", anchor.y);
 		double az = num(p, "anchorZ", anchor.z);
-		double baseYaw = (float) num(p, "baseYawDeg", yawDeg);
+		double baseYaw = num(p, "baseYawDeg", yawDeg);
 		Vec3d forward = horizontalForward((float) baseYaw);
 		double d0 = num(p, "distance0", 2.0);
 		double d1 = num(p, "distance1", 8.0);
-		double d = lerp(d0, d1, smoothstep(u));
+		double d = lerp(d0, d1, w);
 		Vec3d pos = new Vec3d(ax, ay, az).add(forward.multiply(d));
 		return new CameraSample(pos, (float) baseYaw, pitchDeg);
 	}
@@ -169,20 +188,42 @@ public final class TimelineCameraEvaluator {
 		double ax = num(p, "anchorX", anchor.x);
 		double ay = num(p, "anchorY", anchor.y);
 		double az = num(p, "anchorZ", anchor.z);
+		double tx = num(p, "targetX", ax);
+		double ty = num(p, "targetY", ay);
+		double tz = num(p, "targetZ", az);
 		double radius = num(p, "radius", 10.0);
 		double height = num(p, "height", 4.0);
 		double y0 = num(p, "yawStartDeg", 0.0);
 		double y1 = num(p, "yawEndDeg", 270.0);
-		double yaw = lerp(y0, y1, u);
-		double rad = Math.toRadians(-yaw);
+		double orbitYawDeg = lerp(y0, y1, u);
+		double rad = Math.toRadians(-orbitYawDeg);
 		double ox = -Math.sin(rad) * radius;
 		double oz = Math.cos(rad) * radius;
-		Vec3d pos = new Vec3d(ax + ox, ay + height, az + oz);
-		float pitch = (float) Math.toDegrees(-Math.atan2(height, radius));
-		return new CameraSample(pos, (float) yaw, pitch);
+		Vec3d pos = new Vec3d(tx + ox, ty + height, tz + oz);
+		Vec3d toT = new Vec3d(tx, ty, tz).subtract(pos);
+		double horiz = Math.sqrt(toT.x * toT.x + toT.z * toT.z);
+		float lookYaw = (float) Math.toDegrees(Math.atan2(-toT.x, toT.z));
+		float lookPitch = (float) Math.toDegrees(-Math.atan2(toT.y, horiz));
+		if (horiz < 1e-4 && Math.abs(toT.y) < 1e-4) {
+			return new CameraSample(pos, fallbackYaw, fallbackPitch);
+		}
+		return new CameraSample(pos, lookYaw, lookPitch);
 	}
 
 	private static CameraSample evaluateCrane(Map<String, Object> p, double u, Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		double w = smoothstep(u);
+		if (p != null && p.containsKey("endX")) {
+			double sx = num(p, "startX", anchor.x);
+			double sy = num(p, "startY", anchor.y);
+			double sz = num(p, "startZ", anchor.z);
+			double ex = num(p, "endX", sx);
+			double ey = num(p, "endY", sy);
+			double ez = num(p, "endZ", sz);
+			Vec3d pos = new Vec3d(sx, sy, sz).lerp(new Vec3d(ex, ey, ez), w);
+			double yaw = num(p, "yawDeg", fallbackYaw);
+			double pitch = num(p, "pitchDeg", fallbackPitch);
+			return new CameraSample(pos, (float) yaw, (float) pitch);
+		}
 		double ax = num(p, "anchorX", anchor.x);
 		double ay = num(p, "anchorY", anchor.y);
 		double az = num(p, "anchorZ", anchor.z);
@@ -191,7 +232,7 @@ public final class TimelineCameraEvaluator {
 		double dist = num(p, "distance", 12.0);
 		double h0 = num(p, "height0", 2.0);
 		double h1 = num(p, "height1", 10.0);
-		double h = lerp(h0, h1, smoothstep(u));
+		double h = lerp(h0, h1, w);
 		Vec3d forward = horizontalForward((float) yaw);
 		Vec3d base = new Vec3d(ax, ay, az).add(forward.multiply(dist));
 		Vec3d pos = base.add(0, h, 0);

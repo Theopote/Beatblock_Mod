@@ -31,48 +31,72 @@ public final class CameraTrackFactory {
 		TimelineOperations.addEvent(clip, start, EventType.CAMERA_SEGMENT, segmentParams(CameraSegmentKind.PATH));
 		TimelineOperations.addEvent(clip, start, EventType.CAMERA_KEYFRAME,
 			keyframeParams(anchorX, anchorY, anchorZ, yawDeg, pitchDeg, "SMOOTH"));
-		TimelineOperations.addEvent(clip, start + 2.0, EventType.CAMERA_KEYFRAME,
-			keyframeParams(anchorX + 3.0, anchorY, anchorZ, yawDeg + 25.0, pitchDeg, "SMOOTH"));
 		extendDuration(timeline, end);
 	}
 
+	/**
+	 * 推拉：世界空间直线，起点为当前摄像机（眼点），沿水平朝向前进 {@code reachBlocks} 米到终点。
+	 */
 	public static void addDollySegment(Timeline timeline, double timeSeconds,
-		double anchorX, double anchorY, double anchorZ, double yawDeg) {
-		addProcSegment(timeline, timeSeconds, CameraSegmentKind.DOLLY, Map.of(
-			"anchorX", anchorX,
-			"anchorY", anchorY,
-			"anchorZ", anchorZ,
-			"baseYawDeg", yawDeg,
-			"distance0", 2.0,
-			"distance1", 8.0
-		));
+		double startX, double startY, double startZ, double yawDeg, double reachBlocks) {
+		double rad = Math.toRadians(-yawDeg);
+		double fx = -Math.sin(rad);
+		double fz = Math.cos(rad);
+		double len = Math.hypot(fx, fz);
+		if (len < 1e-6) {
+			fx = 0;
+			fz = 1;
+			len = 1;
+		}
+		fx /= len;
+		fz /= len;
+		double r = Math.max(0.05, reachBlocks);
+		double endX = startX + fx * r;
+		double endZ = startZ + fz * r;
+		double endY = startY;
+		Map<String, Object> p = new HashMap<>();
+		p.put("startX", startX);
+		p.put("startY", startY);
+		p.put("startZ", startZ);
+		p.put("endX", endX);
+		p.put("endY", endY);
+		p.put("endZ", endZ);
+		p.put("baseYawDeg", yawDeg);
+		addProcSegment(timeline, timeSeconds, CameraSegmentKind.DOLLY, p);
 	}
 
+	/**
+	 * 环绕：目标点（看向）、半径、摄像机相对目标的高度、水平环绕角起止（度，可小于 360）。
+	 */
 	public static void addOrbitSegment(Timeline timeline, double timeSeconds,
-		double anchorX, double anchorY, double anchorZ) {
-		addProcSegment(timeline, timeSeconds, CameraSegmentKind.ORBIT, Map.of(
-			"anchorX", anchorX,
-			"anchorY", anchorY,
-			"anchorZ", anchorZ,
-			"radius", 10.0,
-			"height", 4.0,
-			"yawStartDeg", 0.0,
-			"yawEndDeg", 270.0
-		));
+		double targetX, double targetY, double targetZ,
+		double radius, double height, double yawStartDeg, double yawEndDeg) {
+		Map<String, Object> p = new HashMap<>();
+		p.put("targetX", targetX);
+		p.put("targetY", targetY);
+		p.put("targetZ", targetZ);
+		p.put("radius", radius);
+		p.put("height", height);
+		p.put("yawStartDeg", yawStartDeg);
+		p.put("yawEndDeg", yawEndDeg);
+		addProcSegment(timeline, timeSeconds, CameraSegmentKind.ORBIT, p);
 	}
 
+	/**
+	 * 升降：世界空间直线，从当前摄像机眼点到沿 Y 轴平移 {@code deltaY} 的终点；朝向由 yaw/pitch 固定。
+	 */
 	public static void addCraneSegment(Timeline timeline, double timeSeconds,
-		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg) {
-		addProcSegment(timeline, timeSeconds, CameraSegmentKind.CRANE, Map.of(
-			"anchorX", anchorX,
-			"anchorY", anchorY,
-			"anchorZ", anchorZ,
-			"yawDeg", yawDeg,
-			"pitchDeg", pitchDeg,
-			"distance", 12.0,
-			"height0", 2.0,
-			"height1", 10.0
-		));
+		double startX, double startY, double startZ, double yawDeg, double pitchDeg, double deltaY) {
+		Map<String, Object> p = new HashMap<>();
+		p.put("startX", startX);
+		p.put("startY", startY);
+		p.put("startZ", startZ);
+		p.put("endX", startX);
+		p.put("endY", startY + deltaY);
+		p.put("endZ", startZ);
+		p.put("yawDeg", yawDeg);
+		p.put("pitchDeg", pitchDeg);
+		addProcSegment(timeline, timeSeconds, CameraSegmentKind.CRANE, p);
 	}
 
 	public static void addShakeSegment(Timeline timeline, double timeSeconds,

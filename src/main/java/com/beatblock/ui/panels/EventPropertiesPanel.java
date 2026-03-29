@@ -2,11 +2,14 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockClientDriver;
+import com.beatblock.client.camera.CameraKeyframeActions;
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.StageObject;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
+import com.beatblock.timeline.camera.CameraPathMetadata;
 import com.beatblock.timeline.camera.CameraSegmentKind;
+import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineEditor;
@@ -29,9 +32,11 @@ import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * 右侧事件属性面板。
@@ -41,7 +46,7 @@ public class EventPropertiesPanel {
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private static final int INPUT_BUFFER_SIZE = 128;
 
-	private String boundEventId;
+	private String boundRefKey;
 	private final ImString timeBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString durationBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString energyBuffer = new ImString(INPUT_BUFFER_SIZE);
@@ -54,8 +59,14 @@ public class EventPropertiesPanel {
 	private final ImString camYawBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camPitchBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camEaseBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString camClipStartBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString camClipEndBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final Map<String, ImString> camSegParamBuffers = new HashMap<>();
+	private final ImBoolean camClipPathVisibleProxy = new ImBoolean(true);
+	private final ImBoolean camSegPathVisibleProxy = new ImBoolean(true);
 	private String validationError;
 
+	/** event 可为 null，表示仅选中摄像机片段（无具体事件焦点）。 */
 	private record EventRef(Track track, Clip clip, TimelineEvent event) {}
 	private record Option(String id, String label) {}
 
@@ -78,15 +89,16 @@ public class EventPropertiesPanel {
 				return;
 			}
 
-			EventRef ref = resolveSelectedEventRef(timeline, editor.getSelectionState());
+			EventRef ref = resolvePropertiesRef(timeline, editor.getSelectionState());
 			if (ref == null) {
-				boundEventId = null;
+				boundRefKey = null;
 				validationError = null;
-				ImGui.textWrapped("选中时间线上的事件后，可在此编辑属性。");
+				ImGui.textWrapped("选中时间线上的事件或摄像机片段后，可在此编辑属性。");
 				return;
 			}
 
-			if (!ref.event().getId().equals(boundEventId)) {
+			String rk = refKey(ref);
+			if (!rk.equals(boundRefKey)) {
 				bindBuffers(ref);
 			}
 
@@ -100,15 +112,19 @@ public class EventPropertiesPanel {
 				ImGui.beginDisabled();
 			}
 
-			EventType et = ref.event().getType();
-			if (et == EventType.ANIMATION) {
-				renderAnimationEditor(ref, timeline);
-			} else if (et == EventType.CAMERA_SEGMENT) {
-				renderCameraSegmentPanel(ref, timeline);
-			} else if (et == EventType.CAMERA_KEYFRAME) {
-				renderCameraKeyframePanel(ref, timeline);
+			if (ref.event() == null) {
+				renderCameraClipOnlyPanel(ref, timeline);
 			} else {
-				ImGui.textDisabled("当前事件类型的侧栏编辑尚未接入。");
+				EventType et = ref.event().getType();
+				if (et == EventType.ANIMATION) {
+					renderAnimationEditor(ref, timeline);
+				} else if (et == EventType.CAMERA_SEGMENT) {
+					renderCameraSegmentPanel(ref, timeline);
+				} else if (et == EventType.CAMERA_KEYFRAME) {
+					renderCameraKeyframePanel(ref, timeline, editor.getSelectionState());
+				} else {
+					ImGui.textDisabled("当前事件类型的侧栏编辑尚未接入。");
+				}
 			}
 
 			if (trackLocked) {
@@ -120,10 +136,19 @@ public class EventPropertiesPanel {
 	}
 
 	private void renderEventSummary(EventRef ref, Timeline timeline) {
-		Map<String, Object> params = ref.event().getParameters();
 		ImGui.textDisabled("Track");
 		ImGui.sameLine();
 		ImGui.text(ref.track().getName().isBlank() ? ref.track().getId() : ref.track().getName());
+		if (ref.event() == null) {
+			ImGui.textDisabled("片段 ID");
+			ImGui.sameLine();
+			ImGui.text(ref.clip().getId());
+			ImGui.textDisabled("显示路径");
+			ImGui.sameLine();
+			ImGui.text(CameraPathMetadata.isPathVisible(timeline, ref.clip().getId()) ? "是" : "否");
+			return;
+		}
+		Map<String, Object> params = ref.event().getParameters();
 		ImGui.textDisabled("Event ID");
 		ImGui.sameLine();
 		ImGui.text(ref.event().getId());
@@ -307,9 +332,22 @@ public class EventPropertiesPanel {
 		}
 	}
 
+	private static String refKey(EventRef ref) {
+		if (ref.event() == null) return "clip:" + ref.clip().getId();
+		return "event:" + ref.event().getId();
+	}
+
 	private void bindBuffers(EventRef ref) {
+		camSegParamBuffers.clear();
+		boundRefKey = refKey(ref);
+		if (ref.event() == null) {
+			camClipStartBuffer.set(String.format(Locale.ROOT, "%.6f", ref.clip().getStartTimeSeconds()));
+			camClipEndBuffer.set(String.format(Locale.ROOT, "%.6f", ref.clip().getEndTimeSeconds()));
+			camClipPathVisibleProxy.set(CameraPathMetadata.isPathVisible(BeatBlock.timeline, ref.clip().getId()));
+			validationError = null;
+			return;
+		}
 		TimelineEvent event = ref.event();
-		boundEventId = event.getId();
 		Map<String, Object> params = event.getParameters();
 		timeBuffer.set(String.format(Locale.ROOT, "%.6f", event.getTimeSeconds()));
 		durationBuffer.set(String.format(Locale.ROOT, "%.6f", numericParam(params, "durationSeconds", 0.25)));
@@ -319,6 +357,12 @@ public class EventPropertiesPanel {
 		placeBlockBuffer.set(placeBlock);
 		if (event.getType() == EventType.CAMERA_SEGMENT && ref.clip() != null) {
 			camSegDurBuffer.set(String.format(Locale.ROOT, "%.6f", ref.clip().getDurationSeconds()));
+			camSegPathVisibleProxy.set(CameraPathMetadata.isPathVisible(BeatBlock.timeline, ref.clip().getId()));
+			for (Map.Entry<String, Object> e : params.entrySet()) {
+				String k = e.getKey();
+				if ("kind".equals(k)) continue;
+				camSegParamBuffers.put(k, new ImString(String.valueOf(e.getValue()), INPUT_BUFFER_SIZE));
+			}
 		}
 		if (event.getType() == EventType.CAMERA_KEYFRAME) {
 			camXBuffer.set(String.format(Locale.ROOT, "%.6f", numericParam(params, "x", 0)));
@@ -331,26 +375,75 @@ public class EventPropertiesPanel {
 		validationError = null;
 	}
 
+	private void renderCameraClipOnlyPanel(EventRef ref, Timeline timeline) {
+		ImGui.text("片段起止时间（秒）");
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputText("开始##camClipStart", camClipStartBuffer);
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputText("结束##camClipEnd", camClipEndBuffer);
+		ImGui.checkbox("显示路径##camClipPathVis", camClipPathVisibleProxy);
+		if (validationError != null && !validationError.isBlank()) {
+			ImGui.spacing();
+			ImGui.textColored(1f, 0.45f, 0.45f, 1f, validationError);
+		}
+		ImGui.spacing();
+		if (ImGui.button("应用##camClipApply", 120f, 0f)) {
+			try {
+				double newStart = Double.parseDouble(valueOf(camClipStartBuffer).trim());
+				double newEnd = Double.parseDouble(valueOf(camClipEndBuffer).trim());
+				if (newEnd <= newStart) {
+					validationError = "结束时间须大于开始时间。";
+				} else {
+					double oldStart = ref.clip().getStartTimeSeconds();
+					double delta = newStart - oldStart;
+					ref.clip().setStartTimeSeconds(Math.max(0, newStart));
+					ref.clip().setEndTimeSeconds(newEnd);
+					for (TimelineEvent ev : ref.clip().getEvents()) {
+						double nt = ev.getTimeSeconds() + delta;
+						nt = Math.max(newStart, Math.min(newEnd, nt));
+						ev.setTimeSeconds(nt);
+					}
+					CameraPathMetadata.setPathVisible(timeline, ref.clip().getId(), camClipPathVisibleProxy.get());
+					timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), ref.clip().getEndTimeSeconds()));
+					validationError = null;
+					bindBuffers(ref);
+				}
+			} catch (NumberFormatException ex) {
+				validationError = "时间格式不正确。";
+			}
+		}
+		ImGui.sameLine();
+		if (ImGui.button("重置##camClipReset", 120f, 0f)) {
+			bindBuffers(ref);
+		}
+	}
+
 	private void renderCameraSegmentPanel(EventRef ref, Timeline timeline) {
+		CameraSegmentKind kind = CameraSegmentKind.fromParam(ref.event().getParameters().get("kind"));
+		ImGui.textDisabled("镜头类型");
+		ImGui.sameLine();
+		ImGui.text(kind.name());
 		ImGui.text("片段时长（秒）");
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText("##camSegDurInp", camSegDurBuffer);
-		ImGui.textDisabled("提示：推进（Dolly）/环绕等数值可在时间线右键菜单「Properties」弹窗里编辑参数表。");
+		ImGui.checkbox("显示路径##camSegPathVis", camSegPathVisibleProxy);
+		if (!camSegParamBuffers.isEmpty()) {
+			ImGui.separator();
+			ImGui.textDisabled("镜头参数");
+			for (String key : new TreeMap<>(camSegParamBuffers).keySet()) {
+				ImString buf = camSegParamBuffers.get(key);
+				ImGui.text(key);
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("##camSegP_" + key, buf);
+			}
+		}
 		if (validationError != null && !validationError.isBlank()) {
 			ImGui.spacing();
 			ImGui.textColored(1f, 0.45f, 0.45f, 1f, validationError);
 		}
 		ImGui.spacing();
 		if (ImGui.button("应用##camSegApply", 120f, 0f)) {
-			try {
-				double dur = Double.parseDouble(valueOf(camSegDurBuffer).trim());
-				double t0 = ref.clip().getStartTimeSeconds();
-				ref.clip().setEndTimeSeconds(t0 + Math.max(0.05, dur));
-				camSegDurBuffer.set(String.format(Locale.ROOT, "%.6f", ref.clip().getDurationSeconds()));
-				validationError = null;
-			} catch (NumberFormatException ex) {
-				validationError = "时长格式不正确。";
-			}
+			applyCameraSegmentPanel(ref, timeline);
 		}
 		ImGui.sameLine();
 		if (ImGui.button("重置##camSegReset", 120f, 0f)) {
@@ -358,7 +451,30 @@ public class EventPropertiesPanel {
 		}
 	}
 
-	private void renderCameraKeyframePanel(EventRef ref, Timeline timeline) {
+	private void applyCameraSegmentPanel(EventRef ref, Timeline timeline) {
+		try {
+			double dur = Double.parseDouble(valueOf(camSegDurBuffer).trim());
+			double t0 = ref.clip().getStartTimeSeconds();
+			ref.clip().setEndTimeSeconds(t0 + Math.max(0.05, dur));
+			CameraPathMetadata.setPathVisible(timeline, ref.clip().getId(), camSegPathVisibleProxy.get());
+			for (Map.Entry<String, ImString> en : camSegParamBuffers.entrySet()) {
+				String raw = valueOf(en.getValue()).trim();
+				if (raw.isEmpty()) continue;
+				try {
+					ref.event().setParameter(en.getKey(), Double.parseDouble(raw));
+				} catch (NumberFormatException ex) {
+					ref.event().setParameter(en.getKey(), raw);
+				}
+			}
+			timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), ref.clip().getEndTimeSeconds()));
+			validationError = null;
+			bindBuffers(ref);
+		} catch (NumberFormatException ex) {
+			validationError = "时长或参数格式不正确。";
+		}
+	}
+
+	private void renderCameraKeyframePanel(EventRef ref, Timeline timeline, SelectionState selectionState) {
 		ImGui.text("时间与位姿");
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText("时间 (s)##camKfTime", timeBuffer);
@@ -400,6 +516,14 @@ public class EventPropertiesPanel {
 		if (ImGui.button("重置##camKfReset", 120f, 0f)) {
 			bindBuffers(ref);
 		}
+		ImGui.spacing();
+		if (ImGui.button("删除关键帧##camKfDelete", 160f, 0f)) {
+			String id = ref.event().getId();
+			if (CameraKeyframeActions.deleteKeyframeEvent(timeline, id) && selectionState != null) {
+				selectionState.deselectEvent(id);
+				boundRefKey = null;
+			}
+		}
 	}
 
 	private void applyCameraKeyframe(EventRef ref, Timeline timeline) {
@@ -426,7 +550,26 @@ public class EventPropertiesPanel {
 		}
 	}
 
-	private EventRef resolveSelectedEventRef(Timeline timeline, SelectionState selectionState) {
+	private EventRef resolvePropertiesRef(Timeline timeline, SelectionState selectionState) {
+		EventRef fromEvent = resolveSelectedEventRefFromEvents(timeline, selectionState);
+		if (fromEvent != null) return fromEvent;
+		if (timeline == null || selectionState == null || selectionState.getSelectedClips().isEmpty()) return null;
+		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		if (cam == null) return null;
+		List<String> clipIds = new ArrayList<>(selectionState.getSelectedClips());
+		clipIds.sort(String::compareTo);
+		for (String clipId : clipIds) {
+			if (clipId == null) continue;
+			Clip c = cam.getClip(clipId);
+			if (c == null) continue;
+			TimelineEvent seg = CameraTrackFactory.findSegmentHeadEvent(c);
+			if (seg != null) return new EventRef(cam, c, seg);
+			return new EventRef(cam, c, null);
+		}
+		return null;
+	}
+
+	private EventRef resolveSelectedEventRefFromEvents(Timeline timeline, SelectionState selectionState) {
 		if (timeline == null || selectionState == null || selectionState.getSelectedEvents().isEmpty()) return null;
 		List<String> selectedIds = new ArrayList<>(selectionState.getSelectedEvents());
 		selectedIds.sort(String::compareTo);

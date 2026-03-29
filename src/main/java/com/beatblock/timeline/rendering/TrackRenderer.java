@@ -1,5 +1,7 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.BeatBlock;
+import com.beatblock.client.camera.CameraKeyframeActions;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
 import imgui.ImGui;
@@ -246,18 +248,16 @@ public final class TrackRenderer {
 				}
 			}
 
-			// ── 摄像机轨：关键帧叠加开关（位于可见按钮左侧）──────────────────
+			// ── 摄像机轨：在播放头处向当前路径片段添加关键帧（位于可见按钮左侧）──────
 			if (!showMuteSolo && rowIndex == TimelineTrackMeta.ROW_CAMERA) {
-				boolean kfOn = listState.isCameraKeyframeOverlayVisible();
-				boolean kfStylePushed = !kfOn;
 				ImGui.setCursorScreenPos(baseX + camKfX, rowOriginScreenY + iconOffsetY);
-				if (kfStylePushed) pushStateButtonStyle(STATE_ALERT_RED_R, STATE_ALERT_RED_G, STATE_ALERT_RED_B);
 				if (ImGui.button(Icons.Timeline.KEYFRAME + "##camKf" + rowIndex, iconBtn, iconBtn)) {
-					listState.toggleCameraKeyframeOverlayVisible();
+					if (BeatBlock.timeline != null && BeatBlock.timelineEditor != null) {
+						CameraKeyframeActions.addKeyframeAtPlayhead(BeatBlock.timeline, BeatBlock.timelineEditor.getClock());
+					}
 				}
-				if (kfStylePushed) popStateButtonStyle();
 				if (ImGui.isItemHovered()) {
-					camKfTooltip = kfOn ? "隐藏路径关键帧标记" : "显示路径关键帧标记";
+					camKfTooltip = "在播放头位置添加路径关键帧（须落在「正常路径」片段内）";
 				}
 			}
 
