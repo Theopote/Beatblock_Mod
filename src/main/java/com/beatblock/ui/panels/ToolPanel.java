@@ -381,6 +381,7 @@ public class ToolPanel {
 		if (base.isBlank()) base = "selection_object";
 		if (base.startsWith("_")) base = base.substring(1);
 		if (base.endsWith("_")) base = base.substring(0, base.length() - 1);
+		if (base.isEmpty()) base = "selection_object";
 
 		var sys = BeatBlock.blockAnimationEngine.getStageObjectSystem();
 		String candidate = base;
@@ -401,7 +402,7 @@ public class ToolPanel {
 			return bhr.getBlockPos().toImmutable();
 		}
 		HitResult hit = mc.crosshairTarget;
-		if (!(hit instanceof BlockHitResult bhr)) return null;
+		if (!(hit instanceof BlockHitResult bhr) || bhr.getType() != HitResult.Type.BLOCK) return null;
 		return bhr.getBlockPos().toImmutable();
 	}
 
@@ -582,7 +583,7 @@ public class ToolPanel {
 		if (BeatBlock.timelineEditor == null) return;
 		var toolbarState = BeatBlock.timelineEditor.getToolbarState();
 		toolbarState.setLoopInSeconds(timeSeconds);
-		if (toolbarState.getLoopOutSeconds() > 0 && toolbarState.getLoopOutSeconds() <= timeSeconds) {
+		if (toolbarState.getLoopOutSeconds() <= timeSeconds) {
 			toolbarState.setLoopOutSeconds(timeSeconds + 0.1);
 		}
 		toolbarState.setLoop(true);

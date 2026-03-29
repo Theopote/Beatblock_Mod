@@ -686,6 +686,9 @@ public class EventPropertiesPanel {
 	private void applyCameraKeyframe(EventRef ref, Timeline timeline) {
 		try {
 			double newTime = Math.max(0.0, Double.parseDouble(valueOf(timeBuffer).trim()));
+			if (ref.clip() != null) {
+				newTime = Math.max(ref.clip().getStartTimeSeconds(), Math.min(ref.clip().getEndTimeSeconds(), newTime));
+			}
 			double x = Double.parseDouble(valueOf(camXBuffer).trim());
 			double y = Double.parseDouble(valueOf(camYBuffer).trim());
 			double z = Double.parseDouble(valueOf(camZBuffer).trim());
