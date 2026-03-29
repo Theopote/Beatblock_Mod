@@ -97,9 +97,10 @@ public final class TimelineCameraEvaluator {
 			TimelineEvent b = kf.get(i + 1);
 			double ta = a.getTimeSeconds();
 			double tb = b.getTimeSeconds();
-			if (timeSeconds < ta || timeSeconds > tb) continue;
+			if (timeSeconds < ta - 1e-6 || timeSeconds > tb + 1e-6) continue;
 			double span = Math.max(1e-6, tb - ta);
 			double t = (timeSeconds - ta) / span;
+			t = Math.max(0.0, Math.min(1.0, t));
 			String ease = stringParam(a.getParameters(), "ease", "SMOOTH");
 			double wt = "LINEAR".equalsIgnoreCase(ease) ? t : smoothstep(t);
 			return blendKeyframes(a, b, wt, anchor, fallbackYaw, fallbackPitch);
@@ -142,9 +143,10 @@ public final class TimelineCameraEvaluator {
 			TimelineEvent b = kf.get(i + 1);
 			double ta = a.getTimeSeconds();
 			double tb = b.getTimeSeconds();
-			if (timeSeconds < ta || timeSeconds > tb) continue;
+			if (timeSeconds < ta - 1e-6 || timeSeconds > tb + 1e-6) continue;
 			double span = Math.max(1e-6, tb - ta);
 			double t = (timeSeconds - ta) / span;
+			t = Math.max(0.0, Math.min(1.0, t));
 			String ease = stringParam(a.getParameters(), "ease", "LINEAR");
 			double wt = "LINEAR".equalsIgnoreCase(ease) ? t : smoothstep(t);
 			return blendKeyframes(a, b, wt, anchor, fallbackYaw, fallbackPitch);
@@ -166,10 +168,15 @@ public final class TimelineCameraEvaluator {
 			Vec3d pos = start.lerp(end, w);
 			Vec3d d = end.subtract(start);
 			double horiz = Math.sqrt(d.x * d.x + d.z * d.z);
+			if (horiz < 1e-4 && Math.abs(d.y) < 1e-4) {
+				// 起终点重合：fallback 到参数中指定的朝向或调用者传入的默认值
+				float outYaw = (float) num(p, "baseYawDeg", yawDeg);
+				return new CameraSample(pos, outYaw, pitchDeg);
+			}
 			float outYaw = horiz > 1e-4
 				? (float) Math.toDegrees(Math.atan2(-d.x, d.z))
 				: (float) num(p, "baseYawDeg", yawDeg);
-			float outPitch = (float) Math.toDegrees(-Math.atan2(d.y, horiz));
+			float outPitch = (float) Math.toDegrees(-Math.atan2(d.y, Math.max(1e-6, horiz)));
 			return new CameraSample(pos, outYaw, outPitch);
 		}
 		double ax = num(p, "anchorX", anchor.x);
@@ -185,6 +192,7 @@ public final class TimelineCameraEvaluator {
 	}
 
 	private static CameraSample evaluateOrbit(Map<String, Object> p, double u, Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		double w = smoothstep(u);
 		double ax = num(p, "anchorX", anchor.x);
 		double ay = num(p, "anchorY", anchor.y);
 		double az = num(p, "anchorZ", anchor.z);
@@ -195,7 +203,7 @@ public final class TimelineCameraEvaluator {
 		double height = num(p, "height", 4.0);
 		double y0 = num(p, "yawStartDeg", 0.0);
 		double y1 = num(p, "yawEndDeg", 270.0);
-		double orbitYawDeg = lerp(y0, y1, u);
+		double orbitYawDeg = lerp(y0, y1, w);
 		double rad = Math.toRadians(-orbitYawDeg);
 		double ox = -Math.sin(rad) * radius;
 		double oz = Math.cos(rad) * radius;
@@ -269,7 +277,7 @@ public final class TimelineCameraEvaluator {
 		CameraSample sa = sampleKeyframe(a, anchor, fy, fp);
 		CameraSample sb = sampleKeyframe(b, anchor, fy, fp);
 		Vec3d p = sa.position().lerp(sb.position(), w);
-		float yaw = (float) lerp(sa.yawDeg(), sb.yawDeg(), w);
+		float yaw = lerpAngleDeg(sa.yawDeg(), sb.yawDeg(), w);
 		float pitch = (float) lerp(sa.pitchDeg(), sb.pitchDeg(), w);
 		return new CameraSample(p, yaw, pitch);
 	}
@@ -299,6 +307,12 @@ public final class TimelineCameraEvaluator {
 
 	private static double lerp(double a, double b, double t) {
 		return a + (b - a) * t;
+	}
+
+	/** 最短路径角度差插值，避免跨 ±180° 时绕长弧旋转。 */
+	private static float lerpAngleDeg(float a, float b, double t) {
+		float diff = ((b - a) % 360f + 540f) % 360f - 180f;
+		return a + diff * (float) t;
 	}
 
 	private static double num(Map<String, Object> p, String key, double def) {

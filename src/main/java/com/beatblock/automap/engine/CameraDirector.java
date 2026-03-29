@@ -45,7 +45,8 @@ public final class CameraDirector {
 				}
 			}
 		}
-		// 去重：同一时间只保留一个
+		// 按时间排序后去重：同一时间只保留一个
+		out.sort(java.util.Comparator.comparingDouble(CameraEvent::getTimeSeconds));
 		List<CameraEvent> dedup = new ArrayList<>();
 		double lastT = -1;
 		for (CameraEvent e : out) {

@@ -36,6 +36,8 @@ public abstract class CameraMixin {
 		float fp = focusedEntity != null ? focusedEntity.getPitch() : self.getPitch();
 		TimelineCameraEvaluator.CameraSample sample = TimelineCameraEvaluator.evaluate(BeatBlock.timeline, t, anchor, fy, fp);
 		if (sample == null) return;
+		// setRotation 在 setPos 之后调用，确保 Camera 内部缓存的方向向量
+		// (horizontalPlane / diagonalPlane) 基于最终位置重新计算
 		setPos(sample.position());
 		setRotation(sample.yawDeg(), sample.pitchDeg());
 	}

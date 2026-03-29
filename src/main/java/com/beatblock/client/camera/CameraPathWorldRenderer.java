@@ -48,6 +48,9 @@ public final class CameraPathWorldRenderer {
 		if (cam == null || cam.getClips().isEmpty()) return;
 
 		Vec3d camPos = mc.gameRenderer.getCamera().getCameraPos();
+		Vec3d anchor = mc.player != null ? mc.player.getEyePos() : camPos;
+		float fallbackYaw = mc.player != null ? mc.player.getYaw() : 0f;
+		float fallbackPitch = mc.player != null ? mc.player.getPitch() : 0f;
 		matrices.push();
 		Matrix4f mat = matrices.peek().getPositionMatrix();
 
@@ -76,7 +79,7 @@ public final class CameraPathWorldRenderer {
 			for (int i = 0; i <= SAMPLE_STEPS; i++) {
 				double u = i / (double) SAMPLE_STEPS;
 				double t = t0 + (t1 - t0) * u;
-				TimelineCameraEvaluator.CameraSample sm = TimelineCameraEvaluator.evaluate(timeline, t, Vec3d.ZERO, 0f, 0f);
+				TimelineCameraEvaluator.CameraSample sm = TimelineCameraEvaluator.evaluate(timeline, t, anchor, fallbackYaw, fallbackPitch);
 				if (sm == null) continue;
 				Vec3d p = sm.position();
 				if (prev != null) {
