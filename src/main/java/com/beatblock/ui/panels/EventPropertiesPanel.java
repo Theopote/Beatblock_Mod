@@ -553,6 +553,7 @@ public class EventPropertiesPanel {
 			case DOLLY -> {
 				setSegBuf("startX", eye.x); setSegBuf("startY", eye.y); setSegBuf("startZ", eye.z);
 				setSegBuf("baseYawDeg", yaw);
+				setSegBuf("basePitchDeg", pitch);
 			}
 			case ORBIT -> {
 				setSegBuf("targetX", eye.x); setSegBuf("targetY", eye.y); setSegBuf("targetZ", eye.z);
