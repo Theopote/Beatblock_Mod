@@ -60,9 +60,8 @@ public final class TimelineCameraController {
 	}
 
 	private void updateOwnerAndSample(float deltaSeconds) {
-		boolean playing = false;
-		if (BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.isPlaying()) playing = true;
-		if (BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getClock().isPlaying()) playing = true;
+		boolean playing = BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.isPlaying();
+        if (BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getClock().isPlaying()) playing = true;
 
 		boolean scrubbing = false;
 		if (BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getInteractionState() != null) {

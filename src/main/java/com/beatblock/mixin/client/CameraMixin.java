@@ -1,8 +1,5 @@
 package com.beatblock.mixin.client;
 
-import com.beatblock.BeatBlock;
-import com.beatblock.client.BeatBlockClientDriver;
-import com.beatblock.client.camera.TimelineCameraEvaluator;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
