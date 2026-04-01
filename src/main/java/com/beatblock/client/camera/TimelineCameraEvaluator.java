@@ -43,6 +43,17 @@ public final class TimelineCameraEvaluator {
 		return evaluateGlobalKeyframes(cam, timeSeconds, anchor, fallbackYaw, fallbackPitch);
 	}
 
+	public static CameraSample evaluateClip(Clip clip, Timeline timeline, double timeSeconds, Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		if (clip == null) return null;
+		TimelineEvent seg = CameraTrackFactory.findSegmentHeadEvent(clip);
+		if (seg != null) {
+			CameraSegmentKind kind = CameraSegmentKind.fromParam(seg.getParameters().get("kind"));
+			CameraSample sample = evaluateSegment(timeline, clip, seg, kind, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+			if (sample != null) return sample;
+		}
+		return evaluateKeyframeHoldInClip(clip, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+	}
+
 	private static Clip findActiveClip(Track cam, double t) {
 		Clip best = null;
 		double bestStart = -1;

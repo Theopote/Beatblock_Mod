@@ -10,6 +10,7 @@ import com.beatblock.timeline.camera.CameraSegmentKind;
 import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.editor.TimelineClock;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
@@ -46,10 +47,12 @@ public final class CameraKeyframeActions {
 			if (Math.abs(e.getTimeSeconds() - t) < KEYFRAME_MERGE_EPS) return;
 		}
 		MinecraftClient mc = MinecraftClient.getInstance();
-		if (mc == null || mc.player == null) return;
-		Vec3d eye = mc.player.getEyePos();
-		float fy = mc.player.getYaw();
-		float fp = mc.player.getPitch();
+		if (mc == null || mc.gameRenderer == null) return;
+		Camera camera = mc.gameRenderer.getCamera();
+		if (camera == null) return;
+		Vec3d eye = camera.getCameraPos();
+		float fy = camera.getYaw();
+		float fp = camera.getPitch();
 		var params = CameraTrackFactory.keyframeParams(eye.x, eye.y, eye.z, fy, fp, "SMOOTH");
 		TimelineOperations.addEvent(clip, t, EventType.CAMERA_KEYFRAME, params);
 		timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), clip.getEndTimeSeconds()));

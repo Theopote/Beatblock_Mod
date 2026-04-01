@@ -78,7 +78,7 @@ public final class CameraPathWorldRenderer {
 			for (int i = 0; i <= SAMPLE_STEPS; i++) {
 				double u = i / (double) SAMPLE_STEPS;
 				double t = t0 + (t1 - t0) * u;
-				TimelineCameraEvaluator.CameraSample sm = TimelineCameraEvaluator.evaluate(timeline, t, anchor, fallbackYaw, fallbackPitch);
+				TimelineCameraEvaluator.CameraSample sm = TimelineCameraEvaluator.evaluateClip(clip, timeline, t, anchor, fallbackYaw, fallbackPitch);
 				if (sm == null) continue;
 				Vec3d p = sm.position();
 				if (prev != null) {

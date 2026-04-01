@@ -73,7 +73,7 @@ public final class CameraRuntime {
 			lerpState = LerpState.INACTIVE;
 			return;
 		}
-		TimelineCameraEvaluator.CameraSample start = currentSample;
+		TimelineCameraEvaluator.CameraSample start = capturePlayerSample();
 		lerpState = new LerpState(start, target, 0f, durationSeconds, true);
 	}
 
@@ -137,6 +137,14 @@ public final class CameraRuntime {
 
 	private void clearKey(net.minecraft.client.option.KeyBinding key) {
 		if (key != null) key.setPressed(false);
+	}
+
+	private TimelineCameraEvaluator.CameraSample capturePlayerSample() {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc == null || mc.player == null) {
+			return currentSample;
+		}
+		return new TimelineCameraEvaluator.CameraSample(mc.player.getEyePos(), mc.player.getYaw(), mc.player.getPitch());
 	}
 
 	private TimelineCameraEvaluator.CameraSample lerpSamples(TimelineCameraEvaluator.CameraSample a, TimelineCameraEvaluator.CameraSample b, float t) {
