@@ -1105,7 +1105,7 @@ public final class TimelineInteraction {
 			}
 			if (ImGui.beginMenu("添加镜头片段")) {
 				double[] a = readCameraAnchorFive();
-				if (ImGui.menuItem("正常路径（关键帧）")) {
+				if (ImGui.menuItem("自定义路径（关键帧）")) {
 					CameraTrackFactory.addPathSegment(timeline, contextTimeSeconds, a[0], a[1], a[2], a[3], a[4]);
 				}
 				if (ImGui.menuItem("推进（Dolly）")) {

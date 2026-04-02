@@ -257,7 +257,7 @@ public final class TrackRenderer {
 					}
 				}
 				if (ImGui.isItemHovered()) {
-					camKfTooltip = "在播放头位置添加路径关键帧（须落在「正常路径」片段内）";
+					camKfTooltip = "在播放头位置添加路径关键帧（须落在「自定义路径」片段内）";
 				}
 			}
 
