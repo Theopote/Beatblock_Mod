@@ -517,8 +517,7 @@ public final class TimelineInteraction {
 				// 联动：将其他轨道上快照的事件按同样 delta 移动
 				for (Track st : timeline.getTracks()) {
 					if (Timeline.TRACK_ID_AUDIO.equals(st.getId())) continue;
-					if (st == null) continue;
-					boolean dirtied = false;
+                    boolean dirtied = false;
 					for (Clip sc : st.getClips()) {
 						for (TimelineEvent se : sc.getEvents()) {
 							Double orig = dragLinkedEventOriginalTimes.get(se.getId());
@@ -671,8 +670,7 @@ public final class TimelineInteraction {
 						double ce = dragClipInitialEnd;
 						for (Track st : timeline.getTracks()) {
 							if (Timeline.TRACK_ID_AUDIO.equals(st.getId())) continue;
-							if (st == null) continue;
-							for (Clip sc : st.getClips()) {
+                            for (Clip sc : st.getClips()) {
 								for (TimelineEvent se : sc.getEvents()) {
 									double et = se.getTimeSeconds();
 									if (et >= cs && et <= ce) {

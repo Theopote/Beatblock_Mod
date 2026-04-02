@@ -9,7 +9,7 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 /**
  * 轨道表头：折叠槽 → 类型 → 名称 → 右对齐可见/锁定图标。
- *
+ * <p>
  * 关键：所有布局（文字、按钮、裁剪、分段竖线）都使用屏幕坐标锚定，
  * 避免 setCursorPos 的相对坐标受 padding/滚动影响导致的“跑偏/被裁掉”。
  */
@@ -145,9 +145,9 @@ public final class TrackRenderer {
 		// —— 名称：左右边界固定（上下用文本居中偏移）—— //
 		float nameTextX = baseX + nameX + TEXT_INSET;
 		float nameTextW = Math.max(8f, nameW - TEXT_INSET);
-		if (isEditing && listState != null) {
-			ImGui.setCursorScreenPos(nameTextX, rowOriginScreenY);
-			ImGui.setNextItemWidth(nameTextW);
+        ImGui.setCursorScreenPos(nameTextX, rowOriginScreenY);
+        if (isEditing) {
+            ImGui.setNextItemWidth(nameTextW);
 			boolean commitByEnter = ImGui.inputText("##name" + rowIndex, listState.getRenameBuffer(), ImGuiInputTextFlags.EnterReturnsTrue);
 			boolean nameItemHovered = ImGui.isItemHovered();
 			boolean nameItemActive = ImGui.isItemActive();
@@ -165,8 +165,7 @@ public final class TrackRenderer {
 			}
 		} else {
 			// 命中区：名称区内全区域可双击改名
-			ImGui.setCursorScreenPos(nameTextX, rowOriginScreenY);
-			ImGui.invisibleButton("##nameHit" + rowIndex, nameTextW, rowH);
+            ImGui.invisibleButton("##nameHit" + rowIndex, nameTextW, rowH);
 			boolean nameHovered = ImGui.isItemHovered();
 
 			// 裁剪：确保文字在名称区内展示，不会“跑出去”
@@ -313,7 +312,7 @@ public final class TrackRenderer {
 		if (cachedTypeColumnWidth > 0f) return cachedTypeColumnWidth;
 		float maxTypeW = 0f;
 		for (String label : TYPE_LABELS) {
-			if (label == null || label.isBlank()) continue;
+			if (label.isBlank()) continue;
 			maxTypeW = Math.max(maxTypeW, ImGui.calcTextSize(label).x);
 		}
 		cachedTypeColumnWidth = Math.max(MIN_TYPE_COL_W, maxTypeW + TYPE_COL_RIGHT_PAD);
