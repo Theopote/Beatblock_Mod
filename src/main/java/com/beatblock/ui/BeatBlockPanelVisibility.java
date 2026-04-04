@@ -10,6 +10,7 @@ public final class BeatBlockPanelVisibility {
 
 	public final ImBoolean audioAnalysis = new ImBoolean(true);
 	public final ImBoolean tool = new ImBoolean(true);
+	public final ImBoolean marker = new ImBoolean(true);
 	public final ImBoolean eventProperties = new ImBoolean(true);
 	public final ImBoolean timeline = new ImBoolean(true);
 	public final ImBoolean animationLibrary = new ImBoolean(false);
@@ -18,6 +19,7 @@ public final class BeatBlockPanelVisibility {
 	public void closeAll() {
 		audioAnalysis.set(false);
 		tool.set(false);
+		marker.set(false);
 		eventProperties.set(false);
 		timeline.set(false);
 		animationLibrary.set(false);
@@ -27,6 +29,7 @@ public final class BeatBlockPanelVisibility {
 	public void openAll() {
 		audioAnalysis.set(true);
 		tool.set(true);
+		marker.set(true);
 		eventProperties.set(true);
 		timeline.set(true);
 		animationLibrary.set(true);

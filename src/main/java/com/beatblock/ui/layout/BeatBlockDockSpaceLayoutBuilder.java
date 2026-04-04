@@ -22,6 +22,7 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 	/** 与各面板 window name 一致，用于 dockBuilderDockWindow */
 	public static final String AUDIO_ANALYSIS_WINDOW    = "音频解析###AudioAnalysisPanel";
 	public static final String TOOL_PANEL_WINDOW        = "工具###ToolPanel";
+	public static final String MARKER_PANEL_WINDOW      = "标记与调试###MarkerPanel";
 	public static final String EVENT_PROPERTIES_WINDOW  = "事件属性###EventPropertiesPanel";
 	public static final String TIMELINE_PANEL_WINDOW    = "时间线###TimelinePanel";
 	public static final String ANIMATION_LIBRARY_WINDOW = "动画库###AnimationLibraryPanel";
@@ -48,10 +49,12 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 			ImInt dockLeft = new ImInt();
 			imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, 0.18f, dockLeft, dockMain);
 
-			// 2.1 左侧再纵向分割：上半音频解析，下半工具
+			// 2.1 左侧再纵向分割：上半音频解析，中制40%工具，下半60%Marker与调试
 			ImInt dockLeftTop = new ImInt();
+			ImInt dockLeftMiddle = new ImInt();
 			ImInt dockLeftBottom = new ImInt();
-			imgui.internal.ImGui.dockBuilderSplitNode(dockLeft.get(), ImGuiDir.Up, 0.52f, dockLeftTop, dockLeftBottom);
+			imgui.internal.ImGui.dockBuilderSplitNode(dockLeft.get(), ImGuiDir.Up, 0.52f, dockLeftTop, dockLeftMiddle);
+			imgui.internal.ImGui.dockBuilderSplitNode(dockLeftMiddle.get(), ImGuiDir.Up, 0.55f, dockLeftMiddle, dockLeftBottom);
 
 			// 3. 右侧分割：事件属性面板（约 22%）
 			ImInt dockRight = new ImInt();
@@ -60,7 +63,8 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 			// 4. 停靠窗口（中间不 dock 任何窗口，即为 Minecraft 场景区域）
 			imgui.internal.ImGui.dockBuilderDockWindow(TIMELINE_PANEL_WINDOW, dockBottom.get());
 			imgui.internal.ImGui.dockBuilderDockWindow(AUDIO_ANALYSIS_WINDOW, dockLeftTop.get());
-			imgui.internal.ImGui.dockBuilderDockWindow(TOOL_PANEL_WINDOW, dockLeftBottom.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(TOOL_PANEL_WINDOW, dockLeftMiddle.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(MARKER_PANEL_WINDOW, dockLeftBottom.get());
 			imgui.internal.ImGui.dockBuilderDockWindow(EVENT_PROPERTIES_WINDOW, dockRight.get());
 
 			imgui.internal.ImGui.dockBuilderFinish(dockspaceId);

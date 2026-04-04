@@ -30,6 +30,7 @@ public class BeatBlockUIManager {
 	private final MenuBarPanel menuBarPanel;
 	private final AudioAnalysisPanel audioAnalysisPanel;
 	private final ToolPanel toolPanel;
+	private final MarkerPanel markerPanel;
 	private final EventPropertiesPanel eventPropertiesPanel;
 	private final TimelinePanel timelinePanel;
 	private final AnimationLibraryPanel animationLibraryPanel;
@@ -42,6 +43,7 @@ public class BeatBlockUIManager {
 	public BeatBlockUIManager(Runnable onCloseRequest) {
 		this.onCloseRequest = onCloseRequest;
 		this.toolPanel = new ToolPanel();
+		this.markerPanel = new MarkerPanel();
 		this.audioAnalysisPanel = new AudioAnalysisPanel();
 		this.menuBarPanel = new MenuBarPanel(onCloseRequest, panelVisibility,
 			() -> toolPanel.setShowAutoMapSettings(true), this::resetLayoutState, this::saveCurrentLayout,
@@ -124,6 +126,7 @@ public class BeatBlockUIManager {
 		ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, 0.11f, 0.11f, 0.12f, 1f);
 		audioAnalysisPanel.render(panelVisibility.audioAnalysis);
 		toolPanel.render(panelVisibility.tool);
+		markerPanel.render(panelVisibility.marker);
 		eventPropertiesPanel.render(panelVisibility.eventProperties);
 		timelinePanel.render(panelVisibility.timeline);
 		animationLibraryPanel.render(panelVisibility.animationLibrary);

@@ -114,6 +114,7 @@ public class MenuBarPanel {
 				if (ImGui.beginMenu("面板")) {
 					panelToggleItem("音频解析", panels.audioAnalysis);
 					panelToggleItem("工具", panels.tool);
+					panelToggleItem("标记与调试", panels.marker);
 					panelToggleItem("事件属性", panels.eventProperties);
 					panelToggleItem("时间线", panels.timeline);
 					panelToggleItem("动画库", panels.animationLibrary);
