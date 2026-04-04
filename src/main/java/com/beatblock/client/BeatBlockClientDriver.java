@@ -53,10 +53,12 @@ public final class BeatBlockClientDriver {
 	private static volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
 	private static final Map<String, TimelineActionExecutionReport> timelineActionReportByEventId = new ConcurrentHashMap<>();
 	private static final int MAX_ACTION_REPORT_CACHE_SIZE = 4096;
+		private static boolean beatListenerBoundToBlockEngine;
 
 	public static void onClientTick() {
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
+		ensureBlockEngineBeatListener();
 		com.beatblock.client.camera.TimelineCameraController.getInstance().tick();
 
 		if (driving) {
@@ -132,6 +134,7 @@ public final class BeatBlockClientDriver {
 	public static void startDriving() {
 		lastTickNanos = 0;
 		resetTimelineAnimationScheduling();
+		ensureBlockEngineBeatListener();
 		driving = true;
 	}
 
@@ -420,6 +423,16 @@ public final class BeatBlockClientDriver {
 		if (BeatBlock.blockAnimationEngine != null) {
 			BeatBlock.blockAnimationEngine.clear();
 		}
+	}
+
+	private static void ensureBlockEngineBeatListener() {
+		if (beatListenerBoundToBlockEngine) return;
+		if (BeatBlock.beatScheduler == null) return;
+		BeatBlock.beatScheduler.addListener(event -> {
+			if (BeatBlock.blockAnimationEngine == null) return;
+			BeatBlock.blockAnimationEngine.onBeatEvent(event);
+		});
+		beatListenerBoundToBlockEngine = true;
 	}
 
 	private static String scheduleKey(TimelineAnimationEvent event) {

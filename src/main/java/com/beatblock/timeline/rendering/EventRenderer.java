@@ -38,6 +38,7 @@ public final class EventRenderer {
 	private static final int STATUS_SKIPPED_COLOR = 0xFF_44_AA_FF;
 	private static final int STATUS_ANIMATE_COLOR = 0xFF_FF_CC_66;
 	private static final int STATUS_UNKNOWN_COLOR = 0xFF_99_99_99;
+	private static final int INHERIT_GROUP_BADGE_COLOR = 0xFF_FF_DD_66;
 	private static final float MIN_BAR_HALF_WIDTH = 1.25f;
 
 	private static int withAlpha(int abgr, int alpha) {
@@ -212,6 +213,7 @@ public final class EventRenderer {
                 case ANIMATE -> fillColor;
             };
             ImGui.getWindowDrawList().addRectFilled(baseX + x, y0, baseX + x + w, y1, resolvedFillColor, 2f);
+			renderGroupSpatialBadge(baseX + x, y0, baseX + x + w, y1, e);
             BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getTimelineActionExecutionReport(e.getEventId());
             renderRuntimeBadge(baseX + x, y0, baseX + x + w, y1, e, report);
             if (selection != null && selection.isEventSelected(e.getEventId())) {
@@ -219,6 +221,34 @@ public final class EventRenderer {
             }
         }
 		ImGui.setCursorPosY(rowY + layout.rowHeight);
+	}
+
+	private void renderGroupSpatialBadge(float x0, float y0, float x1, float y1, TimelineAnimationEvent event) {
+		if (event == null) return;
+		if (!readBoolean(event.getParameters().get("inheritGroupSpatial"), true)) return;
+
+		float bx0 = x0 + 2f;
+		float by0 = y0 + 2f;
+		float bx1 = Math.min(x1 - 2f, bx0 + 10f);
+		float by1 = Math.min(y1 - 2f, by0 + 10f);
+		if (bx1 <= bx0 || by1 <= by0) return;
+
+		ImGui.getWindowDrawList().addRectFilled(bx0, by0, bx1, by1, withAlpha(INHERIT_GROUP_BADGE_COLOR, 0xD8), 2f);
+		ImGui.getWindowDrawList().addText(bx0 + 2f, by0 - 1f, 0xFF_11_11_11, "G");
+
+		if (ImGui.isMouseHoveringRect(bx0, by0, bx1, by1)) {
+			ImGui.setTooltip("Inherit group spatial: ON\nspatialMode/sequentialDelaySeconds are resolved from target group when not overridden.");
+		}
+	}
+
+	private static boolean readBoolean(Object raw, boolean fallback) {
+		if (raw instanceof Boolean b) return b;
+		if (raw instanceof Number n) return n.intValue() != 0;
+		if (raw == null) return fallback;
+		String s = String.valueOf(raw).trim();
+		if ("true".equalsIgnoreCase(s) || "1".equals(s) || "yes".equalsIgnoreCase(s)) return true;
+		if ("false".equalsIgnoreCase(s) || "0".equals(s) || "no".equalsIgnoreCase(s)) return false;
+		return fallback;
 	}
 
 	private void renderRuntimeBadge(float x0, float y0, float x1, float y1,

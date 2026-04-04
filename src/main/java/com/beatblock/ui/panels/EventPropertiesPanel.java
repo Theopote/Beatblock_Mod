@@ -52,6 +52,7 @@ public class EventPropertiesPanel {
 	private final ImString energyBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString energyThresholdBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString spatialDelayBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString blocksPerBeatBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString placeBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camSegDurBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camXBuffer = new ImString(INPUT_BUFFER_SIZE);
@@ -223,6 +224,7 @@ public class EventPropertiesPanel {
 		String currentTargetId = stringParam(params, "targetObject");
 		String currentActionMode = stringParam(params, "actionMode", stringParam(params, "mode", TimelineAnimationActionMode.ANIMATE.name()));
 		boolean inheritGroupSpatial = booleanParam(params, "inheritGroupSpatial", true);
+		boolean stepDispatch = "STEP".equalsIgnoreCase(stringParam(params, "dispatchModel", "BURST"));
 		ImInt actionIndex = new ImInt(indexOfOption(actionOptions, currentActionMode));
 		ImInt animationIndex = new ImInt(indexOfOption(animationOptions, currentAnimationId));
 		ImInt targetIndex = new ImInt(indexOfOption(targetOptions, currentTargetId));
@@ -242,6 +244,15 @@ public class EventPropertiesPanel {
 		}
 		if (ImGui.combo("目标对象##eventTarget", targetIndex, targetLabels)) {
 			validationError = null;
+		}
+		ImBoolean stepDispatchProxy = new ImBoolean(stepDispatch);
+		if (ImGui.checkbox("每拍推进序列 (STEP)##eventDispatchStep", stepDispatchProxy)) {
+			stepDispatch = stepDispatchProxy.get();
+			validationError = null;
+		}
+		if (stepDispatch) {
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText("每拍方块数##eventBlocksPerBeat", blocksPerBeatBuffer);
 		}
 		ImBoolean inheritSpatialProxy = new ImBoolean(inheritGroupSpatial);
 		if (ImGui.checkbox("继承组排序/延迟##eventInheritGroupSpatial", inheritSpatialProxy)) {
@@ -286,7 +297,8 @@ public class EventPropertiesPanel {
 				animationOptions.get(animationIndex.get()).id(),
 				targetOptions.get(targetIndex.get()).id(),
 				inheritGroupSpatial,
-				SPATIAL_MODE_VALUES[Math.max(0, Math.min(spatialModeIndex.get(), SPATIAL_MODE_VALUES.length - 1))]);
+				SPATIAL_MODE_VALUES[Math.max(0, Math.min(spatialModeIndex.get(), SPATIAL_MODE_VALUES.length - 1))],
+				stepDispatch);
 		}
 		if (reset) {
 			bindBuffers(ref);
@@ -312,7 +324,8 @@ public class EventPropertiesPanel {
 	}
 
 	private void applyAnimationChanges(EventRef ref, Timeline timeline, String actionMode, String animationId,
-	                                  String targetObjectId, boolean inheritGroupSpatial, String spatialMode) {
+	                                  String targetObjectId, boolean inheritGroupSpatial, String spatialMode,
+	                                  boolean stepDispatch) {
 		try {
 			double newTime = Math.max(0.0, Double.parseDouble(valueOf(timeBuffer).trim()));
 			double newDuration = Math.max(0.01, Double.parseDouble(valueOf(durationBuffer).trim()));
@@ -322,6 +335,13 @@ public class EventPropertiesPanel {
 			if (!inheritGroupSpatial) {
 				String rawDelay = valueOf(spatialDelayBuffer).trim();
 				if (!rawDelay.isEmpty()) spatialDelay = Math.max(0.0, Double.parseDouble(rawDelay));
+			}
+			int blocksPerBeat = 1;
+			if (stepDispatch) {
+				String raw = valueOf(blocksPerBeatBuffer).trim();
+				if (!raw.isEmpty()) {
+					blocksPerBeat = Math.max(1, (int) Math.round(Double.parseDouble(raw)));
+				}
 			}
 			TimelineAnimationActionMode mode = TimelineAnimationActionMode.fromValue(actionMode);
 			if (targetObjectId == null || targetObjectId.isBlank()) {
@@ -354,6 +374,12 @@ public class EventPropertiesPanel {
 			ref.event().setParameter("energyThreshold", newEnergyThreshold);
 			ref.event().setParameter("animationType", animationId);
 			ref.event().setParameter("targetObject", targetObjectId);
+			ref.event().setParameter("dispatchModel", stepDispatch ? "STEP" : "BURST");
+			if (stepDispatch) {
+				ref.event().setParameter("blocksPerBeat", blocksPerBeat);
+			} else {
+				ref.event().removeParameter("blocksPerBeat");
+			}
 			ref.event().setParameter("inheritGroupSpatial", inheritGroupSpatial);
 			if (inheritGroupSpatial) {
 				ref.event().removeParameter("spatialMode");
@@ -401,6 +427,7 @@ public class EventPropertiesPanel {
 		energyBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "energy", 1.0)));
 		energyThresholdBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "energyThreshold", 0.15)));
 		spatialDelayBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "sequentialDelaySeconds", 0.0)));
+		blocksPerBeatBuffer.set(String.format(Locale.ROOT, "%d", Math.max(1, (int) Math.round(numericParam(params, "blocksPerBeat", 1.0)))));
 		String placeBlock = stringParam(params, "placeBlock", stringParam(params, "placeBlockId", "minecraft:diamond_block"));
 		placeBlockBuffer.set(placeBlock);
 		if (event.getType() == EventType.CAMERA_SEGMENT && ref.clip() != null) {

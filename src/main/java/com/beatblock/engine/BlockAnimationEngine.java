@@ -1,5 +1,6 @@
 package com.beatblock.engine;
 
+import com.beatblock.beat.BeatEvent;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
@@ -27,6 +28,50 @@ public final class BlockAnimationEngine {
 	private final AnimationPlayer animationPlayer = new AnimationPlayer();
 	private final BlockControlExecutor blockControlExecutor = new BlockControlExecutor(stageObjectSystem);
 	private final BuildSequencer buildSequencer = new BuildSequencer(stageObjectSystem);
+	private final List<StepSequenceState> stepSequences = new ArrayList<>();
+
+	private enum DispatchModel {
+		BURST,
+		STEP;
+
+		static DispatchModel fromValue(Object value) {
+			if (value == null) return BURST;
+			String s = String.valueOf(value).trim();
+			if (s.isEmpty()) return BURST;
+			if ("STEP".equalsIgnoreCase(s)) return STEP;
+			return BURST;
+		}
+	}
+
+	private static final class StepSequenceState {
+		private final AnimationDefinition definition;
+		private final StageObject target;
+		private final Map<String, Object> params;
+		private final List<BlockPos> orderedBlocks;
+		private final double durationSeconds;
+		private final float energy;
+		private final int blocksPerBeat;
+		private final double startGateTime;
+		private int nextIndex;
+
+		private StepSequenceState(AnimationDefinition definition, StageObject target, Map<String, Object> params,
+		                         List<BlockPos> orderedBlocks, double durationSeconds, float energy,
+		                         int blocksPerBeat, double startGateTime) {
+			this.definition = definition;
+			this.target = target;
+			this.params = params;
+			this.orderedBlocks = orderedBlocks;
+			this.durationSeconds = durationSeconds;
+			this.energy = energy;
+			this.blocksPerBeat = Math.max(1, blocksPerBeat);
+			this.startGateTime = startGateTime;
+			this.nextIndex = 0;
+		}
+
+		private boolean finished() {
+			return nextIndex >= orderedBlocks.size();
+		}
+	}
 
 	public StageObjectSystem getStageObjectSystem() {
 		return stageObjectSystem;
@@ -71,8 +116,18 @@ public final class BlockAnimationEngine {
 		if (event == null) return;
 		TimelineAnimationActionMode actionMode = event.getActionMode();
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
-			scheduleFromTimelineEventWithSpatial(event);
+			scheduleAnimateEvent(event);
 		}
+	}
+
+	private void scheduleAnimateEvent(TimelineAnimationEvent event) {
+		if (event == null) return;
+		DispatchModel model = DispatchModel.fromValue(event.getParameters().get("dispatchModel"));
+		if (model == DispatchModel.STEP) {
+			enqueueStepSequence(event);
+			return;
+		}
+		scheduleFromTimelineEventWithSpatial(event);
 	}
 
 	private void scheduleFromTimelineEventWithSpatial(TimelineAnimationEvent event) {
@@ -107,6 +162,68 @@ public final class BlockAnimationEngine {
 				center
 			);
 			animationPlayer.addInstance(new EngineAnimationInstance(def, perBlockTarget, start, end, energy, params));
+		}
+	}
+
+	private void enqueueStepSequence(TimelineAnimationEvent event) {
+		if (event == null) return;
+		AnimationDefinition def = animationLibrary.get(event.getAnimationTypeId());
+		StageObject target = stageObjectSystem.get(event.getTargetObjectId());
+		if (def == null || target == null || target.getBlocks().isEmpty()) return;
+
+		Map<String, Object> params = event.getParameters();
+		SpatialDispatchMode spatialMode = resolveSpatialMode(params, target);
+		List<BlockPos> ordered = sortBlocksForSpatialMode(target, spatialMode, event);
+		int blocksPerBeat = (int) Math.max(1, Math.round(readDouble(params.get("blocksPerBeat"), 1.0)));
+		double duration = Math.max(0.01, event.getDurationSeconds());
+		stepSequences.add(new StepSequenceState(
+			def,
+			target,
+			params,
+			ordered,
+			duration,
+			event.getEnergy(),
+			blocksPerBeat,
+			event.getTimeSeconds()
+		));
+	}
+
+	public void onBeatEvent(BeatEvent beatEvent) {
+		if (beatEvent == null || stepSequences.isEmpty()) return;
+		double beatTime = Math.max(0.0, beatEvent.getTimestamp());
+		List<StepSequenceState> done = new ArrayList<>();
+		for (StepSequenceState state : stepSequences) {
+			if (state == null) continue;
+			if (beatTime + 1e-6 < state.startGateTime) continue;
+			advanceStepSequence(state, beatTime);
+			if (state.finished()) done.add(state);
+		}
+		if (!done.isEmpty()) {
+			stepSequences.removeAll(done);
+		}
+	}
+
+	private void advanceStepSequence(StepSequenceState state, double beatTimeSeconds) {
+		if (state == null || state.finished()) return;
+		Vec3d center = state.target.getCenter();
+		for (int i = 0; i < state.blocksPerBeat && !state.finished(); i++) {
+			BlockPos block = state.orderedBlocks.get(state.nextIndex);
+			StageObject perBlockTarget = new StageObject(
+				state.target.getId() + "#step#" + state.nextIndex,
+				state.target.getName(),
+				List.of(block),
+				center,
+				state.target.getGroupSpec()
+			);
+			animationPlayer.addInstance(new EngineAnimationInstance(
+				state.definition,
+				perBlockTarget,
+				beatTimeSeconds,
+				beatTimeSeconds + state.durationSeconds,
+				state.energy,
+				state.params
+			));
+			state.nextIndex++;
 		}
 	}
 
@@ -251,5 +368,6 @@ public final class BlockAnimationEngine {
 	public void clear() {
 		animationPlayer.clear();
 		buildSequencer.clear();
+		stepSequences.clear();
 	}
 }
