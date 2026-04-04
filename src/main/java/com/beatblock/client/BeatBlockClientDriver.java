@@ -59,6 +59,9 @@ public final class BeatBlockClientDriver {
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
 		ensureBlockEngineBeatListener();
+		if (BeatBlock.blockAnimationEngine != null && mc != null && mc.gameRenderer != null && mc.gameRenderer.getCamera() != null) {
+			BeatBlock.blockAnimationEngine.setRuntimeCameraPosition(mc.gameRenderer.getCamera().getCameraPos());
+		}
 		com.beatblock.client.camera.TimelineCameraController.getInstance().tick();
 
 		if (driving) {

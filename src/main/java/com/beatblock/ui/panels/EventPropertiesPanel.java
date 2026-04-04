@@ -53,6 +53,10 @@ public class EventPropertiesPanel {
 	private final ImString energyThresholdBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString spatialDelayBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString blocksPerBeatBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString cameraNearDistanceBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString cameraFarDistanceBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString cameraNearScaleBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString cameraFarScaleBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString placeBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camSegDurBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camXBuffer = new ImString(INPUT_BUFFER_SIZE);
@@ -241,6 +245,7 @@ public class EventPropertiesPanel {
 		String currentActionMode = stringParam(params, "actionMode", stringParam(params, "mode", TimelineAnimationActionMode.ANIMATE.name()));
 		boolean inheritGroupSpatial = booleanParam(params, "inheritGroupSpatial", true);
 		boolean stepDispatch = "STEP".equalsIgnoreCase(stringParam(params, "dispatchModel", "BURST"));
+		boolean cameraAdaptiveStep = booleanParam(params, "cameraAdaptiveStep", false);
 		ImInt stepStartModeIndex = new ImInt(indexOfValue(STEP_START_MODE_VALUES, stringParam(params, "stepStartMode", "NEXT_BEAT")));
 		ImInt stepCompletionIndex = new ImInt(indexOfValue(STEP_COMPLETION_VALUES, stringParam(params, "stepCompletionMode", "KEEP")));
 		ImInt actionIndex = new ImInt(indexOfOption(actionOptions, currentActionMode));
@@ -276,6 +281,21 @@ public class EventPropertiesPanel {
 			}
 			if (ImGui.combo("完成后行为##eventStepCompletionMode", stepCompletionIndex, STEP_COMPLETION_LABELS)) {
 				validationError = null;
+			}
+			ImBoolean cameraAdaptiveProxy = new ImBoolean(cameraAdaptiveStep);
+			if (ImGui.checkbox("镜头距离自适应推进##eventCameraAdaptiveStep", cameraAdaptiveProxy)) {
+				cameraAdaptiveStep = cameraAdaptiveProxy.get();
+				validationError = null;
+			}
+			if (cameraAdaptiveStep) {
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("近距离阈值##eventCameraNearDistance", cameraNearDistanceBuffer);
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("远距离阈值##eventCameraFarDistance", cameraFarDistanceBuffer);
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("近景倍率##eventCameraNearScale", cameraNearScaleBuffer);
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("远景倍率##eventCameraFarScale", cameraFarScaleBuffer);
 			}
 		}
 		ImBoolean inheritSpatialProxy = new ImBoolean(inheritGroupSpatial);
@@ -324,7 +344,8 @@ public class EventPropertiesPanel {
 				SPATIAL_MODE_VALUES[Math.max(0, Math.min(spatialModeIndex.get(), SPATIAL_MODE_VALUES.length - 1))],
 				stepDispatch,
 				STEP_START_MODE_VALUES[Math.max(0, Math.min(stepStartModeIndex.get(), STEP_START_MODE_VALUES.length - 1))],
-				STEP_COMPLETION_VALUES[Math.max(0, Math.min(stepCompletionIndex.get(), STEP_COMPLETION_VALUES.length - 1))]);
+				STEP_COMPLETION_VALUES[Math.max(0, Math.min(stepCompletionIndex.get(), STEP_COMPLETION_VALUES.length - 1))],
+				cameraAdaptiveStep);
 		}
 		if (reset) {
 			bindBuffers(ref);
@@ -351,7 +372,8 @@ public class EventPropertiesPanel {
 
 	private void applyAnimationChanges(EventRef ref, Timeline timeline, String actionMode, String animationId,
 	                                  String targetObjectId, boolean inheritGroupSpatial, String spatialMode,
-	                                  boolean stepDispatch, String stepStartMode, String stepCompletionMode) {
+	                                  boolean stepDispatch, String stepStartMode, String stepCompletionMode,
+	                                  boolean cameraAdaptiveStep) {
 		try {
 			double newTime = Math.max(0.0, Double.parseDouble(valueOf(timeBuffer).trim()));
 			double newDuration = Math.max(0.01, Double.parseDouble(valueOf(durationBuffer).trim()));
@@ -368,6 +390,20 @@ public class EventPropertiesPanel {
 				if (!raw.isEmpty()) {
 					blocksPerBeat = Math.max(1, (int) Math.round(Double.parseDouble(raw)));
 				}
+			}
+			double nearDistance = 8.0;
+			double farDistance = 48.0;
+			double nearScale = 0.6;
+			double farScale = 1.5;
+			if (stepDispatch && cameraAdaptiveStep) {
+				String nearDistRaw = valueOf(cameraNearDistanceBuffer).trim();
+				String farDistRaw = valueOf(cameraFarDistanceBuffer).trim();
+				String nearScaleRaw = valueOf(cameraNearScaleBuffer).trim();
+				String farScaleRaw = valueOf(cameraFarScaleBuffer).trim();
+				if (!nearDistRaw.isEmpty()) nearDistance = Math.max(0.5, Double.parseDouble(nearDistRaw));
+				if (!farDistRaw.isEmpty()) farDistance = Math.max(nearDistance + 0.001, Double.parseDouble(farDistRaw));
+				if (!nearScaleRaw.isEmpty()) nearScale = Math.max(0.1, Double.parseDouble(nearScaleRaw));
+				if (!farScaleRaw.isEmpty()) farScale = Math.max(0.1, Double.parseDouble(farScaleRaw));
 			}
 			TimelineAnimationActionMode mode = TimelineAnimationActionMode.fromValue(actionMode);
 			if (targetObjectId == null || targetObjectId.isBlank()) {
@@ -405,10 +441,27 @@ public class EventPropertiesPanel {
 				ref.event().setParameter("blocksPerBeat", blocksPerBeat);
 				ref.event().setParameter("stepStartMode", stepStartMode);
 				ref.event().setParameter("stepCompletionMode", stepCompletionMode);
+				ref.event().setParameter("cameraAdaptiveStep", cameraAdaptiveStep);
+				if (cameraAdaptiveStep) {
+					ref.event().setParameter("cameraNearDistance", nearDistance);
+					ref.event().setParameter("cameraFarDistance", farDistance);
+					ref.event().setParameter("cameraNearScale", nearScale);
+					ref.event().setParameter("cameraFarScale", farScale);
+				} else {
+					ref.event().removeParameter("cameraNearDistance");
+					ref.event().removeParameter("cameraFarDistance");
+					ref.event().removeParameter("cameraNearScale");
+					ref.event().removeParameter("cameraFarScale");
+				}
 			} else {
 				ref.event().removeParameter("blocksPerBeat");
 				ref.event().removeParameter("stepStartMode");
 				ref.event().removeParameter("stepCompletionMode");
+				ref.event().removeParameter("cameraAdaptiveStep");
+				ref.event().removeParameter("cameraNearDistance");
+				ref.event().removeParameter("cameraFarDistance");
+				ref.event().removeParameter("cameraNearScale");
+				ref.event().removeParameter("cameraFarScale");
 			}
 			ref.event().setParameter("inheritGroupSpatial", inheritGroupSpatial);
 			if (inheritGroupSpatial) {
@@ -458,6 +511,10 @@ public class EventPropertiesPanel {
 		energyThresholdBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "energyThreshold", 0.15)));
 		spatialDelayBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "sequentialDelaySeconds", 0.0)));
 		blocksPerBeatBuffer.set(String.format(Locale.ROOT, "%d", Math.max(1, (int) Math.round(numericParam(params, "blocksPerBeat", 1.0)))));
+		cameraNearDistanceBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "cameraNearDistance", 8.0)));
+		cameraFarDistanceBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "cameraFarDistance", 48.0)));
+		cameraNearScaleBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "cameraNearScale", 0.6)));
+		cameraFarScaleBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "cameraFarScale", 1.5)));
 		String placeBlock = stringParam(params, "placeBlock", stringParam(params, "placeBlockId", "minecraft:diamond_block"));
 		placeBlockBuffer.set(placeBlock);
 		if (event.getType() == EventType.CAMERA_SEGMENT && ref.clip() != null) {

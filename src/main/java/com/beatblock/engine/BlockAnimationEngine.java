@@ -29,6 +29,7 @@ public final class BlockAnimationEngine {
 	private final BlockControlExecutor blockControlExecutor = new BlockControlExecutor(stageObjectSystem);
 	private final BuildSequencer buildSequencer = new BuildSequencer(stageObjectSystem);
 	private final List<StepSequenceState> stepSequences = new ArrayList<>();
+	private Vec3d runtimeCameraPosition = Vec3d.ZERO;
 
 	private enum DispatchModel {
 		BURST,
@@ -124,6 +125,11 @@ public final class BlockAnimationEngine {
 
 	public BuildSequencer getBuildSequencer() {
 		return buildSequencer;
+	}
+
+	public void setRuntimeCameraPosition(Vec3d cameraPosition) {
+		if (cameraPosition == null) return;
+		this.runtimeCameraPosition = cameraPosition;
 	}
 
 	/**
@@ -250,7 +256,8 @@ public final class BlockAnimationEngine {
 	private void advanceStepSequence(StepSequenceState state, double beatTimeSeconds) {
 		if (state == null || state.finished()) return;
 		Vec3d center = state.target.getCenter();
-		for (int i = 0; i < state.blocksPerBeat && !state.finished(); i++) {
+		int effectiveBlocksPerBeat = resolveEffectiveBlocksPerBeat(state);
+		for (int i = 0; i < effectiveBlocksPerBeat && !state.finished(); i++) {
 			BlockPos block = state.orderedBlocks.get(state.nextIndex);
 			StageObject perBlockTarget = new StageObject(
 				state.target.getId() + "#step#" + state.nextIndex,
@@ -273,6 +280,25 @@ public final class BlockAnimationEngine {
 			state.nextIndex = 0;
 			state.cycles++;
 		}
+	}
+
+	private int resolveEffectiveBlocksPerBeat(StepSequenceState state) {
+		if (state == null) return 1;
+		int base = Math.max(1, state.blocksPerBeat);
+		if (!readBoolean(state.params.get("cameraAdaptiveStep"), false)) return base;
+
+		double nearDistance = Math.max(0.5, readDouble(state.params.get("cameraNearDistance"), 8.0));
+		double farDistance = Math.max(nearDistance + 0.001, readDouble(state.params.get("cameraFarDistance"), 48.0));
+		double nearScale = Math.max(0.1, readDouble(state.params.get("cameraNearScale"), 0.6));
+		double farScale = Math.max(0.1, readDouble(state.params.get("cameraFarScale"), 1.5));
+
+		Vec3d center = state.target.getCenter();
+		double dist = center.distanceTo(runtimeCameraPosition);
+		double t = (dist - nearDistance) / (farDistance - nearDistance);
+		t = Math.max(0.0, Math.min(1.0, t));
+		double scale = nearScale + (farScale - nearScale) * t;
+
+		return Math.max(1, (int) Math.round(base * scale));
 	}
 
 	private static SpatialDispatchMode resolveSpatialMode(Map<String, Object> params, StageObject target) {
