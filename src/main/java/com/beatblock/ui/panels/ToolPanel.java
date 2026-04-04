@@ -284,6 +284,8 @@ public class ToolPanel {
 				String label = obj.getName() + "  [" + obj.getId() + "]  " + obj.getBlocks().size() + " blocks";
 				ImGui.text(label);
 				ImGui.sameLine();
+				ImGui.textDisabled("(" + obj.getGroupSpec().getSourceType() + ")");
+				ImGui.sameLine();
 				if (ImGui.smallButton("Delete##stageObjDel_" + obj.getId())) {
 					removeId = obj.getId();
 				}
@@ -330,7 +332,14 @@ public class ToolPanel {
 		if (name.isEmpty()) name = "selection_object";
 		String id = buildUniqueStageObjectId(name);
 
-		StageObject obj = StageObjectSystem.fromBlocks(id, name, blocks);
+		StageObject obj = StageObjectSystem.fromSelectionCuboid(
+			id,
+			name,
+			blocks,
+			selectionPosA,
+			selectionPosB,
+			stageObjectIncludeAir.get()
+		);
 		BeatBlock.blockAnimationEngine.getStageObjectSystem().register(obj);
 		setStageObjectMessage(String.format(Locale.ROOT, "已创建 StageObject: %s (%d blocks)", id, blocks.size()));
 	}

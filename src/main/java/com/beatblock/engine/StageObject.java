@@ -17,12 +17,18 @@ public final class StageObject {
 	private final String name;
 	private final List<BlockPos> blocks;
 	private final Vec3d center;
+	private final GroupSpec groupSpec;
 
 	public StageObject(String id, String name, List<BlockPos> blocks, Vec3d center) {
+		this(id, name, blocks, center, null);
+	}
+
+	public StageObject(String id, String name, List<BlockPos> blocks, Vec3d center, GroupSpec groupSpec) {
 		this.id = id != null ? id : "";
 		this.name = name != null ? name : id;
 		this.blocks = blocks != null ? new ArrayList<>(blocks) : new ArrayList<>();
 		this.center = center != null ? center : computeCenter(this.blocks);
+		this.groupSpec = groupSpec != null ? groupSpec : GroupSpec.manualSnapshot();
 	}
 
 	private static Vec3d computeCenter(List<BlockPos> blocks) {
@@ -51,5 +57,9 @@ public final class StageObject {
 
 	public Vec3d getCenter() {
 		return center;
+	}
+
+	public GroupSpec getGroupSpec() {
+		return groupSpec;
 	}
 }

@@ -37,6 +37,15 @@ public final class StageObjectSystem {
 
 	/** 从方块列表快速创建一个临时 StageObject（中心自动计算） */
 	public static StageObject fromBlocks(String id, String name, List<BlockPos> blocks) {
-		return new StageObject(id, name, blocks, null);
+		return new StageObject(id, name, blocks, null, GroupSpec.manualSnapshot());
+	}
+
+	public static StageObject fromBlocks(String id, String name, List<BlockPos> blocks, GroupSpec groupSpec) {
+		return new StageObject(id, name, blocks, null, groupSpec);
+	}
+
+	public static StageObject fromSelectionCuboid(String id, String name, List<BlockPos> blocks,
+	                                              BlockPos posA, BlockPos posB, boolean includeAir) {
+		return new StageObject(id, name, blocks, null, GroupSpec.fromSelectionCuboid(posA, posB, includeAir));
 	}
 }
