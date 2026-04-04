@@ -59,6 +59,9 @@ public class EventPropertiesPanel {
 	private final ImString cameraNearScaleBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString cameraFarScaleBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString cameraEdgePriorityBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString entryDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString idleDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString exitDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString placeBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camSegDurBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camXBuffer = new ImString(INPUT_BUFFER_SIZE);
@@ -102,6 +105,18 @@ public class EventPropertiesPanel {
 	private static final String[] STEP_COMPLETION_VALUES = {
 		"KEEP",
 		"LOOP"
+	};
+	private static final String[] PHASE_LABELS = {
+		"无 (None)",
+		"进入 (Entry)",
+		"保持 (Idle)",
+		"退出 (Exit)"
+	};
+	private static final String[] PHASE_VALUES = {
+		"NONE",
+		"ENTRY",
+		"IDLE",
+		"EXIT"
 	};
 
 	/** event 可为 null，表示仅选中摄像机片段（无具体事件焦点）。 */
@@ -249,6 +264,7 @@ public class EventPropertiesPanel {
 		boolean stepDispatch = "STEP".equalsIgnoreCase(stringParam(params, "dispatchModel", "BURST"));
 		boolean cameraAdaptiveStep = booleanParam(params, "cameraAdaptiveStep", false);
 		boolean cameraFrustumGating = booleanParam(params, "cameraFrustumGating", false);
+		boolean usePhaseAnimation = booleanParam(params, "usePhaseAnimation", false);
 		ImInt stepStartModeIndex = new ImInt(indexOfValue(STEP_START_MODE_VALUES, stringParam(params, "stepStartMode", "NEXT_BEAT")));
 		ImInt stepCompletionIndex = new ImInt(indexOfValue(STEP_COMPLETION_VALUES, stringParam(params, "stepCompletionMode", "KEEP")));
 		ImInt actionIndex = new ImInt(indexOfOption(actionOptions, currentActionMode));
@@ -310,6 +326,22 @@ public class EventPropertiesPanel {
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip("0 = 无边界优先 | 1 = 优先边界方块");
 			}
+			ImBoolean phaseAnimationProxy = new ImBoolean(usePhaseAnimation);
+			if (ImGui.checkbox("三段式动画 (进-保-退)##eventUsePhaseAnimation", phaseAnimationProxy)) {
+				usePhaseAnimation = phaseAnimationProxy.get();
+				validationError = null;
+			}
+			if (usePhaseAnimation) {
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("进入阶段 (%)##eventEntryDuration", entryDurationBuffer);
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("保持阶段 (%)##eventIdleDuration", idleDurationBuffer);
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("退出阶段 (%)##eventExitDuration", exitDurationBuffer);
+				if (ImGui.isItemHovered()) {
+					ImGui.setTooltip("百分比应相加为100% (例如: 20% 入场, 60% 保持, 20% 出场)");
+				}
+			}
 		}
 		ImBoolean inheritSpatialProxy = new ImBoolean(inheritGroupSpatial);
 		if (ImGui.checkbox("继承组排序/延迟##eventInheritGroupSpatial", inheritSpatialProxy)) {
@@ -360,7 +392,8 @@ public class EventPropertiesPanel {
 				STEP_COMPLETION_VALUES[Math.max(0, Math.min(stepCompletionIndex.get(), STEP_COMPLETION_VALUES.length - 1))],
 				cameraAdaptiveStep,
 				cameraFrustumGating,
-				numericParam(params, "cameraEdgePriority", 0.0));
+				numericParam(params, "cameraEdgePriority", 0.0),
+				usePhaseAnimation);
 		}
 		if (reset) {
 			bindBuffers(ref);
@@ -388,7 +421,8 @@ public class EventPropertiesPanel {
 	private void applyAnimationChanges(EventRef ref, Timeline timeline, String actionMode, String animationId,
 	                                  String targetObjectId, boolean inheritGroupSpatial, String spatialMode,
 	                                  boolean stepDispatch, String stepStartMode, String stepCompletionMode,
-	                                  boolean cameraAdaptiveStep, boolean cameraFrustumGating, double cameraEdgePriority) {
+	                                  boolean cameraAdaptiveStep, boolean cameraFrustumGating, double cameraEdgePriority,
+	                                  boolean usePhaseAnimation) {
 		try {
 			double newTime = Math.max(0.0, Double.parseDouble(valueOf(timeBuffer).trim()));
 			double newDuration = Math.max(0.01, Double.parseDouble(valueOf(durationBuffer).trim()));
@@ -419,6 +453,24 @@ public class EventPropertiesPanel {
 				if (!farDistRaw.isEmpty()) farDistance = Math.max(nearDistance + 0.001, Double.parseDouble(farDistRaw));
 				if (!nearScaleRaw.isEmpty()) nearScale = Math.max(0.1, Double.parseDouble(nearScaleRaw));
 				if (!farScaleRaw.isEmpty()) farScale = Math.max(0.1, Double.parseDouble(farScaleRaw));
+			}
+			double entryPercent = 20.0;
+			double idlePercent = 60.0;
+			double exitPercent = 20.0;
+			if (stepDispatch && usePhaseAnimation) {
+				String entryRaw = valueOf(entryDurationBuffer).trim();
+				String idleRaw = valueOf(idleDurationBuffer).trim();
+				String exitRaw = valueOf(exitDurationBuffer).trim();
+				if (!entryRaw.isEmpty()) entryPercent = Math.max(0.0, Math.min(100.0, Double.parseDouble(entryRaw)));
+				if (!idleRaw.isEmpty()) idlePercent = Math.max(0.0, Math.min(100.0, Double.parseDouble(idleRaw)));
+				if (!exitRaw.isEmpty()) exitPercent = Math.max(0.0, Math.min(100.0, Double.parseDouble(exitRaw)));
+				// Renormalize if they don't add to 100
+				double total = entryPercent + idlePercent + exitPercent;
+				if (total > 0.1) {
+					entryPercent = (entryPercent / total) * 100.0;
+					idlePercent = (idlePercent / total) * 100.0;
+					exitPercent = (exitPercent / total) * 100.0;
+				}
 			}
 			TimelineAnimationActionMode mode = TimelineAnimationActionMode.fromValue(actionMode);
 			if (targetObjectId == null || targetObjectId.isBlank()) {
@@ -459,6 +511,16 @@ public class EventPropertiesPanel {
 				ref.event().setParameter("cameraAdaptiveStep", cameraAdaptiveStep);
 				ref.event().setParameter("cameraFrustumGating", cameraFrustumGating);
 				ref.event().setParameter("cameraEdgePriority", Math.max(0.0, Math.min(1.0, (double) cameraEdgePriority)));
+				ref.event().setParameter("usePhaseAnimation", usePhaseAnimation);
+				if (usePhaseAnimation) {
+					ref.event().setParameter("entryDurationPercent", entryPercent);
+					ref.event().setParameter("idleDurationPercent", idlePercent);
+					ref.event().setParameter("exitDurationPercent", exitPercent);
+				} else {
+					ref.event().removeParameter("entryDurationPercent");
+					ref.event().removeParameter("idleDurationPercent");
+					ref.event().removeParameter("exitDurationPercent");
+				}
 				if (cameraAdaptiveStep) {
 					ref.event().setParameter("cameraNearDistance", nearDistance);
 					ref.event().setParameter("cameraFarDistance", farDistance);
@@ -477,6 +539,10 @@ public class EventPropertiesPanel {
 				ref.event().removeParameter("cameraAdaptiveStep");
 				ref.event().removeParameter("cameraFrustumGating");
 				ref.event().removeParameter("cameraEdgePriority");
+				ref.event().removeParameter("usePhaseAnimation");
+				ref.event().removeParameter("entryDurationPercent");
+				ref.event().removeParameter("idleDurationPercent");
+				ref.event().removeParameter("exitDurationPercent");
 				ref.event().removeParameter("cameraNearDistance");
 				ref.event().removeParameter("cameraFarDistance");
 				ref.event().removeParameter("cameraNearScale");
