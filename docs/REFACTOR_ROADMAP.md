@@ -15,7 +15,7 @@
 | 4.2 草稿生成器 | ✅ | `TimelineDraftWriter` 统一 AutoMap / Renderer / BindingEngine / TimelineBuilder；`eventOrigin` + 合并动画缓存 |
 | 4.4 维度化效果 | ✅ | `BlockInfluencePresets` + `BlockInfluenceEvaluator` + `VfxEmitter` |
 | 4.5 生成式 STEP | ✅ | `PacingStrategy` + `StepSequencePlanner`；调度/烘焙展开；UI「烘焙 STEP」；Timeline 不再需存 `dispatchModel=STEP` |
-| 5 测试 | 🟡 | influence / pacing 单测已加；AutoMap 映射测试待补 |
+| 5 测试 | 🟡 | influence / pacing（`StepSequencePlanner`）单测已加；`DistancePacing`、AutoMap 映射测试待补 |
 | 6 工程化 | 🟡 | `AudioAnalysisService` 已拆分为调度 + `PythonEnvironmentDiagnostics` / `BeatmapAnalysisCache` / `AnalyzerProcessIo`；Demucs requirements 说明待补 |
 
 ---
@@ -44,10 +44,10 @@
 
 1. **冻结 `com.beatblock.beat` 包**：给 `Beatmap`、`BeatEvent`、`BeatScheduler` 加 `@Deprecated`，并在类注释写明"将在 vX.X 移除，请使用 `timeline.TimelineAnimationEvent`"。这一步不删代码，只是立一个"禁止新增引用"的标记，方便后续用编译警告追踪剩余引用点。
 
-2. **拔掉 `BlockAnimationEngine.onBeatEvent()` 这条调用路径**：
-   - 在 `BeatBlockClientDriver.java` 第 436 行附近，删除对 `onBeatEvent()` 的调用。
-   - `StepSequenceState`（"逐拍推进编排序列"逻辑）不迁移、不保留运行时形态，整体重新设计为生成时一次性计算的事件序列，不再是播放时维护进度的状态机。具体设计见阶段 4.5。
-   - 删除 `engine/BlockAnimationEngine.java` 里 `onBeatEvent`、`advanceStepSequence`、`enqueueStepSequence` 方法本体，以及 `stepSequences` 字段和 `DispatchModel`/`StepStartMode`/`StepCompletionMode` 三个内部枚举。这些类/枚举要表达的语义不会丢失，会在阶段 4.5 以"生成参数"的形式保留。
+2. **拔掉 `BlockAnimationEngine.onBeatEvent()` 这条调用路径**（✅ 已完成）：
+   - 已删除 `BeatBlockClientDriver` 对 `onBeatEvent()` 的调用。
+   - `StepSequenceState` 不保留运行时形态；语义在阶段 4.5 以生成式排布落地（见下）。
+   - 已删除 `onBeatEvent`、`advanceStepSequence`、`enqueueStepSequence`、`stepSequences` 及 `DispatchModel`/`StepStartMode`/`StepCompletionMode` 内部枚举；生成参数见 `TimelineAnimationEvent` 的 `dispatchModel`、`stepStartMode`、`blocksPerBeat` 等字段。
 
 3. **删除 `BeatmapGenerator`、`beat/Beatmap.java`、`beat/BeatEvent.java`、`beat/BeatScheduler.java`**，以及 `BeatBlock.java` 里对应的静态字段（`beatmapGenerator`、`beatScheduler`）。
 
@@ -152,39 +152,57 @@ record EffectPreset(
 - 现有的 9 个 Effect 类不需要立刻全部重写，可以先挑 2～3 个（比如 `RiseEffect`、`DropEffect`，正好对应你说的"镜头跟随下落"场景）按这套新模型重新实现，验证抽象是否成立，再逐步迁移剩余的。
 - 这一步可以和阶段 4.1～4.3 解耦，单独排期，风险较低（属于新增能力，不动现有播放主链路）。
 
-### 4.5 用"生成式排布"取代 `StepSequenceState` 运行时状态机
+### 4.5 用"生成式排布"取代 `StepSequenceState` 运行时状态机 ✅
 
-`StepSequenceState` 现在的问题和阶段 1 删除的三套节拍模型是同一个病根：它是运行时的"被动反应"机制（监听 `BeatEvent`，每次推进 `nextIndex`），而"第几个方块对应第几拍"这件事本质上在播放开始之前就该算出来。改造方向是把它从"会随时间变化的状态"，变成"生成时一次性算好的、N 个普通 `TimelineAnimationEvent`"——生成完之后播放器不需要知道"这是个序列"，看到的就是 N 个各自带时间戳的普通事件，和手动拖到时间轴上的事件没有任何区别。
+> **状态**：主干已完成（2026-06）。原 `StepSequenceState` / `onBeatEvent` / `stepSequences` 已从代码库删除；下文「改造方向」保留为设计依据，「实现状态」描述当前代码。
+
+**原问题**（已解决）：`StepSequenceState` 与阶段 1 要删的三套节拍模型同属一类问题——运行时的「被动反应」（监听 `BeatEvent`，每次推进 `nextIndex`），而「第几个方块对应第几拍」本应在播放前算好。
+
+**改造方向**：从「会随时间变化的状态」变成「一次性算好的、N 个普通 `TimelineAnimationEvent`」。生成/烘焙完成后，播放器不需要知道「这是个序列」——只看到 N 个各自带时间戳的普通事件。
 
 ```java
-// 生成时调用一次，不是运行时监听
+// 生成时调用一次，不是运行时监听（实际 API 见 timeline/generation/PacingStrategy.java）
 interface PacingStrategy {
-    // 输入：N 个待排序对象 + 一个"节拍来源"，输出：N 个时间戳
-    List<Double> computeTimestamps(int itemCount, PacingSource source, PacingParams params);
+    List<Double> computeTimestamps(PacingRequest request);
 }
 
-// PacingSource 对应不同场景：
-// - BeatGridPacing：贴着音频分析出的真实节拍点走（建造过程常用）
-// - FixedIntervalPacing：固定 BPM，不依赖音频分析（创作者手动定速）
-// - DistancePacing：按方块间真实跳跃距离换算时长（跑酷场景更自然，
-//   人跑酷的节奏未必严格卡在乐理节拍上，按空间距离更真实）
+// 实现：
+// - BeatGridPacing   — 贴 audio 特征轨节拍（ReferenceBeatResolver）
+// - FixedIntervalPacing — 固定 BPM
+// - DistancePacing   — 【待做】按方块间跳跃距离（跑酷 4.6 验收）
 ```
 
-生成器跑一次：拿到有序方块列表 + 选定的 `PacingStrategy`，算出每个方块的绝对时间，然后**走 4.2 里 `AutoMapGenerator` 同一条路径**——通过 `AddEventCommand` 写进 Timeline，每个方块变成一个独立的 `TimelineAnimationEvent`。生成完，这件事就结束了，不再需要任何运行时状态。
+**写入 Timeline**（4.2 同路径）：`StepSequenceBaker` + `TimelineDraftWriter` → `AddTimelineAnimationEventCommand`（可 Undo）。工具栏 **「烘焙 STEP」** 将 `dispatchModel=STEP` 展开为 N 个 `BURST` + `singleBlockX/Y/Z` 事件。
 
 老概念到新模型的映射：
 
-| 现在的运行时概念 | 新模型里的角色 |
-|---|---|
-| `BURST` / `STEP` dispatch | 生成时的 `PacingParams`：决定多个方块是否共享同一个时间戳（炸开）还是各自错开时间戳（逐个） |
-| `IMMEDIATE` / `NEXT_BEAT` start mode | 生成时计算第一个时间戳的起点对齐规则，不是运行时判断"现在算不算下一拍" |
-| `StepSequenceState.nextIndex`（进度指针） | 不存在了——所有方块的时间戳一次性算完，没有"进度"这个概念 |
-| `stepSequences` 列表（同时维护多组序列） | 不存在了——每组序列生成完就是 Timeline 上的一批普通事件，互相独立 |
-| `onBeatEvent` 监听 | 删除。生成阶段直接读 `BeatGrid`（音频分析层，只读），不需要播放时再去监听节拍流 |
+| 原运行时概念 | 新模型里的角色 | 代码中的位置 |
+|---|---|---|
+| `BURST` / `STEP` dispatch | 生成时的 pacing 参数（同拍炸开 vs 错开） | 事件参数 `dispatchModel`；`blocksPerBeat` 控制每拍块数 |
+| `IMMEDIATE` / `NEXT_BEAT` start mode | 生成时第一个时间戳的对齐规则 | `stepStartMode` → `StepSequencePlanner` + `PacingRequest.immediate` |
+| `StepSequenceState.nextIndex` | **不存在** | — |
+| `stepSequences` 列表 | **不存在** | — |
+| `onBeatEvent` 监听 | **已删除** | 规划/烘焙读 Layer 1 参考轨，不监听实时 beat 流 |
 
-这部分和阶段 4.2 的 `AutoMapGenerator` 本质是同一类"生成器"：`AutoMapGenerator` 是"一个检测到的音频特征 → 一个事件"，这里是"一组有序对象 + 一个节奏来源 → N 个事件"。两者输出端完全一样（都是写进 Timeline 的 `TimelineAnimationEvent`），只是输入端的生成逻辑不同，建议归到同一个"生成器"家族下面，统一接口、统一走 `AddEventCommand`。以后想加第三种生成方式（比如"按方块到摄像机的距离排序生成"）也只是加一个新的 `PacingStrategy`，不需要再碰播放器代码。
+#### 实现状态（2026-06）
 
-**预留但不在本阶段做的扩展点**：如果未来要做真正交互式的玩法（玩家在生存模式实时跑酷、踩错算失败，不是录制演出），"提前算好所有时间戳"的假设就不成立了，需要新增一种实时输入路径——玩家踩方块的瞬间直接触发该方块的 `EffectPreset`，不经过"预生成时间戳"这一步。这条路径和"预生成"路径可以共享下游的效果表现层（同样消费 4.4 的 `EffectPreset`），只是事件**何时**发生的来源不同。当前三个目标场景都是演出/录制性质，这条路径不需要现在实现，只是确认架构上留了口子。
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 删除运行时状态机 | ✅ | 无 `StepSequenceState`、`onBeatEvent`、`nextIndex` |
+| `PacingStrategy` + `StepSequencePlanner` | ✅ | `timeline/generation/` |
+| 烘焙进 Timeline | ✅ | `StepSequenceBaker`、`StepBurstEventFactory`；UI「烘焙 STEP」 |
+| 统一草稿写入 + Undo | ✅ | `TimelineDraftWriter` |
+| 单测 | 🟡 | `StepSequencePlannerTest`、`StepBurstEventFactoryTest`；缺 `DistancePacing` |
+| **理想态**：文件里只有 N 个普通事件 | 🟡 | 需用户点「烘焙 STEP」；未烘焙时 Timeline 仍可存 `dispatchModel=STEP` |
+| **过渡态**：调度时展开 | 🟡 | `BlockAnimationEngine.scheduleExpandedStepSequence` 在**首次调度**时用同一 planner 展开（无状态机，但非持久化） |
+| `DistancePacing` | ❌ | 4.6 跑酷验收仍缺 |
+| `stepCompletionMode` | 🟡 | UI 仍可编辑；planner/engine **未使用**，烘焙时 strip |
+
+**推荐工作流**：编辑 STEP 序列 → 点「烘焙 STEP」→ 保存 Timeline（文件中无 `dispatchModel=STEP`）→ 播放器只消费 N 个普通事件。
+
+与 4.2 同属「生成器家族」：`AutoMapGenerator` = 一个特征 → 一个事件；STEP 烘焙 = 一组方块 + 节奏来源 → N 个事件。输出端均为 `TimelineAnimationEvent`。
+
+**预留扩展**（本阶段不做）：生存模式实时跑酷——玩家踩块瞬间触发 `EffectPreset`，不预生成时间戳；与预生成路径共享 4.4 影响层，仅事件来源不同。
 
 ### 4.6 三种目标效果到模型的映射（验收用例）
 
@@ -239,4 +257,4 @@ interface PacingStrategy {
                        阶段 6（收尾工程化）
 ```
 
-阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心，建议作为下一个独立的开发周期专门处理，因为它涉及删除"目前确实在被使用"的代码路径——`onBeatEvent` 链路本身直接删除，但它背后 `StepSequenceState` 想表达的"逐拍推进"能力会在阶段 4.5 以生成式排布（`PacingStrategy`）的形式重新落地，不是简单删掉了事。阶段 4 工作量最大，建议先做 4.2（`AutoMapGenerator` 降级）验证"统一走 `AddEventCommand`"这条路径可行，再扩展到 4.3、4.4、4.5——4.5 依赖 4.4 的 `EffectPreset` 概念，顺序上不要颠倒。
+阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。剩余收尾：**4.3 相机轨 UI 对齐**、**DistancePacing**、**AutoMap 单测**、阶段 6 README / Demucs 说明。
