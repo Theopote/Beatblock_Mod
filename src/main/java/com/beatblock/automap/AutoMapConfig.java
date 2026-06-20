@@ -1,7 +1,5 @@
 package com.beatblock.automap;
 
-import com.beatblock.timeline.FrequencyBand;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,9 +35,9 @@ public final class AutoMapConfig {
 	/** 默认配置：低→bounce、中→slide、高→pulse，与设计一致。 */
 	public static AutoMapConfig createDefault() {
 		List<AutoMapRule> rules = new ArrayList<>();
-		rules.add(new AutoMapRule(FrequencyBand.LOW, 0.15f, "bounce", 0.5, true, 4f));
-		rules.add(new AutoMapRule(FrequencyBand.MID, 0.2f, "slide", 0.4, true, 3f));
-		rules.add(new AutoMapRule(FrequencyBand.HIGH, 0.15f, "pulse", 0.3, false, 1f));
+		rules.add(new AutoMapRule("low", 0.15f, "bounce", 0.5, true, 4f));
+		rules.add(new AutoMapRule("mid", 0.2f, "slide", 0.4, true, 3f));
+		rules.add(new AutoMapRule("high", 0.15f, "pulse", 0.3, false, 1f));
 		return new AutoMapConfig(rules, 3f, 0.08);
 	}
 }

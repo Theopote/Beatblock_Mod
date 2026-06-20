@@ -16,7 +16,6 @@ import java.util.Set;
  *   <li>波形行：始终存在。</li>
  *   <li>节奏组（kick / snare / hihat）：若 featureTracks 中含对应 key，则生成。</li>
  *   <li>扩展组：其余 featureTracks key，由 Python 脚本自定义写入的任意轨道。</li>
- *   <li>遗留回退：若 featureTracks 为空但存在遗留三频段数据，则降级生成 low/mid/high 三条轨道。</li>
  * </ul>
  */
 public final class TrackRegistry {
@@ -140,8 +139,7 @@ public final class TrackRegistry {
 		Set<String> featureKeys = timeline.getFeatureTracks().keySet();
 		boolean hasWaveform = timeline.getWaveform() != null;
 		boolean hasStemWaveforms = timeline.hasStemWaveforms();
-		boolean hasLegacyFrequencyEvents = !timeline.getFrequencyEvents().isEmpty();
-		if (!hasWaveform && !hasStemWaveforms && featureKeys.isEmpty() && !hasLegacyFrequencyEvents) {
+		if (!hasWaveform && !hasStemWaveforms && featureKeys.isEmpty()) {
 			return List.of();
 		}
 
@@ -212,14 +210,6 @@ public final class TrackRegistry {
 				));
 				extIdx++;
 			}
-		} else if (hasLegacyFrequencyEvents) {
-			// ── 遗留回退：生成 low/mid/high 三条轨道 ────────────────
-			result.add(new TrackDefinition("low",  "低频", TrackDefinition.VisualType.IMPULSE,
-				TrackDefinition.GROUP_RHYTHM, COLOR_LOW));
-			result.add(new TrackDefinition("mid",  "中频", TrackDefinition.VisualType.IMPULSE,
-				TrackDefinition.GROUP_RHYTHM, COLOR_MID));
-			result.add(new TrackDefinition("high", "高频", TrackDefinition.VisualType.IMPULSE,
-				TrackDefinition.GROUP_RHYTHM, COLOR_HIGH));
 		}
 
 		return List.copyOf(result);

@@ -100,11 +100,10 @@ public final class TimelineRenderer {
 	private record AudioSubTrackCacheKey(
 		boolean hasWaveform,
 		boolean hasStemWaveforms,
-		boolean hasLegacyFrequencyEvents,
 		Set<String> featureKeys
 	) {
 		private static AudioSubTrackCacheKey empty() {
-			return new AudioSubTrackCacheKey(false, false, false, Set.of());
+			return new AudioSubTrackCacheKey(false, false, Set.of());
 		}
 	}
 
@@ -150,7 +149,6 @@ public final class TimelineRenderer {
 		AudioSubTrackCacheKey currentAudioCacheKey = new AudioSubTrackCacheKey(
 			timeline.getWaveform() != null,
 			timeline.hasStemWaveforms(),
-			!timeline.getFrequencyEvents().isEmpty(),
 			Set.copyOf(timeline.getFeatureTracks().keySet())
 		);
 		if (!lastAudioSubTrackCacheKey.equals(currentAudioCacheKey)) {
@@ -441,13 +439,8 @@ public final class TimelineRenderer {
 			case IMPULSE -> {
 				int color = td.hasCustomColor() ? td.getColor() : FREQ_MID_COLOR;
 				List<FeatureEvent> events = timeline.getFeatureEvents(td.getKey());
-				if (!events.isEmpty()) {
-					eventRenderer.renderFeatureBars(rowY, rowHeight, events, layout, viewState, color,
-						timeline.getBpm(), 0.20f, 0.9f);
-				} else {
-					// 遗留回退：若命名特征轨道无数据但有遗留频段数据，则用遗留数据渲染
-					renderLegacyBandFallback(td.getKey(), rowY, rowHeight, timeline, layout, viewState, color);
-				}
+				eventRenderer.renderFeatureBars(rowY, rowHeight, events, layout, viewState, color,
+					timeline.getBpm(), 0.20f, 0.9f);
 			}
 		}
 	}
@@ -554,23 +547,6 @@ public final class TimelineRenderer {
 			keep--;
 		}
 		return "";
-	}
-
-	/** 遗留频段回退：只在 featureTracks 为空且遗留列表有数据时触发。 */
-	private void renderLegacyBandFallback(String key, float rowY, float rowHeight,
-	                                      Timeline timeline, TimelineLayout layout,
-	                                      TimelineViewState viewState, int color) {
-		switch (key) {
-			case "low" -> eventRenderer.renderFrequencyBars(rowY, rowHeight,
-				timeline.getFrequencyEventsByBand(FrequencyBand.LOW),
-				layout, viewState, FREQ_LOW_COLOR, timeline.getBpm(), 0.35f, 1.0f);
-			case "mid" -> eventRenderer.renderFrequencyBars(rowY, rowHeight,
-				timeline.getFrequencyEventsByBand(FrequencyBand.MID),
-				layout, viewState, FREQ_MID_COLOR, timeline.getBpm(), 0.24f, 0.9f);
-			case "high" -> eventRenderer.renderFrequencyBars(rowY, rowHeight,
-				timeline.getFrequencyEventsByBand(FrequencyBand.HIGH),
-				layout, viewState, FREQ_HIGH_COLOR, timeline.getBpm(), 0.16f, 0.8f);
-		}
 	}
 
 	/**
@@ -798,7 +774,7 @@ public final class TimelineRenderer {
 				asset.getPath(), asset.getStatus());
 			double prevDuration = timeline.getDurationSeconds();
 			BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
-			shiftFrequencyEventsByOffset(timeline, startOffset);
+			shiftFeatureEventsByOffset(timeline, startOffset);
 			timeline.setDurationSeconds(prevDuration);
 		} else {
 			timeline.setMetadata("awaitingAnalyzedBeatmap", droppedAudioKey);
@@ -897,23 +873,6 @@ public final class TimelineRenderer {
 				energyThresholdScale,
 				minGapScale
 			);
-		}
-
-		if (added == 0) {
-			for (FrequencyEvent fe : timeline.getFrequencyEvents()) {
-				String featureKey = switch (fe.getBand()) {
-					case LOW -> "kick";
-					case MID -> "snare";
-					case HIGH -> "hihat";
-				};
-				AnimationMappingRule rule = selectAnimationRule(featureKey, false, toBlockTrack);
-				if (rule == null) continue;
-				added += addAnimationEventFromSource(
-					timeline, toBlockTrack, fe.getTimeSeconds(),
-					fe.getEnergy(), rule, targetObjectId, featureKey, lastAcceptedTimeByFeature,
-					durationScale, energyThresholdScale, minGapScale
-				);
-			}
 		}
 
 		timeline.sortAll();
@@ -1506,7 +1465,7 @@ public final class TimelineRenderer {
 		double startOffset = readClipOffset(timeline, expectedAudioKey);
 		double prevDuration = timeline.getDurationSeconds();
 		BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, feature, asset.getSampleRate());
-		shiftFrequencyEventsByOffset(timeline, startOffset);
+		shiftFeatureEventsByOffset(timeline, startOffset);
 		timeline.setDurationSeconds(prevDuration);
 		if (asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
 			timeline.setMetadata("bpm", asset.getBeatmap().meta.bpm());
@@ -1622,21 +1581,6 @@ public final class TimelineRenderer {
 			for (FeatureEvent e : evts) {
 				ft.addEvent(new FeatureEvent(e.getTimeSeconds() + offset, e.getEnergy()));
 			}
-		}
-	}
-
-	/** 将遗留频段事件（low/mid/high）时间整体偏移 offset 秒（就地重建）。 */
-	private void shiftFrequencyEventsByOffset(Timeline timeline, double offset) {
-		if (offset <= 0 || timeline == null) return;
-		List<FrequencyEvent> events = timeline.getFrequencyEvents();
-		if (events == null || events.isEmpty()) return;
-		timeline.clearFrequencyEvents();
-		for (FrequencyEvent event : events) {
-			timeline.addFrequencyEvent(new FrequencyEvent(
-				event.getTimeSeconds() + offset,
-				event.getBand(),
-				event.getEnergy()
-			));
 		}
 	}
 

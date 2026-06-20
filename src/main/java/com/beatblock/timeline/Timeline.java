@@ -158,37 +158,7 @@ public class Timeline {
 		if (ad != null) ad.setWaveform(waveform);
 	}
 
-	public List<FrequencyEvent> getFrequencyEvents() {
-		AudioTrackData ad = getAudioTrackData();
-		if (ad == null) return List.of();
-		// 三个子列表内部已有序，合并后再排一次即可（调用频率低，无性能压力）
-		List<FrequencyEvent> out = new ArrayList<>();
-		out.addAll(ad.getLowBand());
-		out.addAll(ad.getMidBand());
-		out.addAll(ad.getHighBand());
-		out.sort(Comparator.comparingDouble(FrequencyEvent::getTimeSeconds));
-		return out;
-	}
-	public List<FrequencyEvent> getFrequencyEventsByBand(FrequencyBand band) {
-		AudioTrackData ad = getAudioTrackData();
-		if (ad == null) return List.of();
-		// 列表内部已按 timeSeconds 有序保序，直接返回无需拷贝或排序
-		return switch (band) {
-			case LOW -> ad.getLowBand();
-			case MID -> ad.getMidBand();
-			case HIGH -> ad.getHighBand();
-		};
-	}
-	public void addFrequencyEvent(FrequencyEvent e) {
-		AudioTrackData ad = getAudioTrackData();
-		if (ad != null) ad.addFrequencyEvent(e);
-	}
-	public void clearFrequencyEvents() {
-		AudioTrackData ad = getAudioTrackData();
-		if (ad != null) ad.clearAllBands();
-	}
-
-	// ── 新特征轨道 API（kick / snare / hihat 等开放键） ─────────────────
+	// ── 特征轨道 API（kick / snare / hihat 等开放键） ─────────────────
 
 	/**
 	 * 向命名特征轨道追加事件（首次写入时自动创建轨道）。

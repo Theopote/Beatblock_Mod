@@ -56,9 +56,6 @@
 | 分析契约（磁盘缓存） | `audio.beatmap.Beatmap` | Python `analyze.py` 输出，**不进入播放器** |
 | 导入到时间轴 | `AudioAnalysisEngine.fillTimelineFromBeatmap` | 一次性写入参考数据 |
 | 节拍点 / 能量点 | `FeatureEvent` + `FeatureTrack` | 时间轴上的参考轨，可手改 |
-| 段落 | `TimelineMarker`（`SECTION`） | intro / verse / chorus / drop 等 |
-| 波形 | `WaveformData`、茎波形 | UI 对齐与预览 |
-| 遗留 FFT 点 | `FrequencyEvent` | 向后兼容，逐步移除 |
 
 ### 第 2 层：时间轴事件（SoT）
 
@@ -114,8 +111,6 @@
 | 项 | 现状 | 目标 |
 |----|------|------|
 | STEP + `NEXT_BEAT` | `tickStepBeats` 读 Timeline 元数据 `bpm`（来自分析导入） | 改为读参考轨上的显式节拍标记，或创作者可编辑的节拍网格 |
-| `FrequencyEvent` | 遗留三频段列表 | 完全由 `FeatureTrack` 取代后删除 |
-| 类型命名 | `TimelineAnimationEvent` | 文档层称 StageEvent；重命名可选，非必须 |
 
 ## 相关文档
 

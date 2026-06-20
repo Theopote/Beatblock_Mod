@@ -1,8 +1,8 @@
 package com.beatblock.automap;
 
 import com.beatblock.BeatBlock;
-import com.beatblock.timeline.FrequencyBand;
-import com.beatblock.timeline.FrequencyEvent;
+import com.beatblock.timeline.FeatureEvent;
+import com.beatblock.timeline.FeatureTrack;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import org.slf4j.Logger;
@@ -14,24 +14,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 根据频段事件与规则生成时间线动画事件，写入 Timeline 自动动画轨道。
- * 流程：Audio → Beatmap/Frequency → Energy Curve → Animation Generator → Timeline Events。
+ * 根据特征轨事件与规则生成时间线动画事件，写入 Timeline 自动动画轨道。
  */
 public final class AutoMapGenerator {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AutoMapGenerator.class);
 
-	/** 无舞台时使用的默认目标 ID */
 	public static final String DEFAULT_TARGET_ID = "default";
 
-	/**
-	 * 使用当前配置从时间线频段事件生成动画事件，追加到 autoAnimationEvents 并排序。
-	 *
-	 * @param timeline 时间线（读取 frequencyEvents，写入 autoAnimationEvents）
-	 * @param config   规则与能量映射配置
-	 * @param replace  若 true 先清空 autoAnimationEvents 再生成，否则追加
-	 * @return 本次生成的事件数量
-	 */
 	public static int generate(Timeline timeline, AutoMapConfig config, boolean replace) {
 		if (timeline == null || config == null) return 0;
 
@@ -39,9 +29,9 @@ public final class AutoMapGenerator {
 			clearAutoAnimationEvents(timeline);
 		}
 
-		List<FrequencyEvent> events = timeline.getFrequencyEvents();
-		if (events.isEmpty()) {
-			LOGGER.info("BeatBlock Smart Auto Map: 无频段事件，请先导入音乐");
+		Map<String, FeatureTrack> tracks = timeline.getFeatureTracks();
+		if (tracks.isEmpty()) {
+			LOGGER.info("BeatBlock Smart Auto Map: 无特征轨事件，请先导入音乐");
 			return 0;
 		}
 
@@ -51,30 +41,35 @@ public final class AutoMapGenerator {
 		double lastTime = -minGap - 1;
 		int count = 0;
 
-		for (FrequencyEvent e : events) {
-			if (e.getTimeSeconds() < lastTime + minGap) continue;
-			AutoMapRule rule = findRule(rules, e.getBand(), e.getEnergy());
-			if (rule == null) continue;
+		for (Map.Entry<String, FeatureTrack> entry : tracks.entrySet()) {
+			String trackKey = entry.getKey();
+			FeatureTrack track = entry.getValue();
+			if (track == null || track.getEvents().isEmpty()) continue;
+			for (FeatureEvent e : track.getEvents()) {
+				if (e.getTimeSeconds() < lastTime + minGap) continue;
+				AutoMapRule rule = findRule(rules, trackKey, e.getEnergy());
+				if (rule == null) continue;
 
-			Map<String, Object> params = new HashMap<>();
-			if (rule.isUseEnergyForHeight()) {
-				float h = e.getEnergy() * rule.getHeightMultiplier();
-				params.put("height", h);
+				Map<String, Object> params = new HashMap<>();
+				if (rule.isUseEnergyForHeight()) {
+					float h = e.getEnergy() * rule.getHeightMultiplier();
+					params.put("height", h);
+				}
+				params.put("energy", e.getEnergy());
+
+				TimelineAnimationEvent ev = new TimelineAnimationEvent(
+					"",
+					e.getTimeSeconds(),
+					rule.getDurationSeconds(),
+					rule.getAnimationTypeId(),
+					targetId,
+					e.getEnergy(),
+					params
+				);
+				timeline.addAutoAnimationEvent(ev);
+				lastTime = e.getTimeSeconds();
+				count++;
 			}
-			params.put("energy", e.getEnergy());
-
-			TimelineAnimationEvent ev = new TimelineAnimationEvent(
-				"",
-				e.getTimeSeconds(),
-				rule.getDurationSeconds(),
-				rule.getAnimationTypeId(),
-				targetId,
-				e.getEnergy(),
-				params
-			);
-			timeline.addAutoAnimationEvent(ev);
-			lastTime = e.getTimeSeconds();
-			count++;
 		}
 
 		timeline.sortAll();
@@ -82,21 +77,29 @@ public final class AutoMapGenerator {
 		return count;
 	}
 
-	/**
-	 * 清空时间线的自动动画事件（仅 autoAnimationEvents，不影响 blockAnimationEvents）。
-	 */
 	public static void clearAutoAnimationEvents(Timeline timeline) {
 		if (timeline == null) return;
 		timeline.clearAutoAnimationEvents();
 	}
 
-	private static AutoMapRule findRule(List<AutoMapRule> rules, FrequencyBand band, float energy) {
+	private static AutoMapRule findRule(List<AutoMapRule> rules, String featureKey, float energy) {
+		String normalized = normalizeFeatureKey(featureKey);
 		for (AutoMapRule r : rules) {
-			if (r.getBand() == band && energy >= r.getMinEnergy()) {
+			if (normalizeFeatureKey(r.getFeatureKey()).equals(normalized) && energy >= r.getMinEnergy()) {
 				return r;
 			}
 		}
 		return null;
+	}
+
+	private static String normalizeFeatureKey(String key) {
+		if (key == null) return "low";
+		return switch (key.toLowerCase()) {
+			case "kick", "bass", "sub", "low", "drums" -> "low";
+			case "snare", "snare_hi", "mid" -> "mid";
+			case "hihat", "hat", "hihat_open", "high" -> "high";
+			default -> key.toLowerCase();
+		};
 	}
 
 	private static String resolveTargetObjectId() {

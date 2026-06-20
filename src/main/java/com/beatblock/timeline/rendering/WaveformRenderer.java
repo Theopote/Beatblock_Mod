@@ -1,14 +1,11 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.timeline.Timeline;
-import com.beatblock.timeline.FrequencyEvent;
 import com.beatblock.timeline.WaveformData;
 import com.beatblock.timeline.editor.TimelineViewState;
 import imgui.ImGui;
 
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 
 /**
  * 绘制音频波形轨：█████░░░████
@@ -159,23 +156,16 @@ public final class WaveformRenderer {
 
 	private void renderBeatOverlay(float screenLeft, float rowTopY, float rowHeight, Timeline timeline, TimelineViewState view) {
 		double bpm = timeline.getBpm();
-		if (bpm <= 0) return;
-		List<FrequencyEvent> events = timeline.getFrequencyEvents();
-		if (events.isEmpty()) return;
+		if (bpm <= 1e-6) return;
 
 		double beatDur = 60.0 / bpm;
-		Set<Long> beatIndices = new TreeSet<>();
-		for (FrequencyEvent event : events) {
-			long beatIndex = Math.round(event.getTimeSeconds() / beatDur);
-			beatIndices.add(beatIndex);
-		}
-
 		double viewStart = view.getViewStartTimeSeconds();
 		double viewEnd = view.getViewEndTimeSeconds();
+		double duration = Math.max(timeline.getDurationSeconds(), viewEnd);
+
 		float yStart = rowTopY + 4f;
 		float yEnd = rowTopY + rowHeight - 4f;
-		for (long beatIndex : beatIndices) {
-			double t = beatIndex * beatDur;
+		for (double t = 0.0; t <= duration + 1e-6; t += beatDur) {
 			if (t < viewStart || t > viewEnd) continue;
 			float x = screenLeft + view.timeToScreen(t);
 			for (float y = yStart; y < yEnd; y += 5f) {

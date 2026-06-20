@@ -119,34 +119,16 @@ public final class AudioAnalysisEngine {
 			timeline.setWaveform(new WaveformData(peaks, ft.getDurationSeconds(), sr));
 		}
 
-		// 频段事件：只对能量显著的帧生成 FrequencyEvent（低于全局峰值能量 5% 的帧跳过）
+		// FFT → low/mid/high 特征参考轨
 		List<FrequencyBands> bandFrames = ft.getBands();
-		float threshold = 0.02f;
-		// 第一遍：计算全局峰值总能量，用于绝对阈值过滤
 		float maxAbsSum = 0f;
 		for (FrequencyBands b : bandFrames) {
 			float s = b.getLow() + b.getMid() + b.getHigh();
 			if (s > maxAbsSum) maxAbsSum = s;
 		}
-		float absFloor = maxAbsSum * 0.05f; // 低于峰值能量 5% 的帧视为安静段，不生成事件
-		List<FrequencyEvent> events = new ArrayList<>();
-		for (FrequencyBands b : bandFrames) {
-			float low = b.getLow(), mid = b.getMid(), high = b.getHigh();
-			float sum = low + mid + high;
-			if (sum < 1e-10f || sum < absFloor) continue;
-			low /= sum; mid /= sum; high /= sum;
-			if (low >= threshold) events.add(new FrequencyEvent(b.getTimeSeconds(), FrequencyBand.LOW, Math.min(1f, low * 2f)));
-			if (mid >= threshold) events.add(new FrequencyEvent(b.getTimeSeconds(), FrequencyBand.MID, Math.min(1f, mid * 2f)));
-			if (high >= threshold) events.add(new FrequencyEvent(b.getTimeSeconds(), FrequencyBand.HIGH, Math.min(1f, high * 2f)));
-		}
-		timeline.clearFrequencyEvents();
-		for (FrequencyEvent e : events) timeline.addFrequencyEvent(e);
-
-		// FFT → FeatureTrack 桥接：当 Python/Demucs 未提供特征轨道时，
-		// 从 FFT 频段数据自动生成 low/mid/high 特征轨道，作为绑定规则的 fallback 数据源。
-		if (!timeline.hasFeatureTracks()) {
-			bridgeFrequencyBandsToFeatureTracks(timeline, bandFrames, absFloor);
-		}
+		float absFloor = maxAbsSum * 0.05f;
+		timeline.clearFeatureTracks();
+		populateFeatureTracksFromBands(timeline, bandFrames, absFloor);
 
 		timeline.sortAll();
 
@@ -173,8 +155,7 @@ public final class AudioAnalysisEngine {
 	 * 使用 .beatmap JSON（Python 预处理产物）直接填充时间线。
 	 * 运行时无需重新读取/分析音频文件。
 	 *
-	 * <p>新路径：BeatEvent.bandKey 写入 Timeline.featureTracks（开放键）。
-	 * 遗留三频段列表同步保留，兼容尚未迁移的消费方。</p>
+	 * <p>BeatEvent.bandKey 写入 Timeline.featureTracks（开放键）。</p>
 	 */
 	public void fillTimelineFromBeatmap(Timeline timeline, Beatmap beatmap) {
 		if (timeline == null || beatmap == null) return;
@@ -197,7 +178,6 @@ public final class AudioAnalysisEngine {
 			));
 		}
 
-		timeline.clearFrequencyEvents();
 		timeline.clearFeatureTracks();
 		for (BeatEvent e : beatmap.beats) {
 			double timeSec = e.timeMs() / 1000.0;
@@ -252,7 +232,7 @@ public final class AudioAnalysisEngine {
 	 * 在 Python/Demucs 未运行时为绑定规则提供 fallback 数据源。
 	 * 只对主导频段中属于局部峰值的帧生成事件，避免过度密集。
 	 */
-	private void bridgeFrequencyBandsToFeatureTracks(Timeline timeline, List<FrequencyBands> bandFrames, float absFloor) {
+	private void populateFeatureTracksFromBands(Timeline timeline, List<FrequencyBands> bandFrames, float absFloor) {
 		if (timeline == null || bandFrames == null || bandFrames.size() < 3) return;
 
 		for (int i = 1; i < bandFrames.size() - 1; i++) {
@@ -282,7 +262,7 @@ public final class AudioAnalysisEngine {
 					new FeatureEvent(t, Math.min(1f, high / sum * 2f)));
 			}
 		}
-		LOGGER.info("BeatBlock AudioAnalysis: FFT→FeatureTrack bridge generated low/mid/high tracks");
+		LOGGER.info("BeatBlock AudioAnalysis: populated low/mid/high feature tracks from FFT");
 	}
 
 	/** 已知 key 的中文显示名称（未知 key 直接返回 key）。 */
