@@ -16,7 +16,7 @@
 | 4.4 维度化效果 | ✅ | `BlockInfluencePresets` + `BlockInfluenceEvaluator` + `VfxEmitter` |
 | 4.5 生成式 STEP | ✅ | `PacingStrategy` + `StepSequencePlanner`；调度/烘焙展开；UI「烘焙 STEP」；Timeline 不再需存 `dispatchModel=STEP` |
 | 5 测试 | 🟡 | influence / pacing 单测已加；AutoMap 映射测试待补 |
-| 6 工程化 | 🟡 | `requirements-demucs.txt` 已有；`AudioAnalysisService` 拆分待做 |
+| 6 工程化 | 🟡 | `AudioAnalysisService` 已拆分为调度 + `PythonEnvironmentDiagnostics` / `BeatmapAnalysisCache` / `AnalyzerProcessIo`；Demucs requirements 说明待补 |
 
 ---
 
@@ -218,7 +218,7 @@ interface PacingStrategy {
 
 优先级低于以上，可以穿插进行：
 
-1. 拆分 `AudioAnalysisService.java`（目前 1300+ 行）：把"Python 环境探测 + 错误归类"（`explainPythonError`、`PythonProbeInfo`、`RuntimeHealthSnapshot` 相关方法）拆到独立的 `PythonEnvironmentDiagnostics` 类，`AudioAnalysisService` 只保留任务调度本身。
+1. ~~拆分 `AudioAnalysisService.java`（目前 1300+ 行）~~ ✅ 已拆：`PythonEnvironmentDiagnostics`（环境探测/错误归类）、`BeatmapAnalysisCache`（缓存）、`AnalyzerProcessIo` + `ProcessIo`（stdout 协议）；`AudioAnalysisService` 仅保留任务调度。
 2. `analyzer/requirements.txt` 补充说明 `--demucs` 模式所需的可选依赖（`demucs`、`torch`），即使不写进硬性 `requirements.txt`（避免强制所有用户装大体积的 torch），也应该在文件里用注释或单独的 `requirements-demucs.txt` 说明。
 3. 补 README：项目简介、构建方式、依赖要求、三种核心使用场景的截图/简述（直接用你刚描述的"建造过程/跑酷敲击/镜头跟随"这三段话就是很好的素材）。
 

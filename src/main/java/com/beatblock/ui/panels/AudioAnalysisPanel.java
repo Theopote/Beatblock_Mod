@@ -2,6 +2,7 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.audio.AudioAnalysisService;
+import com.beatblock.audio.python.PythonEnvironmentDiagnostics;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
@@ -254,7 +255,7 @@ public final class AudioAnalysisPanel {
         if (BeatBlock.externalAudioAnalyzer == null) return;
         String py = BeatBlock.externalAudioAnalyzer.getPythonRuntimeSummary();
         if (py == null || py.isBlank()) return;
-        AudioAnalysisService.RuntimeHealthSnapshot snapshot = BeatBlock.externalAudioAnalyzer.getRuntimeHealthSnapshot();
+        PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot = BeatBlock.externalAudioAnalyzer.getRuntimeHealthSnapshot();
         renderRuntimeHealth(py, snapshot);
         ImGui.separator();
     }
@@ -1339,7 +1340,7 @@ public final class AudioAnalysisPanel {
         };
     }
 
-    private void renderRuntimeHealth(String pythonSummary, AudioAnalysisService.RuntimeHealthSnapshot snapshot) {
+    private void renderRuntimeHealth(String pythonSummary, PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot) {
         if (snapshot == null) {
             ImGui.textDisabled("环境：检测中");
             if (ImGui.isItemHovered()) {
@@ -1367,7 +1368,7 @@ public final class AudioAnalysisPanel {
         }
     }
 
-    private String buildRuntimeHealthSummary(AudioAnalysisService.RuntimeHealthSnapshot snapshot) {
+    private String buildRuntimeHealthSummary(PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot) {
         int issueCount = countRuntimeIssues(snapshot);
         String pythonLabel = concisePythonLabel(snapshot.python());
         if (issueCount == 0) {
@@ -1376,7 +1377,7 @@ public final class AudioAnalysisPanel {
         return "环境异常 " + issueCount + " 项 · " + pythonLabel + " · " + firstRuntimeIssue(snapshot);
     }
 
-    private int countRuntimeIssues(AudioAnalysisService.RuntimeHealthSnapshot snapshot) {
+    private int countRuntimeIssues(PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot) {
         int count = 0;
         count += isRuntimeIssue(snapshot.python()) ? 1 : 0;
         count += isRuntimeIssue(snapshot.pip()) ? 1 : 0;
@@ -1387,8 +1388,8 @@ public final class AudioAnalysisPanel {
         return count;
     }
 
-    private String firstRuntimeIssue(AudioAnalysisService.RuntimeHealthSnapshot snapshot) {
-        AudioAnalysisService.HealthItem[] items = {
+    private String firstRuntimeIssue(PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot) {
+        PythonEnvironmentDiagnostics.HealthItem[] items = {
                 snapshot.python(), snapshot.pip(), snapshot.librosa(),
                 snapshot.demucs(), snapshot.torch(), snapshot.ffmpeg()
         };
@@ -1401,13 +1402,13 @@ public final class AudioAnalysisPanel {
         return "详情见提示";
     }
 
-    private String summaryState(AudioAnalysisService.RuntimeHealthSnapshot snapshot) {
-        AudioAnalysisService.HealthItem[] items = {
+    private String summaryState(PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot) {
+        PythonEnvironmentDiagnostics.HealthItem[] items = {
                 snapshot.python(), snapshot.pip(), snapshot.librosa(),
                 snapshot.demucs(), snapshot.torch(), snapshot.ffmpeg()
         };
         boolean hasWarn = false;
-        for (AudioAnalysisService.HealthItem item : items) {
+        for (PythonEnvironmentDiagnostics.HealthItem item : items) {
             String state = item != null ? item.state() : "unknown";
             if ("error".equals(state) || "missing".equals(state)) {
                 return "error";
@@ -1428,12 +1429,12 @@ public final class AudioAnalysisPanel {
         };
     }
 
-    private boolean isRuntimeIssue(AudioAnalysisService.HealthItem item) {
+    private boolean isRuntimeIssue(PythonEnvironmentDiagnostics.HealthItem item) {
         if (item == null || item.state() == null) return true;
         return !"ok".equals(item.state());
     }
 
-    private String concisePythonLabel(AudioAnalysisService.HealthItem item) {
+    private String concisePythonLabel(PythonEnvironmentDiagnostics.HealthItem item) {
         if (item == null || item.detail() == null || item.detail().isBlank()) {
             return "Python 未知";
         }
@@ -1445,7 +1446,7 @@ public final class AudioAnalysisPanel {
         return "Python 已检测";
     }
 
-    private String conciseHealthDetail(AudioAnalysisService.HealthItem item) {
+    private String conciseHealthDetail(PythonEnvironmentDiagnostics.HealthItem item) {
         if (item == null || item.detail() == null || item.detail().isBlank()) {
             return "不可用";
         }
@@ -1456,7 +1457,7 @@ public final class AudioAnalysisPanel {
         return detail.substring(0, 28) + "…";
     }
 
-    private void appendHealthTooltipLine(StringBuilder tooltip, String label, AudioAnalysisService.HealthItem item) {
+    private void appendHealthTooltipLine(StringBuilder tooltip, String label, PythonEnvironmentDiagnostics.HealthItem item) {
         tooltip.append('\n')
                 .append(label)
                 .append(": ")
