@@ -31,84 +31,7 @@ public final class BlockAnimationEngine {
 	private final BuildSequencer buildSequencer = new BuildSequencer(stageObjectSystem);
 	private final com.beatblock.engine.influence.BlockInfluenceOrchestrator influenceOrchestrator =
 		new com.beatblock.engine.influence.BlockInfluenceOrchestrator(blockControlExecutor);
-	private final List<StepSequenceState> stepSequences = new ArrayList<>();
 	private Vec3d runtimeCameraPosition = Vec3d.ZERO;
-
-	private enum DispatchModel {
-		BURST,
-		STEP;
-
-		static DispatchModel fromValue(Object value) {
-			if (value == null) return BURST;
-			String s = String.valueOf(value).trim();
-			if (s.isEmpty()) return BURST;
-			if ("STEP".equalsIgnoreCase(s)) return STEP;
-			return BURST;
-		}
-	}
-
-	private enum StepStartMode {
-		IMMEDIATE,
-		NEXT_BEAT;
-
-		static StepStartMode fromValue(Object value) {
-			if (value == null) return NEXT_BEAT;
-			String s = String.valueOf(value).trim();
-			if (s.isEmpty()) return NEXT_BEAT;
-			if ("IMMEDIATE".equalsIgnoreCase(s)) return IMMEDIATE;
-			return NEXT_BEAT;
-		}
-	}
-
-	private enum StepCompletionMode {
-		KEEP,
-		LOOP;
-
-		static StepCompletionMode fromValue(Object value) {
-			if (value == null) return KEEP;
-			String s = String.valueOf(value).trim();
-			if (s.isEmpty()) return KEEP;
-			if ("LOOP".equalsIgnoreCase(s)) return LOOP;
-			return KEEP;
-		}
-	}
-
-	private static final class StepSequenceState {
-		private final AnimationDefinition definition;
-		private final StageObject target;
-		private final Map<String, Object> params;
-		private final List<BlockPos> orderedBlocks;
-		private final double durationSeconds;
-		private final float energy;
-		private final int blocksPerBeat;
-		private final double startGateTime;
-		private final StepCompletionMode completionMode;
-		private final StepStartMode startMode;
-		private int nextIndex;
-		private int cycles;
-
-		private StepSequenceState(AnimationDefinition definition, StageObject target, Map<String, Object> params,
-		                         List<BlockPos> orderedBlocks, double durationSeconds, float energy,
-		                         int blocksPerBeat, double startGateTime,
-		                         StepStartMode startMode, StepCompletionMode completionMode) {
-			this.definition = definition;
-			this.target = target;
-			this.params = params;
-			this.orderedBlocks = orderedBlocks;
-			this.durationSeconds = durationSeconds;
-			this.energy = energy;
-			this.blocksPerBeat = Math.max(1, blocksPerBeat);
-			this.startGateTime = startGateTime;
-			this.startMode = startMode;
-			this.completionMode = completionMode;
-			this.nextIndex = 0;
-			this.cycles = 0;
-		}
-
-		private boolean finished() {
-			return nextIndex >= orderedBlocks.size();
-		}
-	}
 
 	public StageObjectSystem getStageObjectSystem() {
 		return stageObjectSystem;
@@ -137,7 +60,6 @@ public final class BlockAnimationEngine {
 
 	/**
 	 * 每帧调用：根据时间线时间更新动画，移除已结束实例。
-	 * STEP + NEXT_BEAT 由 {@link #tickStepBeats} 按参考轨节拍点推进。
 	 */
 	public void tick(double timelineTimeSeconds) {
 		tick(timelineTimeSeconds, null);
@@ -155,42 +77,6 @@ public final class BlockAnimationEngine {
 	}
 
 	/**
-	 * 按参考轨显式节拍时刻推进 STEP 序列（{@code (previous, current]} 区间内各触发一次）。
-	 *
-	 * @param referenceBeatTimesSeconds 升序节拍时刻；为空时不推进
-	 */
-	public void tickStepBeats(double previousTimeSeconds, double currentTimeSeconds, double[] referenceBeatTimesSeconds) {
-		if (stepSequences.isEmpty()
-			|| referenceBeatTimesSeconds == null
-			|| referenceBeatTimesSeconds.length == 0
-			|| currentTimeSeconds + 1e-6 < previousTimeSeconds) {
-			return;
-		}
-		int start = firstBeatIndexAfter(previousTimeSeconds, referenceBeatTimesSeconds);
-		for (int i = start; i < referenceBeatTimesSeconds.length; i++) {
-			double beat = referenceBeatTimesSeconds[i];
-			if (beat > currentTimeSeconds + 1e-6) {
-				break;
-			}
-			advanceStepSequencesOnBeat(beat);
-		}
-	}
-
-	private static int firstBeatIndexAfter(double timeSeconds, double[] beatTimesSeconds) {
-		int lo = 0;
-		int hi = beatTimesSeconds.length;
-		while (lo < hi) {
-			int mid = (lo + hi) >>> 1;
-			if (beatTimesSeconds[mid] <= timeSeconds + 1e-6) {
-				lo = mid + 1;
-			} else {
-				hi = mid;
-			}
-		}
-		return lo;
-	}
-
-	/**
 	 * 将 Timeline 动画事件加入播放器（需将 targetObjectId 解析为 StageObject，animationTypeId 解析为 AnimationDefinition）。
 	 */
 	public void scheduleFromTimelineEvent(String animationTypeId, String targetObjectId, double startTimeSeconds, double durationSeconds, float energy) {
@@ -202,21 +88,67 @@ public final class BlockAnimationEngine {
 	}
 
 	public void scheduleTimelineEvent(TimelineAnimationEvent event) {
+		scheduleTimelineEvent(event, new double[0], 120.0);
+	}
+
+	public void scheduleTimelineEvent(TimelineAnimationEvent event, double[] referenceBeatTimesSeconds, double timelineBpm) {
 		if (event == null) return;
 		TimelineAnimationActionMode actionMode = event.getActionMode();
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
-			scheduleAnimateEvent(event);
+			scheduleAnimateEvent(event, referenceBeatTimesSeconds, timelineBpm);
 		}
 	}
 
-	private void scheduleAnimateEvent(TimelineAnimationEvent event) {
+	private void scheduleAnimateEvent(TimelineAnimationEvent event, double[] referenceBeatTimesSeconds, double timelineBpm) {
 		if (event == null) return;
-		DispatchModel model = DispatchModel.fromValue(event.getParameters().get("dispatchModel"));
-		if (model == DispatchModel.STEP) {
-			enqueueStepSequence(event);
+		if (isStepDispatch(event.getParameters())) {
+			scheduleExpandedStepSequence(event, referenceBeatTimesSeconds, timelineBpm);
 			return;
 		}
 		scheduleFromTimelineEventWithSpatial(event);
+	}
+
+	private static boolean isStepDispatch(Map<String, Object> params) {
+		if (params == null) return false;
+		return "STEP".equalsIgnoreCase(String.valueOf(params.get("dispatchModel")).trim());
+	}
+
+	private void scheduleExpandedStepSequence(
+		TimelineAnimationEvent event,
+		double[] referenceBeatTimesSeconds,
+		double timelineBpm
+	) {
+		if (event == null) return;
+		AnimationDefinition def = animationLibrary.get(event.getAnimationTypeId());
+		StageObject target = stageObjectSystem.get(event.getTargetObjectId());
+		if (def == null || target == null || target.getBlocks().isEmpty()) return;
+
+		Map<String, Object> params = event.getParameters();
+		List<BlockPos> ordered = sortBlocksForSpatialMode(target, resolveSpatialMode(params, target), event);
+		double edgePriority = readDouble(params.get("cameraEdgePriority"), 0.0);
+		if (edgePriority > 0.0 && !ordered.isEmpty()) {
+			ordered = applyEdgePrioritization(ordered, target.getBlocks(), edgePriority, runtimeCameraPosition, target.getCenter());
+		}
+
+		List<com.beatblock.timeline.generation.StepSequencePlanner.PlannedStep> planned =
+			com.beatblock.timeline.generation.StepSequencePlanner.plan(
+				ordered, event, referenceBeatTimesSeconds, timelineBpm);
+		double duration = Math.max(0.01, event.getDurationSeconds());
+		float energy = event.getEnergy();
+		Vec3d center = target.getCenter();
+		for (int i = 0; i < planned.size(); i++) {
+			var step = planned.get(i);
+			StageObject perBlockTarget = new StageObject(
+				target.getId() + "#step#" + i,
+				target.getName(),
+				List.of(step.block()),
+				center,
+				target.getGroupSpec()
+			);
+			double end = step.startTimeSeconds() + duration;
+			animationPlayer.addInstance(new EngineAnimationInstance(
+				def, perBlockTarget, step.startTimeSeconds(), end, energy, params));
+		}
 	}
 
 	private void scheduleFromTimelineEventWithSpatial(TimelineAnimationEvent event) {
@@ -252,136 +184,6 @@ public final class BlockAnimationEngine {
 			);
 			animationPlayer.addInstance(new EngineAnimationInstance(def, perBlockTarget, start, end, energy, params));
 		}
-	}
-
-	private void enqueueStepSequence(TimelineAnimationEvent event) {
-		if (event == null) return;
-		AnimationDefinition def = animationLibrary.get(event.getAnimationTypeId());
-		StageObject target = stageObjectSystem.get(event.getTargetObjectId());
-		if (def == null || target == null || target.getBlocks().isEmpty()) return;
-
-		Map<String, Object> params = event.getParameters();
-		SpatialDispatchMode spatialMode = resolveSpatialMode(params, target);
-		List<BlockPos> ordered = sortBlocksForSpatialMode(target, spatialMode, event);
-		
-		// Apply edge prioritization if enabled
-		double edgePriority = readDouble(params.get("cameraEdgePriority"), 0.0);
-		if (edgePriority > 0.0 && !ordered.isEmpty()) {
-			ordered = applyEdgePrioritization(ordered, target.getBlocks(), edgePriority, runtimeCameraPosition, target.getCenter());
-		}
-		
-		int blocksPerBeat = (int) Math.max(1, Math.round(readDouble(params.get("blocksPerBeat"), 1.0)));
-		double duration = Math.max(0.01, event.getDurationSeconds());
-		StepStartMode startMode = StepStartMode.fromValue(params.get("stepStartMode"));
-		StepCompletionMode completionMode = StepCompletionMode.fromValue(params.get("stepCompletionMode"));
-		StepSequenceState state = new StepSequenceState(
-			def,
-			target,
-			params,
-			ordered,
-			duration,
-			event.getEnergy(),
-			blocksPerBeat,
-			event.getTimeSeconds(),
-			startMode,
-			completionMode
-		);
-		if (startMode == StepStartMode.IMMEDIATE) {
-			advanceStepSequence(state, event.getTimeSeconds());
-			if (state.finished() && completionMode == StepCompletionMode.KEEP) {
-				return;
-			}
-		}
-		stepSequences.add(state);
-	}
-
-	private void advanceStepSequencesOnBeat(double beatTimeSeconds) {
-		if (stepSequences.isEmpty()) return;
-		List<StepSequenceState> done = new ArrayList<>();
-		for (StepSequenceState state : stepSequences) {
-			if (state == null || state.startMode != StepStartMode.NEXT_BEAT) continue;
-			if (beatTimeSeconds + 1e-6 < state.startGateTime) continue;
-			advanceStepSequence(state, beatTimeSeconds);
-			if (state.finished()) done.add(state);
-		}
-		if (!done.isEmpty()) {
-			stepSequences.removeAll(done);
-		}
-	}
-
-	private void advanceStepSequence(StepSequenceState state, double beatTimeSeconds) {
-		if (state == null || state.finished()) return;
-		Vec3d center = state.target.getCenter();
-		int effectiveBlocksPerBeat = resolveEffectiveBlocksPerBeat(state);
-		for (int i = 0; i < effectiveBlocksPerBeat && !state.finished(); i++) {
-			BlockPos block = state.orderedBlocks.get(state.nextIndex);
-			StageObject perBlockTarget = new StageObject(
-				state.target.getId() + "#step#" + state.nextIndex,
-				state.target.getName(),
-				List.of(block),
-				center,
-				state.target.getGroupSpec()
-			);
-			animationPlayer.addInstance(new EngineAnimationInstance(
-				state.definition,
-				perBlockTarget,
-				beatTimeSeconds,
-				beatTimeSeconds + state.durationSeconds,
-				state.energy,
-				state.params
-			));
-			state.nextIndex++;
-		}
-		if (state.finished() && state.completionMode == StepCompletionMode.LOOP) {
-			state.nextIndex = 0;
-			state.cycles++;
-		}
-	}
-
-	private boolean isTargetVisibleToCamera(Vec3d targetCenter) {
-		// Simple frustum visibility check: target must be in front of camera and within rough view cone
-		Vec3d camPos = runtimeCameraPosition;
-		Vec3d toTarget = targetCenter.subtract(camPos);
-		double distToTarget = toTarget.length();
-		
-		// Behind camera or too close (camera inside target) -> not visible
-		if (distToTarget < 0.1) return true; // Camera too close, assume visible to avoid jitter
-		
-		// Too far away -> not visible (configurable as a gating parameter)
-		double maxGatingDistance = 160.0; // Approximate max render distance in Minecraft
-		if (distToTarget > maxGatingDistance) return false;
-		
-		// For now, if in front and not too far, consider visible.
-		// A more sophisticated check would compute the view angle and frustum cone.
-		return true;
-	}
-
-	private int resolveEffectiveBlocksPerBeat(StepSequenceState state) {
-		if (state == null) return 1;
-		
-		// Check frustum gating: if enabled and target not visible, pause (return 0)
-		if (readBoolean(state.params.get("cameraFrustumGating"), false)) {
-			Vec3d center = state.target.getCenter();
-			if (!isTargetVisibleToCamera(center)) {
-				return 0; // Pause progression when outside frustum
-			}
-		}
-		
-		int base = Math.max(1, state.blocksPerBeat);
-		if (!readBoolean(state.params.get("cameraAdaptiveStep"), false)) return base;
-
-		double nearDistance = Math.max(0.5, readDouble(state.params.get("cameraNearDistance"), 8.0));
-		double farDistance = Math.max(nearDistance + 0.001, readDouble(state.params.get("cameraFarDistance"), 48.0));
-		double nearScale = Math.max(0.1, readDouble(state.params.get("cameraNearScale"), 0.6));
-		double farScale = Math.max(0.1, readDouble(state.params.get("cameraFarScale"), 1.5));
-
-		Vec3d center = state.target.getCenter();
-		double dist = center.distanceTo(runtimeCameraPosition);
-		double t = (dist - nearDistance) / (farDistance - nearDistance);
-		t = Math.max(0.0, Math.min(1.0, t));
-		double scale = nearScale + (farScale - nearScale) * t;
-
-		return Math.max(1, (int) Math.round(base * scale));
 	}
 
 	private static SpatialDispatchMode resolveSpatialMode(Map<String, Object> params, StageObject target) {
@@ -600,6 +402,5 @@ public final class BlockAnimationEngine {
 	public void clear() {
 		animationPlayer.clear();
 		buildSequencer.clear();
-		stepSequences.clear();
 	}
 }

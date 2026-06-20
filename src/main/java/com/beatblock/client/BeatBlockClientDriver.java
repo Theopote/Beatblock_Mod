@@ -44,7 +44,6 @@ public final class BeatBlockClientDriver {
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
 	private static double lastTimelineAnimationTime;
 	private static double lastAutoAnimationTime;
-	private static double lastStepBeatTickTime;
 	private static final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
 	private static RegistryKey<World> timelineMutationWorldKey;
 	private static volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
@@ -80,17 +79,12 @@ public final class BeatBlockClientDriver {
 
 	private static void tickBlockAnimationEngine(double currentTime, boolean previewOnly, World world) {
 		if (BeatBlock.blockAnimationEngine == null) return;
-		if (currentTime + TIMELINE_EVENT_EPSILON < lastStepBeatTickTime) {
-			lastStepBeatTickTime = currentTime;
-		}
 		syncTimelineBlockAnimationEvents(currentTime, previewOnly);
 		syncTimelineAutoAnimationEvents(currentTime, previewOnly);
-		BeatBlock.blockAnimationEngine.tickStepBeats(lastStepBeatTickTime, currentTime, readReferenceBeatTimes());
 		BeatBlock.blockAnimationEngine.tick(currentTime, previewOnly ? null : world);
 		if (!previewOnly && world != null && BeatBlock.blockAnimationEngine != null) {
 			VfxEmitter.emit(MinecraftClient.getInstance(), BeatBlock.blockAnimationEngine.getLastInfluenceFrame());
 		}
-		lastStepBeatTickTime = currentTime;
 	}
 
 	private static double[] readReferenceBeatTimes() {
@@ -196,7 +190,9 @@ public final class BeatBlockClientDriver {
 			return;
 		}
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
-			BeatBlock.blockAnimationEngine.scheduleTimelineEvent(event);
+			double[] beats = readReferenceBeatTimes();
+			double bpm = BeatBlock.timeline != null ? BeatBlock.timeline.getBpm() : 120.0;
+			BeatBlock.blockAnimationEngine.scheduleTimelineEvent(event, beats, bpm > 0 ? bpm : 120.0);
 			recordActionReport(event, 0, "ANIMATE", "scheduled");
 			return;
 		}
@@ -324,7 +320,6 @@ public final class BeatBlockClientDriver {
 		scheduledAutoAnimationIds.clear();
 		lastTimelineAnimationTime = 0.0;
 		lastAutoAnimationTime = 0.0;
-		lastStepBeatTickTime = 0.0;
 		if (BeatBlock.blockAnimationEngine != null) {
 			BeatBlock.blockAnimationEngine.clear();
 		}

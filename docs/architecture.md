@@ -71,7 +71,9 @@
 | 关键帧时间点 | `CameraKeyframe` | 轨上的时间标记；姿态由 clip 内事件解析 |
 | 工程容器 | `Timeline` | 轨道、片段、元数据、持久化（`.osc` 等） |
 
-自动映射（`AnimationBindingEngine`、`TimelineRenderer.populateAnimationTrackFromAudioFeatures`）在**编辑/导入时**从第 1 层生成第 2 层初稿，属于创作辅助，不是播放路径。
+自动映射（`AnimationBindingEngine`、`TimelineRenderer.populateAnimationTrackFromAudioFeatures`、`AutoMapGenerator`）在**编辑/导入时**从第 1 层生成第 2 层初稿，经 `TimelineDraftWriter` 写入（可 Undo），属于创作辅助，不是播放路径。
+
+STEP 派发在**调度时**由 `StepSequencePlanner` + `PacingStrategy` 展开为带绝对时间戳的单块动画实例，播放器不再维护 `StepSequenceState` 运行时状态机。
 
 ### 第 3 层：播放器
 

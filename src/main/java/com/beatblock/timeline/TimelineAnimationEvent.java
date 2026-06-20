@@ -70,4 +70,8 @@ public final class TimelineAnimationEvent {
 	public Map<String, Object> getParameters() {
 		return parameters;
 	}
+
+	public TimelineEventOrigin getEventOrigin() {
+		return TimelineEventOrigin.fromValue(parameters.get("eventOrigin"));
+	}
 }

@@ -3,6 +3,21 @@
 > 目标：把"音乐可视化创作工具"这个产品定位，落实成代码里**唯一、无歧义**的数据流。
 > 原则：每一阶段结束后项目都必须能编译、能在游戏里跑起来——不做"大爆炸式"重写。
 
+## 进度快照（2026-06）
+
+| 阶段 | 状态 | 说明 |
+|------|------|------|
+| 0 定基调 | ✅ | `README.md`、`docs/architecture.md` |
+| 1 统一数据模型 | ✅ | 已删 `com.beatblock.beat.*`；播放器只消费 `TimelineAnimationEvent` |
+| 2 清理死代码 | ✅ | 重复 command、metadata、跨平台 natives |
+| 3 跨平台 | ✅ | 三平台 imgui natives + CI JNI 烟雾测试 |
+| 4.1 三层边界 | ✅ | 文档 + 禁止播放层读分析轨 |
+| 4.2 草稿生成器 | 🟡 | `AutoMapGenerator` → `TimelineDraftWriter` + Undo；`TimelineRenderer`/`AnimationBindingEngine` 待统一 |
+| 4.4 维度化效果 | ✅ | `BlockInfluencePresets` + `BlockInfluenceEvaluator` + `VfxEmitter` |
+| 4.5 生成式 STEP | 🟡 | `PacingStrategy` + `StepSequencePlanner`；调度时展开，已删 `StepSequenceState` 运行时状态机；Timeline 烘焙 STEP 待做 |
+| 5 测试 | 🟡 | influence / pacing 单测已加；AutoMap 映射测试待补 |
+| 6 工程化 | 🟡 | `requirements-demucs.txt` 已有；`AudioAnalysisService` 拆分待做 |
+
 ---
 
 ## 阶段 0：定基调（不改代码，先定文档）
