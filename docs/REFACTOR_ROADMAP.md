@@ -12,7 +12,7 @@
 | 2 清理死代码 | ✅ | 重复 command、metadata、跨平台 natives |
 | 3 跨平台 | ✅ | 三平台 imgui natives + CI JNI 烟雾测试 |
 | 4.1 三层边界 | ✅ | 文档 + 禁止播放层读分析轨 |
-| 4.2 草稿生成器 | 🟡 | `AutoMapGenerator` → `TimelineDraftWriter` + Undo；`TimelineRenderer`/`AnimationBindingEngine` 待统一 |
+| 4.2 草稿生成器 | ✅ | `TimelineDraftWriter` 统一 AutoMap / Renderer / BindingEngine / TimelineBuilder；`eventOrigin` + 合并动画缓存 |
 | 4.4 维度化效果 | ✅ | `BlockInfluencePresets` + `BlockInfluenceEvaluator` + `VfxEmitter` |
 | 4.5 生成式 STEP | 🟡 | `PacingStrategy` + `StepSequencePlanner`；调度时展开，已删 `StepSequenceState` 运行时状态机；Timeline 烘焙 STEP 待做 |
 | 5 测试 | 🟡 | influence / pacing 单测已加；AutoMap 映射测试待补 |

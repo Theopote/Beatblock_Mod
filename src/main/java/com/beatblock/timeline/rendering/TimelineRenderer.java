@@ -7,6 +7,7 @@ import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.timeline.binding.AnimationBindingEngine;
 import com.beatblock.timeline.*;
+import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.editor.SelectionBox;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineClock;
@@ -1137,12 +1138,11 @@ public final class TimelineRenderer {
 			peakEnergy,
 			params
 		);
-		if (toBlockTrack) {
-			ensureBlockAnimationFeatureTrack(timeline, sourceFeature);
-			timeline.addAnimationEvent(Timeline.blockAnimationFeatureTrackId(sourceFeature), ev);
-		} else {
-			timeline.addAutoAnimationEvent(ev);
-		}
+		String trackId = toBlockTrack
+			? Timeline.blockAnimationFeatureTrackId(sourceFeature)
+			: Timeline.TRACK_ID_ANIMATION_AUTO;
+		if (toBlockTrack) ensureBlockAnimationFeatureTrack(timeline, sourceFeature);
+		TimelineDraftWriter.writeEvent(timeline, trackId, ev, TimelineEventOrigin.AUTO_GENERATED);
 		return 1;
 	}
 
@@ -1222,12 +1222,11 @@ public final class TimelineRenderer {
 			energy,
 			params
 		);
-		if (toBlockTrack) {
-			ensureBlockAnimationFeatureTrack(timeline, sourceFeature);
-			timeline.addAnimationEvent(Timeline.blockAnimationFeatureTrackId(sourceFeature), ev);
-		} else {
-			timeline.addAutoAnimationEvent(ev);
-		}
+		String trackId = toBlockTrack
+			? Timeline.blockAnimationFeatureTrackId(sourceFeature)
+			: Timeline.TRACK_ID_ANIMATION_AUTO;
+		if (toBlockTrack) ensureBlockAnimationFeatureTrack(timeline, sourceFeature);
+		TimelineDraftWriter.writeEvent(timeline, trackId, ev, TimelineEventOrigin.AUTO_GENERATED);
 		lastAcceptedTimeByFeature.put(sourceFeature, timeSeconds);
 		return 1;
 	}

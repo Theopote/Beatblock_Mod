@@ -26,30 +26,51 @@ public final class TimelineDraftWriter {
 		boolean replaceExisting
 	) {
 		if (timeline == null || events == null || events.isEmpty()) return 0;
-		TimelineEditor editor = BeatBlock.timelineEditor;
-		CommandManager commands = editor != null ? editor.getCommandManager() : null;
-
 		if (replaceExisting) {
-			if (commands != null) {
-				commands.execute(new ClearAnimationTrackCommand(timeline, Timeline.TRACK_ID_ANIMATION_AUTO));
-			} else {
-				timeline.clearAutoAnimationEvents();
-			}
+			clearTrack(timeline, Timeline.TRACK_ID_ANIMATION_AUTO);
 		}
+		return writeEvents(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, events, TimelineEventOrigin.AUTO_GENERATED);
+	}
 
+	public static void clearTrack(Timeline timeline, String trackId) {
+		if (timeline == null || trackId == null) return;
+		CommandManager commands = commandManagerOrNull();
+		if (commands != null) {
+			commands.execute(new ClearAnimationTrackCommand(timeline, trackId));
+		} else {
+			timeline.clearAnimationTrack(trackId);
+		}
+	}
+
+	public static boolean writeEvent(
+		Timeline timeline,
+		String trackId,
+		TimelineAnimationEvent event,
+		TimelineEventOrigin origin
+	) {
+		if (timeline == null || trackId == null || event == null) return false;
+		TimelineAnimationEvent tagged = withOrigin(event, origin != null ? origin : TimelineEventOrigin.AUTO_GENERATED);
+		CommandManager commands = commandManagerOrNull();
+		if (commands != null) {
+			commands.execute(new AddTimelineAnimationEventCommand(timeline, trackId, tagged));
+		} else {
+			timeline.addAnimationEvent(trackId, tagged);
+		}
+		return true;
+	}
+
+	public static int writeEvents(
+		Timeline timeline,
+		String trackId,
+		List<TimelineAnimationEvent> events,
+		TimelineEventOrigin origin
+	) {
+		if (timeline == null || trackId == null || events == null || events.isEmpty()) return 0;
 		int count = 0;
 		for (TimelineAnimationEvent event : events) {
-			if (event == null) continue;
-			TimelineAnimationEvent tagged = withOrigin(event, TimelineEventOrigin.AUTO_GENERATED);
-			if (commands != null) {
-				commands.execute(new AddTimelineAnimationEventCommand(
-					timeline, Timeline.TRACK_ID_ANIMATION_AUTO, tagged));
-			} else {
-				timeline.addAutoAnimationEvent(tagged);
-			}
-			count++;
+			if (writeEvent(timeline, trackId, event, origin)) count++;
 		}
-		timeline.sortAll();
+		if (count > 0) timeline.sortAll();
 		return count;
 	}
 
@@ -66,5 +87,10 @@ public final class TimelineDraftWriter {
 			source.getEnergy(),
 			params
 		);
+	}
+
+	private static CommandManager commandManagerOrNull() {
+		TimelineEditor editor = BeatBlock.timelineEditor;
+		return editor != null ? editor.getCommandManager() : null;
 	}
 }

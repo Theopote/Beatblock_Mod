@@ -30,8 +30,7 @@ public class Timeline {
 	private final List<TimelineAnimationEvent> autoAnimationCache = new ArrayList<>();
 	private final List<TimelineAnimationEvent> blockAnimationCacheView = Collections.unmodifiableList(blockAnimationCache);
 	private final List<TimelineAnimationEvent> autoAnimationCacheView = Collections.unmodifiableList(autoAnimationCache);
-	private boolean blockAnimationDirty = true;
-	private boolean autoAnimationDirty = true;
+	private boolean animationCachesDirty = true;
 
 	public String getName() { return name; }
 	public void setName(String name) { this.name = name != null ? name : ""; }
@@ -229,27 +228,14 @@ public class Timeline {
 	}
 
 	public List<TimelineAnimationEvent> getBlockAnimationEvents() {
-		if (blockAnimationDirty) {
-			blockAnimationCache.clear();
-			blockAnimationCache.addAll(getAnimationEvents(TRACK_ID_ANIMATION_BLOCK));
-			for (Track track : tracks) {
-				if (!isBlockAnimationFeatureTrackId(track.getId())) continue;
-				blockAnimationCache.addAll(getAnimationEvents(track.getId()));
-			}
-			blockAnimationCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
-			blockAnimationDirty = false;
-		}
+		rebuildAnimationEventCachesIfNeeded();
 		return blockAnimationCacheView;
 	}
 	public void addBlockAnimationEvent(TimelineAnimationEvent e) { addAnimationEvent(TRACK_ID_ANIMATION_BLOCK, e); }
 	public void clearBlockAnimationEvents() { clearClips(TRACK_ID_ANIMATION_BLOCK); }
 
 	public List<TimelineAnimationEvent> getAutoAnimationEvents() {
-		if (autoAnimationDirty) {
-			autoAnimationCache.clear();
-			autoAnimationCache.addAll(getAnimationEvents(TRACK_ID_ANIMATION_AUTO));
-			autoAnimationDirty = false;
-		}
+		rebuildAnimationEventCachesIfNeeded();
 		return autoAnimationCacheView;
 	}
 	public void addAutoAnimationEvent(TimelineAnimationEvent e) { addAnimationEvent(TRACK_ID_ANIMATION_AUTO, e); }
@@ -287,17 +273,43 @@ public class Timeline {
 	}
 
 	/**
-	 * 轨道事件被外部直接修改（如拖拽 setTimeSeconds）后，调用此方法失效动画缓存。
+	 * 按 {@link TimelineEventOrigin} 聚合 block + auto 侧动画事件（单次缓存重建）。
 	 */
+	public List<TimelineAnimationEvent> getAnimationEventsByOrigin(TimelineEventOrigin origin) {
+		rebuildAnimationEventCachesIfNeeded();
+		TimelineEventOrigin filter = origin != null ? origin : TimelineEventOrigin.MANUAL;
+		List<TimelineAnimationEvent> result = new ArrayList<>();
+		for (TimelineAnimationEvent event : blockAnimationCache) {
+			if (event.getEventOrigin() == filter) result.add(event);
+		}
+		for (TimelineAnimationEvent event : autoAnimationCache) {
+			if (event.getEventOrigin() == filter) result.add(event);
+		}
+		result.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
+		return Collections.unmodifiableList(result);
+	}
+
 	public void markAnimationEventsDirty(String trackId) {
-		if (TRACK_ID_ANIMATION_BLOCK.equals(trackId)) blockAnimationDirty = true;
-		if (isBlockAnimationFeatureTrackId(trackId)) blockAnimationDirty = true;
-		if (TRACK_ID_ANIMATION_AUTO.equals(trackId)) autoAnimationDirty = true;
+		animationCachesDirty = true;
 	}
 
 	public void markAnimationEventsDirty() {
-		blockAnimationDirty = true;
-		autoAnimationDirty = true;
+		animationCachesDirty = true;
+	}
+
+	private void rebuildAnimationEventCachesIfNeeded() {
+		if (!animationCachesDirty) return;
+		blockAnimationCache.clear();
+		autoAnimationCache.clear();
+		blockAnimationCache.addAll(getAnimationEvents(TRACK_ID_ANIMATION_BLOCK));
+		for (Track track : tracks) {
+			if (!isBlockAnimationFeatureTrackId(track.getId())) continue;
+			blockAnimationCache.addAll(getAnimationEvents(track.getId()));
+		}
+		blockAnimationCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
+		autoAnimationCache.addAll(getAnimationEvents(TRACK_ID_ANIMATION_AUTO));
+		autoAnimationCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
+		animationCachesDirty = false;
 	}
 
 	public List<CameraKeyframe> getCameraKeyframes() {
@@ -394,6 +406,9 @@ public class Timeline {
 		params.put("energy", e.getEnergy());
 		params.put("durationSeconds", e.getDurationSeconds());
 		params.putAll(e.getParameters());
+		if (!params.containsKey("eventOrigin")) {
+			params.put("eventOrigin", TimelineEventOrigin.MANUAL.name());
+		}
 		TimelineOperations.addEvent(clip, e.getTimeSeconds(), EventType.ANIMATION, params);
 		markAnimationEventsDirty(trackId);
 	}

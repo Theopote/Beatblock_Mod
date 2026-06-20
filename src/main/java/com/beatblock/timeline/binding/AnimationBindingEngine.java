@@ -11,6 +11,8 @@ import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.TrackType;
+import com.beatblock.timeline.TimelineEventOrigin;
+import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TrackRegistry;
 import org.jspecify.annotations.NonNull;
@@ -83,12 +85,11 @@ public final class AnimationBindingEngine {
 					params
 				);
 
-				if (toBlockTrack) {
-					ensureFeatureTrack(timeline, rule.sourceFeatureKey());
-					timeline.addAnimationEvent(Timeline.blockAnimationFeatureTrackId(rule.sourceFeatureKey()), generated);
-				} else {
-					timeline.addAutoAnimationEvent(generated);
-				}
+				String trackId = toBlockTrack
+					? Timeline.blockAnimationFeatureTrackId(rule.sourceFeatureKey())
+					: Timeline.TRACK_ID_ANIMATION_AUTO;
+				if (toBlockTrack) ensureFeatureTrack(timeline, rule.sourceFeatureKey());
+				TimelineDraftWriter.writeEvent(timeline, trackId, generated, TimelineEventOrigin.AUTO_GENERATED);
 				lastAcceptedByRule.put(rule.id(), event.getTimeSeconds());
 				added++;
 			}
