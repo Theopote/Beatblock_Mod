@@ -77,7 +77,7 @@
 
 | 职责 | 代码 | 只认识 |
 |------|------|--------|
-| 编排时钟与派发 | `BeatBlockClientDriver` | `TimelineAnimationEvent`、播放时间 |
+| 编排时钟与派发 | `BeatBlockClientDriver` + `VfxEmitter` | `TimelineAnimationEvent`、播放时间、`InfluenceFrame` |
 | 舞台动作执行 | `BlockAnimationEngine` | `TimelineAnimationEvent` → `EngineAnimationInstance` |
 | 建造序列 | `BuildSequencer` | 同上（`BUILD` 模式） |
 | 方块控制 | `BlockControlExecutor` | 同上（变色等） |
