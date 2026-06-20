@@ -31,7 +31,10 @@ public final class AnimationPlayer {
 	/**
 	 * 每帧调用：根据时间线时间更新所有活跃实例，对目标方块的 AnimatedBlock 应用效果。
 	 * 执行后可通过 getCurrentFrameBlocks() 取得当前帧每块的状态用于渲染。
+	 *
+	 * @deprecated 由 {@link com.beatblock.engine.influence.BlockInfluenceOrchestrator} 统一求值
 	 */
+	@Deprecated
 	public void update(double timelineTimeSeconds) {
 		currentFrameBlocks.clear();
 		for (EngineAnimationInstance anim : activeInstances) {
@@ -40,20 +43,30 @@ public final class AnimationPlayer {
 		}
 	}
 
+	public void replaceCurrentFrameBlocks(Map<BlockPos, AnimatedBlock> blocks) {
+		currentFrameBlocks.clear();
+		if (blocks == null || blocks.isEmpty()) return;
+		for (Map.Entry<BlockPos, AnimatedBlock> entry : blocks.entrySet()) {
+			if (entry.getKey() != null && entry.getValue() != null) {
+				currentFrameBlocks.put(entry.getKey().toImmutable(), entry.getValue());
+			}
+		}
+	}
+
 	/**
-	 * 对单条实例应用动画：遍历目标方块，每块先取或创建 AnimatedBlock 并重置，再依次应用 definition 的 effects。
+	 * 对单条实例应用 preset（测试 / 过渡用）。
 	 */
 	void applyAnimation(EngineAnimationInstance anim, float t) {
+		if (anim == null || anim.getDefinition() == null || anim.getDefinition().getPreset() == null) return;
 		StageObject target = anim.getTarget();
 		if (target == null) return;
 		float energy = anim.getEnergy();
 		EffectContext ctx = new EffectContext(target.getCenter(), anim.getExtraParams());
+		var evaluator = new com.beatblock.engine.influence.BlockInfluenceEvaluator();
 		for (BlockPos pos : target.getBlocks()) {
 			AnimatedBlock block = currentFrameBlocks.computeIfAbsent(pos.toImmutable(), AnimatedBlock::new);
 			block.resetToOriginal();
-			for (AnimationEffect effect : anim.getDefinition().getEffects()) {
-				effect.apply(block, t, energy, ctx);
-			}
+			evaluator.applyPreset(block, anim.getDefinition().getPreset(), t, energy, ctx);
 		}
 	}
 

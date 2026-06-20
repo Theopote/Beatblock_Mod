@@ -158,11 +158,11 @@ BlockInfluenceEvaluator          ◄── 目标：单一求值器
 - `AnimationEffect` 实现类委托 `CurveLibrary`，行为不变
 - 单元测试：`CurveLibraryTest`
 
-### 期 2：统一求值器
+### 期 2：统一求值器 ✅
 
-- `BlockInfluenceEvaluator.evaluate(instance, timelineTime)` → `InfluenceFrame`（transform + planned mutations + vfx events）
-- `AnimationPlayer` 与 `BuildSequencer` 均消费 `InfluenceFrame`；删除 parallel tick 路径
-- `AnimationLibrary` 注册改为 preset JSON / 内置 preset 表
+- `BlockInfluenceEvaluator` + `InfluenceFrame` + `BlockInfluenceOrchestrator`
+- `AnimationPlayer` 与 `BuildSequencer` 经 orchestrator 单 tick；`BeatBlockClientDriver` 不再单独调 build tick
+- `AnimationLibrary` 由 `BlockInfluencePresets` 注册；`AnimationDefinition` 持有 preset
 
 ### 期 3：VFX 解耦与第 2 层编辑
 

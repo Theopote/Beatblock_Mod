@@ -83,12 +83,14 @@ public final class BuildSequencer {
 	}
 
 	/**
-	 * 每帧驱动：根据当前时间，推进各活跃序列放置对应数量的方块。
-	 * @return 本帧实际放置的总方块数
+	 * 将本帧 EXISTENCE 维度的建造 mutation 写入 {@link InfluenceFrame}（由 orchestrator 统一 apply）。
 	 */
-	public int tick(double currentTime, World world) {
-		if (world == null || activeInstances.isEmpty()) return 0;
-		int totalPlaced = 0;
+	public void contributeExistenceMutations(
+		com.beatblock.engine.influence.InfluenceFrame frame,
+		double currentTime,
+		World world
+	) {
+		if (frame == null || world == null || activeInstances.isEmpty()) return;
 		Iterator<BuildInstance> it = activeInstances.iterator();
 		while (it.hasNext()) {
 			BuildInstance inst = it.next();
@@ -99,15 +101,27 @@ public final class BuildSequencer {
 				if (world.isChunkLoaded(pos)) {
 					BlockState current = world.getBlockState(pos);
 					if (!current.equals(inst.targetState)) {
-						world.setBlockState(pos, inst.targetState, 3);
-						totalPlaced++;
+						frame.addWorldMutation(new BlockControlExecutor.BlockMutation(
+							pos.toImmutable(), current, inst.targetState));
 					}
 				}
 				inst.placedCount++;
 			}
 			if (inst.isFinished()) it.remove();
 		}
-		return totalPlaced;
+	}
+
+	/**
+	 * @deprecated 由 {@link com.beatblock.engine.influence.BlockInfluenceOrchestrator} 统一 tick
+	 */
+	@Deprecated
+	public int tick(double currentTime, World world) {
+		if (world == null || activeInstances.isEmpty()) return 0;
+		com.beatblock.engine.influence.InfluenceFrame frame = new com.beatblock.engine.influence.InfluenceFrame();
+		contributeExistenceMutations(frame, currentTime, world);
+		BlockControlExecutor executor = new BlockControlExecutor(stageObjectSystem);
+		executor.applyMutations(world, frame.getWorldMutations());
+		return frame.getWorldMutations().size();
 	}
 
 	public List<BuildInstance> getActiveInstances() {

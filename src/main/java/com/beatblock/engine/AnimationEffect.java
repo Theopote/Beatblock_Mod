@@ -1,9 +1,11 @@
 package com.beatblock.engine;
 
 /**
- * 动画由多个 Effect 组合而成；每个 Effect 根据时间与能量修改 AnimatedBlock 的状态。
- * time: 0 → 1（动画进度），energy: 音乐能量 0～1，影响高度/速度/粒子等。
+ * 动画由 preset 通道组合而成；期 1 遗留的 {@code AnimationEffect} 实现类已不再注册。
+ *
+ * @deprecated 由 {@link com.beatblock.engine.influence.BlockInfluenceEvaluator} 替代
  */
+@Deprecated
 public interface AnimationEffect {
 
 	/**

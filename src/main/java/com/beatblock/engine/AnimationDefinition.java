@@ -1,24 +1,25 @@
 package com.beatblock.engine;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.beatblock.engine.influence.BlockInfluencePreset;
 
 /**
- * 动画库中的模板：id、名称、时长、可组合的多个效果。
+ * 动画库中的模板：id、名称、时长、{@link BlockInfluencePreset} 通道组合。
  */
 public final class AnimationDefinition {
 
 	private final String id;
 	private final String name;
 	private final float durationSeconds;
-	private final List<AnimationEffect> effects;
+	private final BlockInfluencePreset preset;
 
-	public AnimationDefinition(String id, String name, float durationSeconds, List<AnimationEffect> effects) {
-		this.id = id != null ? id : "unknown";
-		this.name = name != null ? name : id;
-		this.durationSeconds = Math.max(0.01f, durationSeconds);
-		this.effects = effects != null ? new ArrayList<>(effects) : new ArrayList<>();
+	public AnimationDefinition(BlockInfluencePreset preset) {
+		if (preset == null) {
+			throw new IllegalArgumentException("preset required");
+		}
+		this.preset = preset;
+		this.id = preset.getId();
+		this.name = preset.getDisplayName();
+		this.durationSeconds = preset.getDefaultDurationSeconds();
 	}
 
 	public String getId() {
@@ -33,7 +34,7 @@ public final class AnimationDefinition {
 		return durationSeconds;
 	}
 
-	public List<AnimationEffect> getEffects() {
-		return Collections.unmodifiableList(effects);
+	public BlockInfluencePreset getPreset() {
+		return preset;
 	}
 }

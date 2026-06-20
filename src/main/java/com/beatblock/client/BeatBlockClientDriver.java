@@ -85,11 +85,8 @@ public final class BeatBlockClientDriver {
 		syncTimelineBlockAnimationEvents(currentTime, previewOnly);
 		syncTimelineAutoAnimationEvents(currentTime, previewOnly);
 		BeatBlock.blockAnimationEngine.tickStepBeats(lastStepBeatTickTime, currentTime, readReferenceBeatTimes());
-		BeatBlock.blockAnimationEngine.tick(currentTime);
+		BeatBlock.blockAnimationEngine.tick(currentTime, previewOnly ? null : world);
 		lastStepBeatTickTime = currentTime;
-		if (!previewOnly && world != null) {
-			BeatBlock.blockAnimationEngine.getBuildSequencer().tick(currentTime, world);
-		}
 	}
 
 	private static double[] readReferenceBeatTimes() {

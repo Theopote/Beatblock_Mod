@@ -123,7 +123,7 @@ public final class BlockInfluencePresets {
 				PathKind.SPIRAL_LIFT,
 				CurveKind.LINEAR,
 				0f,
-				1f
+				2f
 			))
 			.build());
 
@@ -134,7 +134,7 @@ public final class BlockInfluencePresets {
 				PathKind.ORBIT_HORIZONTAL,
 				CurveKind.LINEAR,
 				0f,
-				1f
+				3f
 			))
 			.build());
 	}

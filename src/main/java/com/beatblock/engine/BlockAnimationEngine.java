@@ -29,6 +29,8 @@ public final class BlockAnimationEngine {
 	private final AnimationPlayer animationPlayer = new AnimationPlayer();
 	private final BlockControlExecutor blockControlExecutor = new BlockControlExecutor(stageObjectSystem);
 	private final BuildSequencer buildSequencer = new BuildSequencer(stageObjectSystem);
+	private final com.beatblock.engine.influence.BlockInfluenceOrchestrator influenceOrchestrator =
+		new com.beatblock.engine.influence.BlockInfluenceOrchestrator(blockControlExecutor);
 	private final List<StepSequenceState> stepSequences = new ArrayList<>();
 	private Vec3d runtimeCameraPosition = Vec3d.ZERO;
 
@@ -138,8 +140,15 @@ public final class BlockAnimationEngine {
 	 * STEP + NEXT_BEAT 由 {@link #tickStepBeats} 按参考轨节拍点推进。
 	 */
 	public void tick(double timelineTimeSeconds) {
+		tick(timelineTimeSeconds, null);
+	}
+
+	/**
+	 * 统一影响帧 tick：渲染层 preset 求值 + 可选世界层 BUILD mutation。
+	 */
+	public void tick(double timelineTimeSeconds, World world) {
 		animationPlayer.removeEnded(timelineTimeSeconds);
-		animationPlayer.update(timelineTimeSeconds);
+		influenceOrchestrator.tick(timelineTimeSeconds, animationPlayer, buildSequencer, world);
 	}
 
 	/**
