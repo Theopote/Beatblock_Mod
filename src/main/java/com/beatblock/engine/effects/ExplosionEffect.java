@@ -1,8 +1,9 @@
 package com.beatblock.engine.effects;
 
 import com.beatblock.engine.AnimatedBlock;
-import com.beatblock.engine.EffectContext;
 import com.beatblock.engine.AnimationEffect;
+import com.beatblock.engine.EffectContext;
+import com.beatblock.engine.influence.CurveLibrary;
 import net.minecraft.util.math.Vec3d;
 
 /**
@@ -29,8 +30,7 @@ public final class ExplosionEffect implements AnimationEffect {
 		double len = dir.length();
 		if (len < 1e-6) return;
 		dir = dir.multiply(1.0 / len);
-		double move = str * t * energy * burst;
-		Vec3d delta = dir.multiply(move);
-		block.setPosition(pos.add(delta));
+		double move = CurveLibrary.linearProgress(t, str * burst, energy);
+		block.setPosition(pos.add(dir.multiply(move)));
 	}
 }

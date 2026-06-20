@@ -1,8 +1,9 @@
 package com.beatblock.engine.effects;
 
 import com.beatblock.engine.AnimatedBlock;
-import com.beatblock.engine.EffectContext;
 import com.beatblock.engine.AnimationEffect;
+import com.beatblock.engine.EffectContext;
+import com.beatblock.engine.influence.CurveLibrary;
 import net.minecraft.util.math.Vec3d;
 
 /**
@@ -21,11 +22,11 @@ public final class SpiralEffect implements AnimationEffect {
 	@Override
 	public void apply(AnimatedBlock block, float t, float energy, EffectContext ctx) {
 		Vec3d center = centerOverride.lengthSquared() > 1e-6 ? centerOverride : ctx.getStageCenter();
-		double angle = t * 6 * energy;
+		double angle = CurveLibrary.linearProgress(t, 6f, energy);
 		double x = center.x + Math.cos(angle) * radius;
 		double z = center.z + Math.sin(angle) * radius;
 		Vec3d pos = block.getPosition();
-		double y = pos.y + t * 5 * energy;
+		double y = pos.y + CurveLibrary.linearProgress(t, 5f, energy);
 		block.setPosition(x, y, z);
 	}
 }

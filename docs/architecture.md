@@ -18,6 +18,8 @@
 
 > **舞台对象（一组方块）** + **在时间轴某一刻发生的动作** + **相机在同一时间轴上的运动**
 
+播放器内部，「动作」进一步统一为 **对方块的影响维度 + 插值曲线 + 派发策略**（存在性 / 空间变换 / 外观 / 独立 VFX），三种演出是同一系统的参数预设，而非三套实现。详见 [方块影响维度](block-influence-dimensions.md)。
+
 ## 三层模型（信息只能单向流动）
 
 ```
@@ -62,7 +64,7 @@
 | 概念 | 代码 | 说明 |
 |------|------|------|
 | **舞台对象** | `engine.StageObject` + `StageObjectSystem` | 一组方块 + 中心点 + 分组规格 |
-| **动作模板** | `AnimationDefinition` + `AnimationLibrary` | 出现/变形/移动等效果的可组合定义 |
+| **动作模板** | `AnimationDefinition` + `AnimationLibrary`（→ `BlockInfluencePreset`） | 维度曲线组合；现以 `AnimationEffect` 列表过渡 |
 | **StageEvent** | `TimelineAnimationEvent` | 时间点、目标对象 ID、动作类型、参数、`energy` |
 | 动作模式 | `TimelineAnimationActionMode` | `ANIMATE` / `BUILD` / 控制类变更 |
 | **CameraEvent** | 摄像机轨 `Clip` + `TimelineEvent` + 参数 | 姿态、路径段类型见 `CameraSegmentKind` |
@@ -84,29 +86,20 @@
 
 无论事件是创作者手拖还是自动映射生成，**播放逻辑只有一套**。
 
-## 三种效果 → 参数组合示例
+## 三种效果 → 维度预设 + 时间轴参数
 
-均在第 2 层用 `TimelineAnimationEvent` + 摄像机轨表达，第 3 层同一套播放器执行。
+均在第 2 层用 `TimelineAnimationEvent` + 摄像机轨表达；第 3 层由 **BlockInfluenceEvaluator**（目标）按维度求值，而非按效果名分支。
 
-### 建筑从无到有
+| 演出 | 主维度 | 派发 | StageEvent 要点 | CameraEvent |
+|------|--------|------|-----------------|-------------|
+| **建筑从无到有** | EXISTENCE（可选 TRANSFORM 渐显） | BUILD / STEP + 空间排序 | `buildMode`、`blocksPerBeat`、参考轨初稿 | 固定或慢 orbit |
+| **跑酷敲击** | APPEARANCE ± TRANSFORM 短脉冲 | BURST / 单块事件时间 | 短 `durationSeconds`、高 `energy`；VFX 独立触发 | 跟随主体 |
+| **镜头跟随下落** | TRANSFORM.position 轨迹 | BURST 或 sequentialDelay | 长 `durationSeconds`、`Meteor`/下落类 preset | 主动下落/牵引路径 |
 
-- **StageEvent**：`actionMode=BUILD` 或 `ANIMATE` + `dispatchModel=STEP`，`blocksPerBeat` 控制每拍出现数量；目标为海量方块的 `StageObject`
-- **CameraEvent**：固定关键帧或 `CameraSegmentKind` 环绕段，慢速 orbit
-- **参考轨**：可选从 kick 轨自动映射初稿，创作者再细调顺序与节奏
-
-### 跑酷敲击
-
-- **StageEvent**：`ANIMATE` + 短时长 + 高 `energy` 阈值；目标为路径上的少量 `StageObject`
-- **CameraEvent**：跟随段（follow / 第三人称），与主体移动时间轴对齐
-- **触发**：事件时间由创作者或参考轨踩点放置，**非**实时音频触发
-
-### 镜头跟随下落
-
-- **StageEvent**：`ANIMATE` + 位移动画定义 + 较长 `durationSeconds`；中等规模对象
-- **CameraEvent**：主动设计的下落/牵引路径（segment + 关键帧），相机是演出主体之一
-- **参数**：`usePhaseAnimation`、空间派发等见 STEP 文档
+参数细节与曲线形状见 [block-influence-dimensions.md](block-influence-dimensions.md)。
 
 ## 相关文档
 
+- [方块影响维度（动作类型统一抽象）](block-influence-dimensions.md)
 - [STEP 三段式动画与参数](step-phase-animation-and-cleanup.md)
 - [README](../README.md)

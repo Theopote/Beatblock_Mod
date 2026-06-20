@@ -1,8 +1,9 @@
 package com.beatblock.engine.effects;
 
 import com.beatblock.engine.AnimatedBlock;
-import com.beatblock.engine.EffectContext;
 import com.beatblock.engine.AnimationEffect;
+import com.beatblock.engine.EffectContext;
+import com.beatblock.engine.influence.CurveLibrary;
 import net.minecraft.util.math.Vec3d;
 
 /**
@@ -32,26 +33,20 @@ public final class MeteorEffect implements AnimationEffect {
 
 	@Override
 	public void apply(AnimatedBlock block, float t, float energy, EffectContext ctx) {
-		float h  = (float) ctx.paramDouble("meteorHeight",  height);
+		float h = (float) ctx.paramDouble("meteorHeight", height);
 		float sc = (float) ctx.paramDouble("meteorScatter", scatter);
 
 		Vec3d pos = block.getPosition();
+		double fall = CurveLibrary.gravityRemainingHeight(t, h, energy);
 
-		// 重力加速下落曲线：剩余高度 = h * (1 - t²)
-		// t=0 → 在高处；t→1 → 快速砸向原位
-		double fall = h * (1.0 - (double) t * t) * energy;
-
-		// 横向入射偏移：t=0 最大，t=1 归零（线性收束）
-		// 用方块原始坐标作哈希种子，使每块切入角度不同
-		double xOff = sc * Math.sin(pos.x * 1.9 + pos.z * 0.7) * (1.0 - t) * energy;
-		double zOff = sc * Math.cos(pos.z * 1.9 + pos.x * 0.7) * (1.0 - t) * energy;
+		double xOff = sc > 0f
+			? sc * Math.sin(pos.x * 1.9 + pos.z * 0.7) * CurveLibrary.scatterEnvelope(t, energy)
+			: 0.0;
+		double zOff = sc > 0f
+			? sc * Math.cos(pos.z * 1.9 + pos.x * 0.7) * CurveLibrary.scatterEnvelope(t, energy)
+			: 0.0;
 
 		block.setPosition(pos.x + xOff, pos.y + fall, pos.z + zOff);
-
-		// 远距离感：高空时方块略小，落地时恢复原始大小
-		// scale: 从 (1 - 0.5*energy) 线性增长到 1.0
-		float scaleMin = 1f - 0.5f * energy;
-		float scaleFactor = scaleMin + (1f - scaleMin) * t;
-		block.setScale(block.getScale() * scaleFactor);
+		block.setScale(block.getScale() * CurveLibrary.meteorApproachScale(t, energy));
 	}
 }

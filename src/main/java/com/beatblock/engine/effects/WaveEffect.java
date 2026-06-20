@@ -1,8 +1,8 @@
 package com.beatblock.engine.effects;
 
 import com.beatblock.engine.AnimatedBlock;
-import com.beatblock.engine.EffectContext;
 import com.beatblock.engine.AnimationEffect;
+import com.beatblock.engine.EffectContext;
 import net.minecraft.util.math.Vec3d;
 
 /**
@@ -23,7 +23,9 @@ public final class WaveEffect implements AnimationEffect {
 		float amp = (float) ctx.paramDouble("waveAmplitude", amplitude);
 		float phase = (float) ctx.paramDouble("wavePhaseOffset", 0.0);
 		Vec3d pos = block.getPosition();
-		double wave = Math.sin(pos.x * frequency + t * 6 + phase) * amp * energy;
+		double wave = Math.sin(pos.x * frequency + t * 6 + phase)
+			* amp
+			* Math.max(0f, energy);
 		block.setPosition(pos.x, pos.y + wave, pos.z);
 	}
 }

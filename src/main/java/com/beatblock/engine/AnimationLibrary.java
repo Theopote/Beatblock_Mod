@@ -10,6 +10,8 @@ import java.util.Map;
 
 /**
  * 动画模板库：内置 BlockJump、BlockRise、BlockDrop、BlockExplosion、WaveMotion、SpiralLift、Pulse、Orbit、Meteor 等。
+ * <p>
+ * 各模板的维度曲线描述见 {@link com.beatblock.engine.influence.BlockInfluencePresets}（期 1 数据层，期 2 求值器消费）。
  */
 public final class AnimationLibrary {
 
