@@ -32,22 +32,25 @@ dependencies {
 	// Fabric API
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
-	// ImGui Java bindings (UI - Dockspace 布局)
+	// ImGui Java bindings (UI - Dockspace 布局)，jar-in-jar 打入发布包
 	def imguiVersion = "1.86.11"
-	implementation "io.github.spair:imgui-java-binding:${imguiVersion}"
-	implementation "io.github.spair:imgui-java-lwjgl3:${imguiVersion}"
-	// 三平台 natives 均加入 classpath；binding 运行时按 OS 加载对应 JNI，无冲突
-	runtimeOnly "io.github.spair:imgui-java-natives-windows:${imguiVersion}"
-	runtimeOnly "io.github.spair:imgui-java-natives-linux:${imguiVersion}"
-	runtimeOnly "io.github.spair:imgui-java-natives-macos:${imguiVersion}"
+	implementation include("io.github.spair:imgui-java-binding:${imguiVersion}")
+	implementation include("io.github.spair:imgui-java-lwjgl3:${imguiVersion}")
+	// 三平台 natives 均打入发布包；binding 运行时按 OS 加载对应 JNI，无冲突
+	runtimeOnly include("io.github.spair:imgui-java-natives-windows:${imguiVersion}")
+	runtimeOnly include("io.github.spair:imgui-java-natives-linux:${imguiVersion}")
+	runtimeOnly include("io.github.spair:imgui-java-natives-macos:${imguiVersion}")
 
 	// JSON 解析（BeatmapReader 使用）
-	implementation "com.google.code.gson:gson:2.10.1"
+	implementation include("com.google.code.gson:gson:2.10.1")
 
 	// MP3 解码（Java Sound SPI），用于时间线真实音频播放
-	implementation "com.googlecode.soundlibs:mp3spi:1.9.5-1"
-	implementation "com.googlecode.soundlibs:tritonus-share:0.3.7-2"
-	implementation "com.googlecode.soundlibs:jlayer:1.0.1.4"
+	implementation include("com.googlecode.soundlibs:mp3spi:1.9.5-1")
+	implementation include("com.googlecode.soundlibs:tritonus-share:0.3.7-2")
+	implementation include("com.googlecode.soundlibs:jlayer:1.0.1.4")
+
+	testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
 
 processResources {
@@ -61,6 +64,42 @@ processResources {
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 21
 }
+
+tasks.withType(Test).configureEach {
+	useJUnitPlatform()
+}
+
+tasks.register('verifyBundledDependencies') {
+	dependsOn remapJar
+	doLast {
+		def jarFile = remapJar.archiveFile.get().asFile
+		def nested = []
+		new java.util.zip.ZipFile(jarFile).withCloseable { zip ->
+			zip.entries().each { entry ->
+				if (entry.name.startsWith('META-INF/jars/')) {
+					nested << entry.name
+				}
+			}
+		}
+		[
+			'imgui-java-binding',
+			'imgui-java-lwjgl3',
+			'imgui-java-natives-windows',
+			'imgui-java-natives-linux',
+			'imgui-java-natives-macos',
+			'gson',
+			'mp3spi',
+			'tritonus-share',
+			'jlayer',
+		].each { dep ->
+			if (!nested.any { it.contains(dep) }) {
+				throw new GradleException("Missing bundled dependency in ${jarFile.name}: ${dep}")
+			}
+		}
+	}
+}
+
+check.dependsOn verifyBundledDependencies
 
 java {
 	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
