@@ -12,6 +12,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StepSequencePlannerTest {
 
 	@Test
+	void fixedIntervalDefersFirstSlotWhenNotImmediate() {
+		var times = FixedIntervalPacing.INSTANCE.computeTimestamps(new PacingRequest(
+			2, 1.0, false, new double[0], 120, 0.5));
+		assertEquals(2, times.size());
+		assertEquals(1.5, times.get(0), 1e-6);
+		assertEquals(2.0, times.get(1), 1e-6);
+	}
+
+	@Test
+	void beatGridDefersFirstSlotToNextBeatAfterAnchor() {
+		var times = BeatGridPacing.INSTANCE.computeTimestamps(new PacingRequest(
+			2, 1.0, false, new double[] {1.5, 2.0, 2.5}, 120, 0.5));
+		assertEquals(2, times.size());
+		assertEquals(1.5, times.get(0), 1e-6);
+		assertEquals(2.0, times.get(1), 1e-6);
+	}
+
+	@Test
 	void plansOneBlockPerBeatSlot() {
 		var event = new com.beatblock.timeline.TimelineAnimationEvent(
 			"e1", 1.0, 0.5, "BlockJump", "stage", 1f,

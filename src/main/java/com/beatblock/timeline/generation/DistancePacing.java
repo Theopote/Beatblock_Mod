@@ -9,6 +9,10 @@ import java.util.List;
  * 按有序方块路径的 3D 欧氏距离累加计算每块绝对时间（跑酷踩点，4.6 验收）。
  * <p>
  * 相邻块间隔 {@code max(minGapSeconds, distanceBlocks * secondsPerBlockUnit)}。
+ * <ul>
+ *   <li>{@code startImmediately=true}：第一块在 {@code anchorTimeSeconds}</li>
+ *   <li>{@code startImmediately=false}：第一块在 {@code anchorTimeSeconds + minGapSeconds}（与 {@link FixedIntervalPacing}  defer 首 slot 一致）</li>
+ * </ul>
  */
 public final class DistancePacing implements PacingStrategy {
 
@@ -50,16 +54,26 @@ public final class DistancePacing implements PacingStrategy {
 		double t = Math.max(0.0, anchorTimeSeconds);
 		if (startImmediately) {
 			times.add(t);
+			for (int i = 1; i < orderedBlocks.size(); i++) {
+				t += gapSeconds(orderedBlocks.get(i - 1), orderedBlocks.get(i), pace, minGap);
+				times.add(t);
+			}
+			return times;
 		}
-		while (times.size() < orderedBlocks.size()) {
-			int i = times.size();
-			BlockPos prev = orderedBlocks.get(i - 1);
-			BlockPos curr = orderedBlocks.get(i);
-			double gap = Math.max(minGap, blockDistance(prev, curr) * pace);
-			t += gap;
+
+		for (int i = 0; i < orderedBlocks.size(); i++) {
+			if (i == 0) {
+				t += minGap;
+			} else {
+				t += gapSeconds(orderedBlocks.get(i - 1), orderedBlocks.get(i), pace, minGap);
+			}
 			times.add(t);
 		}
 		return times;
+	}
+
+	private static double gapSeconds(BlockPos prev, BlockPos curr, double pace, double minGap) {
+		return Math.max(minGap, blockDistance(prev, curr) * pace);
 	}
 
 	static double blockDistance(BlockPos a, BlockPos b) {

@@ -39,6 +39,9 @@ public record PacingRequest(
 		);
 	}
 
+	/**
+	 * @param startImmediately 若 {@code true}，第一个 slot 在 anchor；否则第一个 slot 在 anchor 之后一个 pacing 步长（节拍 / 固定间隔 / minGap）
+	 */
 	public PacingRequest {
 		slotCount = Math.max(0, slotCount);
 		anchorTimeSeconds = Math.max(0.0, anchorTimeSeconds);
