@@ -15,6 +15,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.generation.StepSequenceBaker;
 import com.beatblock.timeline.util.MusicTimeFormatter;
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.StageObject;
@@ -28,6 +29,8 @@ import imgui.ImGui;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +72,7 @@ public final class TimelineToolbar {
 	private static final String TOOLTIP_BEAT_GRID = "显示节拍网格线";
 	private static final String TOOLTIP_MAGNET = "吸附到其他事件/关键帧";
 	private static final String TOOLTIP_AUTO_MAP = "根据频段事件自动生成动画事件（需先导入音乐）";
+	private static final String TOOLTIP_BAKE_STEP = "将 dispatchModel=STEP 的事件烘焙为 N 个带绝对时间的普通 BURST 事件（可 Undo）；需 StageObject 与参考节拍";
 	private static final String TOOLTIP_LOOP = "循环播放";
 	private static final String TOOLTIP_FIT = "缩放至整段时长可见";
 	private static final String TOOLTIP_ZOOM = "时间线横向缩放";
@@ -404,6 +408,11 @@ public final class TimelineToolbar {
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_AUTO_MAP);
 		nextItemInGroup();
+		if (ImGui.button("烘焙 STEP##tlBakeStep")) {
+			runBakeStepSequences(editor);
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BAKE_STEP);
+		nextItemInGroup();
 		renderToolActionFeedback();
 
 		nextGroupOrWrap(0);
@@ -536,6 +545,10 @@ public final class TimelineToolbar {
 			}
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_AUTO_MAP);
+		if (ImGui.button("烘焙 STEP##tlMoreBakeStep")) {
+			runBakeStepSequences(editor);
+		}
+		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BAKE_STEP);
 		renderToolActionFeedback();
 
 		renderDemucsMappingPresetControl(true);
@@ -1120,6 +1133,41 @@ public final class TimelineToolbar {
 		lastTemplateApplyFeedback = message != null ? message : "";
 		lastTemplateApplyFeedbackSuccess = success;
 		lastTemplateApplyFeedbackAtMs = System.currentTimeMillis();
+	}
+
+	private void runBakeStepSequences(TimelineEditor editor) {
+		if (BeatBlock.timeline == null) {
+			setToolActionFeedback("Bake STEP skipped: timeline unavailable", false);
+			return;
+		}
+		StepSequenceBaker.BakeResult result = StepSequenceBaker.bake(
+			BeatBlock.timeline,
+			editor != null ? editor.getCommandManager() : null,
+			currentCameraPositionOrZero()
+		);
+		if (editor != null) {
+			editor.syncClockDuration();
+		}
+		if (result.stepEventsBaked() <= 0) {
+			String detail = result.stepEventsSkipped() > 0
+				? " (" + result.stepEventsSkipped() + " STEP events skipped; check StageObject)"
+				: " (no STEP events on timeline)";
+			setToolActionFeedback("Bake STEP: nothing baked" + detail, false);
+			return;
+		}
+		setToolActionFeedback(
+			"Bake STEP: " + result.stepEventsBaked() + " STEP -> "
+				+ result.burstEventsCreated() + " burst events",
+			true
+		);
+	}
+
+	private static Vec3d currentCameraPositionOrZero() {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client != null && client.gameRenderer != null && client.gameRenderer.getCamera() != null) {
+			return client.gameRenderer.getCamera().getCameraPos();
+		}
+		return Vec3d.ZERO;
 	}
 
 	private void setToolActionFeedback(String message, boolean success) {

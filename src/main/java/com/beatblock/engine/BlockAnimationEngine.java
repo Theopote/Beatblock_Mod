@@ -101,16 +101,11 @@ public final class BlockAnimationEngine {
 
 	private void scheduleAnimateEvent(TimelineAnimationEvent event, double[] referenceBeatTimesSeconds, double timelineBpm) {
 		if (event == null) return;
-		if (isStepDispatch(event.getParameters())) {
+		if (com.beatblock.timeline.generation.StepBurstEventFactory.isStepDispatch(event.getParameters())) {
 			scheduleExpandedStepSequence(event, referenceBeatTimesSeconds, timelineBpm);
 			return;
 		}
 		scheduleFromTimelineEventWithSpatial(event);
-	}
-
-	private static boolean isStepDispatch(Map<String, Object> params) {
-		if (params == null) return false;
-		return "STEP".equalsIgnoreCase(String.valueOf(params.get("dispatchModel")).trim());
 	}
 
 	private void scheduleExpandedStepSequence(
@@ -158,6 +153,13 @@ public final class BlockAnimationEngine {
 		if (def == null || target == null) return;
 
 		Map<String, Object> params = event.getParameters();
+		net.minecraft.util.math.BlockPos singleBlock =
+			com.beatblock.timeline.generation.StepBurstEventFactory.readSingleBlockPos(params);
+		if (singleBlock != null) {
+			scheduleSingleBlockBurst(event, target, def, singleBlock);
+			return;
+		}
+
 		SpatialDispatchMode spatialMode = resolveSpatialMode(params, target);
 		double stepDelay = resolveSpatialStepDelay(params, target, spatialMode, event.getDurationSeconds(), target.getBlocks().size());
 		if (spatialMode == SpatialDispatchMode.ALL || stepDelay <= 0.0 || target.getBlocks().size() <= 1) {
@@ -184,6 +186,24 @@ public final class BlockAnimationEngine {
 			);
 			animationPlayer.addInstance(new EngineAnimationInstance(def, perBlockTarget, start, end, energy, params));
 		}
+	}
+
+	private void scheduleSingleBlockBurst(
+		TimelineAnimationEvent event,
+		StageObject target,
+		AnimationDefinition def,
+		net.minecraft.util.math.BlockPos block
+	) {
+		StageObject perBlockTarget = new StageObject(
+			target.getId() + "#block",
+			target.getName(),
+			List.of(block),
+			target.getCenter(),
+			target.getGroupSpec()
+		);
+		double endTime = event.getTimeSeconds() + Math.max(0.01, event.getDurationSeconds());
+		animationPlayer.addInstance(new EngineAnimationInstance(
+			def, perBlockTarget, event.getTimeSeconds(), endTime, event.getEnergy(), event.getParameters()));
 	}
 
 	private static SpatialDispatchMode resolveSpatialMode(Map<String, Object> params, StageObject target) {
