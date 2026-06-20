@@ -21,6 +21,7 @@ import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
 import com.beatblock.timeline.editor.SelectionState;
+import com.beatblock.timeline.generation.DistancePacing;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TrackDefinition;
 import com.beatblock.timeline.rendering.TrackRegistry;
@@ -57,6 +58,8 @@ public class EventPropertiesPanel {
 	private final ImString energyThresholdBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString spatialDelayBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString blocksPerBeatBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString distancePaceSecondsBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString distancePaceMinGapBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString cameraNearDistanceBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString cameraFarDistanceBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString cameraNearScaleBuffer = new ImString(INPUT_BUFFER_SIZE);
@@ -109,6 +112,16 @@ public class EventPropertiesPanel {
 	private static final String[] STEP_COMPLETION_VALUES = {
 		"KEEP",
 		"LOOP"
+	};
+	private static final String[] PACING_MODE_LABELS = {
+		"节拍网格 (BEAT_GRID)",
+		"固定间隔 (FIXED_INTERVAL)",
+		"跳跃距离 (DISTANCE)"
+	};
+	private static final String[] PACING_MODE_VALUES = {
+		"BEAT_GRID",
+		"FIXED_INTERVAL",
+		"DISTANCE"
 	};
 	private static final String[] PHASE_LABELS = {
 		"无 (None)",
@@ -271,6 +284,8 @@ public class EventPropertiesPanel {
 		boolean usePhaseAnimation = booleanParam(params, "usePhaseAnimation", false);
 		ImInt stepStartModeIndex = new ImInt(indexOfValue(STEP_START_MODE_VALUES, stringParam(params, "stepStartMode", "NEXT_BEAT")));
 		ImInt stepCompletionIndex = new ImInt(indexOfValue(STEP_COMPLETION_VALUES, stringParam(params, "stepCompletionMode", "KEEP")));
+		ImInt pacingModeIndex = new ImInt(indexOfValue(PACING_MODE_VALUES, stringParam(params, "pacingMode", "BEAT_GRID")));
+		if (pacingModeIndex.get() < 0 || pacingModeIndex.get() >= PACING_MODE_VALUES.length) pacingModeIndex.set(0);
 		ImInt actionIndex = new ImInt(indexOfOption(actionOptions, currentActionMode));
 		ImInt animationIndex = new ImInt(indexOfOption(animationOptions, currentAnimationId));
 		ImInt targetIndex = new ImInt(indexOfOption(targetOptions, currentTargetId));
@@ -312,8 +327,23 @@ public class EventPropertiesPanel {
 			validationError = null;
 		}
 		if (stepDispatch) {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText("每拍方块数##eventBlocksPerBeat", blocksPerBeatBuffer);
+			if (ImGui.combo("节奏来源##eventPacingMode", pacingModeIndex, PACING_MODE_LABELS)) {
+				validationError = null;
+			}
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip("跑酷推荐「跳跃距离」：按方块路径 3D 距离累加时间；建造常用「节拍网格」");
+			}
+			boolean distancePacing = "DISTANCE".equals(PACING_MODE_VALUES[pacingModeIndex.get()]);
+			if (!distancePacing) {
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("每拍方块数##eventBlocksPerBeat", blocksPerBeatBuffer);
+			}
+			if (distancePacing) {
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("每方块距离 (秒)##eventDistancePaceSeconds", distancePaceSecondsBuffer);
+				ImGui.setNextItemWidth(-1f);
+				ImGui.inputText("最小间隔 (秒)##eventDistancePaceMinGap", distancePaceMinGapBuffer);
+			}
 			if (ImGui.combo("起始对齐##eventStepStartMode", stepStartModeIndex, STEP_START_MODE_LABELS)) {
 				validationError = null;
 			}
@@ -409,6 +439,7 @@ public class EventPropertiesPanel {
 				stepDispatch,
 				STEP_START_MODE_VALUES[Math.max(0, Math.min(stepStartModeIndex.get(), STEP_START_MODE_VALUES.length - 1))],
 				STEP_COMPLETION_VALUES[Math.max(0, Math.min(stepCompletionIndex.get(), STEP_COMPLETION_VALUES.length - 1))],
+				PACING_MODE_VALUES[Math.max(0, Math.min(pacingModeIndex.get(), PACING_MODE_VALUES.length - 1))],
 				cameraAdaptiveStep,
 				cameraFrustumGating,
 				numericParam(params, "cameraEdgePriority", 0.0),
@@ -441,8 +472,8 @@ public class EventPropertiesPanel {
 	private void applyAnimationChanges(EventRef ref, Timeline timeline, String actionMode, String animationId,
 	                                  String targetObjectId, boolean inheritGroupSpatial, String spatialMode,
 	                                  boolean stepDispatch, String stepStartMode, String stepCompletionMode,
-	                                  boolean cameraAdaptiveStep, boolean cameraFrustumGating, double cameraEdgePriority,
-	                                  boolean usePhaseAnimation, boolean vfxEnabled) {
+	                                  String pacingMode, boolean cameraAdaptiveStep, boolean cameraFrustumGating,
+	                                  double cameraEdgePriority, boolean usePhaseAnimation, boolean vfxEnabled) {
 		try {
 			double newTime = Math.max(0.0, Double.parseDouble(valueOf(timeBuffer).trim()));
 			double newDuration = Math.max(0.01, Double.parseDouble(valueOf(durationBuffer).trim()));
@@ -525,7 +556,23 @@ public class EventPropertiesPanel {
 			ref.event().setParameter("targetObject", targetObjectId);
 			ref.event().setParameter("dispatchModel", stepDispatch ? "STEP" : "BURST");
 			if (stepDispatch) {
-				ref.event().setParameter("blocksPerBeat", blocksPerBeat);
+				ref.event().setParameter("pacingMode", pacingMode);
+				boolean distancePacing = "DISTANCE".equalsIgnoreCase(pacingMode);
+				if (distancePacing) {
+					double secondsPerBlock = DistancePacing.DEFAULT_SECONDS_PER_BLOCK_UNIT;
+					double minGap = DistancePacing.DEFAULT_MIN_GAP_SECONDS;
+					String paceRaw = valueOf(distancePaceSecondsBuffer).trim();
+					String gapRaw = valueOf(distancePaceMinGapBuffer).trim();
+					if (!paceRaw.isEmpty()) secondsPerBlock = Math.max(0.01, Double.parseDouble(paceRaw));
+					if (!gapRaw.isEmpty()) minGap = Math.max(0.0, Double.parseDouble(gapRaw));
+					ref.event().setParameter("distancePaceSecondsPerBlock", secondsPerBlock);
+					ref.event().setParameter("distancePaceMinGapSeconds", minGap);
+					ref.event().removeParameter("blocksPerBeat");
+				} else {
+					ref.event().setParameter("blocksPerBeat", blocksPerBeat);
+					ref.event().removeParameter("distancePaceSecondsPerBlock");
+					ref.event().removeParameter("distancePaceMinGapSeconds");
+				}
 				ref.event().setParameter("stepStartMode", stepStartMode);
 				ref.event().setParameter("stepCompletionMode", stepCompletionMode);
 				ref.event().setParameter("cameraAdaptiveStep", cameraAdaptiveStep);
@@ -553,6 +600,9 @@ public class EventPropertiesPanel {
 					ref.event().removeParameter("cameraFarScale");
 				}
 			} else {
+				ref.event().removeParameter("pacingMode");
+				ref.event().removeParameter("distancePaceSecondsPerBlock");
+				ref.event().removeParameter("distancePaceMinGapSeconds");
 				ref.event().removeParameter("blocksPerBeat");
 				ref.event().removeParameter("stepStartMode");
 				ref.event().removeParameter("stepCompletionMode");
@@ -631,6 +681,10 @@ public class EventPropertiesPanel {
 		energyThresholdBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "energyThreshold", 0.15)));
 		spatialDelayBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "sequentialDelaySeconds", 0.0)));
 		blocksPerBeatBuffer.set(String.format(Locale.ROOT, "%d", Math.max(1, (int) Math.round(numericParam(params, "blocksPerBeat", 1.0)))));
+		distancePaceSecondsBuffer.set(String.format(Locale.ROOT, "%.3f",
+			numericParam(params, "distancePaceSecondsPerBlock", DistancePacing.DEFAULT_SECONDS_PER_BLOCK_UNIT)));
+		distancePaceMinGapBuffer.set(String.format(Locale.ROOT, "%.3f",
+			numericParam(params, "distancePaceMinGapSeconds", DistancePacing.DEFAULT_MIN_GAP_SECONDS)));
 		cameraNearDistanceBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "cameraNearDistance", 8.0)));
 		cameraFarDistanceBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "cameraFarDistance", 48.0)));
 		cameraNearScaleBuffer.set(String.format(Locale.ROOT, "%.3f", numericParam(params, "cameraNearScale", 0.6)));

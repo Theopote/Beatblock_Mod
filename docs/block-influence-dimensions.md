@@ -146,7 +146,7 @@ BlockInfluenceEvaluator          ◄── 目标：单一求值器
 | **空间序** | `spatialMode`、`buildMode` | 只影响块顺序，不改变曲线形状 |
 
 建筑 = **EXISTENCE 维度** + **STEP/BUILD 派发** + 排序策略。  
-跑酷 = **APPEARANCE（+ 可选 TRANSFORM）** + **BURST/单块事件时间**。  
+跑酷 = **APPEARANCE（+ 可选 TRANSFORM）** + **`pacingMode=DISTANCE` 或单块 BURST 事件**。  
 下落 = **TRANSFORM.position** + **BURST 或 sequentialDelay**。
 
 ## 实现路线（建议分三期）

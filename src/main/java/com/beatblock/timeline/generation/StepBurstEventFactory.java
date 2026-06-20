@@ -29,7 +29,10 @@ public final class StepBurstEventFactory {
 		"stepCompletionMode",
 		"cameraAdaptiveStep",
 		"cameraFrustumGating",
-		"cameraEdgePriority"
+		"cameraEdgePriority",
+		"pacingMode",
+		"distancePaceSecondsPerBlock",
+		"distancePaceMinGapSeconds"
 	);
 
 	private StepBurstEventFactory() {}

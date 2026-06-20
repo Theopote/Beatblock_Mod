@@ -16,4 +16,8 @@ public interface PacingStrategy {
 	static PacingStrategy fixedInterval() {
 		return FixedIntervalPacing.INSTANCE;
 	}
+
+	static PacingStrategy distance() {
+		return DistancePacing.INSTANCE;
+	}
 }

@@ -169,7 +169,7 @@ interface PacingStrategy {
 // 实现：
 // - BeatGridPacing   — 贴 audio 特征轨节拍（ReferenceBeatResolver）
 // - FixedIntervalPacing — 固定 BPM
-// - DistancePacing   — 【待做】按方块间跳跃距离（跑酷 4.6 验收）
+// - DistancePacing   — ✅ 按方块路径 3D 距离累加（`pacingMode=DISTANCE`）
 ```
 
 **写入 Timeline**（4.2 同路径）：`StepSequenceBaker` + `TimelineDraftWriter` → `AddTimelineAnimationEventCommand`（可 Undo）。工具栏 **「烘焙 STEP」** 将 `dispatchModel=STEP` 展开为 N 个 `BURST` + `singleBlockX/Y/Z` 事件。
@@ -192,10 +192,10 @@ interface PacingStrategy {
 | `PacingStrategy` + `StepSequencePlanner` | ✅ | `timeline/generation/` |
 | 烘焙进 Timeline | ✅ | `StepSequenceBaker`、`StepBurstEventFactory`；UI「烘焙 STEP」 |
 | 统一草稿写入 + Undo | ✅ | `TimelineDraftWriter` |
-| 单测 | 🟡 | `StepSequencePlannerTest`、`StepBurstEventFactoryTest`；缺 `DistancePacing` |
+| 单测 | 🟡 | `StepSequencePlanner` / `DistancePacing` / `StepBurstEventFactory`；AutoMap 映射待补 |
 | **理想态**：文件里只有 N 个普通事件 | 🟡 | 需用户点「烘焙 STEP」；未烘焙时 Timeline 仍可存 `dispatchModel=STEP` |
 | **过渡态**：调度时展开 | 🟡 | `BlockAnimationEngine.scheduleExpandedStepSequence` 在**首次调度**时用同一 planner 展开（无状态机，但非持久化） |
-| `DistancePacing` | ❌ | 4.6 跑酷验收仍缺 |
+| `DistancePacing` | ✅ | `pacingMode=DISTANCE` + 路径累加；UI「跳跃距离」 |
 | `stepCompletionMode` | 🟡 | UI 仍可编辑；planner/engine **未使用**，烘焙时 strip |
 
 **推荐工作流**：编辑 STEP 序列 → 点「烘焙 STEP」→ 保存 Timeline（文件中无 `dispatchModel=STEP`）→ 播放器只消费 N 个普通事件。
@@ -257,4 +257,4 @@ interface PacingStrategy {
                        阶段 6（收尾工程化）
 ```
 
-阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。剩余收尾：**4.3 相机轨 UI 对齐**、**DistancePacing**、**AutoMap 单测**、阶段 6 README / Demucs 说明。
+阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。剩余收尾：**4.3 相机轨 UI 对齐**、**AutoMap 单测**、阶段 6 README / Demucs 说明。
