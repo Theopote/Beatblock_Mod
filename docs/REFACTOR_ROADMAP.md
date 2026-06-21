@@ -65,7 +65,7 @@
 
 1. 删除 `timeline/editor/Command.java`、`AddEventCommand.java`、`DeleteEventCommand.java`、`MoveEventCommand.java`（与 `timeline/command/` 包下内容重复，且确认零引用）。
 2. 删除或重命名 `visual/BlockDisplayPool.java` 里的 `release()` 方法（当前实现是直接 `discard()`，与 `returnToPool()` 的真实复用语义相悖，且零调用）。如果未来需要"丢弃不复用"的语义，重命名为 `discard()` 更准确。
-3. 统一 `fabric.mod.json` 的 `license` 字段为 `CC0-1.0`（与仓库 `LICENSE` 文件一致），修正 `homepage`/`sources` 为真实仓库地址。
+3. 统一 `fabric.mod.json` 的 `license` 字段为 `MIT`（与仓库 `LICENSE` 文件一致），修正 `homepage`/`sources` 为真实仓库地址。
 4. `gradle.properties` 把 `loom_version=1.15-SNAPSHOT` 锁定为最新的正式发布版本。
 
 **验收标准**：`./gradlew build` 通过；`git grep` 确认上述类已不存在。
