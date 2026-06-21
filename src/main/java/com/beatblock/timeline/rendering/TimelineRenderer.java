@@ -385,6 +385,16 @@ public final class TimelineRenderer {
 		} else if (rowIndex == TimelineTrackMeta.ROW_ANIM_AUTO) {
 			renderAnimationTrackDropTarget(rowIndex, rowHeight, timeline, layout);
 			eventRenderer.renderAnimationEventBlocks(rowY, timeline.getAutoAnimationEvents(), layout, viewState, selectionState);
+		} else if (rowIndex == TimelineTrackMeta.ROW_BUILD_REVERSE) {
+			renderBuildReverseTrackDropTarget(rowY, rowHeight, timeline, layout, viewState);
+			eventRenderer.renderAnimationEventBlocks(
+				rowY,
+				timeline.getBuildReverseEvents(),
+				layout,
+				viewState,
+				selectionState,
+				0xFF_66_CC_88
+			);
 		} else if (rowIndex == TimelineTrackMeta.ROW_CAMERA) {
 			eventRenderer.renderCameraTrackRow(rowY, timeline, layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_GLOBAL_EVENT) {
@@ -735,6 +745,37 @@ public final class TimelineRenderer {
 					asset = AudioAssetManager.getInstance().getCurrentDragAsset();
 				}
 				handleDroppedAudioAsset(timeline, asset, targetRowIndex);
+			}
+			ImGui.endDragDropTarget();
+		}
+	}
+
+	private void renderBuildReverseTrackDropTarget(
+		float rowY,
+		float rowHeight,
+		Timeline timeline,
+		TimelineLayout layout,
+		TimelineViewState viewState
+	) {
+		float screenY = layout.getRowScreenY(TimelineTrackMeta.ROW_BUILD_REVERSE);
+		if (screenY < 0) return;
+		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
+		ImGui.invisibleButton("##BuildReverseDropTarget", layout.contentWidth, rowHeight);
+		if (ImGui.beginDragDropTarget()) {
+			byte[] payload = ImGui.acceptDragDropPayload("BB_BUILD_LAYER_ID");
+			if (payload != null && BeatBlock.blockAnimationEngine != null && BeatBlock.timelineEditor != null) {
+				String layerId = new String(payload, StandardCharsets.UTF_8).trim();
+				double dropTime = viewState.screenToTime(ImGui.getMousePosX() - layout.contentLeft);
+				dropTime = Math.max(0, dropTime);
+				var cmd = new com.beatblock.timeline.command.layer.BindLayerToTrackCommand(
+					timeline,
+					BeatBlock.blockAnimationEngine.getBuildLayerManager(),
+					BeatBlock.timelineEditor.getCommandManager(),
+					layerId,
+					dropTime,
+					com.beatblock.timeline.command.layer.BindLayerToTrackCommand.DEFAULT_CLIP_DURATION_SECONDS
+				);
+				BeatBlock.timelineEditor.getCommandManager().execute(cmd);
 			}
 			ImGui.endDragDropTarget();
 		}

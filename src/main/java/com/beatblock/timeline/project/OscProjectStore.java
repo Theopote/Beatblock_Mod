@@ -1,6 +1,8 @@
 package com.beatblock.timeline.project;
 
 import com.beatblock.timeline.MarkerType;
+import com.beatblock.engine.layer.BuildLayerManager;
+import com.beatblock.engine.layer.BuildLayerPersistence;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
 import com.google.gson.Gson;
@@ -27,12 +29,16 @@ import java.util.UUID;
  */
 public final class OscProjectStore {
 
-	private static final int CURRENT_VERSION = 1;
+	private static final int CURRENT_VERSION = 2;
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
 	private OscProjectStore() {}
 
 	public static void save(Path filePath, Timeline timeline) throws IOException {
+		save(filePath, timeline, null);
+	}
+
+	public static void save(Path filePath, Timeline timeline, BuildLayerManager layerManager) throws IOException {
 		if (filePath == null) throw new IOException("保存失败：文件路径为空");
 		if (timeline == null) throw new IOException("保存失败：Timeline 为空");
 
@@ -62,6 +68,9 @@ public final class OscProjectStore {
 			markers.add(markerObj);
 		}
 		root.add("markers", markers);
+		if (layerManager != null) {
+			root.add("buildLayers", BuildLayerPersistence.toJson(layerManager));
+		}
 
 		Files.writeString(abs, GSON.toJson(root), StandardCharsets.UTF_8);
 
@@ -72,6 +81,10 @@ public final class OscProjectStore {
 	}
 
 	public static LoadedProject load(Path filePath) throws IOException {
+		return load(filePath, null);
+	}
+
+	public static LoadedProject load(Path filePath, BuildLayerManager layerManager) throws IOException {
 		if (filePath == null) throw new IOException("打开失败：文件路径为空");
 		Path abs = filePath.toAbsolutePath().normalize();
 		if (!Files.exists(abs)) throw new IOException("打开失败：文件不存在 " + abs);
@@ -90,6 +103,9 @@ public final class OscProjectStore {
 		String timelineName = getString(root, "timelineName", "");
 		String audioPath = getString(root, "audioPath", "");
 		List<TimelineMarker> markers = parseMarkers(root);
+		if (layerManager != null && root.has("buildLayers") && root.get("buildLayers").isJsonArray()) {
+			BuildLayerPersistence.loadInto(layerManager, root.getAsJsonArray("buildLayers"));
+		}
 
 		return new LoadedProject(projectId, projectPath, timelineName, audioPath, markers);
 	}

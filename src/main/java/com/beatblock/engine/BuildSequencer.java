@@ -1,5 +1,7 @@
 package com.beatblock.engine;
 
+import com.beatblock.engine.layer.BuildLayer;
+import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -16,13 +18,17 @@ import java.util.*;
  * 累积式建造序列器：将 StageObject 的方块按 BuildSequenceMode 排序，
  * 根据事件时长逐步放置（BUILD）或逐步移除（DISSOLVE 反向），
  * 每帧由 BeatBlockClientDriver 驱动 tick，随时间推进逐块出现。
+ * <p>
+ * 绑定图层的 BUILD 反向事件使用 {@link BuildLayer#getCapturedStates()} 逐块还原。
  */
 public final class BuildSequencer {
 
 	private final StageObjectSystem stageObjectSystem;
+	private final BuildLayerManager buildLayerManager;
 
-	public BuildSequencer(StageObjectSystem stageObjectSystem) {
+	public BuildSequencer(StageObjectSystem stageObjectSystem, BuildLayerManager buildLayerManager) {
 		this.stageObjectSystem = stageObjectSystem;
+		this.buildLayerManager = buildLayerManager;
 	}
 
 	/**
@@ -32,16 +38,19 @@ public final class BuildSequencer {
 		private final String eventId;
 		private final List<BlockPos> orderedBlocks;
 		private final BlockState targetState;
+		private final Map<BlockPos, BlockState> perBlockTargetStates;
 		private final double startTime;
 		private final double endTime;
 		private final boolean dissolve;
 		private int placedCount;
 
 		BuildInstance(String eventId, List<BlockPos> orderedBlocks, BlockState targetState,
+		              Map<BlockPos, BlockState> perBlockTargetStates,
 		              double startTime, double endTime, boolean dissolve) {
 			this.eventId = eventId;
 			this.orderedBlocks = orderedBlocks;
 			this.targetState = targetState;
+			this.perBlockTargetStates = perBlockTargetStates;
 			this.startTime = startTime;
 			this.endTime = endTime;
 			this.dissolve = dissolve;
@@ -52,6 +61,14 @@ public final class BuildSequencer {
 		public boolean isFinished() { return placedCount >= orderedBlocks.size(); }
 		public int getPlacedCount() { return placedCount; }
 		public int getTotalBlocks() { return orderedBlocks.size(); }
+
+		BlockState resolveTargetState(BlockPos pos) {
+			if (perBlockTargetStates != null && pos != null) {
+				BlockState perBlock = perBlockTargetStates.get(pos);
+				if (perBlock != null) return perBlock;
+			}
+			return targetState;
+		}
 	}
 
 	private final List<BuildInstance> activeInstances = new ArrayList<>();
@@ -62,28 +79,43 @@ public final class BuildSequencer {
 	 */
 	public BuildInstance schedule(TimelineAnimationEvent event) {
 		if (event == null) return null;
-		StageObject target = stageObjectSystem.get(event.getTargetObjectId());
-		if (target == null || target.getBlocks().isEmpty()) return null;
 
 		Map<String, Object> params = event.getParameters();
+		String layerId = readLayerId(params);
+		BuildLayer layer = layerId != null && buildLayerManager != null ? buildLayerManager.get(layerId) : null;
+
+		StageObject target;
+		Map<BlockPos, BlockState> perBlockTargets = null;
+		boolean layerReveal = false;
+
+		if (layer != null) {
+			target = layer.getStageObject();
+			perBlockTargets = new LinkedHashMap<>(layer.getCapturedStates());
+			layerReveal = true;
+		} else {
+			target = stageObjectSystem.get(event.getTargetObjectId());
+		}
+		if (target == null || target.getBlocks().isEmpty()) return null;
+
 		BuildSequenceMode mode = BuildSequenceMode.fromValue(params.get("buildMode"));
-		boolean dissolve = "true".equalsIgnoreCase(String.valueOf(params.get("buildDissolve")));
+		boolean dissolve = !layerReveal && "true".equalsIgnoreCase(String.valueOf(params.get("buildDissolve")));
 		BlockState toState = dissolve
 			? Blocks.AIR.getDefaultState()
-			: resolveBuildBlockState(params);
+			: (layerReveal ? Blocks.AIR.getDefaultState() : resolveBuildBlockState(params));
 
 		List<BlockPos> ordered = sortBlocksForBuild(target, mode, event);
 		if (dissolve) Collections.reverse(ordered);
 
 		double startTime = event.getTimeSeconds();
 		double endTime = startTime + Math.max(0.05, event.getDurationSeconds());
-		BuildInstance instance = new BuildInstance(event.getEventId(), ordered, toState, startTime, endTime, dissolve);
+		BuildInstance instance = new BuildInstance(
+			event.getEventId(), ordered, toState, perBlockTargets, startTime, endTime, dissolve || layerReveal);
 		activeInstances.add(instance);
 		return instance;
 	}
 
 	/**
-	 * 将本帧 EXISTENCE 维度的建造 mutation 写入 {@link InfluenceFrame}（由 orchestrator 统一 apply）。
+	 * 将本帧 EXISTENCE 维度的建造 mutation 写入 {@link com.beatblock.engine.influence.InfluenceFrame}（由 orchestrator 统一 apply）。
 	 */
 	public void contributeExistenceMutations(
 		com.beatblock.engine.influence.InfluenceFrame frame,
@@ -98,11 +130,12 @@ public final class BuildSequencer {
 			int target = computeTargetCount(inst, currentTime);
 			while (inst.placedCount < target && inst.placedCount < inst.orderedBlocks.size()) {
 				BlockPos pos = inst.orderedBlocks.get(inst.placedCount);
+				BlockState desired = inst.resolveTargetState(pos);
 				if (world.isChunkLoaded(pos)) {
 					BlockState current = world.getBlockState(pos);
-					if (!current.equals(inst.targetState)) {
+					if (!current.equals(desired)) {
 						frame.addWorldMutation(new BlockControlExecutor.BlockMutation(
-							pos.toImmutable(), current, inst.targetState));
+							pos.toImmutable(), current, desired));
 						frame.addVfxTrigger(new com.beatblock.engine.influence.VfxTrigger(
 							inst.dissolve ? "existence_dissolve" : "existence_place",
 							pos.toImmutable(),
@@ -138,7 +171,13 @@ public final class BuildSequencer {
 		activeInstances.clear();
 	}
 
-	// --- internal ---
+	private static String readLayerId(Map<String, Object> params) {
+		if (params == null) return null;
+		Object raw = params.get("layerId");
+		if (raw == null) return null;
+		String id = String.valueOf(raw).trim();
+		return id.isEmpty() ? null : id;
+	}
 
 	private static int computeTargetCount(BuildInstance inst, double currentTime) {
 		if (currentTime >= inst.endTime) return inst.orderedBlocks.size();
@@ -192,6 +231,8 @@ public final class BuildSequencer {
 		h ^= ((long) p.getZ()) * 0x165667B19E3779F9L;
 		h ^= (h >>> 33);
 		h *= 0xff51afd7ed558ccdL;
+		h ^= (h >>> 33);
+		h *= 0xc4ceb9fe1a85ec53L;
 		h ^= (h >>> 33);
 		return h;
 	}

@@ -35,6 +35,7 @@ public final class TimelineLayout {
 	public static final int[] INTERACTIVE_ROW_INDICES = {
 		TimelineTrackMeta.ROW_ANIM_BLOCK,
 		TimelineTrackMeta.ROW_ANIM_AUTO,
+		TimelineTrackMeta.ROW_BUILD_REVERSE,
 		TimelineTrackMeta.ROW_CAMERA,
 		TimelineTrackMeta.ROW_GLOBAL_EVENT
 	};

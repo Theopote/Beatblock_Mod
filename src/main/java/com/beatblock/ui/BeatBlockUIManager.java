@@ -35,6 +35,7 @@ public class BeatBlockUIManager {
 	private final TimelinePanel timelinePanel;
 	private final AnimationLibraryPanel animationLibraryPanel;
 	private final SelectionPropertiesPanel selectionPropertiesPanel;
+	private final LayerPanel layerPanel;
 
 	private final BeatBlockPanelVisibility panelVisibility = new BeatBlockPanelVisibility();
 	private boolean firstLayout = true;
@@ -52,6 +53,7 @@ public class BeatBlockUIManager {
 		this.timelinePanel = new TimelinePanel();
 		this.animationLibraryPanel = new AnimationLibraryPanel();
 		this.selectionPropertiesPanel = new SelectionPropertiesPanel();
+		this.layerPanel = new LayerPanel();
 	}
 
 	public void setOnCloseRequest(Runnable onCloseRequest) {
@@ -131,6 +133,7 @@ public class BeatBlockUIManager {
 		timelinePanel.render(panelVisibility.timeline);
 		animationLibraryPanel.render(panelVisibility.animationLibrary);
 		selectionPropertiesPanel.render(panelVisibility.selectionProperties);
+		layerPanel.render(panelVisibility.layer);
 		ImGui.popStyleColor(5);
 
 		BeatBlockLassoOverlay.render();

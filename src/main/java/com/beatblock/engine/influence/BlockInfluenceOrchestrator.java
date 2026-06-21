@@ -5,6 +5,7 @@ import com.beatblock.engine.BlockControlExecutor;
 import com.beatblock.engine.BuildSequencer;
 import com.beatblock.engine.EffectContext;
 import com.beatblock.engine.EngineAnimationInstance;
+import com.beatblock.engine.WorldMutationSink;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -18,38 +19,43 @@ import java.util.Set;
  */
 public final class BlockInfluenceOrchestrator {
 
-	private final BlockControlExecutor blockControlExecutor;
 	private final BlockInfluenceEvaluator evaluator = new BlockInfluenceEvaluator();
 	private final AppearancePulseTracker appearanceTracker = new AppearancePulseTracker();
 	private final Map<String, Float> lastProgressByInstance = new HashMap<>();
 
 	private InfluenceFrame lastFrame = new InfluenceFrame();
 
-	public BlockInfluenceOrchestrator(BlockControlExecutor blockControlExecutor) {
-		this.blockControlExecutor = blockControlExecutor;
+	/** 真正的世界写入不再由本类直接持有 BlockControlExecutor 完成，统一改为 tick/applyFrame 注入的 sink。 */
+	public BlockInfluenceOrchestrator() {
 	}
 
 	public InfluenceFrame getLastFrame() {
 		return lastFrame;
 	}
 
-	public void applyFrame(InfluenceFrame frame, AnimationPlayer animationPlayer, World world) {
+	/**
+	 * @param sink 真正的世界写入出口；world 仅用于读取当前方块状态，不在这里被写入。
+	 *             由调用方决定写到哪个权威世界、在哪个线程写（见 BeatBlockAuthoritativeWorldMutator）。
+	 */
+	public void applyFrame(InfluenceFrame frame, AnimationPlayer animationPlayer, WorldMutationSink sink) {
 		if (animationPlayer != null && frame != null) {
 			animationPlayer.replaceCurrentFrameBlocks(frame.getAnimatedBlocks());
 		}
-		if (world != null && frame != null && blockControlExecutor != null) {
-			blockControlExecutor.applyMutations(world, frame.getWorldMutations());
+		if (frame != null && sink != null && !frame.getWorldMutations().isEmpty()) {
+			sink.apply(frame.getWorldMutations());
 		}
 	}
 
 	/**
 	 * 计算并应用单帧影响；返回本帧世界 mutation 数量。
+	 * world 仅用于读取（isChunkLoaded/getBlockState 等），真正的写入通过 sink 完成。
 	 */
 	public int tick(
 		double timelineTimeSeconds,
 		AnimationPlayer animationPlayer,
 		BuildSequencer buildSequencer,
-		World world
+		World world,
+		WorldMutationSink sink
 	) {
 		InfluenceFrame frame = new InfluenceFrame();
 
@@ -85,7 +91,7 @@ public final class BlockInfluenceOrchestrator {
 			buildSequencer.contributeExistenceMutations(frame, timelineTimeSeconds, world);
 		}
 
-		applyFrame(frame, animationPlayer, world);
+		applyFrame(frame, animationPlayer, sink);
 		lastFrame = frame;
 		return frame.getWorldMutations().size();
 	}

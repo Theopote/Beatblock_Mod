@@ -188,6 +188,7 @@ public final class TimelineEditor {
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ACTION_GROUP);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_BLOCK);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_AUTO);
+		addRow(ordered, addedRows, TimelineTrackMeta.ROW_BUILD_REVERSE);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_CAMERA);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_GLOBAL_EVENT);
 
@@ -215,6 +216,7 @@ public final class TimelineEditor {
 		parents.put(TimelineTrackMeta.ROW_ACTION_GROUP, TimelineTrackMeta.NO_PARENT);
 		parents.put(TimelineTrackMeta.ROW_ANIM_BLOCK, TimelineTrackMeta.ROW_ACTION_GROUP);
 		parents.put(TimelineTrackMeta.ROW_ANIM_AUTO, TimelineTrackMeta.ROW_ACTION_GROUP);
+		parents.put(TimelineTrackMeta.ROW_BUILD_REVERSE, TimelineTrackMeta.ROW_ACTION_GROUP);
 		return parents;
 	}
 

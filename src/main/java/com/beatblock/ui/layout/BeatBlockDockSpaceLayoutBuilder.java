@@ -27,6 +27,7 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 	public static final String TIMELINE_PANEL_WINDOW    = "时间线###TimelinePanel";
 	public static final String ANIMATION_LIBRARY_WINDOW = "动画库###AnimationLibraryPanel";
 	public static final String SELECTION_PROPERTIES_WINDOW = "选择属性###BeatBlockSelectionProperties";
+	public static final String LAYER_PANEL_WINDOW = "建造图层###LayerPanel";
 
 	private static boolean layoutInitialized = false;
 

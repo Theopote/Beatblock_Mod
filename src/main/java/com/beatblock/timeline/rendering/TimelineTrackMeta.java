@@ -26,7 +26,8 @@ public final class TimelineTrackMeta {
 	public static final int ROW_ACTION_GROUP    = ROW_ANIM_FEATURES_END + 1;
 	public static final int ROW_ANIM_BLOCK      = ROW_ACTION_GROUP + 1;
 	public static final int ROW_ANIM_AUTO       = ROW_ANIM_BLOCK + 1;
-	public static final int ROW_CAMERA          = ROW_ANIM_AUTO + 1;
+	public static final int ROW_BUILD_REVERSE   = ROW_ANIM_AUTO + 1;
+	public static final int ROW_CAMERA          = ROW_BUILD_REVERSE + 1;
 	public static final int ROW_GLOBAL_EVENT    = ROW_CAMERA + 1;
 
 	/** 总行槽数（最大值，含所有音频子轨槽位）。 */
@@ -63,6 +64,7 @@ public final class TimelineTrackMeta {
 			DEFAULT_NAMES[i] = "";
 		}
 		DEFAULT_NAMES[ROW_ANIM_AUTO]       = "自动动画";
+		DEFAULT_NAMES[ROW_BUILD_REVERSE]   = "建造还原";
 		DEFAULT_NAMES[ROW_CAMERA]          = "摄像机";
 		DEFAULT_NAMES[ROW_GLOBAL_EVENT]    = "事件";
 
@@ -77,6 +79,7 @@ public final class TimelineTrackMeta {
 		PARENT_ROW[ROW_ACTION_GROUP]    = NO_PARENT;
 		PARENT_ROW[ROW_ANIM_BLOCK]      = ROW_ACTION_GROUP;
 		PARENT_ROW[ROW_ANIM_AUTO]       = ROW_ACTION_GROUP;
+		PARENT_ROW[ROW_BUILD_REVERSE]   = ROW_ACTION_GROUP;
 		PARENT_ROW[ROW_CAMERA]          = NO_PARENT;
 		PARENT_ROW[ROW_GLOBAL_EVENT]    = NO_PARENT;
 	}
@@ -130,7 +133,7 @@ public final class TimelineTrackMeta {
 		if (isAudioSubRow(rowIndex)) return "节奏特征";
 		if (rowIndex == ROW_ANIMATION_GROUP) return "节奏特征";
 		if (rowIndex == ROW_ACTION_GROUP) return "动作";
-		if (rowIndex == ROW_ANIM_BLOCK || rowIndex == ROW_ANIM_AUTO) return "动画";
+		if (rowIndex == ROW_ANIM_BLOCK || rowIndex == ROW_ANIM_AUTO || rowIndex == ROW_BUILD_REVERSE) return "动画";
 		if (isAnimationFeatureSubRow(rowIndex)) return "动画控制";
 		if (rowIndex == ROW_CAMERA) return "摄像机";
 		if (rowIndex == ROW_GLOBAL_EVENT) return "事件";

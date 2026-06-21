@@ -3,6 +3,7 @@ package com.beatblock.client;
 import com.beatblock.BeatBlock;
 import com.beatblock.client.vfx.VfxEmitter;
 import com.beatblock.engine.BlockControlExecutor;
+import com.beatblock.engine.WorldMutationSink;
 import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
@@ -41,9 +42,11 @@ public final class BeatBlockClientDriver {
 	private static boolean driving;
 	private static final Set<String> scheduledTimelineAnimationIds = new HashSet<>();
 	private static final Set<String> scheduledAutoAnimationIds = new HashSet<>();
+	private static final Set<String> scheduledBuildReverseIds = new HashSet<>();
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
 	private static double lastTimelineAnimationTime;
 	private static double lastAutoAnimationTime;
+	private static double lastBuildReverseTime;
 	private static final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
 	private static RegistryKey<World> timelineMutationWorldKey;
 	private static volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
@@ -81,7 +84,11 @@ public final class BeatBlockClientDriver {
 		if (BeatBlock.blockAnimationEngine == null) return;
 		syncTimelineBlockAnimationEvents(currentTime, previewOnly);
 		syncTimelineAutoAnimationEvents(currentTime, previewOnly);
-		BeatBlock.blockAnimationEngine.tick(currentTime, previewOnly ? null : world);
+		syncTimelineBuildReverseEvents(currentTime, previewOnly);
+		WorldMutationSink sink = previewOnly
+			? WorldMutationSink.NO_OP
+			: BeatBlockAuthoritativeWorldMutator.sinkFor(BeatBlock.blockAnimationEngine.getBlockControlExecutor(), world);
+		BeatBlock.blockAnimationEngine.tick(currentTime, previewOnly ? null : world, sink);
 		if (!previewOnly && world != null && BeatBlock.blockAnimationEngine != null) {
 			VfxEmitter.emit(MinecraftClient.getInstance(), BeatBlock.blockAnimationEngine.getLastInfluenceFrame());
 		}
@@ -179,6 +186,23 @@ public final class BeatBlockClientDriver {
 		lastAutoAnimationTime = currentTime;
 	}
 
+	private static void syncTimelineBuildReverseEvents(double currentTime, boolean previewOnly) {
+		if (BeatBlock.timeline == null || BeatBlock.blockAnimationEngine == null) return;
+		if (currentTime + TIMELINE_EVENT_EPSILON < lastBuildReverseTime) {
+			scheduledBuildReverseIds.clear();
+			lastBuildReverseTime = 0.0;
+		}
+		for (TimelineAnimationEvent event : BeatBlock.timeline.getBuildReverseEvents()) {
+			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
+				break;
+			}
+			String key = scheduleKey(event);
+			if (!scheduledBuildReverseIds.add(key)) continue;
+			applyTimelineActionEvent(event, previewOnly);
+		}
+		lastBuildReverseTime = currentTime;
+	}
+
 	private static void applyTimelineActionEvent(TimelineAnimationEvent event, boolean previewOnly) {
 		if (event == null || BeatBlock.blockAnimationEngine == null) return;
 		if (!passesEnergyThreshold(event)) {
@@ -225,7 +249,9 @@ public final class BeatBlockClientDriver {
 		for (BlockControlExecutor.BlockMutation mutation : mutations) {
 			captureTimelineMutationOriginalState(world, mutation.pos(), mutation.fromState());
 		}
-		BeatBlock.blockAnimationEngine.applyControlMutations(world, mutations);
+		WorldMutationSink sink = BeatBlockAuthoritativeWorldMutator.sinkFor(
+			BeatBlock.blockAnimationEngine.getBlockControlExecutor(), world);
+		BeatBlock.blockAnimationEngine.applyControlMutations(mutations, sink);
 		recordActionReport(event, mutations.size(), "APPLIED", "ok");
 	}
 
@@ -293,14 +319,7 @@ public final class BeatBlockClientDriver {
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
 		if (world != null && timelineMutationWorldKey != null && timelineMutationWorldKey.equals(world.getRegistryKey())) {
-			for (Map.Entry<BlockPos, BlockState> entry : timelineMutationSnapshot.entrySet()) {
-				BlockPos pos = entry.getKey();
-				if (!world.isChunkLoaded(pos)) continue;
-				BlockState originalState = entry.getValue();
-				if (!world.getBlockState(pos).equals(originalState)) {
-					world.setBlockState(pos, originalState, 3);
-				}
-			}
+			BeatBlockAuthoritativeWorldMutator.restoreAuthoritative(world, Map.copyOf(timelineMutationSnapshot));
 		}
 		timelineMutationSnapshot.clear();
 		timelineMutationWorldKey = null;
@@ -318,8 +337,10 @@ public final class BeatBlockClientDriver {
 		restoreTimelineMutationSnapshot();
 		scheduledTimelineAnimationIds.clear();
 		scheduledAutoAnimationIds.clear();
+		scheduledBuildReverseIds.clear();
 		lastTimelineAnimationTime = 0.0;
 		lastAutoAnimationTime = 0.0;
+		lastBuildReverseTime = 0.0;
 		if (BeatBlock.blockAnimationEngine != null) {
 			BeatBlock.blockAnimationEngine.clear();
 		}

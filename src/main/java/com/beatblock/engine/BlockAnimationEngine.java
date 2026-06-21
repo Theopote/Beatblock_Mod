@@ -1,5 +1,6 @@
 package com.beatblock.engine;
 
+import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
@@ -28,9 +29,10 @@ public final class BlockAnimationEngine {
 	private final AnimationLibrary animationLibrary = new AnimationLibrary();
 	private final AnimationPlayer animationPlayer = new AnimationPlayer();
 	private final BlockControlExecutor blockControlExecutor = new BlockControlExecutor(stageObjectSystem);
-	private final BuildSequencer buildSequencer = new BuildSequencer(stageObjectSystem);
+	private final BuildLayerManager buildLayerManager = new BuildLayerManager(stageObjectSystem);
+	private final BuildSequencer buildSequencer = new BuildSequencer(stageObjectSystem, buildLayerManager);
 	private final com.beatblock.engine.influence.BlockInfluenceOrchestrator influenceOrchestrator =
-		new com.beatblock.engine.influence.BlockInfluenceOrchestrator(blockControlExecutor);
+		new com.beatblock.engine.influence.BlockInfluenceOrchestrator();
 	private Vec3d runtimeCameraPosition = Vec3d.ZERO;
 
 	public StageObjectSystem getStageObjectSystem() {
@@ -53,6 +55,10 @@ public final class BlockAnimationEngine {
 		return buildSequencer;
 	}
 
+	public BuildLayerManager getBuildLayerManager() {
+		return buildLayerManager;
+	}
+
 	public void setRuntimeCameraPosition(Vec3d cameraPosition) {
 		if (cameraPosition == null) return;
 		this.runtimeCameraPosition = cameraPosition;
@@ -66,10 +72,22 @@ public final class BlockAnimationEngine {
 	}
 
 	/**
-	 * 统一影响帧 tick：渲染层 preset 求值 + 可选世界层 BUILD mutation。
+	 * @deprecated 直接拿 world 当权威世界写入，不保证持久化/线程安全（写的是客户端世界）。
+	 * 优先使用 {@link #tick(double, World, WorldMutationSink)} 并注入权威 sink，
+	 * 例如 {@code com.beatblock.client.BeatBlockAuthoritativeWorldMutator}。
 	 */
+	@Deprecated
 	public void tick(double timelineTimeSeconds, World world) {
-		influenceOrchestrator.tick(timelineTimeSeconds, animationPlayer, buildSequencer, world);
+		tick(timelineTimeSeconds, world, WorldMutationSink.direct(blockControlExecutor, world));
+	}
+
+	/**
+	 * 统一影响帧 tick：渲染层 preset 求值 + 可选世界层 BUILD mutation。
+	 * world 仅用于读取当前方块状态（isChunkLoaded/getBlockState 等）；真正的写入通过 sink 完成，
+	 * 由调用方决定写到哪个权威世界、在哪个线程写。
+	 */
+	public void tick(double timelineTimeSeconds, World world, WorldMutationSink sink) {
+		influenceOrchestrator.tick(timelineTimeSeconds, animationPlayer, buildSequencer, world, sink);
 	}
 
 	public com.beatblock.engine.influence.InfluenceFrame getLastInfluenceFrame() {
@@ -409,9 +427,20 @@ public final class BlockAnimationEngine {
 		return blockControlExecutor.plan(world, event);
 	}
 
+	/**
+	 * @deprecated 直接拿 world 当权威世界写入，不保证持久化/线程安全（写的是客户端世界）。
+	 * 优先使用 {@link #applyControlMutations(List, WorldMutationSink)} 并注入权威 sink。
+	 */
+	@Deprecated
 	public void applyControlMutations(World world, List<BlockControlExecutor.BlockMutation> mutations) {
 		if (world == null || mutations == null || mutations.isEmpty()) return;
 		blockControlExecutor.applyMutations(world, mutations);
+	}
+
+	/** 通过注入的 sink 应用 PLACE/CLEAR mutation；sink 决定写到哪个权威世界、在哪个线程写。 */
+	public void applyControlMutations(List<BlockControlExecutor.BlockMutation> mutations, WorldMutationSink sink) {
+		if (mutations == null || mutations.isEmpty() || sink == null) return;
+		sink.apply(mutations);
 	}
 
 	/** 当前帧参与动画的方块及其状态，供渲染层做 Matrix 变换后绘制 */

@@ -119,6 +119,7 @@ public class MenuBarPanel {
 					panelToggleItem("时间线", panels.timeline);
 					panelToggleItem("动画库", panels.animationLibrary);
 					panelToggleItem("选择属性", panels.selectionProperties);
+					panelToggleItem("建造图层", panels.layer);
 					ImGui.endMenu();
 				}
 				ImGui.endMenu();
@@ -191,7 +192,9 @@ public class MenuBarPanel {
 					projectDialogMessage = "Timeline 不可用";
 				} else {
 					try {
-						OscProjectStore.LoadedProject loaded = OscProjectStore.load(Path.of(p));
+						var layerMgr = BeatBlock.blockAnimationEngine != null
+							? BeatBlock.blockAnimationEngine.getBuildLayerManager() : null;
+						OscProjectStore.LoadedProject loaded = OscProjectStore.load(Path.of(p), layerMgr);
 						if (!loaded.getTimelineName().isBlank()) {
 							BeatBlock.timeline.setName(loaded.getTimelineName());
 						}
@@ -206,6 +209,9 @@ public class MenuBarPanel {
 						}
 						if (BeatBlock.timelineEditor != null) {
 							BeatBlock.timelineEditor.syncClockDuration();
+						}
+						if (layerMgr != null) {
+							layerMgr.applyPersistedWorldState(com.beatblock.engine.layer.BuildLayerManager.currentWorld());
 						}
 						projectDialogMessage = "工程已打开";
 						showOpenProjectDialog = false;
@@ -241,7 +247,9 @@ public class MenuBarPanel {
 					projectDialogMessage = "Timeline 不可用";
 				} else {
 					try {
-						OscProjectStore.save(Path.of(p), BeatBlock.timeline);
+						var layerMgr = BeatBlock.blockAnimationEngine != null
+							? BeatBlock.blockAnimationEngine.getBuildLayerManager() : null;
+						OscProjectStore.save(Path.of(p), BeatBlock.timeline, layerMgr);
 						projectDialogMessage = "工程已保存";
 						showSaveProjectDialog = false;
 					} catch (Exception e) {

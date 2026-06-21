@@ -19,6 +19,7 @@ public class Timeline {
 	public static final String TRACK_ID_ANIMATION_BLOCK_FEATURE_PREFIX = "animation_block_feature_";
 	public static final String TRACK_ID_CAMERA = "camera";
 	public static final String TRACK_ID_GLOBAL = "global";
+	public static final String TRACK_ID_BUILD_REVERSE = "build_reverse";
 
 	private String name = "";
 	private double durationSeconds = 0;
@@ -28,8 +29,10 @@ public class Timeline {
 	private final List<TimelineMarker> markerView = Collections.unmodifiableList(markers);
 	private final List<TimelineAnimationEvent> blockAnimationCache = new ArrayList<>();
 	private final List<TimelineAnimationEvent> autoAnimationCache = new ArrayList<>();
+	private final List<TimelineAnimationEvent> buildReverseCache = new ArrayList<>();
 	private final List<TimelineAnimationEvent> blockAnimationCacheView = Collections.unmodifiableList(blockAnimationCache);
 	private final List<TimelineAnimationEvent> autoAnimationCacheView = Collections.unmodifiableList(autoAnimationCache);
+	private final List<TimelineAnimationEvent> buildReverseCacheView = Collections.unmodifiableList(buildReverseCache);
 	private boolean animationCachesDirty = true;
 
 	public String getName() { return name; }
@@ -241,6 +244,12 @@ public class Timeline {
 	public void addAutoAnimationEvent(TimelineAnimationEvent e) { addAnimationEvent(TRACK_ID_ANIMATION_AUTO, e); }
 	public void clearAutoAnimationEvents() { clearClips(TRACK_ID_ANIMATION_AUTO); }
 
+	public List<TimelineAnimationEvent> getBuildReverseEvents() {
+		rebuildAnimationEventCachesIfNeeded();
+		return buildReverseCacheView;
+	}
+	public void clearBuildReverseEvents() { clearClips(TRACK_ID_BUILD_REVERSE); }
+
 	public static String blockAnimationFeatureTrackId(String featureKey) {
 		String safe = featureKey == null ? "unknown" : featureKey.trim();
 		if (safe.isEmpty()) safe = "unknown";
@@ -301,6 +310,7 @@ public class Timeline {
 		if (!animationCachesDirty) return;
 		blockAnimationCache.clear();
 		autoAnimationCache.clear();
+		buildReverseCache.clear();
 		blockAnimationCache.addAll(getAnimationEvents(TRACK_ID_ANIMATION_BLOCK));
 		for (Track track : tracks) {
 			if (!isBlockAnimationFeatureTrackId(track.getId())) continue;
@@ -309,6 +319,8 @@ public class Timeline {
 		blockAnimationCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
 		autoAnimationCache.addAll(getAnimationEvents(TRACK_ID_ANIMATION_AUTO));
 		autoAnimationCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
+		buildReverseCache.addAll(getAnimationEvents(TRACK_ID_BUILD_REVERSE));
+		buildReverseCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
 		animationCachesDirty = false;
 	}
 
@@ -427,6 +439,7 @@ public class Timeline {
 		t.addTrack(new Track(TRACK_ID_AUDIO, "音频", TrackType.AUDIO));
 		t.addTrack(new Track(TRACK_ID_ANIMATION_BLOCK, "方块动画", TrackType.ANIMATION));
 		t.addTrack(new Track(TRACK_ID_ANIMATION_AUTO, "自动动画", TrackType.ANIMATION));
+		t.addTrack(new Track(TRACK_ID_BUILD_REVERSE, "建造还原", TrackType.ANIMATION));
 		t.addTrack(new Track(TRACK_ID_CAMERA, "摄像机", TrackType.CAMERA));
 		t.addTrack(new Track(TRACK_ID_GLOBAL, "全局事件", TrackType.EVENT));
 		return t;

@@ -15,6 +15,7 @@ public final class BeatBlockPanelVisibility {
 	public final ImBoolean timeline = new ImBoolean(true);
 	public final ImBoolean animationLibrary = new ImBoolean(false);
 	public final ImBoolean selectionProperties = new ImBoolean(false);
+	public final ImBoolean layer = new ImBoolean(false);
 
 	public void closeAll() {
 		audioAnalysis.set(false);
@@ -24,6 +25,7 @@ public final class BeatBlockPanelVisibility {
 		timeline.set(false);
 		animationLibrary.set(false);
 		selectionProperties.set(false);
+		layer.set(false);
 	}
 
 	public void openAll() {
@@ -34,5 +36,6 @@ public final class BeatBlockPanelVisibility {
 		timeline.set(true);
 		animationLibrary.set(true);
 		selectionProperties.set(true);
+		layer.set(true);
 	}
 }
