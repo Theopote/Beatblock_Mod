@@ -47,16 +47,41 @@ public final class BuildLayerManager {
 
 	public BuildLayer createFromSelection(String name, List<BlockPos> blocks) {
 		if (blocks == null || blocks.isEmpty()) return null;
-		String layerName = name != null && !name.isBlank() ? name.trim() : "layer";
+		String layerName = uniqueLayerName(name);
 		String id = uniqueLayerId(layerName);
 		String stageId = id + "_stage";
 		StageObject stageObject = StageObjectSystem.fromSelectionSnapshot(
 			stageId, layerName, blocks, com.beatblock.engine.GroupSortingStrategy.SEQUENTIAL, 0.0);
 		stageObjectSystem.register(stageObject);
+
+		Map<BlockPos, BlockState> initialCapture = new LinkedHashMap<>();
+		World world = currentWorld();
+		if (world != null) {
+			snapshotBlocksFromWorld(blocks, world, initialCapture);
+		}
+
 		BuildLayer layer = new BuildLayer(
-			id, layerName, stageObject, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);
+			id, layerName, stageObject, LayerVisibilityState.FREE_VISIBLE, initialCapture, null);
 		layers.put(id, layer);
 		return layer;
+	}
+
+	public boolean renameLayer(BuildLayer layer, String newName) {
+		if (layer == null || newName == null || newName.isBlank()) return false;
+		String trimmed = newName.trim();
+		if (trimmed.equals(layer.getName())) return true;
+		if (isNameTaken(trimmed, layer.getId())) return false;
+		layer.setName(trimmed);
+		return true;
+	}
+
+	public boolean isNameTaken(String name, String excludeLayerId) {
+		if (name == null || name.isBlank()) return true;
+		for (BuildLayer layer : layers.values()) {
+			if (excludeLayerId != null && excludeLayerId.equals(layer.getId())) continue;
+			if (layer.getName().equalsIgnoreCase(name.trim())) return true;
+		}
+		return false;
 	}
 
 	public void registerRestored(BuildLayer layer) {
@@ -70,14 +95,18 @@ public final class BuildLayerManager {
 	public boolean hideLayer(BuildLayer layer, World world) {
 		if (layer == null || world == null || !layer.canToggleVisibility()) return false;
 		if (layer.getState() == LayerVisibilityState.FREE_HIDDEN) return true;
-		Map<BlockPos, BlockState> captured = new LinkedHashMap<>();
+
+		Map<BlockPos, BlockState> captured = new LinkedHashMap<>(layer.getCapturedStates());
 		List<BlockControlExecutor.BlockMutation> mutations = new ArrayList<>();
 		for (BlockPos pos : layer.getStageObject().getBlocks()) {
-			if (pos == null || !world.isChunkLoaded(pos)) continue;
-			BlockState current = world.getBlockState(pos);
-			captured.put(pos.toImmutable(), current);
-			if (!current.isAir()) {
-				mutations.add(new BlockControlExecutor.BlockMutation(pos.toImmutable(), current, Blocks.AIR.getDefaultState()));
+			if (pos == null) continue;
+			BlockPos immutable = pos.toImmutable();
+			if (world.isChunkLoaded(pos)) {
+				BlockState current = world.getBlockState(pos);
+				captured.put(immutable, current);
+				if (!current.isAir()) {
+					mutations.add(new BlockControlExecutor.BlockMutation(immutable, current, Blocks.AIR.getDefaultState()));
+				}
 			}
 		}
 		layer.mutableCapturedStates().clear();
@@ -90,14 +119,16 @@ public final class BuildLayerManager {
 	public boolean showLayer(BuildLayer layer, World world) {
 		if (layer == null || world == null || !layer.canToggleVisibility()) return false;
 		if (layer.getState() == LayerVisibilityState.FREE_VISIBLE) return true;
+
 		List<BlockControlExecutor.BlockMutation> mutations = new ArrayList<>();
-		for (Map.Entry<BlockPos, BlockState> entry : layer.getCapturedStates().entrySet()) {
-			BlockPos pos = entry.getKey();
-			BlockState target = entry.getValue();
-			if (pos == null || target == null || !world.isChunkLoaded(pos)) continue;
-			BlockState current = world.getBlockState(pos);
+		for (BlockPos pos : layer.getStageObject().getBlocks()) {
+			if (pos == null) continue;
+			BlockPos immutable = pos.toImmutable();
+			BlockState target = layer.getCapturedStates().get(immutable);
+			if (target == null || !world.isChunkLoaded(immutable)) continue;
+			BlockState current = world.getBlockState(immutable);
 			if (!current.equals(target)) {
-				mutations.add(new BlockControlExecutor.BlockMutation(pos.toImmutable(), current, target));
+				mutations.add(new BlockControlExecutor.BlockMutation(immutable, current, target));
 			}
 		}
 		layer.setState(LayerVisibilityState.FREE_VISIBLE);
@@ -167,6 +198,28 @@ public final class BuildLayerManager {
 		if (mutations == null || mutations.isEmpty()) return;
 		BlockControlExecutor executor = new BlockControlExecutor(null);
 		BeatBlockAuthoritativeWorldMutator.applyAuthoritative(executor, world, mutations);
+	}
+
+	private static void snapshotBlocksFromWorld(
+		List<BlockPos> blocks,
+		World world,
+		Map<BlockPos, BlockState> target
+	) {
+		if (blocks == null || world == null || target == null) return;
+		for (BlockPos pos : blocks) {
+			if (pos == null || !world.isChunkLoaded(pos)) continue;
+			target.put(pos.toImmutable(), world.getBlockState(pos));
+		}
+	}
+
+	private String uniqueLayerName(String requestedName) {
+		String base = requestedName != null && !requestedName.isBlank() ? requestedName.trim() : "layer";
+		if (!isNameTaken(base, null)) return base;
+		for (int i = 2; i < 10_000; i++) {
+			String candidate = base + "_" + i;
+			if (!isNameTaken(candidate, null)) return candidate;
+		}
+		return base + "_" + UUID.randomUUID().toString().substring(0, 4);
 	}
 
 	private String uniqueLayerId(String baseName) {

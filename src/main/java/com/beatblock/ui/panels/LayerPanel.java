@@ -2,37 +2,53 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.engine.layer.BuildLayer;
+import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.timeline.command.layer.CreateLayerCommand;
 import com.beatblock.timeline.command.layer.DeleteLayerCommand;
+import com.beatblock.timeline.command.layer.RenameLayerCommand;
 import com.beatblock.timeline.command.layer.ToggleLayerVisibilityCommand;
+import com.beatblock.ui.icons.Icons;
+import com.beatblock.ui.imgui.IconButtonStyle;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * 建造图层面板：列出 BuildLayer，支持从选区创建、显示/隐藏切换、删除与拖入时间线。
+ * 建造图层面板：列出 BuildLayer，支持重命名、图标切换可见性、右键删除确认与拖入时间线。
  */
 public class LayerPanel {
 
 	public static final String DRAG_PAYLOAD_TYPE = "BB_BUILD_LAYER_ID";
+	private static final String CONTEXT_POPUP = "##LayerRowContext";
+	private static final String DELETE_CONFIRM_POPUP = "##LayerDeleteConfirm";
+	private static final float ICON_BTN = 22f;
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
-	private static final int BUILD_REVERSE_COLOR = 0xFF_66_CC_88;
 
 	private final ImString newLayerNameBuffer = new ImString("layer", 64);
+	private final Map<String, ImString> nameEditBuffers = new HashMap<>();
+	private final Map<String, String> nameCommitted = new HashMap<>();
+
 	private String selectedLayerId;
+	private String pendingDeleteLayerId;
 	private String statusMessage = "";
 
 	public void render(ImBoolean pOpen) {
@@ -45,6 +61,7 @@ public class LayerPanel {
 		}
 		try {
 			renderContent();
+			renderDeleteConfirmPopup();
 		} finally {
 			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.LAYER_PANEL_WINDOW);
 		}
@@ -53,7 +70,7 @@ public class LayerPanel {
 	private void renderContent() {
 		ImGui.text("建造图层");
 		ImGui.separator();
-		ImGui.textWrapped("从选区创建图层 → 隐藏捕获快照 → 拖入「建造还原」轨道绑定片段播放。");
+		ImGui.textWrapped("从选区创建图层 → 点击眼睛隐藏 → 拖入「建造还原」轨道绑定片段播放。");
 
 		var selMgr = BeatBlockSelectionManager.get();
 		int selCount = selMgr.getSelectionCount();
@@ -84,71 +101,193 @@ public class LayerPanel {
 		}
 		var manager = BeatBlock.blockAnimationEngine.getBuildLayerManager();
 		List<BuildLayer> layers = new ArrayList<>(manager.getAll());
+		pruneNameBuffers(layers);
+
 		if (layers.isEmpty()) {
 			ImGui.textDisabled("暂无图层。");
 			return;
 		}
 
 		for (BuildLayer layer : layers) {
-			ImGui.pushID(layer.getId());
-			boolean selected = layer.getId().equals(selectedLayerId);
-			if (ImGui.selectable(layerLabel(layer), selected)) {
-				selectedLayerId = layer.getId();
-			}
-
-			if (ImGui.beginDragDropSource()) {
-				if (layer.canBindToTrack()) {
-					ImGui.text("绑定到建造还原轨道");
-					ImGui.setDragDropPayload(DRAG_PAYLOAD_TYPE, layer.getId().getBytes(), ImGuiCond.Once);
-				} else {
-					ImGui.textDisabled(stateHint(layer));
-				}
-				ImGui.endDragDropSource();
-			}
-
-			ImGui.sameLine();
-			renderVisibilityButton(layer);
-			ImGui.sameLine();
-			renderDeleteButton(layer);
-
-			if (selected) {
-				ImGui.indent();
-				ImGui.textDisabled(String.format(Locale.ROOT, "方块数：%d", layer.getStageObject().getBlocks().size()));
-				if (layer.getBoundClipId() != null) {
-					ImGui.textDisabled("绑定片段：" + layer.getBoundClipId());
-				}
-				ImGui.unindent();
-			}
-
-			ImGui.popID();
+			renderLayerRow(layer, manager);
 		}
 	}
 
-	private void renderVisibilityButton(BuildLayer layer) {
+	private void renderLayerRow(BuildLayer layer, BuildLayerManager manager) {
+		ImGui.pushID(layer.getId());
+		boolean selected = layer.getId().equals(selectedLayerId);
+
+		IconButtonStyle.pushBeatBlockIconButton();
+		renderVisibilityIcon(layer);
+		IconButtonStyle.popBeatBlockIconButton();
+
+		ImGui.sameLine();
+		float nameWidth = Math.max(80f, ImGui.getContentRegionAvail().x - 8f);
+		ImGui.setNextItemWidth(nameWidth);
+		ImString nameBuf = nameBufferFor(layer);
+		int flags = ImGuiInputTextFlags.EnterReturnsTrue;
+		if (ImGui.inputText("##layerNameEdit", nameBuf, flags)) {
+			commitLayerRename(layer, manager, nameBuf.get());
+		}
+		if (ImGui.isItemDeactivatedAfterEdit()) {
+			commitLayerRename(layer, manager, nameBuf.get());
+		}
+		if (ImGui.isItemClicked()) {
+			selectedLayerId = layer.getId();
+		}
+		boolean requestDeleteConfirm = false;
+		if (ImGui.beginPopupContextItem(CONTEXT_POPUP)) {
+			boolean canDelete = layer.canDelete();
+			if (!canDelete) ImGui.beginDisabled();
+			if (ImGui.menuItem("删除图层...")) {
+				pendingDeleteLayerId = layer.getId();
+				requestDeleteConfirm = true;
+				ImGui.closeCurrentPopup();
+			}
+			if (!canDelete) {
+				ImGui.endDisabled();
+				if (ImGui.isItemHovered()) {
+					ImGui.setTooltip("已绑定轨道，不可删除");
+				}
+			}
+			ImGui.endPopup();
+		}
+		if (requestDeleteConfirm) {
+			ImGui.openPopup(DELETE_CONFIRM_POPUP);
+		}
+
+		if (ImGui.beginDragDropSource()) {
+			if (layer.canBindToTrack()) {
+				ImGui.text("绑定到建造还原轨道");
+				ImGui.setDragDropPayload(DRAG_PAYLOAD_TYPE, layer.getId().getBytes(), ImGuiCond.Once);
+			} else {
+				ImGui.textDisabled(stateHint(layer));
+			}
+			ImGui.endDragDropSource();
+		}
+
+		if (layer.getState() == LayerVisibilityState.BOUND_TO_TRACK) {
+			ImGui.sameLine();
+			ImGui.textDisabled("[已绑定]");
+		}
+
+		if (selected) {
+			ImGui.indent();
+			ImGui.textDisabled(String.format(Locale.ROOT, "方块数：%d", layer.getStageObject().getBlocks().size()));
+			if (layer.getBoundClipId() != null) {
+				ImGui.textDisabled("绑定片段：" + layer.getBoundClipId());
+			}
+			ImGui.unindent();
+		}
+
+		ImGui.popID();
+	}
+
+	private void renderVisibilityIcon(BuildLayer layer) {
 		boolean canToggle = layer.canToggleVisibility();
-		if (!canToggle) ImGui.beginDisabled();
-		String label = layer.getState() == LayerVisibilityState.FREE_VISIBLE ? "隐藏" : "显示";
-		if (ImGui.smallButton(label + "##layerVis_" + layer.getId())) {
+		boolean visible = layer.getState() == LayerVisibilityState.FREE_VISIBLE;
+		String icon = visible ? Icons.EYE : Icons.Action.HIDDEN;
+
+		if (!canToggle) {
+			ImGui.beginDisabled();
+			icon = Icons.Action.LOCK;
+		} else if (!visible) {
+			ImGui.pushStyleColor(ImGuiCol.Text, 1f, 0.45f, 0.45f, 1f);
+		}
+
+		if (ImGui.button(icon + "##layerVis_" + layer.getId(), ICON_BTN, ICON_BTN)) {
 			toggleVisibility(layer);
 		}
-		if (!canToggle) ImGui.endDisabled();
+
+		if (!canToggle) {
+			ImGui.endDisabled();
+		} else if (!visible) {
+			ImGui.popStyleColor();
+		}
+
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(canToggle ? "切换 FREE_VISIBLE ↔ FREE_HIDDEN" : "已绑定轨道，不可手动切换");
+			if (!canToggle) {
+				ImGui.setTooltip("已绑定轨道，可见性由片段播放头控制");
+			} else if (visible) {
+				ImGui.setTooltip("当前可见，点击隐藏（世界方块变为空气）");
+			} else {
+				ImGui.setTooltip("当前隐藏，点击显示（恢复捕获的方块）");
+			}
 		}
 	}
 
-	private void renderDeleteButton(BuildLayer layer) {
-		boolean canDelete = layer.canDelete();
-		if (!canDelete) ImGui.beginDisabled();
-		ImGui.pushStyleColor(ImGuiCol.Button, 0.45f, 0.15f, 0.15f, 1f);
-		if (ImGui.smallButton("删除##layerDel_" + layer.getId())) {
+	private void renderDeleteConfirmPopup() {
+		if (pendingDeleteLayerId == null) return;
+		BuildLayer layer = BeatBlock.blockAnimationEngine != null
+			? BeatBlock.blockAnimationEngine.getBuildLayerManager().get(pendingDeleteLayerId)
+			: null;
+
+		ImGui.setNextWindowSize(360f, 0f);
+		if (!ImGui.beginPopupModal(DELETE_CONFIRM_POPUP, ImGuiWindowFlags.AlwaysAutoResize)) {
+			return;
+		}
+
+		ImGui.text(Icons.Action.WARNING + " 删除图层");
+		ImGui.separator();
+
+		if (layer == null) {
+			ImGui.textWrapped("图层已不存在。");
+		} else {
+			ImGui.textWrapped(String.format(Locale.ROOT,
+				"确定删除图层「%s」？此操作不可通过面板撤销以外的途径轻易恢复。",
+				layer.getName()));
+			if (layer.getState() == LayerVisibilityState.FREE_HIDDEN) {
+				ImGui.spacing();
+				ImGui.textWrapped("该图层当前为隐藏状态，删除前会先恢复世界中的方块。");
+			}
+		}
+
+		ImGui.spacing();
+		if (ImGui.button("确认删除##layerDeleteOk", 120f, 0f) && layer != null) {
 			deleteLayer(layer);
+			pendingDeleteLayerId = null;
+			ImGui.closeCurrentPopup();
 		}
-		ImGui.popStyleColor();
-		if (!canDelete) ImGui.endDisabled();
-		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(canDelete ? "释放图层（隐藏状态下会先恢复方块）" : "已绑定轨道，不可删除");
+		ImGui.sameLine();
+		if (ImGui.button("取消##layerDeleteCancel", 120f, 0f)) {
+			pendingDeleteLayerId = null;
+			ImGui.closeCurrentPopup();
 		}
+
+		ImGui.endPopup();
+	}
+
+	private ImString nameBufferFor(BuildLayer layer) {
+		ImString buf = nameEditBuffers.computeIfAbsent(layer.getId(), id -> new ImString(layer.getName(), 64));
+		String committed = nameCommitted.get(layer.getId());
+		if (!layer.getName().equals(committed)) {
+			buf.set(layer.getName());
+			nameCommitted.put(layer.getId(), layer.getName());
+		}
+		return buf;
+	}
+
+	private void commitLayerRename(BuildLayer layer, BuildLayerManager manager, String rawName) {
+		if (BeatBlock.timelineEditor == null || layer == null || manager == null) return;
+		String trimmed = rawName != null ? rawName.trim() : "";
+		if (trimmed.isEmpty()) {
+			nameBufferFor(layer).set(layer.getName());
+			statusMessage = "图层名称不能为空。";
+			return;
+		}
+		if (trimmed.equals(layer.getName())) {
+			nameCommitted.put(layer.getId(), trimmed);
+			return;
+		}
+		if (manager.isNameTaken(trimmed, layer.getId())) {
+			nameBufferFor(layer).set(layer.getName());
+			statusMessage = "名称已被其他图层使用：" + trimmed;
+			return;
+		}
+		var cmd = new RenameLayerCommand(manager, layer.getId(), trimmed);
+		BeatBlock.timelineEditor.getCommandManager().execute(cmd);
+		nameCommitted.put(layer.getId(), trimmed);
+		statusMessage = "已重命名为：" + trimmed;
 	}
 
 	private void createLayerFromSelection() {
@@ -170,19 +309,27 @@ public class LayerPanel {
 		);
 		BeatBlock.timelineEditor.getCommandManager().execute(cmd);
 		if (cmd.getCreatedLayer() != null) {
-			selectedLayerId = cmd.getCreatedLayer().getId();
-			statusMessage = "已创建图层：" + cmd.getCreatedLayer().getName();
+			BuildLayer created = cmd.getCreatedLayer();
+			selectedLayerId = created.getId();
+			nameCommitted.put(created.getId(), created.getName());
+			statusMessage = "已创建图层：" + created.getName();
 		}
 	}
 
 	private void toggleVisibility(BuildLayer layer) {
 		if (BeatBlock.timelineEditor == null || BeatBlock.blockAnimationEngine == null) return;
+		World world = BuildLayerManager.currentWorld();
+		if (world == null) {
+			statusMessage = "当前无世界上下文，无法切换可见性。";
+			return;
+		}
+		boolean wasVisible = layer.getState() == LayerVisibilityState.FREE_VISIBLE;
 		var cmd = new ToggleLayerVisibilityCommand(
 			BeatBlock.blockAnimationEngine.getBuildLayerManager(),
 			layer.getId()
 		);
 		BeatBlock.timelineEditor.getCommandManager().execute(cmd);
-		statusMessage = layer.getState() == LayerVisibilityState.FREE_VISIBLE ? "已隐藏图层" : "已显示图层";
+		statusMessage = wasVisible ? "已隐藏图层（世界方块已清除）" : "已显示图层（方块已恢复）";
 	}
 
 	private void deleteLayer(BuildLayer layer) {
@@ -192,20 +339,19 @@ public class LayerPanel {
 			layer.getId()
 		);
 		BeatBlock.timelineEditor.getCommandManager().execute(cmd);
+		nameEditBuffers.remove(layer.getId());
+		nameCommitted.remove(layer.getId());
 		if (layer.getId().equals(selectedLayerId)) selectedLayerId = null;
 		statusMessage = "已删除图层：" + layer.getName();
 	}
 
-	private static String layerLabel(BuildLayer layer) {
-		return String.format(Locale.ROOT, "%s  [%s]", layer.getName(), stateLabel(layer.getState()));
-	}
-
-	private static String stateLabel(LayerVisibilityState state) {
-		return switch (state) {
-			case FREE_VISIBLE -> "可见";
-			case FREE_HIDDEN -> "已隐藏";
-			case BOUND_TO_TRACK -> "已绑定";
-		};
+	private void pruneNameBuffers(List<BuildLayer> layers) {
+		Set<String> alive = new HashSet<>();
+		for (BuildLayer layer : layers) {
+			alive.add(layer.getId());
+		}
+		nameEditBuffers.keySet().removeIf(id -> !alive.contains(id));
+		nameCommitted.keySet().removeIf(id -> !alive.contains(id));
 	}
 
 	private static String stateHint(BuildLayer layer) {
