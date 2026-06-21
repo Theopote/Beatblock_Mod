@@ -101,7 +101,7 @@ public final class BuildLayerManager {
 		for (BlockPos pos : layer.getStageObject().getBlocks()) {
 			if (pos == null) continue;
 			BlockPos immutable = pos.toImmutable();
-			if (world.isChunkLoaded(pos)) {
+			if (isBlockPosInLoadedChunk(world, pos)) {
 				BlockState current = world.getBlockState(pos);
 				captured.put(immutable, current);
 				if (!current.isAir()) {
@@ -125,7 +125,7 @@ public final class BuildLayerManager {
 			if (pos == null) continue;
 			BlockPos immutable = pos.toImmutable();
 			BlockState target = layer.getCapturedStates().get(immutable);
-			if (target == null || !world.isChunkLoaded(immutable)) continue;
+			if (target == null || !isBlockPosInLoadedChunk(world, immutable)) continue;
 			BlockState current = world.getBlockState(immutable);
 			if (!current.equals(target)) {
 				mutations.add(new BlockControlExecutor.BlockMutation(immutable, current, target));
@@ -184,7 +184,7 @@ public final class BuildLayerManager {
 	private void applyHiddenBlocks(BuildLayer layer, World world) {
 		List<BlockControlExecutor.BlockMutation> mutations = new ArrayList<>();
 		for (BlockPos pos : layer.getStageObject().getBlocks()) {
-			if (pos == null || !world.isChunkLoaded(pos)) continue;
+			if (pos == null || !isBlockPosInLoadedChunk(world, pos)) continue;
 			BlockState current = world.getBlockState(pos);
 			if (!current.isAir()) {
 				mutations.add(new BlockControlExecutor.BlockMutation(
@@ -192,6 +192,11 @@ public final class BuildLayerManager {
 			}
 		}
 		applyMutations(world, mutations);
+	}
+
+	private static boolean isBlockPosInLoadedChunk(World world, BlockPos pos) {
+		if (world == null || pos == null) return false;
+		return world.getChunkAsView(pos.getX() >> 4, pos.getZ() >> 4) != null;
 	}
 
 	private static void applyMutations(World world, List<BlockControlExecutor.BlockMutation> mutations) {
@@ -207,7 +212,7 @@ public final class BuildLayerManager {
 	) {
 		if (blocks == null || world == null || target == null) return;
 		for (BlockPos pos : blocks) {
-			if (pos == null || !world.isChunkLoaded(pos)) continue;
+			if (pos == null || !isBlockPosInLoadedChunk(world, pos)) continue;
 			target.put(pos.toImmutable(), world.getBlockState(pos));
 		}
 	}
