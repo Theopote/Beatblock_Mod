@@ -1,0 +1,34 @@
+package com.beatblock.timeline.rendering;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class TimelineTrackMetaTest {
+
+	@Test
+	void cameraRowIsAdjacentToBuildReverseInActionGroup() {
+		assertEquals(TimelineTrackMeta.ROW_BUILD_REVERSE + 1, TimelineTrackMeta.ROW_CAMERA);
+		assertEquals(TimelineTrackMeta.ROW_ACTION_GROUP, TimelineTrackMeta.getParentRowIndex(TimelineTrackMeta.ROW_CAMERA));
+		assertEquals("摄像机", TimelineTrackMeta.getDefaultName(TimelineTrackMeta.ROW_CAMERA));
+	}
+
+	@Test
+	void audioAndAnimationFeatureSubRowSlots() {
+		assertTrue(TimelineTrackMeta.isAudioSubRow(TimelineTrackMeta.ROW_AUDIO_SUBS_START));
+		assertEquals(0, TimelineTrackMeta.audioSubRowSlot(TimelineTrackMeta.ROW_AUDIO_SUBS_START));
+		assertFalse(TimelineTrackMeta.isAudioSubRow(TimelineTrackMeta.ROW_ACTION_GROUP));
+
+		assertTrue(TimelineTrackMeta.isAnimationFeatureSubRow(TimelineTrackMeta.ROW_ANIM_FEATURES_START));
+		assertEquals(0, TimelineTrackMeta.animationFeatureSubRowSlot(TimelineTrackMeta.ROW_ANIM_FEATURES_START));
+	}
+
+	@Test
+	void categoryLabelsMatchRowKind() {
+		assertEquals("节奏特征", TimelineTrackMeta.getCategoryTypeLabel(TimelineTrackMeta.ROW_ANIMATION_GROUP));
+		assertEquals("动画", TimelineTrackMeta.getCategoryTypeLabel(TimelineTrackMeta.ROW_ANIM_BLOCK));
+		assertEquals("事件", TimelineTrackMeta.getCategoryTypeLabel(TimelineTrackMeta.ROW_GLOBAL_EVENT));
+	}
+}
