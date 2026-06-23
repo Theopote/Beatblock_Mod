@@ -1,6 +1,7 @@
 package com.beatblock.audio.process;
 
-import com.beatblock.audio.AudioAnalysisService;
+import com.beatblock.audio.AnalysisProgressCallback;
+import com.beatblock.audio.AnalysisSummary;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -20,7 +21,7 @@ public final class AnalyzerProcessIo {
 
 	public static String consumeStdout(
 		InputStream stdout,
-		AudioAnalysisService.BiConsumer<String, Integer> onProgress
+		AnalysisProgressCallback onProgress
 	) throws IOException {
 		String resultJson = null;
 		StringBuilder errorBuf = new StringBuilder();
@@ -33,7 +34,7 @@ public final class AnalyzerProcessIo {
 						try {
 							String step = parts[1];
 							int pct = Integer.parseInt(parts[2].trim());
-							onProgress.accept(step, pct);
+							onProgress.onProgress(step, pct);
 						} catch (NumberFormatException ignored) {}
 					}
 				} else if (line.startsWith("RESULT ")) {
@@ -55,7 +56,7 @@ public final class AnalyzerProcessIo {
 		return new StdoutParseResult(result, error);
 	}
 
-	public static AudioAnalysisService.AnalysisSummary parseResultSummary(String resultJson) {
+	public static AnalysisSummary parseResultSummary(String resultJson) {
 		if (resultJson == null || resultJson.isBlank()) return null;
 		try {
 			JsonObject o = JsonParser.parseString(resultJson).getAsJsonObject();
@@ -65,7 +66,7 @@ public final class AnalyzerProcessIo {
 			long durationMs = o.has("duration_ms") ? o.get("duration_ms").getAsLong() : 0L;
 			String separationMode = o.has("separation_mode") ? o.get("separation_mode").getAsString() : "basic";
 			String cacheSource = o.has("cache_source") ? o.get("cache_source").getAsString() : "fresh";
-			return new AudioAnalysisService.AnalysisSummary(
+			return new AnalysisSummary(
 				bpm, beatCount, sectionCount, durationMs, separationMode, cacheSource);
 		} catch (Exception ignored) {
 			return null;

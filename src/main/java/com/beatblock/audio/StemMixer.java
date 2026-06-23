@@ -1,13 +1,12 @@
 package com.beatblock.audio;
 
+import com.beatblock.audio.ffmpeg.FfmpegPcmDecoder;
 import com.beatblock.timeline.IAudioPlayer;
-import net.fabricmc.loader.api.FabricLoader;
 import org.lwjgl.openal.AL10;
 import org.lwjgl.openal.AL11;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -16,7 +15,6 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 多茎播放器 —— 每条 Demucs 茎对应一个独立 OpenAL source，
@@ -422,68 +420,14 @@ public final class StemMixer implements IAudioPlayer {
 	 * 通过 ffmpeg 进程将任意音频文件解码为 44100Hz / 双声道 / 16-bit LE PCM。
 	 */
 	private StemPcmData decodePcmWithFfmpeg(Path inputFile) throws IOException {
-		String ffmpeg = resolveFfmpegExecutable();
-		if (ffmpeg == null) throw new IOException("ffmpeg not found");
-
-		final int sampleRate = 44100, channels = 2; // Demucs 总是输出 44100Hz 立体声
-		List<String> cmd = List.of(
-				ffmpeg, "-y", "-i", inputFile.toAbsolutePath().toString(),
-				"-vn", "-ar", String.valueOf(sampleRate), "-ac", String.valueOf(channels),
-				"-acodec", "pcm_s16le", "-f", "s16le", "pipe:1");
-
-		Process process = new ProcessBuilder(cmd).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-		ByteArrayOutputStream out = new ByteArrayOutputStream(1 << 22);
-		try (var in = process.getInputStream()) {
-			byte[] buf = new byte[8192];
-			int n;
-			while ((n = in.read(buf)) != -1) {
-				out.write(buf, 0, n);
-				if (out.size() > 512 * 1024 * 1024) {
-					process.destroyForcibly();
-					throw new IOException("stem audio too large");
-				}
-			}
-		}
+		final int sampleRate = 44100;
+		final int channels = 2;
 		try {
-			int exitCode = process.waitFor();
-			if (exitCode != 0 || out.size() == 0) {
-				throw new IOException("ffmpeg exited code=" + exitCode + " outBytes=" + out.size());
-			}
+			byte[] pcm = FfmpegPcmDecoder.decodeToPcm(inputFile, sampleRate, channels, 512 * 1024 * 1024);
+			return new StemPcmData(pcm, sampleRate, channels);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			throw new IOException("interrupted waiting for ffmpeg");
-		}
-		return new StemPcmData(out.toByteArray(), sampleRate, channels);
-	}
-
-	private String resolveFfmpegExecutable() {
-		Path configPath = FabricLoader.getInstance().getConfigDir().resolve("beatblock/ffmpeg_path.txt");
-		if (Files.exists(configPath)) {
-			try {
-				String txt = Files.readString(configPath).trim();
-				if (!txt.isEmpty() && isExecutable(txt)) return txt;
-			} catch (IOException ignored) {}
-		}
-		Path gameDir = FabricLoader.getInstance().getGameDir();
-		for (Path p : List.of(
-				gameDir.resolve("ffmpeg.exe"),
-				gameDir.resolve("ffmpeg"),
-				gameDir.resolve("ffmpeg/bin/ffmpeg.exe"),
-				gameDir.resolve("ffmpeg/bin/ffmpeg"))) {
-			if (Files.isRegularFile(p) && isExecutable(p.toAbsolutePath().toString())) {
-				return p.toAbsolutePath().toString();
-			}
-		}
-		if (isExecutable("ffmpeg")) return "ffmpeg";
-		return null;
-	}
-
-	private boolean isExecutable(String exe) {
-		try {
-			Process p = new ProcessBuilder(exe, "-version").redirectErrorStream(true).start();
-			return p.waitFor(3, TimeUnit.SECONDS) && p.exitValue() == 0;
-		} catch (Exception e) {
-			return false;
 		}
 	}
 }

@@ -1,7 +1,9 @@
 package com.beatblock.audio.python;
 
+import com.beatblock.audio.AnalysisCancelControl;
+import com.beatblock.audio.AnalysisProgressCallback;
 import com.beatblock.audio.AnalyzerInstaller;
-import com.beatblock.audio.AudioAnalysisService;
+import com.beatblock.audio.ffmpeg.FfmpegLocator;
 import com.beatblock.audio.process.ProcessIo;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
@@ -184,8 +186,8 @@ public final class PythonEnvironmentDiagnostics {
 	public String ensurePythonDependencies(
 		String pythonExe,
 		Path requirementsPath,
-		AnalysisControl control,
-		AudioAnalysisService.BiConsumer<String, Integer> onProgress,
+		AnalysisCancelControl control,
+		AnalysisProgressCallback onProgress,
 		boolean analysisUseDemucs
 	) {
 		try {
@@ -233,7 +235,7 @@ public final class PythonEnvironmentDiagnostics {
 			}
 
 			if (analysisUseDemucs) {
-				onProgress.accept("DEMUCS_DEP_CHECK", 0);
+				onProgress.onProgress("DEMUCS_DEP_CHECK", 0);
 				Process demucsCheck = new ProcessBuilder(
 					pythonExe,
 					"-c",
@@ -246,7 +248,7 @@ public final class PythonEnvironmentDiagnostics {
 				if (control.isCancelled()) return "分析被取消";
 
 				if (demucsCheckCode != 0) {
-					onProgress.accept("DEMUCS_DEP_INSTALL", 0);
+					onProgress.onProgress("DEMUCS_DEP_INSTALL", 0);
 					Path demucsRequirementsPath = requirementsPath.getParent().resolve("requirements-demucs.txt");
 					List<String> demucsInstallCmd = new ArrayList<>();
 					demucsInstallCmd.add(pythonExe);
@@ -270,8 +272,8 @@ public final class PythonEnvironmentDiagnostics {
 					if (demucsInstallCode != 0) {
 						String detail = ProcessIo.sanitizeProcessOutput(demucsInstallOut);
 						if (detail.isEmpty()) detail = ProcessIo.sanitizeProcessOutput(demucsCheckOut);
-						onProgress.accept(demucsInstallFailureStep(detail), 100);
-						onProgress.accept("DEMUCS_DEP_INSTALL_FAILED", 100);
+						onProgress.onProgress(demucsInstallFailureStep(detail), 100);
+						onProgress.onProgress("DEMUCS_DEP_INSTALL_FAILED", 100);
 						String hint = explainPythonError(detail);
 						String resolvedExe = getProbeInfo(pythonExe).executablePath();
 						String cmdExe = resolvedExe != null && !resolvedExe.isBlank() ? resolvedExe : pythonExe;
@@ -283,11 +285,11 @@ public final class PythonEnvironmentDiagnostics {
 							+ (hint.isEmpty() ? "" : ("\n" + hint + "\n"))
 							+ detail;
 					}
-					onProgress.accept("DEMUCS_DEP_INSTALL", 100);
-					onProgress.accept("DEMUCS_DEP_INSTALL_SUCCESS", 100);
+					onProgress.onProgress("DEMUCS_DEP_INSTALL", 100);
+					onProgress.onProgress("DEMUCS_DEP_INSTALL_SUCCESS", 100);
 				} else {
-					onProgress.accept("DEMUCS_DEP_CHECK", 100);
-					onProgress.accept("DEMUCS_DEP_INSTALL_SUCCESS", 100);
+					onProgress.onProgress("DEMUCS_DEP_CHECK", 100);
+					onProgress.onProgress("DEMUCS_DEP_INSTALL_SUCCESS", 100);
 				}
 			}
 
@@ -374,49 +376,11 @@ public final class PythonEnvironmentDiagnostics {
 	}
 
 	private HealthItem probeFfmpegHealth() {
-		String executable = resolveFfmpegExecutable();
+		String executable = FfmpegLocator.resolveExecutable();
 		if (executable == null || executable.isBlank()) {
 			return new HealthItem("missing", "未找到");
 		}
 		return new HealthItem("ok", executable);
-	}
-
-	private String resolveFfmpegExecutable() {
-		Path configPath = FabricLoader.getInstance().getConfigDir().resolve("beatblock/ffmpeg_path.txt");
-		if (Files.exists(configPath)) {
-			try {
-				String txt = Files.readString(configPath).trim();
-				if (!txt.isEmpty() && isExecutable(txt)) return txt;
-			} catch (IOException ignored) {}
-		}
-
-		Path gameDir = FabricLoader.getInstance().getGameDir();
-		List<Path> candidates = List.of(
-			gameDir.resolve("ffmpeg.exe"),
-			gameDir.resolve("ffmpeg"),
-			gameDir.resolve("ffmpeg/bin/ffmpeg.exe"),
-			gameDir.resolve("ffmpeg/bin/ffmpeg")
-		);
-		for (Path p : candidates) {
-			if (Files.isRegularFile(p) && isExecutable(p.toAbsolutePath().toString())) {
-				return p.toAbsolutePath().toString();
-			}
-		}
-
-		if (isExecutable("ffmpeg")) return "ffmpeg";
-		return null;
-	}
-
-	private boolean isExecutable(String executable) {
-		try {
-			Process p = new ProcessBuilder(executable, "-version")
-				.redirectErrorStream(true)
-				.start();
-			boolean finished = p.waitFor(3, TimeUnit.SECONDS);
-			return finished && p.exitValue() == 0;
-		} catch (Exception e) {
-			return false;
-		}
 	}
 
 	private static String detailOrDefault(String detail, String fallback) {
@@ -503,36 +467,5 @@ public final class PythonEnvironmentDiagnostics {
 			start = out.indexOf('%', start + value.length());
 		}
 		return out;
-	}
-
-	/** 分析任务进程生命周期（供依赖安装与分析子进程共享）。 */
-	public static final class AnalysisControl {
-		private final java.util.concurrent.atomic.AtomicReference<Process> activeProcess =
-			new java.util.concurrent.atomic.AtomicReference<>();
-		private volatile boolean cancelled;
-
-		public void attachProcess(Process process) {
-			if (process == null) return;
-			activeProcess.set(process);
-			if (cancelled) {
-				process.destroyForcibly();
-			}
-		}
-
-		public void clearProcess(Process process) {
-			activeProcess.compareAndSet(process, null);
-		}
-
-		public void cancelRunningProcess() {
-			cancelled = true;
-			Process p = activeProcess.getAndSet(null);
-			if (p != null) {
-				p.destroyForcibly();
-			}
-		}
-
-		public boolean isCancelled() {
-			return cancelled;
-		}
 	}
 }

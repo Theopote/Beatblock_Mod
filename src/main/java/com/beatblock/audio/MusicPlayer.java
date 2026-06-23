@@ -1,7 +1,8 @@
 package com.beatblock.audio;
 
+import com.beatblock.audio.ffmpeg.FfmpegLocator;
+import com.beatblock.audio.ffmpeg.FfmpegPcmDecoder;
 import com.beatblock.timeline.IAudioPlayer;
-import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,6 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 音乐播放与进度控制，与 BeatScheduler 同步驱动时间轴。
@@ -472,8 +472,7 @@ public class MusicPlayer implements IAudioPlayer {
 	}
 
 	private boolean tryLoadViaFfmpegFallback(Path originalFile) {
-		String ffmpeg = resolveFfmpegExecutable();
-		if (ffmpeg == null) {
+		if (!FfmpegLocator.isAvailable()) {
 			lastLoadError = "格式不受支持，且找不到 ffmpeg 进行解码兜底";
 			return false;
 		}
@@ -488,7 +487,7 @@ public class MusicPlayer implements IAudioPlayer {
 			int channels = c[1];
 			byte[] pcmBytes;
 			try {
-				pcmBytes = decodePcmWithFfmpeg(ffmpeg, originalFile, sampleRate, channels);
+				pcmBytes = FfmpegPcmDecoder.decodeToPcm(originalFile, sampleRate, channels, 256 * 1024 * 1024);
 			} catch (Exception e) {
 				lastLoadError = "ffmpeg 解码失败: " + e.getMessage();
 				return false;
@@ -509,35 +508,6 @@ public class MusicPlayer implements IAudioPlayer {
 		lastLoadError = "ffmpeg 已解码，但加载 PCM 失败 (all formats rejected): "
 			+ lastFailure.getMessage();
 		return false;
-	}
-
-	private byte[] decodePcmWithFfmpeg(String ffmpeg, Path originalFile, int sampleRate, int channels)
-		throws IOException, InterruptedException {
-		List<String> command = List.of(
-			ffmpeg, "-y", "-i", originalFile.toAbsolutePath().toString(),
-			"-vn", "-ar", String.valueOf(sampleRate), "-ac", String.valueOf(channels),
-			"-acodec", "pcm_s16le", "-f", "s16le", "pipe:1"
-		);
-		Process process = new ProcessBuilder(command)
-			.redirectError(ProcessBuilder.Redirect.DISCARD)
-			.start();
-		ByteArrayOutputStream pcmOut = new ByteArrayOutputStream(1 << 20);
-		try (var in = process.getInputStream()) {
-			byte[] buf = new byte[8192];
-			int n;
-			while ((n = in.read(buf)) != -1) {
-				pcmOut.write(buf, 0, n);
-				if (pcmOut.size() > 256 * 1024 * 1024) {
-					process.destroyForcibly();
-					throw new IOException("音频过长，解码后内存占用过大");
-				}
-			}
-		}
-		int exitCode = process.waitFor();
-		if (exitCode != 0 || pcmOut.size() == 0) {
-			throw new IOException("ffmpeg 进程退出码=" + exitCode);
-		}
-		return pcmOut.toByteArray();
 	}
 
 	private void openPcmAsPlaybackBackend(byte[] pcmBytes, AudioFormat pcmFmt) throws LineUnavailableException, IOException {
@@ -857,45 +827,6 @@ public class MusicPlayer implements IAudioPlayer {
 				return clip;
 			}
 			throw new LineUnavailableException("系统未提供 Clip 音频线路");
-		}
-	}
-
-	private String resolveFfmpegExecutable() {
-		Path configPath = FabricLoader.getInstance().getConfigDir().resolve("beatblock/ffmpeg_path.txt");
-		if (Files.exists(configPath)) {
-			try {
-				String txt = Files.readString(configPath).trim();
-				if (!txt.isEmpty() && isExecutable(txt)) return txt;
-			} catch (IOException ignored) {
-			}
-		}
-
-		Path gameDir = FabricLoader.getInstance().getGameDir();
-		List<Path> candidates = List.of(
-			gameDir.resolve("ffmpeg.exe"),
-			gameDir.resolve("ffmpeg"),
-			gameDir.resolve("ffmpeg/bin/ffmpeg.exe"),
-			gameDir.resolve("ffmpeg/bin/ffmpeg")
-		);
-		for (Path p : candidates) {
-			if (Files.isRegularFile(p) && isExecutable(p.toAbsolutePath().toString())) {
-				return p.toAbsolutePath().toString();
-			}
-		}
-
-		if (isExecutable("ffmpeg")) return "ffmpeg";
-		return null;
-	}
-
-	private boolean isExecutable(String executable) {
-		try {
-			Process p = new ProcessBuilder(executable, "-version")
-				.redirectErrorStream(true)
-				.start();
-			boolean finished = p.waitFor(3, TimeUnit.SECONDS);
-			return finished && p.exitValue() == 0;
-		} catch (Exception e) {
-			return false;
 		}
 	}
 

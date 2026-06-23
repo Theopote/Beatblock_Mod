@@ -1,5 +1,6 @@
 package com.beatblock.audio;
 
+import com.beatblock.audio.ffmpeg.FfmpegLocator;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.BufferedReader;
@@ -12,7 +13,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -58,7 +58,7 @@ public final class AudioConversionService {
 			return;
 		}
 
-		String ffmpeg = resolveFfmpegExecutable();
+		String ffmpeg = FfmpegLocator.resolveExecutable();
 		if (ffmpeg == null) {
 			Path gameDir = FabricLoader.getInstance().getGameDir();
 			onError.accept(
@@ -177,45 +177,6 @@ public final class AudioConversionService {
 			if (!Files.exists(candidate)) return candidate;
 		}
 		return dir.resolve(baseName + "_converted.mp3");
-	}
-
-	private String resolveFfmpegExecutable() {
-		Path configPath = FabricLoader.getInstance().getConfigDir().resolve("beatblock/ffmpeg_path.txt");
-		if (Files.exists(configPath)) {
-			try {
-				String txt = Files.readString(configPath).trim();
-				if (!txt.isEmpty() && isExecutable(txt)) return txt;
-			} catch (IOException ignored) {
-			}
-		}
-
-		Path gameDir = FabricLoader.getInstance().getGameDir();
-		List<Path> candidates = List.of(
-			gameDir.resolve("ffmpeg.exe"),
-			gameDir.resolve("ffmpeg"),
-			gameDir.resolve("ffmpeg/bin/ffmpeg.exe"),
-			gameDir.resolve("ffmpeg/bin/ffmpeg")
-		);
-		for (Path p : candidates) {
-			if (Files.isRegularFile(p) && isExecutable(p.toAbsolutePath().toString())) {
-				return p.toAbsolutePath().toString();
-			}
-		}
-
-		if (isExecutable("ffmpeg")) return "ffmpeg";
-		return null;
-	}
-
-	private boolean isExecutable(String executable) {
-		try {
-			Process p = new ProcessBuilder(executable, "-version")
-				.redirectErrorStream(true)
-				.start();
-			boolean finished = p.waitFor(3, TimeUnit.SECONDS);
-			return finished && p.exitValue() == 0;
-		} catch (Exception e) {
-			return false;
-		}
 	}
 
 	private String summarizeProcessOutput(StringBuilder output) {
