@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,5 +42,16 @@ class BuildLayerTest {
 		assertFalse(bound.canToggleVisibility());
 		assertFalse(bound.canDelete());
 		assertFalse(bound.canBindToTrack());
+	}
+
+	@Test
+	void nameDefaultsToIdAndIgnoresBlankRename() {
+		StageObject stage = StageObjectSystem.fromBlocks("layer-x", "Layer", List.of(new BlockPos(0, 64, 0)));
+		BuildLayer layer = new BuildLayer("layer-x", null, stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);
+		assertEquals("layer-x", layer.getName());
+		layer.setName("   ");
+		assertEquals("layer-x", layer.getName());
+		layer.setName("Renamed");
+		assertEquals("Renamed", layer.getName());
 	}
 }

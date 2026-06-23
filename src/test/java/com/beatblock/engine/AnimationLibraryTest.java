@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AnimationLibraryTest {
@@ -22,5 +23,11 @@ class AnimationLibraryTest {
 		var preset = com.beatblock.engine.influence.BlockInfluencePresets.get("Pulse");
 		library.register(new AnimationDefinition(preset));
 		assertEquals("Pulse", library.get("Pulse").getId());
+	}
+
+	@Test
+	void getReturnsNullForUnknownId() {
+		AnimationLibrary library = new AnimationLibrary();
+		assertNull(library.get("NotARealAnimation"));
 	}
 }

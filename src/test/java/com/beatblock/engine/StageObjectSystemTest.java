@@ -43,4 +43,21 @@ class StageObjectSystemTest {
 		assertEquals(GroupSortingStrategy.RADIAL, obj.getGroupSpec().getSortingStrategy());
 		assertEquals(0.25, obj.getGroupSpec().getStaggerDelaySeconds(), 1e-9);
 	}
+
+	@Test
+	void clearRemovesAllRegisteredObjects() {
+		system.register(StageObjectSystem.fromBlocks("a", "A", List.of(new BlockPos(0, 64, 0))));
+		system.register(StageObjectSystem.fromBlocks("b", "B", List.of(new BlockPos(1, 64, 0))));
+		system.clear();
+		assertEquals(0, system.size());
+	}
+
+	@Test
+	void fromSelectionCuboidEmbedsCuboidSpec() {
+		BlockPos a = new BlockPos(1, 64, 2);
+		BlockPos b = new BlockPos(3, 66, 4);
+		StageObject obj = StageObjectSystem.fromSelectionCuboid(
+			"cube", "Cube", List.of(a, b), a, b, false);
+		assertEquals("selection_cuboid", obj.getGroupSpec().getSourceType());
+	}
 }

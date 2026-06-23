@@ -88,4 +88,16 @@ class AutoMapGeneratorTest {
 		assertTrue(height instanceof Number);
 		assertEquals(1.5f, ((Number) height).floatValue(), 1e-3f);
 	}
+
+	@Test
+	void enforcesGlobalMinGapAcrossFeatureTracks() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addFeatureEvent("kick", new FeatureEvent(1.0, 0.8f));
+		timeline.addFeatureEvent("snare", new FeatureEvent(1.05, 0.8f));
+
+		int count = AutoMapGenerator.generate(timeline, AutoMapConfig.createDefault(), false);
+
+		assertEquals(1, count);
+		assertEquals(1, timeline.getAutoAnimationEvents().size());
+	}
 }

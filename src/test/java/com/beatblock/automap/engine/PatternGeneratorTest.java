@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PatternGeneratorTest {
 
@@ -41,5 +42,16 @@ class PatternGeneratorTest {
 		List<RhythmEvent> filtered = PatternGenerator.filter(input, Complexity.EXTREME);
 
 		assertEquals(3, filtered.size());
+	}
+
+	@Test
+	void nullComplexityUsesMediumDefaults() {
+		assertEquals(0.12, PatternGenerator.getMinGapSeconds(null), 1e-9);
+		assertEquals(0.2f, PatternGenerator.getEnergyThreshold(null), 1e-6f);
+	}
+
+	@Test
+	void filterReturnsEmptyForNullInput() {
+		assertTrue(PatternGenerator.filter(null, Complexity.MEDIUM).isEmpty());
 	}
 }

@@ -50,4 +50,27 @@ class CurveLibraryTest {
 		assertTrue(BlockInfluencePresets.get("Meteor") != null);
 		assertEquals(10, BlockInfluencePresets.getAll().size());
 	}
+
+	@Test
+	void clampTClampsOutsideUnitInterval() {
+		assertEquals(0f, CurveLibrary.clampT(-0.5f), EPS);
+		assertEquals(1f, CurveLibrary.clampT(1.5f), EPS);
+	}
+
+	@Test
+	void lerpInterpolatesBetweenEndpoints() {
+		assertEquals(2.5f, CurveLibrary.lerp(2f, 3f, 0.5f), EPS);
+	}
+
+	@Test
+	void scatterEnvelopeFadesOutWithTime() {
+		assertEquals(0.5f, CurveLibrary.scatterEnvelope(0.5f, 1f), EPS);
+		assertEquals(0f, CurveLibrary.scatterEnvelope(1f, 1f), EPS);
+	}
+
+	@Test
+	void constantCurvesReturnFixedValues() {
+		assertEquals(0f, CurveLibrary.sample(CurveKind.CONST_ZERO, 0.5f), EPS);
+		assertEquals(1f, CurveLibrary.sample(CurveKind.CONST_ONE, 0.5f), EPS);
+	}
 }

@@ -36,4 +36,16 @@ class BeatGridPacingTest {
 		assertEquals(2.5, timestamps.get(0), 1e-9);
 		assertTrue(timestamps.get(1) > timestamps.get(0));
 	}
+
+	@Test
+	void firstBeatIndexReturnsLengthWhenAllBeatsBeforeTime() {
+		double[] beats = {0.5, 1.0, 1.5};
+		assertEquals(3, BeatGridPacing.firstBeatIndexAtOrAfter(2.0, beats));
+	}
+
+	@Test
+	void computeTimestampsReturnsEmptyForZeroSlots() {
+		var request = new PacingRequest(0, 1.0, true, new double[]{1.0}, 120, 0.5);
+		assertTrue(PacingStrategy.beatGrid().computeTimestamps(request).isEmpty());
+	}
 }

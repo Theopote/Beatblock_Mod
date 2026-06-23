@@ -29,6 +29,17 @@ class ReferenceBeatResolverTest {
 	}
 
 	@Test
+	void prefersDrumsOverUnrelatedFeatureKeys() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addFeatureEvent("hihat", new FeatureEvent(2.0, 0.5f));
+		timeline.addFeatureEvent("drums", new FeatureEvent(0.5, 0.5f));
+		timeline.addFeatureEvent("drums", new FeatureEvent(1.5, 0.5f));
+
+		assertEquals("drums", ReferenceBeatResolver.describePrimaryRhythmKey(timeline));
+		assertArrayEquals(new double[] {0.5, 1.5}, ReferenceBeatResolver.resolveBeatTimesSeconds(timeline), 1e-9);
+	}
+
+	@Test
 	void mergesNearDuplicateBeatTimes() {
 		Timeline timeline = Timeline.createDefault();
 		timeline.addFeatureEvent("kick", new FeatureEvent(1.0, 0.5f));

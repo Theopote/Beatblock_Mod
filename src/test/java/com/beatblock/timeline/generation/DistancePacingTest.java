@@ -80,4 +80,12 @@ class DistancePacingTest {
 		assertEquals(1, times.size());
 		assertEquals(2.3, times.get(0), 1e-6);
 	}
+
+	@Test
+	void computeTimestampsReturnsAnchorWhenOrderedBlocksEmpty() {
+		var request = new PacingRequest(1, 4.0, true, new double[0], 120, 0.5, List.of(), 0.1, 0.05);
+		List<Double> times = PacingStrategy.distance().computeTimestamps(request);
+		assertEquals(1, times.size());
+		assertEquals(4.0, times.get(0), 1e-9);
+	}
 }

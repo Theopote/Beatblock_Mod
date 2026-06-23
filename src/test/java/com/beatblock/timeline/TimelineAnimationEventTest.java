@@ -35,4 +35,13 @@ class TimelineAnimationEventTest {
 			Map.of("eventOrigin", TimelineEventOrigin.AUTO_GENERATED.name()));
 		assertEquals(TimelineEventOrigin.AUTO_GENERATED, auto.getEventOrigin());
 	}
+
+	@Test
+	void parametersMapIsDefensivelyCopied() {
+		var mutable = new java.util.HashMap<String, Object>();
+		mutable.put("mode", "BUILD");
+		var event = new TimelineAnimationEvent("ev", 0, 1, "build", "s", 1f, mutable);
+		mutable.put("mode", "CLEAR");
+		assertEquals("BUILD", event.getParameters().get("mode"));
+	}
 }
