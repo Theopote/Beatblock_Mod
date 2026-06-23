@@ -157,10 +157,10 @@ public final class AudioAssetManager {
 
 	public void remove(String id) {
 		if (id == null) return;
-		Future<?> task = analysisTasks.remove(id);
-		if (task != null) {
-			task.cancel(true);
+		if (BeatBlock.externalAudioAnalyzer != null) {
+			BeatBlock.externalAudioAnalyzer.cancelAnalysis(id);
 		}
+		analysisTasks.remove(id);
 		assets.removeIf(a -> id.equals(a.getId()));
 	}
 
@@ -342,6 +342,7 @@ public final class AudioAssetManager {
 		}
 
 		Future<?> task = service.analyze(
+			asset.getId(),
 			path,
 			(step, pct) -> {
 				asset.setAnalysisProgressPercent(pct);

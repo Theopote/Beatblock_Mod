@@ -4,42 +4,32 @@ import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.audio.cache.BeatmapAnalysisCache;
 import com.beatblock.audio.python.PythonAudioAnalyzer;
 import com.beatblock.audio.python.PythonEnvironmentDiagnostics;
-import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
- * 在后台线程调度音频分析任务，解析进度输出，完成后加载 Beatmap。
- * <p>
- * Python 环境探测与错误归类见 {@link PythonEnvironmentDiagnostics}；
- * 缓存路径与兼容性见 {@link BeatmapAnalysisCache}；
- * 分析后端见 {@link IAudioAnalyzer}（默认 {@link PythonAudioAnalyzer}）。
+ * 音频分析对外入口：任务调度委托 {@link AudioAnalysisOrchestrator}，
+ * Python 运行时健康检查由本类缓存刷新。
  */
 public final class AudioAnalysisService {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AudioAnalysisService.class);
 
-	private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
-		Thread t = new Thread(r, "beatblock-analyzer");
-		t.setDaemon(true);
-		return t;
-	});
+	private final PythonEnvironmentDiagnostics pythonDiagnostics;
+	private final AudioAnalysisOrchestrator orchestrator;
+
 	private final ExecutorService summaryExecutor = Executors.newSingleThreadExecutor(r -> {
 		Thread t = new Thread(r, "beatblock-python-summary");
 		t.setDaemon(true);
 		return t;
 	});
-	private final PythonEnvironmentDiagnostics pythonDiagnostics;
-	private final IAudioAnalyzer analyzer;
 
 	private volatile String cachedPythonSummary = "Python: 检测中...";
 	private volatile long nextPythonSummaryRefreshAtMs;
@@ -57,16 +47,21 @@ public final class AudioAnalysisService {
 
 	public AudioAnalysisService(PythonEnvironmentDiagnostics pythonDiagnostics) {
 		this.pythonDiagnostics = pythonDiagnostics;
-		this.analyzer = new PythonAudioAnalyzer(pythonDiagnostics);
+		this.orchestrator = new AudioAnalysisOrchestrator(new PythonAudioAnalyzer(pythonDiagnostics));
 	}
 
 	AudioAnalysisService(IAudioAnalyzer analyzer, PythonEnvironmentDiagnostics pythonDiagnostics) {
-		this.analyzer = analyzer;
+		this.pythonDiagnostics = pythonDiagnostics;
+		this.orchestrator = new AudioAnalysisOrchestrator(analyzer);
+	}
+
+	AudioAnalysisService(AudioAnalysisOrchestrator orchestrator, PythonEnvironmentDiagnostics pythonDiagnostics) {
+		this.orchestrator = orchestrator;
 		this.pythonDiagnostics = pythonDiagnostics;
 	}
 
 	public IAudioAnalyzer getAnalyzer() {
-		return analyzer;
+		return orchestrator.getAnalyzer();
 	}
 
 	public boolean isUseDemucs() { return useDemucs; }
@@ -78,7 +73,7 @@ public final class AudioAnalysisService {
 		Consumer<Beatmap> onComplete,
 		Consumer<String> onError
 	) {
-		return analyze(audioPath, onProgress, onComplete, onError, null, null);
+		return submitAnalysis(null, audioPath, onProgress, onComplete, onError, null, null, useDemucs);
 	}
 
 	public Future<?> analyze(
@@ -88,7 +83,7 @@ public final class AudioAnalysisService {
 		Consumer<String> onError,
 		Runnable onStarted
 	) {
-		return analyze(audioPath, onProgress, onComplete, onError, null, onStarted);
+		return submitAnalysis(null, audioPath, onProgress, onComplete, onError, null, onStarted, useDemucs);
 	}
 
 	public Future<?> analyze(
@@ -99,7 +94,7 @@ public final class AudioAnalysisService {
 		Consumer<AnalysisSummary> onSummary,
 		Runnable onStarted
 	) {
-		return analyze(audioPath, onProgress, onComplete, onError, onSummary, onStarted, useDemucs);
+		return submitAnalysis(null, audioPath, onProgress, onComplete, onError, onSummary, onStarted, useDemucs);
 	}
 
 	public Future<?> analyze(
@@ -111,26 +106,54 @@ public final class AudioAnalysisService {
 		Runnable onStarted,
 		boolean requestedDemucs
 	) {
-		AnalysisCancelControl control = new AnalysisCancelControl();
-		Future<?> delegate = executor.submit(() -> {
-			if (onStarted != null) {
-				onStarted.run();
-			}
-			analyzer.analyze(
-				audioPath,
-				AnalysisOptions.withDemucs(requestedDemucs),
-				onProgress,
-				onComplete,
-				onError,
-				onSummary,
-				control
-			);
-		});
-		return wrapCancelableFuture(delegate, control);
+		return submitAnalysis(null, audioPath, onProgress, onComplete, onError, onSummary, onStarted, requestedDemucs);
+	}
+
+	public Future<?> analyze(
+		String taskId,
+		Path audioPath,
+		AnalysisProgressCallback onProgress,
+		Consumer<Beatmap> onComplete,
+		Consumer<String> onError,
+		Consumer<AnalysisSummary> onSummary,
+		Runnable onStarted,
+		boolean requestedDemucs
+	) {
+		return submitAnalysis(taskId, audioPath, onProgress, onComplete, onError, onSummary, onStarted, requestedDemucs);
+	}
+
+	private Future<?> submitAnalysis(
+		String taskId,
+		Path audioPath,
+		AnalysisProgressCallback onProgress,
+		Consumer<Beatmap> onComplete,
+		Consumer<String> onError,
+		Consumer<AnalysisSummary> onSummary,
+		Runnable onStarted,
+		boolean requestedDemucs
+	) {
+		return orchestrator.submit(
+			taskId,
+			audioPath,
+			AnalysisOptions.withDemucs(requestedDemucs),
+			onProgress,
+			onComplete,
+			onError,
+			onSummary,
+			onStarted
+		);
+	}
+
+	public boolean cancelAnalysis(String taskId) {
+		return orchestrator.cancel(taskId);
+	}
+
+	public int getActiveAnalysisCount() {
+		return orchestrator.activeTaskCount();
 	}
 
 	public void shutdown() {
-		executor.shutdownNow();
+		orchestrator.shutdown();
 		summaryExecutor.shutdownNow();
 	}
 
@@ -203,39 +226,5 @@ public final class AudioAnalysisService {
 				runtimeHealthRefreshInFlight.set(false);
 			}
 		});
-	}
-
-	private Future<?> wrapCancelableFuture(
-		Future<?> delegate,
-		AnalysisCancelControl control
-	) {
-		return new Future<>() {
-			@Override
-			public boolean cancel(boolean mayInterruptIfRunning) {
-				control.cancelRunningProcess();
-				return delegate.cancel(true);
-			}
-
-			@Override
-			public boolean isCancelled() {
-				return delegate.isCancelled();
-			}
-
-			@Override
-			public boolean isDone() {
-				return delegate.isDone();
-			}
-
-			@Override
-			public Object get() throws InterruptedException, ExecutionException {
-				return delegate.get();
-			}
-
-			@Override
-			public Object get(long timeout, @NonNull TimeUnit unit)
-				throws InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
-				return delegate.get(timeout, unit);
-			}
-		};
 	}
 }

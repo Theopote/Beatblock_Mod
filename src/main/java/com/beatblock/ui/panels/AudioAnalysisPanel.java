@@ -2,6 +2,7 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.audio.AudioAnalysisService;
+import com.beatblock.audio.IAudioAnalyzer;
 import com.beatblock.audio.python.PythonEnvironmentDiagnostics;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.ui.icons.Icons;
@@ -257,6 +258,20 @@ public final class AudioAnalysisPanel {
         if (py == null || py.isBlank()) return;
         PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot = BeatBlock.externalAudioAnalyzer.getRuntimeHealthSnapshot();
         renderRuntimeHealth(py, snapshot);
+
+        IAudioAnalyzer analyzer = BeatBlock.externalAudioAnalyzer.getAnalyzer();
+        if (analyzer != null) {
+            String backendLabel = analyzer.backendId();
+            if (!analyzer.isAvailable()) {
+                backendLabel += "（不可用）";
+            }
+            ImGui.textDisabled("分析后端 · " + backendLabel);
+            if (BeatBlock.externalAudioAnalyzer.getActiveAnalysisCount() > 0) {
+                ImGui.sameLine();
+                ImGui.textDisabled("· 进行中 " + BeatBlock.externalAudioAnalyzer.getActiveAnalysisCount());
+            }
+        }
+
         ImGui.separator();
     }
 
