@@ -9,6 +9,7 @@ import com.beatblock.timeline.binding.AnimationBindingEngine;
 import com.beatblock.timeline.*;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.editor.SelectionBox;
+import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineClock;
 import com.beatblock.timeline.editor.TimelineViewState;
@@ -42,9 +43,9 @@ public final class TimelineRenderer {
 	private static final long DENSE_FAILURE_COOLDOWN_MS = 30_000L;
 	private static final long PENDING_DENSE_PAYLOAD_TTL_MS = 120_000L;
 
-	private static final int PLAYHEAD_COLOR = 0xFF_FF_66_66;
+	public static final int PLAYHEAD_COLOR = 0xFF_FF_66_66;
 	private static final int SELECTED_BORDER_COLOR = 0xFF_FF_FF_00;
-	private static final int FREQ_LOW_COLOR = 0xFF_77_77_DD;
+	private static final int ALIGNMENT_GUIDE_COLOR = 0xAA_FF_CC_44;
 	private static final int FREQ_MID_COLOR = 0xFF_57_C4_A0;
 	private static final int FREQ_HIGH_COLOR = 0xFF_27_A0_EF;
 	private static final int ANIMATION_CLIP_DEFAULT_COLOR = 0xFF_FF_CC_66;
@@ -130,6 +131,7 @@ public final class TimelineRenderer {
 		SelectionState selectionState,
 		TimelineClock clock,
 		SelectionBox selectionBox,
+		InteractionState interactionState,
 		TimelineTrackListState trackListState,
 		TimelineLayout layout
 	) {
@@ -198,6 +200,7 @@ public final class TimelineRenderer {
 		// 网格竖线（仅时间轴方向，不画行间线）
 		gridRenderer.render(viewState, layout, layout.contentHeight);
 		drawPairedFeatureHoverHighlight(layout);
+		drawActionCameraHoverHighlight(layout);
 
 		// 每帧重置音频组拖放高亮标记
 		audioGroupDropHighlight = false;
@@ -219,20 +222,10 @@ public final class TimelineRenderer {
 		// 音频组拖放高亮（在所有行内容绘制后叠加边框）
 		drawAudioGroupDropHighlight(layout);
 
-		// 分割线：位于轨道背景/内容之上，但低于播放头。
+		// 分割线：位于轨道背景/内容之上，但低于对齐辅助线与框选。
 		drawDivider(layout, layout.contentTop, layout.contentTop + layout.contentHeight);
 
-		// 播放头（仅限轨道区高度）
-		if (clock != null) {
-			double currentTime = clock.getCurrentTimeSeconds();
-			float playheadX = viewState.timeToScreen(currentTime);
-			if (playheadX >= -2 && playheadX <= layout.contentWidth + 2) {
-				float px = layout.contentLeft + playheadX;
-				float py0 = layout.contentTop;
-				float py1 = layout.contentTop + layout.contentHeight;
-				ImGui.getWindowDrawList().addLine(px, py0, px, py1, PLAYHEAD_COLOR, 2f);
-			}
-		}
+		drawAlignmentGuides(viewState, layout, interactionState);
 
 		// 框选矩形
 		if (selectionBox != null && selectionBox.isActive()) {
@@ -321,6 +314,57 @@ public final class TimelineRenderer {
 		if (y0 < 0 || y1 <= y0) return;
 		ImGui.getWindowDrawList().addRectFilled(x0, y0, x1, y1, PAIRED_ROW_HOVER_FILL, 2f);
 		ImGui.getWindowDrawList().addRect(x0, y0, x1, y1, PAIRED_ROW_HOVER_BORDER, 2f, 0, 1f);
+	}
+
+	private void drawActionCameraHoverHighlight(TimelineLayout layout) {
+		if (layout == null || !ImGui.isWindowHovered()) return;
+
+		float mx = ImGui.getMousePosX();
+		float my = ImGui.getMousePosY();
+		float x0 = layout.trackHeaderLeft;
+		float x1 = layout.contentLeft + layout.contentWidth;
+		if (mx < x0 || mx > x1 || my < layout.contentTop || my > layout.contentTop + layout.contentHeight) {
+			return;
+		}
+
+		int hoveredRow = layout.findRowAtScreenY(my);
+		if (hoveredRow < 0) return;
+
+		int[] linkedRows;
+		if (hoveredRow == TimelineTrackMeta.ROW_CAMERA) {
+			linkedRows = new int[]{
+				TimelineTrackMeta.ROW_ANIM_BLOCK,
+				TimelineTrackMeta.ROW_ANIM_AUTO,
+				TimelineTrackMeta.ROW_BUILD_REVERSE
+			};
+		} else if (hoveredRow == TimelineTrackMeta.ROW_ANIM_BLOCK
+			|| hoveredRow == TimelineTrackMeta.ROW_ANIM_AUTO
+			|| hoveredRow == TimelineTrackMeta.ROW_BUILD_REVERSE) {
+			linkedRows = new int[]{TimelineTrackMeta.ROW_CAMERA};
+		} else {
+			return;
+		}
+
+		drawHoverRowHighlight(layout, hoveredRow, x0, x1);
+		for (int row : linkedRows) {
+			drawHoverRowHighlight(layout, row, x0, x1);
+		}
+	}
+
+	private void drawAlignmentGuides(TimelineViewState viewState, TimelineLayout layout, InteractionState interactionState) {
+		if (viewState == null || layout == null || interactionState == null) return;
+		double[] guides = interactionState.getAlignmentGuideTimes();
+		if (guides.length == 0) return;
+
+		float y0 = layout.contentTop;
+		float y1 = layout.contentTop + layout.contentHeight;
+		float xLeft = layout.contentLeft;
+		float xRight = layout.contentLeft + layout.contentWidth;
+		for (double t : guides) {
+			float x = xLeft + viewState.timeToScreen(t);
+			if (x < xLeft - 1 || x > xRight + 1) continue;
+			ImGui.getWindowDrawList().addLine(x, y0, x, y1, ALIGNMENT_GUIDE_COLOR, 1.5f);
+		}
 	}
 
 	private void drawRowContent(int rowIndex, float rowY, Timeline timeline, TimelineViewState viewState,

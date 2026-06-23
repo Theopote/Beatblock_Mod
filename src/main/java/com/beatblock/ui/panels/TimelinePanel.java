@@ -64,6 +64,9 @@ public class TimelinePanel {
 				}
 			}
 			ImGui.endChild();
+			if (editor != null) {
+				editor.renderPlayheadOverlay();
+			}
 		} finally {
 			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.TIMELINE_PANEL_WINDOW);
 		}

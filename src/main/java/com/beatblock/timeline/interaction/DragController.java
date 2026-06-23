@@ -4,6 +4,7 @@ import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.editor.TimelineViewState;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.util.SnapSystem;
@@ -14,19 +15,22 @@ import com.beatblock.timeline.util.TimeUtils;
  */
 public final class DragController {
 
+	private DragController() {}
+
 	/**
 	 * 将指定事件的时间设为 newTimeSeconds，根据 toolbarState 吸附后再夹到 [0, duration]。
-	 *
-	 * @param toolbarState 工具栏状态（可为 null，则不吸附）
-	 * @param viewState    视图状态（用于计算当前网格步长，可为 null）
 	 */
 	public static void dragEvent(Timeline timeline, String trackId, String clipId, String eventId,
 			double newTimeSeconds, double duration,
-			TimelineToolbarState toolbarState, TimelineViewState viewState) {
+			TimelineToolbarState toolbarState, TimelineViewState viewState,
+			InteractionState interactionState) {
 		if (timeline == null || trackId == null || clipId == null || eventId == null) return;
 
-		double snapped = applySnap(newTimeSeconds, eventId, timeline, toolbarState, viewState);
-		double t = Math.max(0, Math.min(snapped, duration > 0 ? duration : Double.MAX_VALUE));
+		SnapSystem.SnapResult snapped = applySnapWithGuides(newTimeSeconds, eventId, timeline, toolbarState, viewState);
+		if (interactionState != null) {
+			interactionState.setAlignmentGuideTimes(snapped.guideTimes());
+		}
+		double t = Math.max(0, Math.min(snapped.timeSeconds(), duration > 0 ? duration : Double.MAX_VALUE));
 
 		Track track = timeline.getTrack(trackId);
 		if (track == null) return;
@@ -35,25 +39,18 @@ public final class DragController {
 		TimelineEvent e = clip.getEvent(eventId);
 		if (e != null) {
 			e.setTimeSeconds(t);
-			// 事件时间变更后使动画缓存失效，避免渲染读取旧排序结果。
 			timeline.markAnimationEventsDirty(trackId);
 		}
 	}
 
 	/**
 	 * 拖动音频片段到新位置，返回实际生效的新起始时间（吸附 + 夹取后）。
-	 * 调用方可用 (返回值 - dragInitialClipStart) 计算实际 delta，然后同步其他轨道上的关联事件。
-	 *
-	 * @param mouseTimeSeconds     当前鼠标对应的时间轴时间
-	 * @param dragInitialMouseTime 拖拽开始时鼠标对应的时间轴时间
-	 * @param dragInitialClipStart 拖拽开始时该片段的 startTimeSeconds
-	 * @param clipDuration         片段时长（固定，拖拽中不变）
-	 * @param maxDuration          时间轴总时长上限
 	 */
 	public static double dragClip(Timeline timeline, String trackId, String clipId,
 			double mouseTimeSeconds, double dragInitialMouseTime,
 			double dragInitialClipStart, double clipDuration,
-			double maxDuration, TimelineToolbarState toolbarState, TimelineViewState viewState) {
+			double maxDuration, TimelineToolbarState toolbarState, TimelineViewState viewState,
+			InteractionState interactionState) {
 		if (timeline == null || trackId == null || clipId == null) return dragInitialClipStart;
 		Track track = timeline.getTrack(trackId);
 		if (track == null) return dragInitialClipStart;
@@ -61,9 +58,11 @@ public final class DragController {
 		if (clip == null) return dragInitialClipStart;
 
 		double rawNewStart = dragInitialClipStart + (mouseTimeSeconds - dragInitialMouseTime);
-		double snappedStart = applySnap(rawNewStart, null, timeline, toolbarState, viewState);
-		// 允许向右继续拖动，时间线时长由调用方在拖拽中按需扩展。
-		double clampedStart = Math.max(0.0, snappedStart);
+		SnapSystem.SnapResult snapped = applySnapWithGuides(rawNewStart, null, timeline, toolbarState, viewState);
+		if (interactionState != null) {
+			interactionState.setAlignmentGuideTimes(snapped.guideTimes());
+		}
+		double clampedStart = Math.max(0.0, snapped.timeSeconds());
 
 		clip.setStartTimeSeconds(clampedStart);
 		clip.setEndTimeSeconds(clampedStart + clipDuration);
@@ -73,16 +72,26 @@ public final class DragController {
 	/** 供片段边缘拖拽等复用：与 {@link #dragEvent} 相同的吸附规则。 */
 	public static double snapTime(double timeSeconds, String excludeEventId, Timeline timeline,
 			TimelineToolbarState toolbarState, TimelineViewState viewState) {
-		return applySnap(timeSeconds, excludeEventId, timeline, toolbarState, viewState);
+		return snapTime(timeSeconds, excludeEventId, timeline, toolbarState, viewState, null);
 	}
 
-	private static double applySnap(double timeSeconds, String excludeEventId, Timeline timeline,
+	public static double snapTime(double timeSeconds, String excludeEventId, Timeline timeline,
+			TimelineToolbarState toolbarState, TimelineViewState viewState,
+			InteractionState interactionState) {
+		SnapSystem.SnapResult result = applySnapWithGuides(timeSeconds, excludeEventId, timeline, toolbarState, viewState);
+		if (interactionState != null) {
+			interactionState.setAlignmentGuideTimes(result.guideTimes());
+		}
+		return result.timeSeconds();
+	}
+
+	private static SnapSystem.SnapResult applySnapWithGuides(double timeSeconds, String excludeEventId, Timeline timeline,
 			TimelineToolbarState toolbarState, TimelineViewState viewState) {
-		if (toolbarState == null) return timeSeconds;
+		if (toolbarState == null) return SnapSystem.SnapResult.unchanged(timeSeconds);
 		boolean grid = toolbarState.isSnapToGrid();
 		boolean beat = toolbarState.isSnapToBeat();
 		boolean magnet = toolbarState.isMagnetSnap();
-		if (!grid && !beat && !magnet) return timeSeconds;
+		if (!grid && !beat && !magnet) return SnapSystem.SnapResult.unchanged(timeSeconds);
 
 		double gridStep = 0;
 		if (grid && viewState != null) {
@@ -91,6 +100,6 @@ public final class DragController {
 				viewState.getViewEndTimeSeconds(),
 				viewState.getZoom());
 		}
-		return SnapSystem.snap(timeSeconds, timeline, grid, gridStep, beat, timeline.getBpm(), magnet, excludeEventId);
+		return SnapSystem.snapWithGuides(timeSeconds, timeline, grid, gridStep, beat, timeline.getBpm(), magnet, excludeEventId);
 	}
 }

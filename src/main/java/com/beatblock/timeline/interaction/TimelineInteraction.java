@@ -145,8 +145,8 @@ public final class TimelineInteraction {
 	private static final int[] INTERACTIVE_ROW_INDICES = {
 		TimelineTrackMeta.ROW_AUDIO_GROUP,
 		TimelineTrackMeta.ROW_ANIM_BLOCK,
-		TimelineTrackMeta.ROW_ANIM_AUTO,
 		TimelineTrackMeta.ROW_CAMERA,
+		TimelineTrackMeta.ROW_ANIM_AUTO,
 		TimelineTrackMeta.ROW_GLOBAL_EVENT
 	};
 
@@ -161,8 +161,9 @@ public final class TimelineInteraction {
 				slots.add(new InteractiveTrackSlot(defs.get(i).getKey(), TimelineTrackMeta.ROW_ANIM_FEATURES_START + i));
 			}
 		}
-		slots.add(new InteractiveTrackSlot(Timeline.TRACK_ID_ANIMATION_AUTO, TimelineTrackMeta.ROW_ANIM_AUTO));
+		slots.add(new InteractiveTrackSlot(Timeline.TRACK_ID_ANIMATION_BLOCK, TimelineTrackMeta.ROW_ANIM_BLOCK));
 		slots.add(new InteractiveTrackSlot(Timeline.TRACK_ID_CAMERA, TimelineTrackMeta.ROW_CAMERA));
+		slots.add(new InteractiveTrackSlot(Timeline.TRACK_ID_ANIMATION_AUTO, TimelineTrackMeta.ROW_ANIM_AUTO));
 		slots.add(new InteractiveTrackSlot(Timeline.TRACK_ID_GLOBAL, TimelineTrackMeta.ROW_GLOBAL_EVENT));
 		return slots;
 	}
@@ -460,7 +461,7 @@ public final class TimelineInteraction {
 				Clip c = ct != null ? ct.getClip(interactionState.getActiveClipId()) : null;
 				if (c != null) {
 					double mouseT = viewState.screenToTime(mx - layout.contentLeft);
-					double snapped = DragController.snapTime(mouseT, null, timeline, toolbarState, viewState);
+					double snapped = DragController.snapTime(mouseT, null, timeline, toolbarState, viewState, interactionState);
 					if (interactionState.isResizeLeft()) {
 						double newStart = Math.max(0.0, Math.min(snapped, cameraResizeInitialEnd - CAMERA_MIN_CLIP_DURATION));
 						double delta = newStart - cameraResizeInitialStart;
@@ -494,7 +495,7 @@ public final class TimelineInteraction {
 				double clipDuration = dragClipInitialEnd - dragClipInitialStart;
 				double newStart = DragController.dragClip(timeline, interactionState.getActiveTrackId(),
 					interactionState.getActiveClipId(), mouseTime, dragClipInitialMouseTime,
-					dragClipInitialStart, clipDuration, duration, toolbarState, viewState);
+					dragClipInitialStart, clipDuration, duration, toolbarState, viewState, interactionState);
 				double actualDelta = newStart - dragClipInitialStart;
 				// 允许片段右移时自动扩展时间线总时长。
 				timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), newStart + clipDuration));
@@ -560,7 +561,7 @@ public final class TimelineInteraction {
 					return;
 				}
 				double t = viewState.screenToTime(mx - layout.contentLeft);
-				DragController.dragEvent(timeline, interactionState.getActiveTrackId(), interactionState.getActiveClipId(), interactionState.getActiveEventId(), t, duration, toolbarState, viewState);
+				DragController.dragEvent(timeline, interactionState.getActiveTrackId(), interactionState.getActiveClipId(), interactionState.getActiveEventId(), t, duration, toolbarState, viewState, interactionState);
 				return;
 			}
 			if (interactionState.getMode() == InteractionMode.BOX_SELECT && selectionBox != null) {

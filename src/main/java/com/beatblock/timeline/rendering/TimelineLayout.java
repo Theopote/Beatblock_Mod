@@ -34,9 +34,9 @@ public final class TimelineLayout {
 	/** 可交互轨道在内容行中的索引（0-based）：方块动画、自动动画、摄像机、全局 */
 	public static final int[] INTERACTIVE_ROW_INDICES = {
 		TimelineTrackMeta.ROW_ANIM_BLOCK,
+		TimelineTrackMeta.ROW_CAMERA,
 		TimelineTrackMeta.ROW_ANIM_AUTO,
 		TimelineTrackMeta.ROW_BUILD_REVERSE,
-		TimelineTrackMeta.ROW_CAMERA,
 		TimelineTrackMeta.ROW_GLOBAL_EVENT
 	};
 

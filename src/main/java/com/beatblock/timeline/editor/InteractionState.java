@@ -14,6 +14,19 @@ public class InteractionState {
 	private String activeMarkerId;
 	private boolean resizeLeft; // RESIZE_CLIP 时 true=左边缘
 	private float resizeStartHeaderWidth; // RESIZE_HEADER 时按下时的轨道头宽度
+	private double[] alignmentGuideTimes = new double[0];
+
+	public double[] getAlignmentGuideTimes() {
+		return alignmentGuideTimes;
+	}
+
+	public void setAlignmentGuideTimes(double[] times) {
+		alignmentGuideTimes = times != null ? times : new double[0];
+	}
+
+	public void clearAlignmentGuideTimes() {
+		alignmentGuideTimes = new double[0];
+	}
 
 	public InteractionMode getMode() {
 		return mode;
@@ -50,5 +63,6 @@ public class InteractionState {
 		activeClipId = null;
 		activeTrackId = null;
 		activeMarkerId = null;
+		clearAlignmentGuideTimes();
 	}
 }

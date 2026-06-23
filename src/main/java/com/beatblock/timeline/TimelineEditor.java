@@ -12,6 +12,7 @@ import com.beatblock.timeline.rendering.TrackDefinition;
 import com.beatblock.timeline.rendering.TrackRegistry;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import com.beatblock.timeline.rendering.TimelineUiStateStore;
+import imgui.ImGui;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -187,9 +188,9 @@ public final class TimelineEditor {
 
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ACTION_GROUP);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_BLOCK);
+		addRow(ordered, addedRows, TimelineTrackMeta.ROW_CAMERA);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_AUTO);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_BUILD_REVERSE);
-		addRow(ordered, addedRows, TimelineTrackMeta.ROW_CAMERA);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_GLOBAL_EVENT);
 
 		for (int i = 0; i < TimelineLayout.CONTENT_ROW_COUNT; i++) {
@@ -215,6 +216,7 @@ public final class TimelineEditor {
 		}
 		parents.put(TimelineTrackMeta.ROW_ACTION_GROUP, TimelineTrackMeta.NO_PARENT);
 		parents.put(TimelineTrackMeta.ROW_ANIM_BLOCK, TimelineTrackMeta.ROW_ACTION_GROUP);
+		parents.put(TimelineTrackMeta.ROW_CAMERA, TimelineTrackMeta.ROW_ACTION_GROUP);
 		parents.put(TimelineTrackMeta.ROW_ANIM_AUTO, TimelineTrackMeta.ROW_ACTION_GROUP);
 		parents.put(TimelineTrackMeta.ROW_BUILD_REVERSE, TimelineTrackMeta.ROW_ACTION_GROUP);
 		return parents;
@@ -374,15 +376,6 @@ public final class TimelineEditor {
 		cachedDividerScreenX = layout.contentLeft;
 		cachedDividerContentBottomScreenY = layout.contentTop + layout.contentHeight;
 		TimelineViewState viewState = state.getViewState();
-		renderer.renderTrackArea(
-			timeline,
-			viewState,
-			state.getSelectionState(),
-			state.getClock(),
-			state.getSelectionBox(),
-			trackListState,
-			layout
-		);
 		interactionSystem.update(
 			timeline,
 			viewState,
@@ -394,7 +387,37 @@ public final class TimelineEditor {
 			layout,
 			toolbarState
 		);
+		renderer.renderTrackArea(
+			timeline,
+			viewState,
+			state.getSelectionState(),
+			state.getClock(),
+			state.getSelectionBox(),
+			state.getInteractionState(),
+			trackListState,
+			layout
+		);
 		uiStateStore.syncAndFlush(timeline, trackListState);
+	}
+
+	/**
+	 * 在 TimelinePanel 中于标尺与轨道区绘制完成后调用，绘制贯通播放头竖线。
+	 */
+	public void renderPlayheadOverlay() {
+		if (timeline == null) return;
+		TimelineLayout layout = requireFrameLayout();
+		TimelineViewState viewState = state.getViewState();
+		TimelineClock clock = state.getClock();
+		if (viewState == null || clock == null) return;
+
+		double currentTime = clock.getCurrentTimeSeconds();
+		float playheadX = layout.contentLeft + viewState.timeToScreen(currentTime);
+		if (playheadX < layout.contentLeft - 2 || playheadX > layout.contentLeft + layout.contentWidth + 2) {
+			return;
+		}
+		float y0 = layout.rulerTop;
+		float y1 = cachedDividerContentBottomScreenY > y0 ? cachedDividerContentBottomScreenY : layout.contentTop + layout.contentHeight;
+		ImGui.getWindowDrawList().addLine(playheadX, y0, playheadX, y1, TimelineRenderer.PLAYHEAD_COLOR, 2f);
 	}
 
 	/**
