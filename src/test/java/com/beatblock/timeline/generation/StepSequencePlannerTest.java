@@ -54,4 +54,38 @@ class StepSequencePlannerTest {
 		assertEquals(3, times.size());
 		assertTrue(times.get(1) > times.get(0));
 	}
+
+	@Test
+	void resolveAnchorTimeUsesNextBeatWhenNotImmediate() {
+		double anchor = StepSequencePlanner.resolveAnchorTime(
+			1.2, false, new double[] {0.5, 1.5, 2.0});
+		assertEquals(1.5, anchor, 1e-9);
+	}
+
+	@Test
+	void resolveAnchorTimeUsesEventTimeWhenImmediate() {
+		assertEquals(1.0, StepSequencePlanner.resolveAnchorTime(1.0, true, new double[] {1.5}), 1e-9);
+	}
+
+	@Test
+	void plansByDistancePacingMode() {
+		var event = new com.beatblock.timeline.TimelineAnimationEvent(
+			"e1", 1.0, 0.5, "BlockJump", "stage", 1f,
+			Map.of(
+				"pacingMode", "DISTANCE",
+				"stepStartMode", "IMMEDIATE",
+				"distancePaceSecondsPerBlock", 0.1,
+				"distancePaceMinGapSeconds", 0.05
+			)
+		);
+		List<BlockPos> blocks = List.of(
+			new BlockPos(0, 64, 0),
+			new BlockPos(3, 64, 0)
+		);
+		var planned = StepSequencePlanner.plan(blocks, event, new double[0], 120);
+
+		assertEquals(2, planned.size());
+		assertEquals(1.0, planned.get(0).startTimeSeconds(), 1e-6);
+		assertTrue(planned.get(1).startTimeSeconds() > planned.get(0).startTimeSeconds());
+	}
 }
