@@ -642,30 +642,16 @@ public final class BeatBlockSelectionManager {
 	}
 
 	private List<BlockPos> collectBox(World world, BlockPos a, BlockPos b) {
-		int x0 = Math.min(a.getX(), b.getX());
-		int x1 = Math.max(a.getX(), b.getX());
-		int y0 = Math.min(a.getY(), b.getY());
-		int y1 = Math.max(a.getY(), b.getY());
-		int z0 = Math.min(a.getZ(), b.getZ());
-		int z1 = Math.max(a.getZ(), b.getZ());
-		long dx = (long) x1 - x0 + 1L;
-		long dy = (long) y1 - y0 + 1L;
-		long dz = (long) z1 - z0 + 1L;
-		long vol = dx * dy * dz;
-		if (vol > maxBlocks) {
-			lastMessage = String.format("框选体积 %d 超过上限 %d，已取消。", vol, maxBlocks);
+		List<BlockPos> raw = SelectionRegions.cuboidPositions(a, b, maxBlocks);
+		if (raw == null) {
+			lastMessage = String.format("框选体积 %d 超过上限 %d，已取消。", SelectionRegions.cuboidVolume(a, b), maxBlocks);
 			return null;
 		}
-		List<BlockPos> out = new ArrayList<>((int) vol);
-		for (int x = x0; x <= x1; x++) {
-			for (int y = y0; y <= y1; y++) {
-				for (int z = z0; z <= z1; z++) {
-					BlockPos p = new BlockPos(x, y, z);
-					if (!isWithinCameraReach(p)) continue;
-					if (!includeAir && world.getBlockState(p).isAir()) continue;
-					out.add(p.toImmutable());
-				}
-			}
+		List<BlockPos> out = new ArrayList<>(raw.size());
+		for (BlockPos p : raw) {
+			if (!isWithinCameraReach(p)) continue;
+			if (!includeAir && world.getBlockState(p).isAir()) continue;
+			out.add(p.toImmutable());
 		}
 		return out;
 	}
@@ -788,32 +774,16 @@ public final class BeatBlockSelectionManager {
 			}
 			return;
 		}
-		switch (op) {
-			case NEW -> {
-				selected.clear();
-				selected.addAll(blocks);
-				if (!quiet) {
-					lastMessage = mergeMessageNew(blocks.size());
-				}
-			}
-			case ADD -> {
-				selected.addAll(blocks);
-				if (!quiet) {
-					lastMessage = mergeMessageAfterAdd();
-				}
-			}
-			case SUBTRACT -> {
-				blocks.forEach(selected::remove);
-				if (!quiet) {
-					lastMessage = mergeMessageAfterSubtract();
-				}
-			}
-			case INTERSECT -> {
-				selected.retainAll(Set.copyOf(blocks));
-				if (!quiet) {
-					lastMessage = mergeMessageAfterIntersect();
-				}
-			}
+		LinkedHashSet<BlockPos> merged = SelectionMerge.apply(selected, blocks, op);
+		selected.clear();
+		selected.addAll(merged);
+		if (!quiet) {
+			lastMessage = switch (op) {
+				case NEW -> mergeMessageNew(blocks.size());
+				case ADD -> mergeMessageAfterAdd();
+				case SUBTRACT -> mergeMessageAfterSubtract();
+				case INTERSECT -> mergeMessageAfterIntersect();
+			};
 		}
 		if (!quiet && skippedLayer > 0) {
 			lastMessage = lastMessage + String.format("（已跳过 %d 个已属于图层的方块）", skippedLayer);
