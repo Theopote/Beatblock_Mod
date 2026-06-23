@@ -8,6 +8,8 @@ import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.testutil.MinecraftTestBootstrap;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.TimelineMarker;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -143,5 +145,39 @@ class OscProjectStoreTest {
 		assertEquals(LayerVisibilityState.FREE_HIDDEN, loaded.getState());
 		assertEquals("clip-cap", loaded.getBoundClipId());
 		assertEquals(Blocks.DIAMOND_BLOCK.getDefaultState(), loaded.getCapturedStates().get(pos));
+	}
+
+	@Test
+	void roundTripsAnimationTracksWhenTimelineProvided() throws Exception {
+		Path file = tempDir.resolve("animation.osc");
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"ev-auto", 2.5, 1.0, "build", "stage-x", 0.9f,
+			Map.of("eventOrigin", TimelineEventOrigin.AUTO_GENERATED.name(), "buildMode", "tower")));
+		OscProjectStore.save(file, timeline);
+
+		Timeline restored = Timeline.createDefault();
+		OscProjectStore.load(file, null, restored);
+
+		assertEquals(1, restored.getAutoAnimationEvents().size());
+		assertEquals(2.5, restored.getAutoAnimationEvents().getFirst().getTimeSeconds(), 1e-9);
+		assertEquals("stage-x", restored.getAutoAnimationEvents().getFirst().getTargetObjectId());
+		assertEquals("tower", restored.getAutoAnimationEvents().getFirst().getParameters().get("buildMode"));
+	}
+
+	@Test
+	void v2ProjectWithoutAnimationTracksStillLoads() throws Exception {
+		Path file = tempDir.resolve("v2.osc");
+		Files.writeString(file, """
+			{"version": 2, "projectId": "v2-id", "timelineName": "V2", "audioPath": "", "markers": []}
+			""");
+
+		Timeline restored = Timeline.createDefault();
+		restored.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"old", 1.0, 1.0, "build", "stage", 1f, Map.of()));
+		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file, null, restored);
+
+		assertEquals("v2-id", loaded.getProjectId());
+		assertTrue(restored.getAutoAnimationEvents().isEmpty());
 	}
 }

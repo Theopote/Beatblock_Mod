@@ -29,7 +29,7 @@ import java.util.UUID;
  */
 public final class OscProjectStore {
 
-	private static final int CURRENT_VERSION = 2;
+	private static final int CURRENT_VERSION = 3;
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
 	private OscProjectStore() {}
@@ -71,6 +71,7 @@ public final class OscProjectStore {
 		if (layerManager != null) {
 			root.add("buildLayers", BuildLayerPersistence.toJson(layerManager));
 		}
+		root.add("animationTracks", TimelineAnimationPersistence.toJson(timeline));
 
 		Files.writeString(abs, GSON.toJson(root), StandardCharsets.UTF_8);
 
@@ -85,6 +86,10 @@ public final class OscProjectStore {
 	}
 
 	public static LoadedProject load(Path filePath, BuildLayerManager layerManager) throws IOException {
+		return load(filePath, layerManager, null);
+	}
+
+	public static LoadedProject load(Path filePath, BuildLayerManager layerManager, Timeline timeline) throws IOException {
 		if (filePath == null) throw new IOException("打开失败：文件路径为空");
 		Path abs = filePath.toAbsolutePath().normalize();
 		if (!Files.exists(abs)) throw new IOException("打开失败：文件不存在 " + abs);
@@ -105,6 +110,12 @@ public final class OscProjectStore {
 		List<TimelineMarker> markers = parseMarkers(root);
 		if (layerManager != null && root.has("buildLayers") && root.get("buildLayers").isJsonArray()) {
 			BuildLayerPersistence.loadInto(layerManager, root.getAsJsonArray("buildLayers"));
+		}
+		if (timeline != null) {
+			JsonArray animationTracks = root.has("animationTracks") && root.get("animationTracks").isJsonArray()
+				? root.getAsJsonArray("animationTracks")
+				: null;
+			TimelineAnimationPersistence.loadInto(timeline, animationTracks);
 		}
 
 		return new LoadedProject(projectId, projectPath, timelineName, audioPath, markers);

@@ -194,7 +194,7 @@ public class MenuBarPanel {
 					try {
 						var layerMgr = BeatBlock.blockAnimationEngine != null
 							? BeatBlock.blockAnimationEngine.getBuildLayerManager() : null;
-						OscProjectStore.LoadedProject loaded = OscProjectStore.load(Path.of(p), layerMgr);
+						OscProjectStore.LoadedProject loaded = OscProjectStore.load(Path.of(p), layerMgr, BeatBlock.timeline);
 						if (!loaded.getTimelineName().isBlank()) {
 							BeatBlock.timeline.setName(loaded.getTimelineName());
 						}
