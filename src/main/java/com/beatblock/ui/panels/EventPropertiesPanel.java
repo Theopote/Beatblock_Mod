@@ -20,6 +20,10 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
+import com.beatblock.timeline.command.UpdateAnimationEventCommand;
+import com.beatblock.timeline.editing.AnimationEventFormInput;
+import com.beatblock.timeline.editing.AnimationEventPropertiesEditor;
+import com.beatblock.timeline.editing.AnimationEventSnapshot;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.generation.DistancePacing;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
@@ -442,7 +446,6 @@ public class EventPropertiesPanel {
 				PACING_MODE_VALUES[Math.max(0, Math.min(pacingModeIndex.get(), PACING_MODE_VALUES.length - 1))],
 				cameraAdaptiveStep,
 				cameraFrustumGating,
-				numericParam(params, "cameraEdgePriority", 0.0),
 				usePhaseAnimation,
 				vfxEnabled);
 		}
@@ -473,184 +476,71 @@ public class EventPropertiesPanel {
 	                                  String targetObjectId, boolean inheritGroupSpatial, String spatialMode,
 	                                  boolean stepDispatch, String stepStartMode, String stepCompletionMode,
 	                                  String pacingMode, boolean cameraAdaptiveStep, boolean cameraFrustumGating,
-	                                  double cameraEdgePriority, boolean usePhaseAnimation, boolean vfxEnabled) {
+	                                  boolean usePhaseAnimation, boolean vfxEnabled) {
+		TimelineEditor editor = BeatBlock.timelineEditor;
+		if (editor == null) {
+			validationError = "时间线编辑器未初始化。";
+			return;
+		}
 		try {
-			double newTime = Math.max(0.0, Double.parseDouble(valueOf(timeBuffer).trim()));
-			double newDuration = Math.max(0.01, Double.parseDouble(valueOf(durationBuffer).trim()));
-			float newEnergy = (float) Math.max(0.0, Math.min(1.0, Double.parseDouble(valueOf(energyBuffer).trim())));
-			float newEnergyThreshold = (float) Math.max(0.0, Math.min(1.0, Double.parseDouble(valueOf(energyThresholdBuffer).trim())));
-			double spatialDelay = 0.0;
-			if (!inheritGroupSpatial) {
-				String rawDelay = valueOf(spatialDelayBuffer).trim();
-				if (!rawDelay.isEmpty()) spatialDelay = Math.max(0.0, Double.parseDouble(rawDelay));
-			}
-			int blocksPerBeat = 1;
-			if (stepDispatch) {
-				String raw = valueOf(blocksPerBeatBuffer).trim();
-				if (!raw.isEmpty()) {
-					blocksPerBeat = Math.max(1, (int) Math.round(Double.parseDouble(raw)));
+			AnimationEventFormInput input = AnimationEventPropertiesEditor.parseFormInput(
+				valueOf(timeBuffer),
+				valueOf(durationBuffer),
+				valueOf(energyBuffer),
+				valueOf(energyThresholdBuffer),
+				valueOf(spatialDelayBuffer),
+				valueOf(blocksPerBeatBuffer),
+				valueOf(distancePaceSecondsBuffer),
+				valueOf(distancePaceMinGapBuffer),
+				valueOf(cameraNearDistanceBuffer),
+				valueOf(cameraFarDistanceBuffer),
+				valueOf(cameraNearScaleBuffer),
+				valueOf(cameraFarScaleBuffer),
+				valueOf(cameraEdgePriorityBuffer),
+				valueOf(entryDurationBuffer),
+				valueOf(idleDurationBuffer),
+				valueOf(exitDurationBuffer),
+				valueOf(placeBlockBuffer),
+				valueOf(flashBlockBuffer),
+				actionMode,
+				animationId,
+				targetObjectId,
+				inheritGroupSpatial,
+				spatialMode,
+				stepDispatch,
+				stepStartMode,
+				stepCompletionMode,
+				pacingMode,
+				cameraAdaptiveStep,
+				cameraFrustumGating,
+				usePhaseAnimation,
+				vfxEnabled
+			);
+			var result = AnimationEventPropertiesEditor.buildUpdatedSnapshot(
+				input,
+				new HashMap<>(ref.event().getParameters()),
+				id -> BeatBlock.blockAnimationEngine != null
+					&& BeatBlock.blockAnimationEngine.getStageObjectSystem().get(id) != null,
+				blockId -> {
+					Identifier parsed = Identifier.tryParse(blockId);
+					return parsed != null && Registries.BLOCK.containsId(parsed);
 				}
-			}
-			double nearDistance = 8.0;
-			double farDistance = 48.0;
-			double nearScale = 0.6;
-			double farScale = 1.5;
-			if (stepDispatch && cameraAdaptiveStep) {
-				String nearDistRaw = valueOf(cameraNearDistanceBuffer).trim();
-				String farDistRaw = valueOf(cameraFarDistanceBuffer).trim();
-				String nearScaleRaw = valueOf(cameraNearScaleBuffer).trim();
-				String farScaleRaw = valueOf(cameraFarScaleBuffer).trim();
-				if (!nearDistRaw.isEmpty()) nearDistance = Math.max(0.5, Double.parseDouble(nearDistRaw));
-				if (!farDistRaw.isEmpty()) farDistance = Math.max(nearDistance + 0.001, Double.parseDouble(farDistRaw));
-				if (!nearScaleRaw.isEmpty()) nearScale = Math.max(0.1, Double.parseDouble(nearScaleRaw));
-				if (!farScaleRaw.isEmpty()) farScale = Math.max(0.1, Double.parseDouble(farScaleRaw));
-			}
-			double entryPercent = 20.0;
-			double idlePercent = 60.0;
-			double exitPercent = 20.0;
-			if (stepDispatch && usePhaseAnimation) {
-				String entryRaw = valueOf(entryDurationBuffer).trim();
-				String idleRaw = valueOf(idleDurationBuffer).trim();
-				String exitRaw = valueOf(exitDurationBuffer).trim();
-				if (!entryRaw.isEmpty()) entryPercent = Math.max(0.0, Math.min(100.0, Double.parseDouble(entryRaw)));
-				if (!idleRaw.isEmpty()) idlePercent = Math.max(0.0, Math.min(100.0, Double.parseDouble(idleRaw)));
-				if (!exitRaw.isEmpty()) exitPercent = Math.max(0.0, Math.min(100.0, Double.parseDouble(exitRaw)));
-				// Renormalize if they don't add to 100
-				double total = entryPercent + idlePercent + exitPercent;
-				if (total > 0.1) {
-					entryPercent = (entryPercent / total) * 100.0;
-					idlePercent = (idlePercent / total) * 100.0;
-					exitPercent = (exitPercent / total) * 100.0;
-				}
-			}
-			TimelineAnimationActionMode mode = TimelineAnimationActionMode.fromValue(actionMode);
-			if (targetObjectId == null || targetObjectId.isBlank()) {
-				validationError = "请先选择目标对象。";
+			);
+			if (result instanceof AnimationEventPropertiesEditor.Result.Err err) {
+				validationError = err.message();
 				return;
 			}
-			if (BeatBlock.blockAnimationEngine == null || BeatBlock.blockAnimationEngine.getStageObjectSystem().get(targetObjectId) == null) {
-				validationError = "目标对象不存在，请重新选择。";
-				return;
-			}
-			String placeBlockId = null;
-			if (mode == TimelineAnimationActionMode.PLACE) {
-				String blockId = valueOf(placeBlockBuffer).trim();
-				if (blockId.isEmpty()) {
-					blockId = "minecraft:diamond_block";
-				}
-				Identifier parsed = Identifier.tryParse(blockId);
-				if (parsed == null || !Registries.BLOCK.containsId(parsed)) {
-					validationError = "方块ID无效，示例: minecraft:diamond_block";
-					return;
-				}
-				placeBlockId = parsed.toString();
-			}
-
-			ref.event().setTimeSeconds(newTime);
-			ref.event().setParameter("actionMode", mode.name());
-			ref.event().setParameter("mode", mode.name());
-			ref.event().setParameter("durationSeconds", newDuration);
-			ref.event().setParameter("energy", newEnergy);
-			ref.event().setParameter("energyThreshold", newEnergyThreshold);
-			ref.event().setParameter("animationType", animationId);
-			ref.event().setParameter("targetObject", targetObjectId);
-			ref.event().setParameter("dispatchModel", stepDispatch ? "STEP" : "BURST");
-			if (stepDispatch) {
-				ref.event().setParameter("pacingMode", pacingMode);
-				boolean distancePacing = "DISTANCE".equalsIgnoreCase(pacingMode);
-				if (distancePacing) {
-					double secondsPerBlock = DistancePacing.DEFAULT_SECONDS_PER_BLOCK_UNIT;
-					double minGap = DistancePacing.DEFAULT_MIN_GAP_SECONDS;
-					String paceRaw = valueOf(distancePaceSecondsBuffer).trim();
-					String gapRaw = valueOf(distancePaceMinGapBuffer).trim();
-					if (!paceRaw.isEmpty()) secondsPerBlock = Math.max(0.01, Double.parseDouble(paceRaw));
-					if (!gapRaw.isEmpty()) minGap = Math.max(0.0, Double.parseDouble(gapRaw));
-					ref.event().setParameter("distancePaceSecondsPerBlock", secondsPerBlock);
-					ref.event().setParameter("distancePaceMinGapSeconds", minGap);
-					ref.event().removeParameter("blocksPerBeat");
-				} else {
-					ref.event().setParameter("blocksPerBeat", blocksPerBeat);
-					ref.event().removeParameter("distancePaceSecondsPerBlock");
-					ref.event().removeParameter("distancePaceMinGapSeconds");
-				}
-				ref.event().setParameter("stepStartMode", stepStartMode);
-				ref.event().setParameter("stepCompletionMode", stepCompletionMode);
-				ref.event().setParameter("cameraAdaptiveStep", cameraAdaptiveStep);
-				ref.event().setParameter("cameraFrustumGating", cameraFrustumGating);
-				ref.event().setParameter("cameraEdgePriority", Math.max(0.0, Math.min(1.0, cameraEdgePriority)));
-				ref.event().setParameter("usePhaseAnimation", usePhaseAnimation);
-				if (usePhaseAnimation) {
-					ref.event().setParameter("entryDurationPercent", entryPercent);
-					ref.event().setParameter("idleDurationPercent", idlePercent);
-					ref.event().setParameter("exitDurationPercent", exitPercent);
-				} else {
-					ref.event().removeParameter("entryDurationPercent");
-					ref.event().removeParameter("idleDurationPercent");
-					ref.event().removeParameter("exitDurationPercent");
-				}
-				if (cameraAdaptiveStep) {
-					ref.event().setParameter("cameraNearDistance", nearDistance);
-					ref.event().setParameter("cameraFarDistance", farDistance);
-					ref.event().setParameter("cameraNearScale", nearScale);
-					ref.event().setParameter("cameraFarScale", farScale);
-				} else {
-					ref.event().removeParameter("cameraNearDistance");
-					ref.event().removeParameter("cameraFarDistance");
-					ref.event().removeParameter("cameraNearScale");
-					ref.event().removeParameter("cameraFarScale");
-				}
-			} else {
-				ref.event().removeParameter("pacingMode");
-				ref.event().removeParameter("distancePaceSecondsPerBlock");
-				ref.event().removeParameter("distancePaceMinGapSeconds");
-				ref.event().removeParameter("blocksPerBeat");
-				ref.event().removeParameter("stepStartMode");
-				ref.event().removeParameter("stepCompletionMode");
-				ref.event().removeParameter("cameraAdaptiveStep");
-				ref.event().removeParameter("cameraFrustumGating");
-				ref.event().removeParameter("cameraEdgePriority");
-				ref.event().removeParameter("usePhaseAnimation");
-				ref.event().removeParameter("entryDurationPercent");
-				ref.event().removeParameter("idleDurationPercent");
-				ref.event().removeParameter("exitDurationPercent");
-				ref.event().removeParameter("cameraNearDistance");
-				ref.event().removeParameter("cameraFarDistance");
-				ref.event().removeParameter("cameraNearScale");
-				ref.event().removeParameter("cameraFarScale");
-			}
-			ref.event().setParameter("inheritGroupSpatial", inheritGroupSpatial);
-			if (inheritGroupSpatial) {
-				ref.event().removeParameter("spatialMode");
-				ref.event().removeParameter("sequentialDelaySeconds");
-			} else {
-				SpatialDispatchMode modeValue = SpatialDispatchMode.fromValue(spatialMode);
-				ref.event().setParameter("spatialMode", modeValue.name());
-				ref.event().setParameter("sequentialDelaySeconds", spatialDelay);
-			}
-			if (mode == TimelineAnimationActionMode.PLACE) {
-				ref.event().setParameter("placeBlock", placeBlockId);
-			} else {
-				ref.event().removeParameter("placeBlock");
-				ref.event().removeParameter("placeBlockId");
-			}
-			ref.event().setParameter("vfxEnabled", vfxEnabled);
-			BlockInfluencePreset preset = BlockInfluencePresets.get(animationId);
-			if (preset != null && !preset.channelsFor(InfluenceDimension.APPEARANCE).isEmpty()) {
-				String flashBlockId = valueOf(flashBlockBuffer).trim();
-				if (flashBlockId.isEmpty()) flashBlockId = "minecraft:gold_block";
-				Identifier flashParsed = Identifier.tryParse(flashBlockId);
-				if (flashParsed == null || !Registries.BLOCK.containsId(flashParsed)) {
-					validationError = "闪烁方块ID无效，示例: minecraft:gold_block";
-					return;
-				}
-				ref.event().setParameter("flashBlock", flashParsed.toString());
-			} else {
-				ref.event().removeParameter("flashBlock");
-				ref.event().removeParameter("flashBlockId");
-			}
-			ref.clip().setStartTimeSeconds(newTime);
-			ref.clip().setEndTimeSeconds(newTime + newDuration);
-			timeline.markAnimationEventsDirty(ref.track().getId());
+			AnimationEventSnapshot after = ((AnimationEventPropertiesEditor.Result.Ok) result).snapshot();
+			AnimationEventSnapshot before = AnimationEventSnapshot.capture(ref.event(), ref.clip());
+			var cmd = new UpdateAnimationEventCommand(
+				timeline,
+				ref.track().getId(),
+				ref.clip().getId(),
+				ref.event().getId(),
+				before,
+				after
+			);
+			editor.getCommandManager().execute(cmd);
 			validationError = null;
 			bindBuffers(ref);
 		} catch (NumberFormatException ex) {
