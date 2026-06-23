@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class StageObjectTest {
 
@@ -29,7 +30,8 @@ class StageObjectTest {
 	void defaultsEmptyIdAndUsesManualGroupSpec() {
 		StageObject object = new StageObject(null, null, List.of(), Vec3d.ZERO);
 		assertEquals("", object.getId());
-		assertEquals("", object.getName());
-		assertEquals(GroupSortingStrategy.SEQUENTIAL, object.getGroupSpec().getSortingStrategy());
+		assertNull(object.getName());
+		assertEquals("manual_snapshot", object.getGroupSpec().getSourceType());
+		assertEquals(Vec3d.ZERO, object.getCenter());
 	}
 }
