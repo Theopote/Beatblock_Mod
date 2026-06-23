@@ -13,7 +13,7 @@ public final class CameraPathMetadata {
 
 	public static boolean isPathVisible(Timeline timeline, String clipId) {
 		if (timeline == null || clipId == null || clipId.isBlank()) return true;
-		Object v = timeline.getMetadata(PREFIX + clipId);
+		Object v = timeline.getMetadata(metadataKey(clipId));
 		if (v == null) return true;
 		String s = String.valueOf(v).trim().toLowerCase();
 		return !"0".equals(s) && !"false".equals(s) && !"no".equals(s);
@@ -21,6 +21,14 @@ public final class CameraPathMetadata {
 
 	public static void setPathVisible(Timeline timeline, String clipId, boolean visible) {
 		if (timeline == null || clipId == null || clipId.isBlank()) return;
-		timeline.setMetadata(PREFIX + clipId, visible ? "1" : "0");
+		timeline.setMetadata(metadataKey(clipId), metadataValue(visible));
+	}
+
+	public static String metadataKey(String clipId) {
+		return PREFIX + clipId;
+	}
+
+	public static String metadataValue(boolean visible) {
+		return visible ? "1" : "0";
 	}
 }

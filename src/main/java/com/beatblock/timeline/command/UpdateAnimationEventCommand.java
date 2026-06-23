@@ -7,7 +7,7 @@ import com.beatblock.timeline.Track;
 import com.beatblock.timeline.editing.AnimationEventSnapshot;
 
 /**
- * 更新动画事件属性与片段时间范围；支持 Undo/Redo。
+ * 更新时间线事件属性、片段时间与相关元数据；支持 Undo/Redo。
  */
 public final class UpdateAnimationEventCommand implements Command {
 
@@ -51,8 +51,20 @@ public final class UpdateAnimationEventCommand implements Command {
 		Clip clip = track.getClip(clipId);
 		if (clip == null) return;
 		TimelineEvent event = clip.getEvent(eventId);
+		if (event == null && !clip.getEvents().isEmpty()) {
+			event = clip.getEvents().get(0);
+		}
 		if (event == null) return;
-		snapshot.applyTo(event, clip);
-		timeline.markAnimationEventsDirty(trackId);
+		snapshot.applyTo(event, clip, timeline);
+		if (isAnimationTrack(trackId)) {
+			timeline.markAnimationEventsDirty(trackId);
+		}
+	}
+
+	private static boolean isAnimationTrack(String trackId) {
+		return Timeline.TRACK_ID_ANIMATION_BLOCK.equals(trackId)
+			|| Timeline.TRACK_ID_ANIMATION_AUTO.equals(trackId)
+			|| Timeline.TRACK_ID_BUILD_REVERSE.equals(trackId)
+			|| Timeline.isBlockAnimationFeatureTrackId(trackId);
 	}
 }

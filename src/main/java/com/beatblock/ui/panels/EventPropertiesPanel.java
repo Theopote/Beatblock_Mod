@@ -24,6 +24,7 @@ import com.beatblock.timeline.command.UpdateAnimationEventCommand;
 import com.beatblock.timeline.editing.AnimationEventFormInput;
 import com.beatblock.timeline.editing.AnimationEventPropertiesEditor;
 import com.beatblock.timeline.editing.AnimationEventSnapshot;
+import com.beatblock.timeline.editing.CameraEventPropertiesEditor;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.generation.DistancePacing;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
@@ -532,15 +533,7 @@ public class EventPropertiesPanel {
 			}
 			AnimationEventSnapshot after = ((AnimationEventPropertiesEditor.Result.Ok) result).snapshot();
 			AnimationEventSnapshot before = AnimationEventSnapshot.capture(ref.event(), ref.clip());
-			var cmd = new UpdateAnimationEventCommand(
-				timeline,
-				ref.track().getId(),
-				ref.clip().getId(),
-				ref.event().getId(),
-				before,
-				after
-			);
-			editor.getCommandManager().execute(cmd);
+			executeEventEdit(ref, timeline, before, after);
 			validationError = null;
 			bindBuffers(ref);
 		} catch (NumberFormatException ex) {
@@ -617,33 +610,43 @@ public class EventPropertiesPanel {
 		}
 		ImGui.spacing();
 		if (ImGui.button("应用##camClipApply", 120f, 0f)) {
-			try {
-				double newStart = Double.parseDouble(valueOf(camClipStartBuffer).trim());
-				double newEnd = Double.parseDouble(valueOf(camClipEndBuffer).trim());
-				if (newEnd <= newStart) {
-					validationError = "结束时间须大于开始时间。";
-				} else {
-					double oldStart = ref.clip().getStartTimeSeconds();
-					double delta = newStart - oldStart;
-					ref.clip().setStartTimeSeconds(Math.max(0, newStart));
-					ref.clip().setEndTimeSeconds(newEnd);
-					for (TimelineEvent ev : ref.clip().getEvents()) {
-						double nt = ev.getTimeSeconds() + delta;
-						nt = Math.max(newStart, Math.min(newEnd, nt));
-						ev.setTimeSeconds(nt);
-					}
-					CameraPathMetadata.setPathVisible(timeline, ref.clip().getId(), camClipPathVisibleProxy.get());
-					timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), ref.clip().getEndTimeSeconds()));
-					validationError = null;
-					bindBuffers(ref);
-				}
-			} catch (NumberFormatException ex) {
-				validationError = "时间格式不正确。";
-			}
+			applyCameraClipOnly(ref, timeline);
 		}
 		ImGui.sameLine();
 		if (ImGui.button("重置##camClipReset", 120f, 0f)) {
 			bindBuffers(ref);
+		}
+	}
+
+	private void applyCameraClipOnly(EventRef ref, Timeline timeline) {
+		TimelineEditor editor = BeatBlock.timelineEditor;
+		if (editor == null) {
+			validationError = "时间线编辑器未初始化。";
+			return;
+		}
+		try {
+			double newStart = Double.parseDouble(valueOf(camClipStartBuffer).trim());
+			double newEnd = Double.parseDouble(valueOf(camClipEndBuffer).trim());
+			double oldStart = ref.clip().getStartTimeSeconds();
+			Map<String, Double> existingTimes = new HashMap<>();
+			for (TimelineEvent ev : ref.clip().getEvents()) {
+				existingTimes.put(ev.getId(), ev.getTimeSeconds());
+			}
+			var result = CameraEventPropertiesEditor.buildClipOnlySnapshot(
+				oldStart, newStart, newEnd, camClipPathVisibleProxy.get(),
+				existingTimes, timeline, ref.clip().getId()
+			);
+			if (result instanceof CameraEventPropertiesEditor.Result.Err err) {
+				validationError = err.message();
+				return;
+			}
+			AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
+			AnimationEventSnapshot before = AnimationEventSnapshot.captureClipOnly(ref.clip(), timeline, ref.clip().getId());
+			executeEventEdit(ref, timeline, before, after);
+			validationError = null;
+			bindBuffers(ref);
+		} catch (NumberFormatException ex) {
+			validationError = "时间格式不正确。";
 		}
 	}
 
@@ -666,17 +669,8 @@ public class EventPropertiesPanel {
 		if (ImGui.combo("镜头类型##camSegKind", kindIdx, CAM_KIND_LABELS)) {
 			CameraSegmentKind newKind = CAM_KINDS[kindIdx.get()];
 			if (newKind != kind) {
-				// 清理旧类型参数，保留新类型共用的参数
-				List<String> newKeys = paramKeysForKind(newKind);
-				for (String existingKey : new ArrayList<>(ref.event().getParameters().keySet())) {
-					if (!"kind".equals(existingKey) && !newKeys.contains(existingKey)) {
-						ref.event().removeParameter(existingKey);
-					}
-				}
-				ref.event().setParameter("kind", newKind.name());
-				initSegmentDefaults(ref.event(), newKind);
+				applyCameraKindChange(ref, timeline, newKind);
 				kind = newKind;
-				bindBuffers(ref);
 			}
 		}
 
@@ -805,27 +799,65 @@ public class EventPropertiesPanel {
         buf.set(String.format(Locale.ROOT, "%.6f", value));
 	}
 
+	private void applyCameraKindChange(EventRef ref, Timeline timeline, CameraSegmentKind newKind) {
+		TimelineEditor editor = BeatBlock.timelineEditor;
+		if (editor == null) {
+			validationError = "时间线编辑器未初始化。";
+			return;
+		}
+		var result = CameraEventPropertiesEditor.buildKindChangeSnapshot(
+			newKind,
+			ref.event().getParameters(),
+			buildSegmentDefaultValues(newKind),
+			ref.clip().getStartTimeSeconds(),
+			ref.clip().getEndTimeSeconds()
+		);
+		if (result instanceof CameraEventPropertiesEditor.Result.Err err) {
+			validationError = err.message();
+			return;
+		}
+		AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
+		AnimationEventSnapshot before = AnimationEventSnapshot.capture(
+			ref.event(), ref.clip(), timeline, ref.clip().getId());
+		executeEventEdit(ref, timeline, before, after);
+		validationError = null;
+		bindBuffers(ref);
+	}
+
 	private void applyCameraSegmentPanel(EventRef ref, Timeline timeline) {
+		TimelineEditor editor = BeatBlock.timelineEditor;
+		if (editor == null) {
+			validationError = "时间线编辑器未初始化。";
+			return;
+		}
 		try {
-			double dur = Double.parseDouble(valueOf(camSegDurBuffer).trim());
-			double t0 = ref.clip().getStartTimeSeconds();
-			ref.clip().setEndTimeSeconds(t0 + Math.max(0.05, dur));
-			CameraPathMetadata.setPathVisible(timeline, ref.clip().getId(), camSegPathVisibleProxy.get());
-			// 仅写回当前镜头类型对应的参数，避免残留旧类型参数
+			double duration = Double.parseDouble(valueOf(camSegDurBuffer).trim());
 			CameraSegmentKind currentKind = CameraSegmentKind.fromParam(ref.event().getParameters().get("kind"));
-			List<String> validKeys = paramKeysForKind(currentKind);
-			for (String key : validKeys) {
+			Map<String, String> rawParams = new HashMap<>();
+			for (String key : CameraEventPropertiesEditor.paramKeysForKind(currentKind)) {
 				ImString buf = camSegParamBuffers.get(key);
-				if (buf == null) continue;
-				String raw = valueOf(buf).trim();
-				if (raw.isEmpty()) continue;
-				try {
-					ref.event().setParameter(key, Double.parseDouble(raw));
-				} catch (NumberFormatException ex) {
-					ref.event().setParameter(key, raw);
+				if (buf != null) {
+					rawParams.put(key, valueOf(buf));
 				}
 			}
-			timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), ref.clip().getEndTimeSeconds()));
+			var result = CameraEventPropertiesEditor.buildSegmentSnapshot(
+				ref.clip().getStartTimeSeconds(),
+				duration,
+				camSegPathVisibleProxy.get(),
+				currentKind,
+				new HashMap<>(ref.event().getParameters()),
+				rawParams,
+				timeline,
+				ref.clip().getId()
+			);
+			if (result instanceof CameraEventPropertiesEditor.Result.Err err) {
+				validationError = err.message();
+				return;
+			}
+			AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
+			AnimationEventSnapshot before = AnimationEventSnapshot.capture(
+				ref.event(), ref.clip(), timeline, ref.clip().getId());
+			executeEventEdit(ref, timeline, before, after);
 			validationError = null;
 			bindBuffers(ref);
 		} catch (NumberFormatException ex) {
@@ -929,30 +961,61 @@ public class EventPropertiesPanel {
 	}
 
 	private void applyCameraKeyframe(EventRef ref, Timeline timeline) {
+		TimelineEditor editor = BeatBlock.timelineEditor;
+		if (editor == null) {
+			validationError = "时间线编辑器未初始化。";
+			return;
+		}
 		try {
-			double newTime = Math.max(0.0, Double.parseDouble(valueOf(timeBuffer).trim()));
-			if (ref.clip() != null) {
-				newTime = Math.max(ref.clip().getStartTimeSeconds(), Math.min(ref.clip().getEndTimeSeconds(), newTime));
-			}
+			double newTime = Double.parseDouble(valueOf(timeBuffer).trim());
 			double x = Double.parseDouble(valueOf(camXBuffer).trim());
 			double y = Double.parseDouble(valueOf(camYBuffer).trim());
 			double z = Double.parseDouble(valueOf(camZBuffer).trim());
 			double yaw = Double.parseDouble(valueOf(camYawBuffer).trim());
 			double pitch = Double.parseDouble(valueOf(camPitchBuffer).trim());
 			String ease = valueOf(camEaseBuffer).trim();
-			if (ease.isEmpty()) ease = "SMOOTH";
-			ref.event().setTimeSeconds(newTime);
-			ref.event().setParameter("x", x);
-			ref.event().setParameter("y", y);
-			ref.event().setParameter("z", z);
-			ref.event().setParameter("yawDeg", yaw);
-			ref.event().setParameter("pitchDeg", pitch);
-			ref.event().setParameter("ease", ease);
+			var result = CameraEventPropertiesEditor.buildKeyframeSnapshot(
+				ref.clip().getStartTimeSeconds(),
+				ref.clip().getEndTimeSeconds(),
+				newTime, x, y, z, yaw, pitch, ease,
+				new HashMap<>(ref.event().getParameters())
+			);
+			if (result instanceof CameraEventPropertiesEditor.Result.Err err) {
+				validationError = err.message();
+				return;
+			}
+			AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
+			AnimationEventSnapshot before = AnimationEventSnapshot.capture(ref.event(), ref.clip());
+			executeEventEdit(ref, timeline, before, after);
 			validationError = null;
 			bindBuffers(ref);
 		} catch (NumberFormatException ex) {
 			validationError = "时间或坐标格式不正确。";
 		}
+	}
+
+	private void executeEventEdit(
+		EventRef ref,
+		Timeline timeline,
+		AnimationEventSnapshot before,
+		AnimationEventSnapshot after
+	) {
+		TimelineEditor editor = BeatBlock.timelineEditor;
+		if (editor == null) return;
+		String eventId = ref.event() != null ? ref.event().getId() : null;
+		if (eventId == null && !ref.clip().getEvents().isEmpty()) {
+			eventId = ref.clip().getEvents().get(0).getId();
+		}
+		if (eventId == null) return;
+		var cmd = new UpdateAnimationEventCommand(
+			timeline,
+			ref.track().getId(),
+			ref.clip().getId(),
+			eventId,
+			before,
+			after
+		);
+		editor.getCommandManager().execute(cmd);
 	}
 
 	private EventRef resolvePropertiesRef(Timeline timeline, SelectionState selectionState) {
@@ -1128,20 +1191,9 @@ public class EventPropertiesPanel {
 		return 0;
 	}
 
-	/** 每种镜头类型对应的有效参数键名列表（不含 kind）。 */
-	private static List<String> paramKeysForKind(CameraSegmentKind kind) {
-		return switch (kind) {
-			case PATH -> List.of();
-			case DOLLY -> List.of("startX", "startY", "startZ", "endX", "endY", "endZ", "baseYawDeg", "basePitchDeg");
-			case ORBIT -> List.of("targetX", "targetY", "targetZ", "radius", "height", "yawStartDeg", "yawEndDeg");
-			case CRANE -> List.of("startX", "startY", "startZ", "endX", "endY", "endZ", "yawDeg", "pitchDeg");
-			case SHAKE -> List.of("anchorX", "anchorY", "anchorZ", "yawDeg", "pitchDeg", "distance", "amplitude", "frequencyHz", "beatSync", "beatsPerPulse");
-		};
-	}
-
 	/** 切换镜头类型时，为新类型尚未设置的参数填入默认值（尽量使用当前玩家视角）。 */
-	private static void initSegmentDefaults(TimelineEvent event, CameraSegmentKind kind) {
-		Map<String, Object> p = event.getParameters();
+	private static Map<String, Object> buildSegmentDefaultValues(CameraSegmentKind kind) {
+		Map<String, Object> defaults = new HashMap<>();
 		MinecraftClient mc = MinecraftClient.getInstance();
 		double ex = 0, ey = 64, ez = 0;
 		float yaw = 0f, pitch = 0f;
@@ -1153,34 +1205,31 @@ public class EventPropertiesPanel {
 		}
 		switch (kind) {
 			case DOLLY -> {
-				putIfAbsent(event, p, "startX", ex); putIfAbsent(event, p, "startY", ey); putIfAbsent(event, p, "startZ", ez);
-				putIfAbsent(event, p, "endX", ex);   putIfAbsent(event, p, "endY", ey);   putIfAbsent(event, p, "endZ", ez);
-				putIfAbsent(event, p, "baseYawDeg", yaw);
-				putIfAbsent(event, p, "basePitchDeg", pitch);
+				defaults.put("startX", ex); defaults.put("startY", ey); defaults.put("startZ", ez);
+				defaults.put("endX", ex); defaults.put("endY", ey); defaults.put("endZ", ez);
+				defaults.put("baseYawDeg", yaw);
+				defaults.put("basePitchDeg", pitch);
 			}
 			case ORBIT -> {
-				putIfAbsent(event, p, "targetX", ex); putIfAbsent(event, p, "targetY", ey); putIfAbsent(event, p, "targetZ", ez);
-				putIfAbsent(event, p, "radius", 10.0);  putIfAbsent(event, p, "height", 4.0);
-				putIfAbsent(event, p, "yawStartDeg", 0.0); putIfAbsent(event, p, "yawEndDeg", 270.0);
+				defaults.put("targetX", ex); defaults.put("targetY", ey); defaults.put("targetZ", ez);
+				defaults.put("radius", 10.0); defaults.put("height", 4.0);
+				defaults.put("yawStartDeg", 0.0); defaults.put("yawEndDeg", 270.0);
 			}
 			case CRANE -> {
-				putIfAbsent(event, p, "startX", ex); putIfAbsent(event, p, "startY", ey); putIfAbsent(event, p, "startZ", ez);
-				putIfAbsent(event, p, "endX", ex);   putIfAbsent(event, p, "endY", ey + 8.0); putIfAbsent(event, p, "endZ", ez);
-				putIfAbsent(event, p, "yawDeg", yaw); putIfAbsent(event, p, "pitchDeg", pitch);
+				defaults.put("startX", ex); defaults.put("startY", ey); defaults.put("startZ", ez);
+				defaults.put("endX", ex); defaults.put("endY", ey + 8.0); defaults.put("endZ", ez);
+				defaults.put("yawDeg", yaw); defaults.put("pitchDeg", pitch);
 			}
 			case SHAKE -> {
-				putIfAbsent(event, p, "anchorX", ex); putIfAbsent(event, p, "anchorY", ey); putIfAbsent(event, p, "anchorZ", ez);
-				putIfAbsent(event, p, "yawDeg", yaw); putIfAbsent(event, p, "pitchDeg", pitch);
-				putIfAbsent(event, p, "distance", 10.0);  putIfAbsent(event, p, "amplitude", 0.35);
-				putIfAbsent(event, p, "frequencyHz", 18.0); putIfAbsent(event, p, "beatSync", 1.0);
-				putIfAbsent(event, p, "beatsPerPulse", 0.5);
+				defaults.put("anchorX", ex); defaults.put("anchorY", ey); defaults.put("anchorZ", ez);
+				defaults.put("yawDeg", yaw); defaults.put("pitchDeg", pitch);
+				defaults.put("distance", 10.0); defaults.put("amplitude", 0.35);
+				defaults.put("frequencyHz", 18.0); defaults.put("beatSync", 1.0);
+				defaults.put("beatsPerPulse", 0.5);
 			}
 			case PATH -> {}
 		}
-	}
-
-	private static void putIfAbsent(TimelineEvent event, Map<String, Object> p, String key, double value) {
-		if (!p.containsKey(key)) event.setParameter(key, value);
+		return defaults;
 	}
 
 	private static String valueOf(ImString text) {
