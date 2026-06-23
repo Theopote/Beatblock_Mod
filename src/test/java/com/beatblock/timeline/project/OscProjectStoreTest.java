@@ -5,10 +5,13 @@ import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
+import com.beatblock.testutil.MinecraftTestBootstrap;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
+import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -22,6 +25,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OscProjectStoreTest {
+
+	@BeforeAll
+	static void bootstrapMinecraft() {
+		MinecraftTestBootstrap.ensureInitialized();
+	}
 
 	@TempDir
 	Path tempDir;
@@ -104,5 +112,36 @@ class OscProjectStoreTest {
 
 		assertEquals(1, restoredLayers.getAll().size());
 		assertEquals("layer-1", restoredLayers.getAll().iterator().next().getId());
+	}
+
+	@Test
+	void roundTripsCapturedBlockStatesInBuildLayers() throws Exception {
+		Path file = tempDir.resolve("layers-capture.osc");
+		BlockPos pos = new BlockPos(2, 64, 3);
+		StageObjectSystem stageObjects = new StageObjectSystem();
+		StageObject stage = StageObjectSystem.fromBlocks("stage-cap", "Captured", List.of(pos));
+		stageObjects.register(stage);
+		BuildLayerManager layers = new BuildLayerManager(stageObjects);
+		layers.registerRestored(new BuildLayer(
+			"layer-cap",
+			"Captured Layer",
+			stage,
+			LayerVisibilityState.FREE_HIDDEN,
+			Map.of(pos, Blocks.DIAMOND_BLOCK.getDefaultState()),
+			"clip-cap"
+		));
+
+		Timeline timeline = Timeline.createDefault();
+		OscProjectStore.save(file, timeline, layers);
+
+		StageObjectSystem restoredStages = new StageObjectSystem();
+		BuildLayerManager restoredLayers = new BuildLayerManager(restoredStages);
+		OscProjectStore.load(file, restoredLayers);
+
+		BuildLayer loaded = restoredLayers.getAll().iterator().next();
+		assertEquals("layer-cap", loaded.getId());
+		assertEquals(LayerVisibilityState.FREE_HIDDEN, loaded.getState());
+		assertEquals("clip-cap", loaded.getBoundClipId());
+		assertEquals(Blocks.DIAMOND_BLOCK.getDefaultState(), loaded.getCapturedStates().get(pos));
 	}
 }

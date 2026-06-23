@@ -118,17 +118,10 @@ public final class ConnectedSelectionFloodFill {
 		BlockPos min = request.boundsMin();
 		BlockPos max = request.boundsMax();
 		if (min == null || max == null) return true;
-		return pos.getX() >= min.getX() && pos.getX() <= max.getX()
-			&& pos.getY() >= min.getY() && pos.getY() <= max.getY()
-			&& pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
+		return SelectionRegions.containsInBounds(pos, min, max);
 	}
 
 	private static boolean withinSpread(Request request, BlockPos seed, BlockPos pos) {
-		int maxSpread = request.maxSpreadFromSeed();
-		if (maxSpread <= 0) return true;
-		double dx = (pos.getX() + 0.5) - (seed.getX() + 0.5);
-		double dy = (pos.getY() + 0.5) - (seed.getY() + 0.5);
-		double dz = (pos.getZ() + 0.5) - (seed.getZ() + 0.5);
-		return dx * dx + dy * dy + dz * dz <= (double) maxSpread * maxSpread;
+		return SelectionReach.isWithinSpreadFromSeed(seed, pos, request.maxSpreadFromSeed());
 	}
 }

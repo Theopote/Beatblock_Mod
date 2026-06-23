@@ -336,16 +336,11 @@ public final class BeatBlockSelectionManager {
 	}
 
 	private boolean isWithinCameraReach(BlockPos p) {
-		if (interactionCameraPos == null) {
-			return true;
-		}
-		double r = maxDistanceFromCamera;
-		return interactionCameraPos.squaredDistanceTo(Vec3d.ofCenter(p)) <= r * r;
+		return SelectionReach.isWithinCameraReach(p, interactionCameraPos, maxDistanceFromCamera);
 	}
 
 	private boolean isWithinWandSpreadFromSeed(BlockPos seed, BlockPos p) {
-		double r = maxMagicWandSpreadFromSeed;
-		return Vec3d.ofCenter(seed).squaredDistanceTo(Vec3d.ofCenter(p)) <= r * r;
+		return SelectionReach.isWithinSpreadFromSeed(seed, p, maxMagicWandSpreadFromSeed);
 	}
 
 	private void handleClickTool(World world, BlockPos pos, boolean shiftDown) {
@@ -481,9 +476,7 @@ public final class BeatBlockSelectionManager {
 	}
 
 	private static boolean containsInBounds(BlockPos p, BlockPos bMin, BlockPos bMax) {
-		return p.getX() >= bMin.getX() && p.getX() <= bMax.getX()
-				&& p.getY() >= bMin.getY() && p.getY() <= bMax.getY()
-				&& p.getZ() >= bMin.getZ() && p.getZ() <= bMax.getZ();
+		return SelectionRegions.containsInBounds(p, bMin, bMax);
 	}
 
 	private PlaneSliceBounds computePlaneSliceBoundsInternal(World world, BlockPos pos, Direction face) {

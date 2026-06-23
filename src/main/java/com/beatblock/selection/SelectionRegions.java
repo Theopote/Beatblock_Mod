@@ -51,4 +51,11 @@ public final class SelectionRegions {
 		}
 		return out;
 	}
+
+	public static boolean containsInBounds(BlockPos pos, BlockPos min, BlockPos max) {
+		if (pos == null || min == null || max == null) return false;
+		return pos.getX() >= min.getX() && pos.getX() <= max.getX()
+			&& pos.getY() >= min.getY() && pos.getY() <= max.getY()
+			&& pos.getZ() >= min.getZ() && pos.getZ() <= max.getZ();
+	}
 }
