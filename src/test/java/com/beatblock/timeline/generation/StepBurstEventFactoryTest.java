@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StepBurstEventFactoryTest {
 
@@ -71,5 +72,26 @@ class StepBurstEventFactoryTest {
 				"singleBlockZ", 5
 			))
 		);
+	}
+
+	@Test
+	void isStepDispatchRecognizesStepModelCaseInsensitively() {
+		assertFalse(StepBurstEventFactory.isStepDispatch(null));
+		assertFalse(StepBurstEventFactory.isStepDispatch(Map.of("dispatchModel", "BURST")));
+		assertTrue(StepBurstEventFactory.isStepDispatch(Map.of("dispatchModel", " step ")));
+		assertTrue(StepBurstEventFactory.isStepDispatch(Map.of("dispatchModel", "Step")));
+	}
+
+	@Test
+	void expandReturnsEmptyForNonStepOrMissingTarget() {
+		var stepEvent = new TimelineAnimationEvent(
+			"step-1", 0, 0.5, "BlockJump", "stage-a", 1f,
+			Map.of("dispatchModel", "STEP"));
+		assertTrue(StepBurstEventFactory.expand(stepEvent, null, new double[0], 120, null).isEmpty());
+		assertTrue(StepBurstEventFactory.expand(
+			new TimelineAnimationEvent("x", 0, 0.5, "BlockJump", "stage-a", 1f, Map.of("dispatchModel", "BURST")),
+			new StageObject("stage-a", "A", List.of(new BlockPos(0, 64, 0)), Vec3d.ZERO, GroupSpec.manualSnapshot()),
+			new double[0], 120, null
+		).isEmpty());
 	}
 }

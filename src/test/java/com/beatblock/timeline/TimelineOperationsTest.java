@@ -70,4 +70,15 @@ class TimelineOperationsTest {
 		Timeline timeline = Timeline.createDefault();
 		assertFalse(TimelineOperations.removeTrack(timeline, "missing-track"));
 	}
+
+	@Test
+	void removeTrackRemovesAddedTrack() {
+		Timeline timeline = Timeline.createDefault();
+		Track extra = TimelineOperations.addTrack(timeline, "Scratch", TrackType.EVENT);
+		int before = timeline.getTracks().size();
+
+		assertTrue(TimelineOperations.removeTrack(timeline, extra.getId()));
+		assertEquals(before - 1, timeline.getTracks().size());
+		assertNull(timeline.getTrack(extra.getId()));
+	}
 }

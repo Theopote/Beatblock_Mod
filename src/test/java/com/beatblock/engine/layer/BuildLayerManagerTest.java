@@ -92,6 +92,19 @@ class BuildLayerManagerTest {
 	}
 
 	@Test
+	void createFromSelectionAssignsUniqueNamesForDuplicates() {
+		BlockPos first = new BlockPos(10, 64, 0);
+		BlockPos second = new BlockPos(11, 64, 0);
+		BuildLayer layerOne = manager.createFromSelection("Tower", List.of(first));
+		BuildLayer layerTwo = manager.createFromSelection("Tower", List.of(second));
+
+		assertEquals("Tower", layerOne.getName());
+		assertEquals("Tower_2", layerTwo.getName());
+		assertTrue(manager.isBlockClaimed(first));
+		assertTrue(manager.isBlockClaimed(second));
+	}
+
+	@Test
 	void hideAndShowLayerReturnFalseWithoutWorld() {
 		BlockPos pos = new BlockPos(0, 64, 0);
 		StageObject stage = StageObjectSystem.fromBlocks("s1", "Stage", List.of(pos));
