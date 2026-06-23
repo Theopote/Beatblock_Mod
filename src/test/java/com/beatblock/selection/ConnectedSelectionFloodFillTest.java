@@ -101,7 +101,7 @@ class ConnectedSelectionFloodFillTest {
 	void excludeAirSkipsAirNeighbors() {
 		Map<BlockPos, Integer> grid = new HashMap<>();
 		grid.put(new BlockPos(0, 64, 0), STONE);
-		grid.put(new BlockPos(0, 64, 1), STONE);
+		grid.put(new BlockPos(2, 64, 0), STONE);
 
 		var result = ConnectedSelectionFloodFill.collect(
 			ConnectedCellLookup.fromMaterialGrid(grid),
