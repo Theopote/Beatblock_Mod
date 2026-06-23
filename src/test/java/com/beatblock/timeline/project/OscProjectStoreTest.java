@@ -6,6 +6,8 @@ import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.testutil.MinecraftTestBootstrap;
+import com.beatblock.timeline.GlobalEvent;
+import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
@@ -163,6 +165,22 @@ class OscProjectStoreTest {
 		assertEquals(2.5, restored.getAutoAnimationEvents().getFirst().getTimeSeconds(), 1e-9);
 		assertEquals("stage-x", restored.getAutoAnimationEvents().getFirst().getTargetObjectId());
 		assertEquals("tower", restored.getAutoAnimationEvents().getFirst().getParameters().get("buildMode"));
+	}
+
+	@Test
+	void roundTripsCameraAndGlobalEventsInOsc() throws Exception {
+		Path file = tempDir.resolve("camera-global.osc");
+		Timeline timeline = Timeline.createDefault();
+		timeline.addCameraKeyframe(new com.beatblock.timeline.CameraKeyframe(2.0));
+		timeline.addGlobalEvent(new GlobalEvent(5.0, GlobalEventType.LIGHTING, "Strobe"));
+		OscProjectStore.save(file, timeline);
+
+		Timeline restored = Timeline.createDefault();
+		OscProjectStore.load(file, null, restored);
+
+		assertEquals(1, restored.getCameraKeyframes().size());
+		assertEquals(1, restored.getGlobalEvents().size());
+		assertEquals("Strobe", restored.getGlobalEvents().getFirst().getName());
 	}
 
 	@Test
