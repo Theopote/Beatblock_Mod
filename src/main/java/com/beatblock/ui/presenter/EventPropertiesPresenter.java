@@ -3,6 +3,7 @@ package com.beatblock.ui.presenter;
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.StageObject;
 import com.beatblock.timeline.Clip;
+import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineEditor;
@@ -405,6 +406,147 @@ public final class EventPropertiesPresenter {
 
 	public static double defaultDistancePaceMinGap() {
 		return DistancePacing.DEFAULT_MIN_GAP_SECONDS;
+	}
+
+	public EventPropertiesFormSnapshot buildFormSnapshot(EventPropertiesRef ref, Timeline timeline) {
+		String refKey = EventPropertiesRef.refKey(ref);
+		if (ref == null || ref.clip() == null) {
+			return emptyFormSnapshot(refKey);
+		}
+		if (ref.event() == null) {
+			return new EventPropertiesFormSnapshot(
+				refKey,
+				formatSeconds(ref.clip().getStartTimeSeconds()),
+				formatSeconds(ref.clip().getEndTimeSeconds()),
+				isPathVisible(timeline, ref.clip().getId()),
+				"", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+				"",
+				false,
+				Map.of(),
+				"", "", "", "", "", ""
+			);
+		}
+
+		TimelineEvent event = ref.event();
+		Map<String, Object> params = event.getParameters();
+		String placeBlock = EventParameterReaders.stringParam(
+			params, "placeBlock",
+			EventParameterReaders.stringParam(params, "placeBlockId", "minecraft:diamond_block")
+		);
+		String flashBlock = EventParameterReaders.stringParam(
+			params, "flashBlock",
+			EventParameterReaders.stringParam(params, "flashBlockId", "minecraft:gold_block")
+		);
+
+		String camSegDuration = "";
+		boolean camSegPathVisible = false;
+		Map<String, String> camSegParams = Map.of();
+		if (event.getType() == EventType.CAMERA_SEGMENT) {
+			camSegDuration = formatSeconds(ref.clip().getDurationSeconds());
+			camSegPathVisible = isPathVisible(timeline, ref.clip().getId());
+			Map<String, String> segParams = new HashMap<>();
+			for (Map.Entry<String, Object> entry : params.entrySet()) {
+				String key = entry.getKey();
+				if ("kind".equals(key)) {
+					continue;
+				}
+				segParams.put(key, String.valueOf(entry.getValue()));
+			}
+			camSegParams = Map.copyOf(segParams);
+		}
+
+		String camX = "";
+		String camY = "";
+		String camZ = "";
+		String camYaw = "";
+		String camPitch = "";
+		String camEase = "";
+		if (event.getType() == EventType.CAMERA_KEYFRAME) {
+			camX = formatDecimal(EventParameterReaders.numericParam(params, "x", 0), 6);
+			camY = formatDecimal(EventParameterReaders.numericParam(params, "y", 0), 6);
+			camZ = formatDecimal(EventParameterReaders.numericParam(params, "z", 0), 6);
+			camYaw = formatDecimal(EventParameterReaders.numericParam(params, "yawDeg", 0), 3);
+			camPitch = formatDecimal(EventParameterReaders.numericParam(params, "pitchDeg", 0), 3);
+			camEase = EventParameterReaders.stringParam(params, "ease", "SMOOTH");
+		}
+
+		return new EventPropertiesFormSnapshot(
+			refKey,
+			"", "",
+			false,
+			formatSeconds(event.getTimeSeconds()),
+			formatSeconds(EventParameterReaders.numericParam(params, "durationSeconds", 0.25)),
+			formatDecimal(EventParameterReaders.numericParam(params, "energy", 1.0), 3),
+			formatDecimal(EventParameterReaders.numericParam(params, "energyThreshold", 0.15), 3),
+			formatDecimal(EventParameterReaders.numericParam(params, "sequentialDelaySeconds", 0.0), 3),
+			String.valueOf(Math.max(1, (int) Math.round(EventParameterReaders.numericParam(params, "blocksPerBeat", 1.0)))),
+			formatDecimal(EventParameterReaders.numericParam(
+				params, "distancePaceSecondsPerBlock", DistancePacing.DEFAULT_SECONDS_PER_BLOCK_UNIT), 3),
+			formatDecimal(EventParameterReaders.numericParam(
+				params, "distancePaceMinGapSeconds", DistancePacing.DEFAULT_MIN_GAP_SECONDS), 3),
+			formatDecimal(EventParameterReaders.numericParam(params, "cameraNearDistance", 8.0), 3),
+			formatDecimal(EventParameterReaders.numericParam(params, "cameraFarDistance", 48.0), 3),
+			formatDecimal(EventParameterReaders.numericParam(params, "cameraNearScale", 0.6), 3),
+			formatDecimal(EventParameterReaders.numericParam(params, "cameraFarScale", 1.5), 3),
+			formatDecimal(EventParameterReaders.numericParam(params, "cameraEdgePriority", 0.0), 2),
+			placeBlock,
+			flashBlock,
+			camSegDuration,
+			camSegPathVisible,
+			camSegParams,
+			camX,
+			camY,
+			camZ,
+			camYaw,
+			camPitch,
+			camEase
+		);
+	}
+
+	public AnimationEditorViewState readAnimationEditorState(Map<String, Object> params) {
+		Map<String, Object> safeParams = params != null ? params : Map.of();
+		String actionMode = EventParameterReaders.stringParam(
+			safeParams,
+			"actionMode",
+			EventParameterReaders.stringParam(safeParams, "mode", TimelineAnimationActionMode.ANIMATE.name())
+		);
+		return new AnimationEditorViewState(
+			EventParameterReaders.stringParam(safeParams, "animationType"),
+			EventParameterReaders.stringParam(safeParams, "targetObject"),
+			actionMode,
+			EventParameterReaders.booleanParam(safeParams, "inheritGroupSpatial", true),
+			"STEP".equalsIgnoreCase(EventParameterReaders.stringParam(safeParams, "dispatchModel", "BURST")),
+			EventParameterReaders.booleanParam(safeParams, "cameraAdaptiveStep", false),
+			EventParameterReaders.booleanParam(safeParams, "cameraFrustumGating", false),
+			EventParameterReaders.booleanParam(safeParams, "usePhaseAnimation", false),
+			EventParameterReaders.booleanParam(safeParams, "vfxEnabled", true),
+			EventParameterReaders.stringParam(safeParams, "stepStartMode", "NEXT_BEAT"),
+			EventParameterReaders.stringParam(safeParams, "stepCompletionMode", "KEEP"),
+			EventParameterReaders.stringParam(safeParams, "pacingMode", "BEAT_GRID"),
+			EventParameterReaders.stringParam(safeParams, "spatialMode", "ALL"),
+			EventParameterReaders.stringParam(safeParams, "mappingProfile", "manual"),
+			EventParameterReaders.stringParam(safeParams, "sourceStem", "-"),
+			EventParameterReaders.stringParam(safeParams, "sourceFeature"),
+			EventParameterReaders.stringParam(safeParams, "generatedBy")
+		);
+	}
+
+	private static EventPropertiesFormSnapshot emptyFormSnapshot(String refKey) {
+		return new EventPropertiesFormSnapshot(
+			refKey,
+			"", "", false,
+			"", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+			"", false, Map.of(),
+			"", "", "", "", "", ""
+		);
+	}
+
+	private static String formatSeconds(double value) {
+		return String.format(Locale.ROOT, "%.6f", value);
+	}
+
+	private static String formatDecimal(double value, int precision) {
+		return String.format(Locale.ROOT, "%." + precision + "f", value);
 	}
 
 	private void commitEventEdit(

@@ -2,6 +2,7 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.engine.layer.BuildLayerManager;
+import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.timeline.command.CommandManager;
 
 import java.util.function.Supplier;
@@ -23,5 +24,9 @@ public final class PresenterFactories {
 
 	public static EventPropertiesPresenter eventPropertiesPresenter() {
 		return EventPropertiesPresenterFactory.create();
+	}
+
+	public static SelectionPropertiesPresenter selectionPropertiesPresenter() {
+		return new SelectionPropertiesPresenter(BeatBlockSelectionManager::get);
 	}
 }

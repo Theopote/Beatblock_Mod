@@ -1,5 +1,6 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEvent;
@@ -158,5 +159,40 @@ class EventPropertiesPresenterTest {
 		assertFalse(options.isEmpty());
 		assertTrue(options.stream().anyMatch(option -> "ANIMATE".equals(option.id())));
 		assertTrue(options.stream().anyMatch(option -> "BUILD".equals(option.id())));
+	}
+
+	@Test
+	void buildFormSnapshotFormatsAnimationEventFields() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 4.0);
+		var event = TimelineOperations.addEvent(
+			clip,
+			2.5,
+			EventType.ANIMATION,
+			Map.of(
+				"animationType", "pulse",
+				"targetObject", "target-1",
+				"durationSeconds", 0.75,
+				"energy", 0.5
+			)
+		);
+		EventPropertiesRef ref = new EventPropertiesRef(track, clip, event);
+
+		EventPropertiesFormSnapshot snapshot = presenter.buildFormSnapshot(ref, timeline);
+		assertEquals("2.500000", snapshot.time());
+		assertEquals("0.750000", snapshot.duration());
+		assertEquals("0.500", snapshot.energy());
+		assertEquals("pulse", presenter.readAnimationEditorState(event.getParameters()).animationId());
+	}
+
+	@Test
+	void buildFormSnapshotFormatsCameraClipOnlySelection() {
+		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		var clip = TimelineOperations.addClip(cam, 1.0, 5.0);
+		EventPropertiesRef ref = new EventPropertiesRef(cam, clip, null);
+
+		EventPropertiesFormSnapshot snapshot = presenter.buildFormSnapshot(ref, timeline);
+		assertEquals("1.000000", snapshot.camClipStart());
+		assertEquals("5.000000", snapshot.camClipEnd());
 	}
 }
