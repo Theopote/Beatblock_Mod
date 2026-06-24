@@ -6,6 +6,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.binding.AnimationBindingRule;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
+import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.TimelineBindingEditorPresenter;
 import com.beatblock.ui.presenter.TimelineToolbarActionsPresenter;
 import com.beatblock.ui.presenter.TimelineToolbarConfigPresenter;
@@ -19,7 +20,6 @@ import imgui.type.ImString;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -547,71 +547,48 @@ public final class TimelineToolbar {
 
 	private void renderBindingEditorPopup() {
 		if (!ImGui.beginPopup(BINDING_EDITOR_POPUP_ID)) return;
-		Timeline timeline = BeatBlock.timeline;
+		Timeline timeline = binding.currentTimeline();
 		if (timeline == null) {
 			ImGui.textDisabled("Timeline 未初始化");
 			ImGui.endPopup();
 			return;
 		}
 
-		List<AnimationBindingRule> rules = new ArrayList<>(AnimationBindingEngine.loadRules(timeline));
-		List<String> featureKeys = new ArrayList<>(timeline.getFeatureTracks().keySet());
-		Collections.sort(featureKeys);
-
-		Map<String, String> targetDisplayToId = new HashMap<>();
-		List<String> targetDisplays = collectTargetDisplays(targetDisplayToId);
-		List<String> animationIds = collectAnimationIds();
-		List<String> sectionFilters = collectSectionFilters(timeline);
+		List<AnimationBindingRule> rules = new ArrayList<>(binding.loadRules(timeline));
+		var lists = binding.loadEditorLists(timeline);
+		List<String> featureKeys = lists.featureKeys();
+		List<String> targetDisplays = lists.targetDisplays();
+		Map<String, String> targetDisplayToId = lists.targetDisplayToId();
+		List<String> animationIds = lists.animationIds();
+		List<String> sectionFilters = lists.sectionFilters();
 
 		ImGui.textDisabled("Binding Rules");
 		ImGui.sameLine();
 		ImGui.text("(" + rules.size() + ")");
 
 		if (ImGui.button("Create Defaults##bindingCreateDefaults")) {
-			rules = new ArrayList<>(AnimationBindingEngine.createDefaultRules(timeline));
-			AnimationBindingEngine.saveRules(timeline, rules);
+			rules = new ArrayList<>(binding.createDefaultRules(timeline));
 		}
 		ImGui.sameLine();
 		if (ImGui.button("Add Rule##bindingAddRule")) {
-			AnimationBindingRule added = buildAddedRule(featureKeys, targetDisplays, targetDisplayToId);
-			if (added != null) {
-				rules.add(added);
-				AnimationBindingEngine.saveRules(timeline, rules);
-			}
+			rules = binding.tryAddRule(timeline, rules, lists);
 		}
 
-		ImGui.setNextItemWidth(comboWidthForLabels(BINDING_TEMPLATE_LABELS));
-		ImGui.combo("Template##bindingTemplate", bindingTemplateComboIndex, BINDING_TEMPLATE_LABELS);
+		ImGui.setNextItemWidth(comboWidthForLabels(TimelineBindingEditorPresenter.TEMPLATE_LABELS));
+		ImGui.combo("Template##bindingTemplate", bindingTemplateComboIndex, TimelineBindingEditorPresenter.TEMPLATE_LABELS);
 		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BINDING_TEMPLATE);
 		ImGui.sameLine();
 		if (ImGui.button("Replace##bindingApplyTemplate")) {
-			int idx = Math.max(0, Math.min(bindingTemplateComboIndex.get(), BINDING_TEMPLATE_VALUES.length - 1));
-			List<AnimationBindingRule> templated = new ArrayList<>(
-				AnimationBindingEngine.createTemplateRules(timeline, BINDING_TEMPLATE_VALUES[idx]));
-			if (!templated.isEmpty()) {
-				rules = templated;
-				AnimationBindingEngine.saveRules(timeline, rules);
-				setTemplateApplyFeedback("Template " + BINDING_TEMPLATE_LABELS[idx] + " replaced all rules: " + rules.size(), true);
-			} else {
-				setTemplateApplyFeedback("Template " + BINDING_TEMPLATE_LABELS[idx] + " produced no rules", false);
-			}
+			var outcome = binding.replaceWithTemplate(timeline, rules, bindingTemplateComboIndex.get());
+			rules = outcome.rules();
+			setTemplateApplyFeedback(outcome.message(), outcome.success());
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip("覆盖当前规则集");
 		ImGui.sameLine();
 		if (ImGui.button("Append##bindingAppendTemplate")) {
-			int idx = Math.max(0, Math.min(bindingTemplateComboIndex.get(), BINDING_TEMPLATE_VALUES.length - 1));
-			List<AnimationBindingRule> templated = new ArrayList<>(
-				AnimationBindingEngine.createTemplateRules(timeline, BINDING_TEMPLATE_VALUES[idx]));
-			if (!templated.isEmpty()) {
-				TemplateMergeResult merge = mergeTemplateRules(rules, templated);
-				rules = merge.merged();
-				AnimationBindingEngine.saveRules(timeline, rules);
-				setTemplateApplyFeedback(
-					"Template " + BINDING_TEMPLATE_LABELS[idx] + " appended: +" + merge.added() + ", skipped " + merge.skipped(),
-					merge.added() > 0);
-			} else {
-				setTemplateApplyFeedback("Template " + BINDING_TEMPLATE_LABELS[idx] + " produced no rules", false);
-			}
+			var outcome = binding.appendTemplate(timeline, rules, bindingTemplateComboIndex.get());
+			rules = outcome.rules();
+			setTemplateApplyFeedback(outcome.message(), outcome.success());
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip("保留现有规则并追加模板（自动去重）");
 		renderTemplateApplyFeedback();
@@ -641,39 +618,39 @@ public final class TimelineToolbar {
 			if (ImGui.inputText("Name", nameBuf)) changed = true;
 
 			if (!featureKeys.isEmpty()) {
-				int featureIndex = indexOfValue(featureKeys, rule.sourceFeatureKey());
+				int featureIndex = TimelineBindingEditorPresenter.indexOfValue(featureKeys, rule.sourceFeatureKey());
 				ImInt featureCombo = new ImInt(Math.max(0, featureIndex));
-				if (ImGui.combo("Feature", featureCombo, toArray(featureKeys))) changed = true;
+				if (ImGui.combo("Feature", featureCombo, TimelineBindingEditorPresenter.toComboArray(featureKeys))) changed = true;
 				featureIndex = featureCombo.get();
 				if (featureIndex < 0 || featureIndex >= featureKeys.size()) featureIndex = 0;
 
-				int animationIndex = indexOfValue(animationIds, rule.animationTypeId());
+				int animationIndex = TimelineBindingEditorPresenter.indexOfValue(animationIds, rule.animationTypeId());
 				ImInt animationCombo = new ImInt(Math.max(0, animationIndex));
-				if (ImGui.combo("Animation", animationCombo, toArray(animationIds))) changed = true;
+				if (ImGui.combo("Animation", animationCombo, TimelineBindingEditorPresenter.toComboArray(animationIds))) changed = true;
 				animationIndex = animationCombo.get();
 				if (animationIndex < 0 || animationIndex >= animationIds.size()) animationIndex = 0;
 
-				int actionIndex = indexOfValue(BINDING_ACTION_VALUES, rule.actionMode().name());
+				int actionIndex = TimelineBindingEditorPresenter.indexOfValue(TimelineBindingEditorPresenter.ACTION_VALUES, rule.actionMode().name());
 				ImInt actionCombo = new ImInt(Math.max(0, actionIndex));
-				if (ImGui.combo("Action", actionCombo, BINDING_ACTION_LABELS)) changed = true;
+				if (ImGui.combo("Action", actionCombo, TimelineBindingEditorPresenter.ACTION_LABELS)) changed = true;
 				actionIndex = actionCombo.get();
-				if (actionIndex < 0 || actionIndex >= BINDING_ACTION_VALUES.length) actionIndex = 0;
+				if (actionIndex < 0 || actionIndex >= TimelineBindingEditorPresenter.ACTION_VALUES.length) actionIndex = 0;
 
-				int spatialIndex = indexOfValue(BINDING_SPATIAL_VALUES, rule.spatialMode().name());
+				int spatialIndex = TimelineBindingEditorPresenter.indexOfValue(TimelineBindingEditorPresenter.SPATIAL_VALUES, rule.spatialMode().name());
 				ImInt spatialCombo = new ImInt(Math.max(0, spatialIndex));
-				if (ImGui.combo("Spatial", spatialCombo, BINDING_SPATIAL_LABELS)) changed = true;
+				if (ImGui.combo("Spatial", spatialCombo, TimelineBindingEditorPresenter.SPATIAL_LABELS)) changed = true;
 				spatialIndex = spatialCombo.get();
-				if (spatialIndex < 0 || spatialIndex >= BINDING_SPATIAL_VALUES.length) spatialIndex = 0;
+				if (spatialIndex < 0 || spatialIndex >= TimelineBindingEditorPresenter.SPATIAL_VALUES.length) spatialIndex = 0;
 
-				int targetIndex = indexOfTargetDisplay(targetDisplays, targetDisplayToId, rule.targetObjectId());
+				int targetIndex = TimelineBindingEditorPresenter.indexOfTargetDisplay(targetDisplays, targetDisplayToId, rule.targetObjectId());
 				ImInt targetCombo = new ImInt(Math.max(0, targetIndex));
-				if (!targetDisplays.isEmpty() && ImGui.combo("Target", targetCombo, toArray(targetDisplays))) changed = true;
+				if (!targetDisplays.isEmpty() && ImGui.combo("Target", targetCombo, TimelineBindingEditorPresenter.toComboArray(targetDisplays))) changed = true;
 				targetIndex = targetCombo.get();
 				if (targetIndex < 0 || targetIndex >= targetDisplays.size()) targetIndex = 0;
 
-				int sectionIndex = indexOfSectionFilter(sectionFilters, rule.sectionFilter());
+				int sectionIndex = TimelineBindingEditorPresenter.indexOfSectionFilter(sectionFilters, rule.sectionFilter());
 				ImInt sectionCombo = new ImInt(Math.max(0, sectionIndex));
-				if (!sectionFilters.isEmpty() && ImGui.combo("Section", sectionCombo, toArray(sectionFilters))) changed = true;
+				if (!sectionFilters.isEmpty() && ImGui.combo("Section", sectionCombo, TimelineBindingEditorPresenter.toComboArray(sectionFilters))) changed = true;
 				sectionIndex = sectionCombo.get();
 				if (sectionIndex < 0 || sectionIndex >= sectionFilters.size()) sectionIndex = 0;
 
@@ -698,32 +675,32 @@ public final class TimelineToolbar {
 				Map<String, Object> extraCopy = new HashMap<>(rule.extraParams());
 				String uiAnimation = animationIds.isEmpty() ? rule.animationTypeId() : animationIds.get(animationIndex);
 				if ("WaveMotion".equalsIgnoreCase(uiAnimation)) {
-					float[] waveAmp = new float[] { (float) extraParamAsDouble(extraCopy, "waveAmplitude", 0.5) };
-					float[] wavePhase = new float[] { (float) extraParamAsDouble(extraCopy, "wavePhaseOffset", 0.5) };
+					float[] waveAmp = new float[] { (float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "waveAmplitude", 0.5) };
+					float[] wavePhase = new float[] { (float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "wavePhaseOffset", 0.5) };
 					if (ImGui.sliderFloat("Wave Amp", waveAmp, 0f, 3f, "%.2f")) changed = true;
 					if (ImGui.sliderFloat("Wave Phase", wavePhase, 0f, 3f, "%.2f")) changed = true;
 					extraCopy.put("waveAmplitude", waveAmp[0]);
 					extraCopy.put("wavePhaseOffset", wavePhase[0]);
 				} else if ("BlockExplosion".equalsIgnoreCase(uiAnimation)) {
-					float[] impactRadius = new float[] { (float) extraParamAsDouble(extraCopy, "impactRadius", 4.0) };
-					float[] impactBurst = new float[] { (float) extraParamAsDouble(extraCopy, "impactBurst", 1.0) };
+					float[] impactRadius = new float[] { (float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "impactRadius", 4.0) };
+					float[] impactBurst = new float[] { (float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "impactBurst", 1.0) };
 					if (ImGui.sliderFloat("Impact Radius", impactRadius, 1f, 16f, "%.1f")) changed = true;
 					if (ImGui.sliderFloat("Impact Burst", impactBurst, 0f, 3f, "%.2f")) changed = true;
 					extraCopy.put("impactRadius", impactRadius[0]);
 					extraCopy.put("impactBurst", impactBurst[0]);
 				} else if ("BlockDrop".equalsIgnoreCase(uiAnimation)) {
-					float[] meteorHeight = new float[] { (float) extraParamAsDouble(extraCopy, "meteorHeight", 8.0) };
-					float[] meteorScatter = new float[] { (float) extraParamAsDouble(extraCopy, "meteorScatter", 2.0) };
+					float[] meteorHeight = new float[] { (float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "meteorHeight", 8.0) };
+					float[] meteorScatter = new float[] { (float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "meteorScatter", 2.0) };
 					if (ImGui.sliderFloat("Meteor Height", meteorHeight, 2f, 32f, "%.1f")) changed = true;
 					if (ImGui.sliderFloat("Meteor Scatter", meteorScatter, 0f, 8f, "%.1f")) changed = true;
 					extraCopy.put("meteorHeight", meteorHeight[0]);
 					extraCopy.put("meteorScatter", meteorScatter[0]);
 				}
 
-				String uiAction = BINDING_ACTION_VALUES[actionIndex];
+				String uiAction = TimelineBindingEditorPresenter.ACTION_VALUES[actionIndex];
 				if ("BUILD".equalsIgnoreCase(uiAction)) {
 					String[] buildModeLabels = { "WALL", "BRIDGE", "TOWER", "DISSOLVE" };
-					int bmIdx = indexOfValue(buildModeLabels, String.valueOf(extraCopy.getOrDefault("buildMode", "WALL")));
+					int bmIdx = TimelineBindingEditorPresenter.indexOfValue(buildModeLabels, String.valueOf(extraCopy.getOrDefault("buildMode", "WALL")));
 					ImInt bmCombo = new ImInt(Math.max(0, bmIdx));
 					if (ImGui.combo("Build Mode", bmCombo, buildModeLabels)) changed = true;
 					extraCopy.put("buildMode", buildModeLabels[Math.max(0, Math.min(bmCombo.get(), buildModeLabels.length - 1))]);
@@ -733,7 +710,7 @@ public final class TimelineToolbar {
 					if (ImGui.inputText("Block ID##buildBlockId", blockBuf)) changed = true;
 					extraCopy.put("placeBlock", blockBuf.get().trim());
 
-					imgui.type.ImBoolean dissolveFlag = new imgui.type.ImBoolean(
+					ImBoolean dissolveFlag = new ImBoolean(
 						"true".equalsIgnoreCase(String.valueOf(extraCopy.getOrDefault("buildDissolve", "false"))));
 					if (ImGui.checkbox("Dissolve (reverse)", dissolveFlag)) changed = true;
 					extraCopy.put("buildDissolve", String.valueOf(dissolveFlag.get()));
@@ -744,27 +721,27 @@ public final class TimelineToolbar {
 					String selectedAnimation = animationIds.isEmpty() ? rule.animationTypeId() : animationIds.get(animationIndex);
 					String selectedTargetDisplay = targetDisplays.isEmpty() ? "" : targetDisplays.get(targetIndex);
 					String selectedTargetId = targetDisplayToId.getOrDefault(selectedTargetDisplay, rule.targetObjectId());
-					String selectedSection = sectionFilters.isEmpty() ? BINDING_SECTION_ALL : sectionFilters.get(sectionIndex);
-					String sectionFilter = BINDING_SECTION_ALL.equalsIgnoreCase(selectedSection) ? "" : selectedSection.toLowerCase(Locale.ROOT);
-					AnimationBindingRule updated = AnimationBindingRule.builder()
-						.id(rule.id())
-						.name(nameBuf.get() == null || nameBuf.get().isBlank() ? rule.name() : nameBuf.get().trim())
-						.enabled(enabled[0])
-						.sourceFeatureKey(selectedFeature)
-						.animationTypeId(selectedAnimation)
-						.actionMode(TimelineAnimationActionMode.fromValue(BINDING_ACTION_VALUES[actionIndex]))
-						.targetObjectId(selectedTargetId)
-						.energyThreshold(threshold[0])
-						.energyScale(scale[0])
-						.durationSeconds(duration[0])
-						.cooldownSeconds(cooldown[0])
-						.probability(probability[0])
-						.spatialMode(SpatialDispatchMode.fromValue(BINDING_SPATIAL_VALUES[spatialIndex]))
-						.sequentialDelaySeconds(seqDelay[0])
-						.sectionFilter(sectionFilter)
-						.extraParams(extraCopy)
-						.build();
-					rules.set(i, updated);
+					String selectedSection = sectionFilters.isEmpty()
+						? TimelineBindingEditorPresenter.SECTION_ALL
+						: sectionFilters.get(sectionIndex);
+					rules.set(i, TimelineBindingEditorPresenter.buildUpdatedRule(rule,
+						new TimelineBindingEditorPresenter.BindingRuleEditRequest(
+							enabled[0],
+							nameBuf.get(),
+							selectedFeature,
+							selectedAnimation,
+							TimelineBindingEditorPresenter.ACTION_VALUES[actionIndex],
+							spatialIndex,
+							selectedTargetId,
+							selectedSection,
+							threshold[0],
+							scale[0],
+							duration[0],
+							cooldown[0],
+							probability[0],
+							seqDelay[0],
+							extraCopy
+						)));
 					changedAny = true;
 				}
 			}
@@ -777,217 +754,29 @@ public final class TimelineToolbar {
 			ImGui.treePop();
 		}
 
-		if (removeIndex >= 0 && removeIndex < rules.size()) {
-			rules.remove(removeIndex);
+		if (removeIndex >= 0) {
+			rules = binding.removeRule(rules, removeIndex);
 			changedAny = true;
 		}
 
 		if (changedAny) {
-			AnimationBindingEngine.saveRules(timeline, rules);
+			binding.saveRules(timeline, rules);
 		}
 
 		ImGui.separator();
 		if (ImGui.button("Apply To Block Track##bindingApplyBlock")) {
-			lastBindingMapCount = AnimationBindingEngine.applyRules(timeline, TimelineTrackMeta.ROW_ANIM_BLOCK, false);
-			if (BeatBlock.timelineEditor != null) BeatBlock.timelineEditor.syncClockDuration();
-			setTemplateApplyFeedback("Apply To Block Track generated " + lastBindingMapCount + " events", lastBindingMapCount > 0);
+			var outcome = binding.applyToBlockTrack();
+			lastBindingMapCount = outcome.count();
+			setTemplateApplyFeedback(outcome.message(), outcome.success());
 		}
 		ImGui.sameLine();
 		if (ImGui.button("Apply To Auto Track##bindingApplyAuto")) {
-			lastBindingMapCount = AnimationBindingEngine.applyRules(timeline, TimelineTrackMeta.ROW_ANIM_AUTO, false);
-			if (BeatBlock.timelineEditor != null) BeatBlock.timelineEditor.syncClockDuration();
-			setTemplateApplyFeedback("Apply To Auto Track generated " + lastBindingMapCount + " events", lastBindingMapCount > 0);
+			var outcome = binding.applyToAutoTrack();
+			lastBindingMapCount = outcome.count();
+			setTemplateApplyFeedback(outcome.message(), outcome.success());
 		}
 
 		ImGui.endPopup();
-	}
-
-	private AnimationBindingRule buildAddedRule(List<String> featureKeys, List<String> targetDisplays, Map<String, String> targetDisplayToId) {
-		if (featureKeys == null || featureKeys.isEmpty()) return null;
-		if (targetDisplays == null || targetDisplays.isEmpty()) return null;
-		String feature = featureKeys.getFirst();
-		String targetDisplay = targetDisplays.getFirst();
-		String targetId = targetDisplayToId.getOrDefault(targetDisplay, "");
-		if (targetId.isBlank()) return null;
-		return AnimationBindingRule.builder()
-			.name("Bind " + feature)
-			.sourceFeatureKey(feature)
-			.animationTypeId("Pulse")
-			.actionMode(TimelineAnimationActionMode.ANIMATE)
-			.targetObjectId(targetId)
-			.energyThreshold(0.2f)
-			.energyScale(1.0f)
-			.durationSeconds(0.4)
-			.cooldownSeconds(0.08)
-			.probability(1.0f)
-			.spatialMode(SpatialDispatchMode.ALL)
-			.sequentialDelaySeconds(0.0)
-			.build();
-	}
-
-	private List<String> collectAnimationIds() {
-		List<String> ids = new ArrayList<>();
-		if (BeatBlock.blockAnimationEngine != null) {
-			List<AnimationDefinition> defs = new ArrayList<>(BeatBlock.blockAnimationEngine.getAnimationLibrary().getAll().values());
-			defs.sort(Comparator.comparing(AnimationDefinition::getId, String.CASE_INSENSITIVE_ORDER));
-			for (AnimationDefinition def : defs) {
-				ids.add(def.getId());
-			}
-		}
-		if (ids.isEmpty()) ids.add("Pulse");
-		return ids;
-	}
-
-	private List<String> collectSectionFilters(Timeline timeline) {
-		LinkedHashSet<String> filters = new LinkedHashSet<>();
-		filters.add(BINDING_SECTION_ALL);
-		if (timeline == null) return new ArrayList<>(filters);
-		for (TimelineMarker marker : timeline.getMarkers()) {
-			if (marker == null || marker.getType() != MarkerType.SECTION) continue;
-			String label = extractSectionFilterLabel(marker.getName());
-			if (!label.isBlank()) filters.add(label.toUpperCase(Locale.ROOT));
-		}
-		return new ArrayList<>(filters);
-	}
-
-	private static String extractSectionFilterLabel(String markerName) {
-		if (markerName == null) return "";
-		String text = markerName.trim();
-		if (text.isBlank()) return "";
-		String upper = text.toUpperCase(Locale.ROOT);
-		if (upper.startsWith("SECTION ")) {
-			text = text.substring("SECTION ".length()).trim();
-		}
-		return text;
-	}
-
-	private List<String> collectTargetDisplays(Map<String, String> outDisplayToId) {
-		List<String> displays = new ArrayList<>();
-		if (outDisplayToId == null) return displays;
-		if (BeatBlock.blockAnimationEngine == null) {
-			return displays;
-		}
-		List<StageObject> objects = new ArrayList<>(BeatBlock.blockAnimationEngine.getStageObjectSystem().getAll());
-		objects.sort(Comparator.comparing(StageObject::getName, String.CASE_INSENSITIVE_ORDER));
-		for (StageObject object : objects) {
-			String display = object.getName() + " [" + object.getId() + "]";
-			if (outDisplayToId.containsKey(display)) continue;
-			outDisplayToId.put(display, object.getId());
-			displays.add(display);
-		}
-		return displays;
-	}
-
-	private static String[] toArray(List<String> values) {
-		if (values == null || values.isEmpty()) return new String[] { "" };
-		LinkedHashSet<String> dedup = new LinkedHashSet<>(values);
-		return dedup.toArray(new String[0]);
-	}
-
-	private static int indexOfValue(List<String> values, String target) {
-		if (values == null || values.isEmpty()) return 0;
-		if (target == null) return 0;
-		for (int i = 0; i < values.size(); i++) {
-			if (target.equalsIgnoreCase(values.get(i))) return i;
-		}
-		return 0;
-	}
-
-	private static int indexOfValue(String[] values, String target) {
-		if (values == null || values.length == 0) return 0;
-		if (target == null) return 0;
-		for (int i = 0; i < values.length; i++) {
-			if (target.equalsIgnoreCase(values[i])) return i;
-		}
-		return 0;
-	}
-
-	private static int indexOfTargetDisplay(List<String> targetDisplays, Map<String, String> displayToId, String targetId) {
-		if (targetDisplays == null || targetDisplays.isEmpty() || displayToId == null) return 0;
-		if (targetId == null || targetId.isBlank()) return 0;
-		for (int i = 0; i < targetDisplays.size(); i++) {
-			String display = targetDisplays.get(i);
-			String id = displayToId.get(display);
-			if (targetId.equals(id)) return i;
-		}
-		return 0;
-	}
-
-	private static int indexOfSectionFilter(List<String> filters, String ruleSectionFilter) {
-		if (filters == null || filters.isEmpty()) return 0;
-		if (ruleSectionFilter == null || ruleSectionFilter.isBlank()) return 0;
-		String wanted = ruleSectionFilter.trim().toUpperCase(Locale.ROOT);
-		for (int i = 0; i < filters.size(); i++) {
-			if (wanted.equalsIgnoreCase(filters.get(i))) return i;
-		}
-		return 0;
-	}
-
-	private static double extraParamAsDouble(Map<String, Object> params, String key, double fallback) {
-		if (params == null || key == null || key.isBlank()) return fallback;
-		Object raw = params.get(key);
-		if (raw instanceof Number n) return n.doubleValue();
-		if (raw == null) return fallback;
-		try {
-			return Double.parseDouble(String.valueOf(raw).trim());
-		} catch (Exception ex) {
-			return fallback;
-		}
-	}
-
-	private record TemplateMergeResult(List<AnimationBindingRule> merged, int added, int skipped) {}
-
-	private static TemplateMergeResult mergeTemplateRules(List<AnimationBindingRule> existing, List<AnimationBindingRule> incoming) {
-		List<AnimationBindingRule> out = new ArrayList<>();
-		if (existing != null) out.addAll(existing);
-		if (incoming == null || incoming.isEmpty()) return new TemplateMergeResult(out, 0, 0);
-
-		LinkedHashSet<String> fingerprints = new LinkedHashSet<>();
-		int added = 0;
-		int skipped = 0;
-		for (AnimationBindingRule rule : out) {
-			if (rule == null) continue;
-			fingerprints.add(ruleFingerprint(rule));
-		}
-		for (AnimationBindingRule rule : incoming) {
-			if (rule == null) continue;
-			String fp = ruleFingerprint(rule);
-			if (fingerprints.contains(fp)) {
-				skipped++;
-				continue;
-			}
-			fingerprints.add(fp);
-			out.add(rule);
-			added++;
-		}
-		return new TemplateMergeResult(out, added, skipped);
-	}
-
-	private static String ruleFingerprint(AnimationBindingRule rule) {
-		if (rule == null) return "";
-		StringBuilder sb = new StringBuilder(256);
-		sb.append(rule.sourceFeatureKey().toLowerCase(Locale.ROOT)).append('|');
-		sb.append(rule.animationTypeId().toLowerCase(Locale.ROOT)).append('|');
-		sb.append(rule.actionMode().name()).append('|');
-		sb.append(rule.targetObjectId().toLowerCase(Locale.ROOT)).append('|');
-		sb.append(rule.sectionFilter().toLowerCase(Locale.ROOT)).append('|');
-		sb.append(rule.spatialMode().name()).append('|');
-		sb.append(String.format(Locale.ROOT, "%.3f|%.3f|%.3f|%.3f|%.3f|%.3f",
-			rule.energyThreshold(),
-			rule.energyScale(),
-			rule.durationSeconds(),
-			rule.cooldownSeconds(),
-			rule.probability(),
-			rule.sequentialDelaySeconds()));
-		if (!rule.extraParams().isEmpty()) {
-			Map<String, String> sorted = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-			for (Map.Entry<String, Object> e : rule.extraParams().entrySet()) {
-				if (e.getKey() == null) continue;
-				sorted.put(e.getKey().toLowerCase(Locale.ROOT), String.valueOf(e.getValue()));
-			}
-			sb.append('|').append(sorted);
-		}
-		return sb.toString();
 	}
 
 	private void setTemplateApplyFeedback(String message, boolean success) {
@@ -1049,333 +838,73 @@ public final class TimelineToolbar {
 		if (!ImGui.beginPopup(DEMUCS_ADVANCED_POPUP_ID)) return;
 		ImGui.textDisabled("Demucs Mapping Advanced");
 
-		float[] durationScale = new float[] { (float) readTimelineScale("demucsMapDurationScale", 1.0, DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX) };
-		float[] energyScale = new float[] { (float) readTimelineScale("demucsMapEnergyScale", 1.0, DEMUCS_ENERGY_SCALE_MIN, DEMUCS_ENERGY_SCALE_MAX) };
-		float[] gapScale = new float[] { (float) readTimelineScale("demucsMapGapScale", 1.0, DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX) };
+		var scales = config.readGlobalScales();
+		float[] durationScale = new float[] { (float) scales.durationScale() };
+		float[] energyScale = new float[] { (float) scales.energyScale() };
+		float[] gapScale = new float[] { (float) scales.gapScale() };
 
 		boolean changed = false;
 		ImGui.setNextItemWidth(220f);
-		changed |= ImGui.sliderFloat("Duration Scale##demucsDur", durationScale, (float) DEMUCS_SCALE_MIN, (float) DEMUCS_SCALE_MAX, "%.2f");
+		changed |= ImGui.sliderFloat("Duration Scale##demucsDur", durationScale,
+			(float) TimelineToolbarConfigPresenter.DEMUCS_SCALE_MIN,
+			(float) TimelineToolbarConfigPresenter.DEMUCS_SCALE_MAX, "%.2f");
 		ImGui.setNextItemWidth(220f);
-		changed |= ImGui.sliderFloat("Energy Threshold##demucsEnergy", energyScale, (float) DEMUCS_ENERGY_SCALE_MIN, (float) DEMUCS_ENERGY_SCALE_MAX, "%.2f");
+		changed |= ImGui.sliderFloat("Energy Threshold##demucsEnergy", energyScale,
+			(float) TimelineToolbarConfigPresenter.DEMUCS_ENERGY_SCALE_MIN,
+			(float) TimelineToolbarConfigPresenter.DEMUCS_ENERGY_SCALE_MAX, "%.2f");
 		ImGui.setNextItemWidth(220f);
-		changed |= ImGui.sliderFloat("Min Gap Scale##demucsGap", gapScale, (float) DEMUCS_SCALE_MIN, (float) DEMUCS_SCALE_MAX, "%.2f");
+		changed |= ImGui.sliderFloat("Min Gap Scale##demucsGap", gapScale,
+			(float) TimelineToolbarConfigPresenter.DEMUCS_SCALE_MIN,
+			(float) TimelineToolbarConfigPresenter.DEMUCS_SCALE_MAX, "%.2f");
 
 		if (changed) {
-			writeTimelineScale("demucsMapDurationScale", durationScale[0]);
-			writeTimelineScale("demucsMapEnergyScale", energyScale[0]);
-			writeTimelineScale("demucsMapGapScale", gapScale[0]);
-			persistDemucsMappingConfig();
+			config.writeGlobalScales(durationScale[0], energyScale[0], gapScale[0]);
 		}
 
 		if (ImGui.button("Reset to 1.0##demucsScaleReset")) {
-			writeTimelineScale("demucsMapDurationScale", 1.0f);
-			writeTimelineScale("demucsMapEnergyScale", 1.0f);
-			writeTimelineScale("demucsMapGapScale", 1.0f);
-			persistDemucsMappingConfig();
+			config.resetGlobalScalesToDefault();
 		}
 
 		ImGui.separator();
 		if (ImGui.treeNode("Per-Feature Overrides##demucsFeatureOverrides")) {
-			boolean featureChanged = false;
-			for (int i = 0; i < DEMUCS_FEATURE_KEYS.length; i++) {
-				String featureKey = DEMUCS_FEATURE_KEYS[i];
-				String label = DEMUCS_FEATURE_LABELS[i];
+			for (int i = 0; i < TimelineToolbarConfigPresenter.DEMUCS_FEATURE_KEYS.length; i++) {
+				String featureKey = TimelineToolbarConfigPresenter.DEMUCS_FEATURE_KEYS[i];
+				String label = TimelineToolbarConfigPresenter.DEMUCS_FEATURE_LABELS[i];
 				if (ImGui.treeNode(label + "##demucsFeatureNode_" + featureKey)) {
 					boolean nodeChanged = false;
-					float[] fDur = new float[] {
-						(float) readTimelineScale(featureMetadataKey(featureKey, "duration"), 1.0, DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX)
-					};
-					float[] fEnergy = new float[] {
-						(float) readTimelineScale(featureMetadataKey(featureKey, "energy"), 1.0, DEMUCS_ENERGY_SCALE_MIN, DEMUCS_ENERGY_SCALE_MAX)
-					};
-					float[] fGap = new float[] {
-						(float) readTimelineScale(featureMetadataKey(featureKey, "gap"), 1.0, DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX)
-					};
+					float[] fDur = new float[] { (float) config.readFeatureScale(featureKey, "duration") };
+					float[] fEnergy = new float[] { (float) config.readFeatureEnergyScale(featureKey) };
+					float[] fGap = new float[] { (float) config.readFeatureScale(featureKey, "gap") };
 
 					ImGui.setNextItemWidth(220f);
-					nodeChanged |= ImGui.sliderFloat("Duration##demucsFeatDur_" + featureKey, fDur, (float) DEMUCS_SCALE_MIN, (float) DEMUCS_SCALE_MAX, "%.2f");
+					nodeChanged |= ImGui.sliderFloat("Duration##demucsFeatDur_" + featureKey, fDur,
+						(float) TimelineToolbarConfigPresenter.DEMUCS_SCALE_MIN,
+						(float) TimelineToolbarConfigPresenter.DEMUCS_SCALE_MAX, "%.2f");
 					ImGui.setNextItemWidth(220f);
-					nodeChanged |= ImGui.sliderFloat("Energy##demucsFeatEnergy_" + featureKey, fEnergy, (float) DEMUCS_ENERGY_SCALE_MIN, (float) DEMUCS_ENERGY_SCALE_MAX, "%.2f");
+					nodeChanged |= ImGui.sliderFloat("Energy##demucsFeatEnergy_" + featureKey, fEnergy,
+						(float) TimelineToolbarConfigPresenter.DEMUCS_ENERGY_SCALE_MIN,
+						(float) TimelineToolbarConfigPresenter.DEMUCS_ENERGY_SCALE_MAX, "%.2f");
 					ImGui.setNextItemWidth(220f);
-					nodeChanged |= ImGui.sliderFloat("Gap##demucsFeatGap_" + featureKey, fGap, (float) DEMUCS_SCALE_MIN, (float) DEMUCS_SCALE_MAX, "%.2f");
+					nodeChanged |= ImGui.sliderFloat("Gap##demucsFeatGap_" + featureKey, fGap,
+						(float) TimelineToolbarConfigPresenter.DEMUCS_SCALE_MIN,
+						(float) TimelineToolbarConfigPresenter.DEMUCS_SCALE_MAX, "%.2f");
 
 					if (nodeChanged) {
-						writeTimelineScale(featureMetadataKey(featureKey, "duration"), fDur[0]);
-						writeTimelineScale(featureMetadataKey(featureKey, "energy"), fEnergy[0]);
-						writeTimelineScale(featureMetadataKey(featureKey, "gap"), fGap[0]);
-						featureChanged = true;
+						config.writeFeatureScales(featureKey, fDur[0], fEnergy[0], fGap[0]);
 					}
 
 					ImGui.treePop();
 				}
 			}
 
-			if (featureChanged) {
-				persistDemucsMappingConfig();
-			}
-
 			if (ImGui.button("Reset Feature Overrides##demucsFeatReset")) {
-				for (String featureKey : DEMUCS_FEATURE_KEYS) {
-					writeTimelineScale(featureMetadataKey(featureKey, "duration"), 1.0f);
-					writeTimelineScale(featureMetadataKey(featureKey, "energy"), 1.0f);
-					writeTimelineScale(featureMetadataKey(featureKey, "gap"), 1.0f);
-				}
-				persistDemucsMappingConfig();
+				config.resetAllFeatureOverrides();
 			}
 
 			ImGui.treePop();
 		}
 
 		ImGui.endPopup();
-	}
-
-	private String readDemucsPresetFromTimeline() {
-		if (BeatBlock.timeline == null) return "balanced";
-		Object preset = BeatBlock.timeline.getMetadata("demucsMappingPreset");
-		if (preset == null) return "balanced";
-		String value = preset.toString().trim().toLowerCase();
-		if ("drive".equals(value) || "detail".equals(value) || "balanced".equals(value)) {
-			return value;
-		}
-		return "balanced";
-	}
-
-	private void writeDemucsPresetToTimeline(String preset) {
-		if (BeatBlock.timeline == null) return;
-		BeatBlock.timeline.setMetadata("demucsMappingPreset", preset);
-		persistDemucsMappingConfig();
-	}
-
-	private String readClipGenerationModeFromTimeline() {
-		if (BeatBlock.timeline == null) return "mixed";
-		Object mode = BeatBlock.timeline.getMetadata("featureClipGenerationMode");
-		if (mode == null) return "mixed";
-		String value = mode.toString().trim().toLowerCase(Locale.ROOT);
-		if ("trigger".equals(value) || "sustain".equals(value) || "mixed".equals(value)) {
-			return value;
-		}
-		return "mixed";
-	}
-
-	private void writeClipGenerationModeToTimeline(String mode) {
-		if (BeatBlock.timeline == null) return;
-		String normalized = (mode == null ? "mixed" : mode.trim().toLowerCase(Locale.ROOT));
-		if (!"trigger".equals(normalized) && !"sustain".equals(normalized) && !"mixed".equals(normalized)) {
-			normalized = "mixed";
-		}
-		BeatBlock.timeline.setMetadata("featureClipGenerationMode", normalized);
-		persistDemucsMappingConfig();
-	}
-
-	private void ensureDemucsMappingConfigLoaded() {
-		if (demucsMappingConfigLoaded || BeatBlock.timeline == null) return;
-		demucsMappingConfigLoaded = true;
-		Path configPath = getUiConfigPath();
-		if (!Files.isRegularFile(configPath)) return;
-		try {
-			String txt = Files.readString(configPath, StandardCharsets.UTF_8);
-			if (txt.isBlank()) return;
-			JsonObject root = JsonParser.parseString(txt).getAsJsonObject();
-			if (!root.has("demucsMapping") || !root.get("demucsMapping").isJsonObject()) return;
-			JsonObject dm = root.getAsJsonObject("demucsMapping");
-
-			if (BeatBlock.timeline.getMetadata("demucsMappingPreset") == null && dm.has("preset")) {
-				String preset = dm.get("preset").getAsString();
-				if ("drive".equalsIgnoreCase(preset) || "detail".equalsIgnoreCase(preset) || "balanced".equalsIgnoreCase(preset)) {
-					BeatBlock.timeline.setMetadata("demucsMappingPreset", preset.toLowerCase());
-				}
-			}
-			if (BeatBlock.timeline.getMetadata("featureClipGenerationMode") == null && dm.has("clipGenerationMode")) {
-				String mode = dm.get("clipGenerationMode").getAsString();
-				if ("mixed".equalsIgnoreCase(mode) || "trigger".equalsIgnoreCase(mode) || "sustain".equalsIgnoreCase(mode)) {
-					BeatBlock.timeline.setMetadata("featureClipGenerationMode", mode.toLowerCase(Locale.ROOT));
-				}
-			}
-
-			applyDefaultScaleFromJson(dm, "durationScale", "demucsMapDurationScale", DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX);
-			applyDefaultScaleFromJson(dm, "energyScale", "demucsMapEnergyScale", DEMUCS_ENERGY_SCALE_MIN, DEMUCS_ENERGY_SCALE_MAX);
-			applyDefaultScaleFromJson(dm, "gapScale", "demucsMapGapScale", DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX);
-
-			if (dm.has("featureScale") && dm.get("featureScale").isJsonObject()) {
-				JsonObject featureScale = dm.getAsJsonObject("featureScale");
-				for (String featureKey : DEMUCS_FEATURE_KEYS) {
-					if (!featureScale.has(featureKey) || !featureScale.get(featureKey).isJsonObject()) continue;
-					JsonObject featureObj = featureScale.getAsJsonObject(featureKey);
-					applyDefaultScaleFromJson(featureObj, "durationScale", featureMetadataKey(featureKey, "duration"), DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX);
-					applyDefaultScaleFromJson(featureObj, "energyScale", featureMetadataKey(featureKey, "energy"), DEMUCS_ENERGY_SCALE_MIN, DEMUCS_ENERGY_SCALE_MAX);
-					applyDefaultScaleFromJson(featureObj, "gapScale", featureMetadataKey(featureKey, "gap"), DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX);
-				}
-			}
-		} catch (Exception e) {
-			LOGGER.debug("BeatBlock TimelineToolbar: failed to read ui.json demucs mapping config reason={}", e.toString());
-		}
-	}
-
-	private void applyDefaultScaleFromJson(JsonObject dm, String jsonKey, String metadataKey,
-										   double min, double max) {
-		if (BeatBlock.timeline == null) return;
-		if (BeatBlock.timeline.getMetadata(metadataKey) != null) return;
-		double v = 1.0;
-		if (dm.has(jsonKey)) {
-			try {
-				v = dm.get(jsonKey).getAsDouble();
-			} catch (Exception ignored) {}
-		}
-		v = Math.max(min, Math.min(max, v));
-		BeatBlock.timeline.setMetadata(metadataKey, v);
-	}
-
-	private void persistDemucsMappingConfig() {
-		if (BeatBlock.timeline == null) return;
-		Path configPath = getUiConfigPath();
-		try {
-			JsonObject root = new JsonObject();
-			if (Files.isRegularFile(configPath)) {
-				String existing = Files.readString(configPath, StandardCharsets.UTF_8);
-				if (!existing.isBlank()) {
-					root = JsonParser.parseString(existing).getAsJsonObject();
-				}
-			}
-
-			JsonObject dm = root.has("demucsMapping") && root.get("demucsMapping").isJsonObject()
-				? root.getAsJsonObject("demucsMapping")
-				: new JsonObject();
-
-			dm.addProperty("preset", readDemucsPresetFromTimeline());
-			dm.addProperty("clipGenerationMode", readClipGenerationModeFromTimeline());
-			dm.addProperty("durationScale", readTimelineScale("demucsMapDurationScale", 1.0, DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX));
-			dm.addProperty("energyScale", readTimelineScale("demucsMapEnergyScale", 1.0, DEMUCS_ENERGY_SCALE_MIN, DEMUCS_ENERGY_SCALE_MAX));
-			dm.addProperty("gapScale", readTimelineScale("demucsMapGapScale", 1.0, DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX));
-
-			JsonObject featureScale = new JsonObject();
-			for (String featureKey : DEMUCS_FEATURE_KEYS) {
-				JsonObject featureObj = new JsonObject();
-				featureObj.addProperty("durationScale", readTimelineScale(featureMetadataKey(featureKey, "duration"), 1.0, DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX));
-				featureObj.addProperty("energyScale", readTimelineScale(featureMetadataKey(featureKey, "energy"), 1.0, DEMUCS_ENERGY_SCALE_MIN, DEMUCS_ENERGY_SCALE_MAX));
-				featureObj.addProperty("gapScale", readTimelineScale(featureMetadataKey(featureKey, "gap"), 1.0, DEMUCS_SCALE_MIN, DEMUCS_SCALE_MAX));
-				featureScale.add(featureKey, featureObj);
-			}
-			dm.add("featureScale", featureScale);
-
-			root.add("demucsMapping", dm);
-			Files.createDirectories(configPath.getParent());
-			Files.writeString(configPath, UI_CONFIG_GSON.toJson(root), StandardCharsets.UTF_8);
-		} catch (Exception e) {
-			LOGGER.debug("BeatBlock TimelineToolbar: failed to persist ui.json demucs mapping config reason={}", e.toString());
-		}
-	}
-
-	private String readActionRollbackModeFromTimeline() {
-		if (BeatBlock.timeline == null) return "preview";
-		Object mode = BeatBlock.timeline.getMetadata("timelineActionRollbackMode");
-		if (mode == null) return "preview";
-		String value = mode.toString().trim().toLowerCase(Locale.ROOT);
-		if ("preview".equals(value) || "persistent".equals(value) || "performance".equals(value)) {
-			return "performance".equals(value) ? "persistent" : value;
-		}
-		return "preview";
-	}
-
-	private void writeActionRollbackModeToTimeline(String mode) {
-		if (BeatBlock.timeline == null) return;
-		String normalized = ("persistent".equalsIgnoreCase(mode) || "performance".equalsIgnoreCase(mode))
-			? "persistent"
-			: "preview";
-		BeatBlock.timeline.setMetadata("timelineActionRollbackMode", normalized);
-		persistActionExecutionConfig();
-	}
-
-	private void ensureActionExecutionConfigLoaded() {
-		if (actionExecutionConfigLoaded || BeatBlock.timeline == null) return;
-		actionExecutionConfigLoaded = true;
-		if (BeatBlock.timeline.getMetadata("timelineActionRollbackMode") != null) return;
-		Path configPath = getUiConfigPath();
-		if (!Files.isRegularFile(configPath)) return;
-		try {
-			String txt = Files.readString(configPath, StandardCharsets.UTF_8);
-			if (txt.isBlank()) return;
-			JsonObject root = JsonParser.parseString(txt).getAsJsonObject();
-			if (!root.has("timelineActionExecution") || !root.get("timelineActionExecution").isJsonObject()) return;
-			JsonObject action = root.getAsJsonObject("timelineActionExecution");
-			if (!action.has("rollbackMode")) return;
-			String mode = action.get("rollbackMode").getAsString();
-			writeActionRollbackModeToTimeline(mode);
-		} catch (Exception e) {
-			LOGGER.debug("BeatBlock TimelineToolbar: failed to read ui.json timeline action config reason={}", e.toString());
-		}
-	}
-
-	private void persistActionExecutionConfig() {
-		if (BeatBlock.timeline == null) return;
-		Path configPath = getUiConfigPath();
-		try {
-			JsonObject root = new JsonObject();
-			if (Files.isRegularFile(configPath)) {
-				String existing = Files.readString(configPath, StandardCharsets.UTF_8);
-				if (!existing.isBlank()) {
-					root = JsonParser.parseString(existing).getAsJsonObject();
-				}
-			}
-
-			JsonObject action = root.has("timelineActionExecution") && root.get("timelineActionExecution").isJsonObject()
-				? root.getAsJsonObject("timelineActionExecution")
-				: new JsonObject();
-			action.addProperty("rollbackMode", readActionRollbackModeFromTimeline());
-			root.add("timelineActionExecution", action);
-
-			Files.createDirectories(configPath.getParent());
-			Files.writeString(configPath, UI_CONFIG_GSON.toJson(root), StandardCharsets.UTF_8);
-		} catch (Exception e) {
-			LOGGER.debug("BeatBlock TimelineToolbar: failed to persist ui.json timeline action config reason={}", e.toString());
-		}
-	}
-
-	private double readTimelineScale(String key, double defaultValue, double min, double max) {
-		if (BeatBlock.timeline == null || key == null || key.isBlank()) return defaultValue;
-		Object raw = BeatBlock.timeline.getMetadata(key);
-		if (raw == null) return defaultValue;
-		double value;
-		if (raw instanceof Number n) {
-			value = n.doubleValue();
-		} else {
-			try {
-				value = Double.parseDouble(raw.toString().trim());
-			} catch (Exception e) {
-				return defaultValue;
-			}
-		}
-		if (Double.isNaN(value) || Double.isInfinite(value)) return defaultValue;
-		return Math.max(min, Math.min(max, value));
-	}
-
-	private void writeTimelineScale(String key, float value) {
-		if (BeatBlock.timeline == null || key == null || key.isBlank()) return;
-		BeatBlock.timeline.setMetadata(key, value);
-	}
-
-	private static String featureMetadataKey(String featureKey, String metric) {
-		if (featureKey == null || featureKey.isBlank() || metric == null || metric.isBlank()) return "";
-		String normalizedFeature = featureKey.trim().toLowerCase(Locale.ROOT);
-		String normalizedMetric = metric.trim().toLowerCase(Locale.ROOT);
-		return switch (normalizedMetric) {
-			case "duration" -> "demucsFeatDuration_" + normalizedFeature;
-			case "energy" -> "demucsFeatEnergy_" + normalizedFeature;
-			case "gap" -> "demucsFeatGap_" + normalizedFeature;
-			default -> "";
-		};
-	}
-
-	private static Path getUiConfigPath() {
-		return FabricLoader.getInstance().getGameDir().resolve("config").resolve("beatblock").resolve("ui.json");
-	}
-
-	private static int indexOfDemucsPresetValue(String value) {
-		if (value == null || value.isBlank()) return 1;
-		for (int i = 0; i < DEMUCS_PRESET_VALUES.length; i++) {
-			if (DEMUCS_PRESET_VALUES[i].equalsIgnoreCase(value)) return i;
-		}
-		return 1;
 	}
 
 	private static void nextItemInGroup() {
@@ -1413,21 +942,5 @@ public final class TimelineToolbar {
 			return text;
 		}
 		return current;
-	}
-
-	private static int indexOfActionRollbackValue(String value) {
-		if (value == null || value.isBlank()) return 0;
-		for (int i = 0; i < ACTION_ROLLBACK_VALUES.length; i++) {
-			if (ACTION_ROLLBACK_VALUES[i].equalsIgnoreCase(value)) return i;
-		}
-		return 0;
-	}
-
-	private static int indexOfClipGenerationMode(String value) {
-		if (value == null || value.isBlank()) return 0;
-		for (int i = 0; i < CLIP_GENERATION_MODE_VALUES.length; i++) {
-			if (CLIP_GENERATION_MODE_VALUES[i].equalsIgnoreCase(value)) return i;
-		}
-		return 0;
 	}
 }

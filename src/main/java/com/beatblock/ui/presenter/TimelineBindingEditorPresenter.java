@@ -316,12 +316,12 @@ public final class TimelineBindingEditorPresenter {
 		return Math.max(0, Math.min(templateIndex, TEMPLATE_VALUES.length - 1));
 	}
 
-	private ApplyTrackOutcome applyRulesToTrack(String trackRow, String labelPrefix) {
+	private ApplyTrackOutcome applyRulesToTrack(int trackRowIndex, String labelPrefix) {
 		Timeline current = timeline.get();
 		if (current == null) {
 			return new ApplyTrackOutcome(labelPrefix + " skipped: timeline unavailable", false, -1);
 		}
-		int count = AnimationBindingEngine.applyRules(current, trackRow, false);
+		int count = AnimationBindingEngine.applyRules(current, trackRowIndex, false);
 		TimelineEditor editor = timelineEditor.get();
 		if (editor != null) {
 			editor.syncClockDuration();
