@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.CAMERA_EDGE_HIT_PX;
-import static com.beatblock.timeline.interaction.TimelineInteractionConstants.DRAG_THRESHOLD_PX;
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_DELETE_CONFIRM;
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_EVENT_CONTEXT;
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_MARKER_CONTEXT;
@@ -40,9 +39,8 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 	private final List<TimelineInteractionClipboard.ClipboardEvent> clipboardEvents = new ArrayList<>();
 	private final TimelineInteractionPopupState popupState = new TimelineInteractionPopupState();
 
-	/** 事件拖动开始时的 timeSeconds */
-	private double dragEventInitialTimeSeconds;
 	private TimelineClipDragSession clipDragSession;
+	private TimelineEventDragSession eventDragSession;
 	/** 摄像机片段缩放开始时的快照（用于 Undo） */
 	private ClipDragStateSnapshot resizeClipBeforeSnapshot;
 
@@ -177,17 +175,9 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				clipDragSession = null;
 			}
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT && interactionState.getActiveEventId() != null) {
-				float dx = mx - interactionState.getMouseStartX();
-				float dy = my - interactionState.getMouseStartY();
-				boolean belowThreshold = dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX;
-				if (belowThreshold) {
-					selectionState.clearEvents();
-					selectionState.selectEvent(interactionState.getActiveEventId());
-					revertEventDrag(timeline, interactionState);
-				} else {
-					commitEventDrag(timeline, interactionState);
-				}
-				dragEventInitialTimeSeconds = 0.0;
+				TimelineEventDragHandler.finishOnMouseRelease(
+					timeline, timelineEditor, eventDragSession, interactionState, selectionState, mx, my);
+				eventDragSession = null;
 			}
 			if (interactionState.getMode() == InteractionMode.BOX_SELECT
 					&& selectionBox != null && selectionBox.isActive()) {
@@ -386,13 +376,9 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				);
 				return;
 			}
-			if (interactionState.getMode() == InteractionMode.DRAG_EVENT && interactionState.getActiveEventId() != null
-				&& interactionState.getActiveTrackId() != null && interactionState.getActiveClipId() != null) {
-				if (TimelineInteractiveTrackSlots.isTrackLocked(timeline, trackListState, interactionState.getActiveTrackId())) {
-					return;
-				}
-				double t = viewState.screenToTime(mx - layout.contentLeft);
-				DragController.dragEvent(timeline, interactionState.getActiveTrackId(), interactionState.getActiveClipId(), interactionState.getActiveEventId(), t, duration, toolbarState, viewState, interactionState);
+			if (interactionState.getMode() == InteractionMode.DRAG_EVENT) {
+				TimelineEventDragHandler.applyDuringDrag(
+					timeline, interactionState, trackListState, viewState, layout, toolbarState, duration, mx);
 				return;
 			}
 			if (interactionState.getMode() == InteractionMode.BOX_SELECT && selectionBox != null) {
@@ -480,21 +466,8 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 					return;
 				}
 				if (hit.getHitType() == HitType.EVENT || hit.getHitType() == HitType.CLIP) {
-					interactionState.setMode(InteractionMode.DRAG_EVENT);
-					interactionState.setMouseStart(mx, my);
-					interactionState.setActiveEventId(hit.getEventId());
-					interactionState.setActiveClipId(hit.getClipId());
-					interactionState.setActiveTrackId(hit.getTrackId());
-					dragEventInitialTimeSeconds = 0.0;
-					if (hit.getEventId() != null) {
-						TimelineEventRef dragRef = TimelineEventRefs.find(timeline, hit.getEventId());
-						if (dragRef != null && dragRef.event() != null) {
-							dragEventInitialTimeSeconds = dragRef.event().getTimeSeconds();
-						}
-					}
-					if (!ctrl) selectionState.clearEvents();
-					if (hit.getEventId() != null) selectionState.selectEvent(hit.getEventId());
-					else if (hit.getClipId() != null) selectionState.selectClip(hit.getClipId());
+					eventDragSession = TimelineEventDragHandler.tryBeginFromHit(
+						timeline, hit, interactionState, selectionState, mx, my, ctrl);
 					return;
 				}
 			}
@@ -758,11 +731,4 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		}
 	}
 
-	private void commitEventDrag(Timeline timeline, InteractionState interactionState) {
-		TimelineDragCommitSupport.commitEventDrag(timeline, timelineEditor, interactionState, dragEventInitialTimeSeconds);
-	}
-
-	private void revertEventDrag(Timeline timeline, InteractionState interactionState) {
-		TimelineDragCommitSupport.revertEventDrag(timeline, interactionState, dragEventInitialTimeSeconds);
-	}
 }
