@@ -10,7 +10,8 @@ import com.beatblock.selection.collect.ColumnSelectionCollector;
 import com.beatblock.selection.collect.ConnectedSelectionCollector;
 import com.beatblock.selection.collect.LineSelectionCollector;
 import com.beatblock.selection.collect.PlaneSliceSelectionCollector;
-import net.minecraft.block.BlockState;
+import com.beatblock.selection.tools.SelectionToolHost;
+import com.beatblock.selection.tools.SelectionToolRegistry;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -25,14 +26,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
 /**
  * BeatBlock 方块选区：点击、框选、线选、球/立方笔刷、连通魔棒、选区魔棒、整列、平面切片等。
  */
-public final class BeatBlockSelectionManager {
+public final class BeatBlockSelectionManager implements SelectionToolHost {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(BeatBlockSelectionManager.class);
 
@@ -309,14 +309,7 @@ public final class BeatBlockSelectionManager {
 
 		switch (mode) {
 			case OFF, LASSO -> {}
-			case CLICK -> handleClickTool(world, pos, shiftDown);
-			case BOX -> handleBoxTool(world, pos);
-			case LINE -> handleLineTool(world, pos);
-			case BRUSH -> handleBrushClick(world, pos, shiftDown);
-			case CONNECTED -> handleConnectedTool(world, pos, shiftDown);
-			case COLUMN -> handleColumnTool(world, pos, shiftDown);
-			case PLANE_SLICE -> handlePlaneSliceTool(world, pos, resolvePlaneSliceFace(side), shiftDown);
-			case SELECTION_WAND -> handleSelectionWandTool(world, pos, shiftDown);
+			default -> SelectionToolRegistry.dispatchClick(mode, this, world, pos, side, shiftDown);
         }
 	}
 
@@ -366,11 +359,23 @@ public final class BeatBlockSelectionManager {
 		return SelectionReach.isWithinCameraReach(p, interactionCameraPos, maxDistanceFromCamera);
 	}
 
-	private boolean isWithinWandSpreadFromSeed(BlockPos seed, BlockPos p) {
-		return SelectionReach.isWithinSpreadFromSeed(seed, p, maxMagicWandSpreadFromSeed);
+	@Override
+	public SelectionOperation getDefaultOperation() {
+		return operation;
 	}
 
-	private void handleClickTool(World world, BlockPos pos, boolean shiftDown) {
+	@Override
+	public SelectionOperation resolveOperation(boolean shiftDown) {
+		return shiftDown ? SelectionOperation.ADD : operation;
+	}
+
+	@Override
+	public void setMessage(String message) {
+		lastMessage = message;
+	}
+
+	@Override
+	public void handleDirectClick(World world, BlockPos pos, SelectionOperation op) {
 		if (!isWithinCameraReach(pos)) {
 			lastMessage = "点击选择：该方块超出「相对视角最大距离」。";
 			return;
@@ -379,7 +384,6 @@ public final class BeatBlockSelectionManager {
 			lastMessage = layerClaimedMessage(pos);
 			return;
 		}
-		SelectionOperation op = shiftDown ? SelectionOperation.ADD : operation;
 		switch (op) {
 			case NEW -> {
 				selected.clear();
@@ -409,101 +413,91 @@ public final class BeatBlockSelectionManager {
 		LOGGER.debug("[BeatBlockSelection] click op={} size={}", op, selected.size());
 	}
 
-	private void handleBoxTool(World world, BlockPos pos) {
-		BlockPos immutable = pos.toImmutable();
-		if (boxFirstCorner == null) {
-			boxFirstCorner = immutable;
-			lastMessage = "框选：已设角点 A，再点角点 B";
-			return;
-		}
+	@Override
+	public void setBoxFirstCorner(BlockPos corner) {
+		boxFirstCorner = corner;
+	}
 
-		BlockPos a = boxFirstCorner;
-		BlockPos b = immutable;
+	@Override
+	public void clearBoxFirstCorner() {
 		boxFirstCorner = null;
-
-		List<BlockPos> boxBlocks = collectBox(world, a, b);
-		if (boxBlocks == null) {
-			return;
-		}
-		mergeBlockListIntoSelection(boxBlocks, operation);
 	}
 
-	private void handleLineTool(World world, BlockPos pos) {
-		BlockPos immutable = pos.toImmutable();
-		if (lineFirstCorner == null) {
-			lineFirstCorner = immutable;
-			lastMessage = "线选：已设端点 A，再点端点 B";
-			return;
-		}
+	@Override
+	public void setLineFirstCorner(BlockPos corner) {
+		lineFirstCorner = corner;
+	}
 
-		BlockPos a = lineFirstCorner;
-		BlockPos b = immutable;
+	@Override
+	public void clearLineFirstCorner() {
 		lineFirstCorner = null;
-
-		List<BlockPos> lineBlocks = collectLine(world, a, b);
-		if (lineBlocks == null) {
-			return;
-		}
-		mergeBlockListIntoSelection(lineBlocks, operation);
 	}
 
-	private void handleBrushClick(World world, BlockPos pos, boolean shiftDown) {
-		SelectionOperation op = shiftDown ? SelectionOperation.ADD : operation;
-		List<BlockPos> blocks = collectBrush(world, pos);
-		if (blocks == null) {
-			return;
+	@Override
+	public void mergeFromBox(World world, BlockPos cornerA, BlockPos cornerB, SelectionOperation op) {
+		List<BlockPos> blocks = collectBox(world, cornerA, cornerB);
+		if (blocks != null) {
+			mergeBlockListIntoSelection(blocks, op);
 		}
-		mergeBlockListIntoSelection(blocks, op);
 	}
 
-	private void handleConnectedTool(World world, BlockPos pos, boolean shiftDown) {
-		SelectionOperation op = shiftDown ? SelectionOperation.ADD : operation;
-		List<BlockPos> blocks = collectConnected(world, pos);
-		if (blocks == null) {
-			return;
+	@Override
+	public void mergeFromLine(World world, BlockPos endA, BlockPos endB, SelectionOperation op) {
+		List<BlockPos> blocks = collectLine(world, endA, endB);
+		if (blocks != null) {
+			mergeBlockListIntoSelection(blocks, op);
 		}
-		mergeBlockListIntoSelection(blocks, op);
 	}
 
-	private void handleColumnTool(World world, BlockPos pos, boolean shiftDown) {
-		SelectionOperation op = shiftDown ? SelectionOperation.ADD : operation;
+	@Override
+	public void mergeFromBrush(World world, BlockPos center, SelectionOperation op) {
+		List<BlockPos> blocks = collectBrush(world, center);
+		if (blocks != null) {
+			mergeBlockListIntoSelection(blocks, op);
+		}
+	}
+
+	@Override
+	public void mergeFromConnected(World world, BlockPos start, SelectionOperation op) {
+		List<BlockPos> blocks = collectConnected(world, start);
+		if (blocks != null) {
+			mergeBlockListIntoSelection(blocks, op);
+		}
+	}
+
+	@Override
+	public void mergeFromColumn(World world, BlockPos pos, SelectionOperation op) {
 		List<BlockPos> blocks = collectColumn(world, pos);
-		if (blocks == null) {
-			return;
+		if (blocks != null) {
+			mergeBlockListIntoSelection(blocks, op);
 		}
-		mergeBlockListIntoSelection(blocks, op);
 	}
 
-	private void handlePlaneSliceTool(World world, BlockPos pos, Direction face, boolean shiftDown) {
-		SelectionOperation op = shiftDown ? SelectionOperation.ADD : operation;
+	@Override
+	public void mergeFromPlaneSlice(World world, BlockPos pos, Direction face, SelectionOperation op) {
 		List<BlockPos> blocks = collectPlaneSlice(world, pos, face);
-		if (blocks == null) {
-			return;
+		if (blocks != null) {
+			mergeBlockListIntoSelection(blocks, op);
 		}
-		mergeBlockListIntoSelection(blocks, op);
 	}
 
-	private void handleSelectionWandTool(World world, BlockPos pos, boolean shiftDown) {
-		BlockPos bMin = getBoundingMin();
-		BlockPos bMax = getBoundingMax();
-		if (bMin == null || bMax == null) {
-			lastMessage = "选区魔棒：请先建立选区（需要有效包围盒）。";
-			return;
+	@Override
+	public void mergeFromSelectionWand(World world, BlockPos pos, SelectionOperation op) {
+		List<BlockPos> blocks = collectConnectedInBounds(
+			world, pos, getBoundingMin(), getBoundingMax());
+		if (blocks != null) {
+			mergeBlockListIntoSelection(blocks, op);
 		}
-		if (!containsInBounds(pos, bMin, bMax)) {
-			lastMessage = "选区魔棒：请点击当前选区包围盒内的方块。";
-			return;
-		}
-		SelectionOperation op = shiftDown ? SelectionOperation.ADD : operation;
-		List<BlockPos> blocks = collectConnectedInBounds(world, pos, bMin, bMax);
-		if (blocks == null) {
-			return;
-		}
-		mergeBlockListIntoSelection(blocks, op);
 	}
 
-	private static boolean containsInBounds(BlockPos p, BlockPos bMin, BlockPos bMax) {
-		return SelectionRegions.containsInBounds(p, bMin, bMax);
+	@Override
+	public BlockPos getSelectionBoundingMin() {
+		return getBoundingMin();
+	}
+
+	@Override
+	public BlockPos getSelectionBoundingMax() {
+		return getBoundingMax();
 	}
 
 	private PlaneSliceBounds computePlaneSliceBoundsInternal(World world, BlockPos pos, Direction face) {

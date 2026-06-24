@@ -415,7 +415,7 @@ void testTick() {
 
 | 类名 | 当前行数 | 状态 | 优化建议 |
 |------|----------|------|----------|
-| `BeatBlockSelectionManager` | ~720 → ~577 | 🔄 Phase 2 ✅ | helper + `SelectionFeedback` + 全部 `collect/*` 收集器已落地；Phase 3 模式分发待做 |
+| `BeatBlockSelectionManager` | ~720 → ~530 | ✅ Phase 3 | `SelectionToolRegistry` + `tools/*` 点击分发；`collect/*` + `SelectionFeedback`；门面 `get()` 不变 |
 | `TimelineInteraction` | ~1816 | ⏸ 待拆 | 按 ruler / drag / popup / hit-test 拆 handler（**比 TimelineEditor 优先级更高**） |
 | `TimelineRenderer` | ~1707 | ⏸ 待拆 | 按 ruler / track / clip / drag-drop 拆 renderer |
 | `MusicPlayer` | ~787 | ⏸ 待拆 | 分离 Clip / SourceDataLine / OpenAL 播放后端 |
@@ -438,7 +438,7 @@ void testTick() {
 
 Phase 1 ✅  SelectionFeedback — 合并/图层跳过反馈文案
 Phase 2 ✅  selection/collect/* — BlockCollector（Box/Line/Brush/Connected/PlaneSlice/Column）
-Phase 3 ⏸  SelectionToolRegistry — 模式分发；保留 BeatBlockSelectionManager.get() 门面
+Phase 3 ✅  selection/tools/* + SelectionToolRegistry — 点击模式分发（Lasso/笔刷涂抹仍由 Manager 协调）
 Phase 4 ⏸  （可选）重命名 SelectionManager，旧类作 alias
 
 注意:
@@ -452,9 +452,13 @@ Phase 4 ⏸  （可选）重命名 SelectionManager，旧类作 alias
 
 ```
 src/main/java/com/beatblock/selection/
-  ├── BeatBlockSelectionManager.java   (门面 + 选区存储 + 模式分发)
+  ├── BeatBlockSelectionManager.java   (门面 + 选区存储 + SelectionToolHost)
   ├── SelectionFeedback.java           ✅
   ├── SelectionCollectResult.java      ✅
+  ├── tools/
+  │     ├── SelectionToolRegistry.java ✅
+  │     ├── SelectionToolHost.java     ✅
+  │     └── *SelectionTool.java        ✅ (CLICK/BOX/LINE/…)
   └── collect/
       ├── SelectionCollectSupport.java   ✅
       ├── ColumnSelectionCollector.java  ✅
