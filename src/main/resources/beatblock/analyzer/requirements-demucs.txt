@@ -1,5 +1,20 @@
-# Optional — Demucs stem separation (--demucs mode)
-# Install base deps first: pip install -r requirements.txt
-# Heavyweight (~2GB+ with PyTorch). Python 3.10–3.12 recommended.
+# BeatBlock audio analyzer — optional Demucs stem separation
+#
+# Prerequisites: install requirements.txt first (librosa, numpy, etc.)
+#
+# Install:
+#   pip install -r config/beatblock/analyzer/requirements-demucs.txt
+#
+# Verify:
+#   python -c "import demucs.api, torch; print('ok')"
+#
+# Used when analyze.py is invoked with --demucs, or when the Audio Analysis panel
+# enables Demucs mode. Separates drums / bass / vocals / other for multi-stem preview.
+#
+# Notes:
+# - Python 3.10–3.12 recommended (torch wheels may not support 3.13+)
+# - Large download (~2GB+ with PyTorch); CPU works but GPU (CUDA) is faster if available
+# - The mod may auto-run this pip install when Demucs is enabled and imports fail
+
 demucs
 torch
