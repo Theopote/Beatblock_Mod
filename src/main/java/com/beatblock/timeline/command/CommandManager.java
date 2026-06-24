@@ -14,8 +14,16 @@ public final class CommandManager {
 
 	public void execute(Command cmd) {
 		if (cmd == null) return;
-		cmd.execute();
-		undoStack.push(cmd);
+		Command toExecute = cmd;
+		if (!undoStack.isEmpty()) {
+			Command top = undoStack.peek();
+			if (top instanceof MergeableCommand mergeable && mergeable.canMergeWith(cmd)) {
+				toExecute = mergeable.mergeWith(cmd);
+				undoStack.pop();
+			}
+		}
+		toExecute.execute();
+		undoStack.push(toExecute);
 		if (undoStack.size() > MAX_UNDO) undoStack.removeLast();
 		redoStack.clear();
 	}

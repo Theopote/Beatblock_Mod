@@ -117,6 +117,18 @@ public final class BuildLayersPresenter {
 		);
 	}
 
+	public BuildLayerManager currentLayerManager() {
+		return layerManager.get();
+	}
+
+	public BuildLayer findLayer(String layerId) {
+		BuildLayerManager manager = layerManager.get();
+		if (manager == null || layerId == null || layerId.isBlank()) {
+			return null;
+		}
+		return manager.get(layerId);
+	}
+
 	public ToggleVisibilityOutcome toggleVisibility(String layerId) {
 		CommandManager commands = commandManager.get();
 		BuildLayerManager manager = layerManager.get();

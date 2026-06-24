@@ -1,6 +1,5 @@
 package com.beatblock.ui.panels;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
@@ -101,11 +100,11 @@ public class LayerPanel {
 	}
 
 	private void renderLayerList() {
-		if (BeatBlock.blockAnimationEngine == null) {
+		var manager = presenter.currentLayerManager();
+		if (manager == null) {
 			ImGui.textDisabled("动画引擎未就绪。");
 			return;
 		}
-		var manager = BeatBlock.blockAnimationEngine.getBuildLayerManager();
 		List<BuildLayer> layers = new ArrayList<>(manager.getAll());
 		pruneNameBuffers(layers);
 
@@ -229,9 +228,7 @@ public class LayerPanel {
 
 	private void renderDeleteConfirmPopup() {
 		if (pendingDeleteLayerId == null) return;
-		BuildLayer layer = BeatBlock.blockAnimationEngine != null
-			? BeatBlock.blockAnimationEngine.getBuildLayerManager().get(pendingDeleteLayerId)
-			: null;
+		BuildLayer layer = presenter.findLayer(pendingDeleteLayerId);
 
 		ImGui.setNextWindowSize(360f, 0f);
 		if (!ImGui.beginPopupModal(DELETE_CONFIRM_POPUP, ImGuiWindowFlags.AlwaysAutoResize)) {
@@ -299,9 +296,7 @@ public class LayerPanel {
 		statusMessage = outcome.result().messageOrEmpty();
 		if (outcome.createdLayerId() != null) {
 			selectedLayerId = outcome.createdLayerId();
-			BuildLayer created = BeatBlock.blockAnimationEngine != null
-				? BeatBlock.blockAnimationEngine.getBuildLayerManager().get(outcome.createdLayerId())
-				: null;
+			BuildLayer created = presenter.findLayer(outcome.createdLayerId());
 			if (created != null) {
 				nameCommitted.put(created.getId(), created.getName());
 			}

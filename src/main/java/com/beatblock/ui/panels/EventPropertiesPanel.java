@@ -7,6 +7,7 @@ import com.beatblock.engine.influence.BlockInfluencePreset;
 import com.beatblock.engine.influence.BlockInfluencePresets;
 import com.beatblock.engine.influence.ChannelSpec;
 import com.beatblock.engine.influence.InfluenceDimension;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.camera.CameraSegmentKind;
@@ -40,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * 右侧事件属性面板。
@@ -82,13 +84,19 @@ public class EventPropertiesPanel {
 	private final ImBoolean camSegPathVisibleProxy = new ImBoolean(true);
 	private String validationError;
 	private final EventPropertiesPresenter presenter;
+	private final Supplier<BeatBlockContext> context;
 
 	public EventPropertiesPanel() {
-		this(PresenterFactories.eventPropertiesPresenter());
+		this(PresenterFactories.eventPropertiesPresenter(), BeatBlock::getContext);
 	}
 
-	EventPropertiesPanel(EventPropertiesPresenter presenter) {
+	EventPropertiesPanel(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
 		this.presenter = presenter;
+		this.context = context;
+	}
+
+	private BeatBlockContext runtime() {
+		return context.get();
 	}
 
 	private static final String[] SPATIAL_MODE_LABELS = {
@@ -156,8 +164,8 @@ public class EventPropertiesPanel {
 			ImGui.text("事件属性");
 			ImGui.separator();
 
-			Timeline timeline = BeatBlock.timeline;
-			TimelineEditor editor = BeatBlock.timelineEditor;
+			Timeline timeline = runtime().timeline();
+			TimelineEditor editor = runtime().timelineEditor();
 			if (timeline == null || editor == null) {
 				ImGui.textDisabled("时间线未初始化。");
 				return;
@@ -478,7 +486,7 @@ public class EventPropertiesPanel {
 	                                  boolean stepDispatch, String stepStartMode, String stepCompletionMode,
 	                                  String pacingMode, boolean cameraAdaptiveStep, boolean cameraFrustumGating,
 	                                  boolean usePhaseAnimation, boolean vfxEnabled) {
-		TimelineEditor editor = BeatBlock.timelineEditor;
+		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
 			validationError = "时间线编辑器未初始化。";
 			return;
@@ -530,7 +538,7 @@ public class EventPropertiesPanel {
 	}
 
 	private void bindBuffers(EventPropertiesRef ref) {
-		applyFormSnapshot(presenter.buildFormSnapshot(ref, BeatBlock.timeline));
+		applyFormSnapshot(presenter.buildFormSnapshot(ref, runtime().timeline()));
 		validationError = null;
 	}
 
@@ -590,7 +598,7 @@ public class EventPropertiesPanel {
 	}
 
 	private void applyCameraClipOnly(EventPropertiesRef ref, Timeline timeline) {
-		TimelineEditor editor = BeatBlock.timelineEditor;
+		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
 			validationError = "时间线编辑器未初始化。";
 			return;
@@ -743,7 +751,7 @@ public class EventPropertiesPanel {
 	}
 
 	private void applyCameraKindChange(EventPropertiesRef ref, Timeline timeline, CameraSegmentKind newKind) {
-		TimelineEditor editor = BeatBlock.timelineEditor;
+		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
 			validationError = "时间线编辑器未初始化。";
 			return;
@@ -758,7 +766,7 @@ public class EventPropertiesPanel {
 	}
 
 	private void applyCameraSegmentPanel(EventPropertiesRef ref, Timeline timeline) {
-		TimelineEditor editor = BeatBlock.timelineEditor;
+		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
 			validationError = "时间线编辑器未初始化。";
 			return;
@@ -887,7 +895,7 @@ public class EventPropertiesPanel {
 	}
 
 	private void applyCameraKeyframe(EventPropertiesRef ref, Timeline timeline) {
-		TimelineEditor editor = BeatBlock.timelineEditor;
+		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
 			validationError = "时间线编辑器未初始化。";
 			return;

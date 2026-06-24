@@ -11,6 +11,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UpdateAnimationEventCommandTest {
 
@@ -71,5 +72,51 @@ class UpdateAnimationEventCommandTest {
 		command.undo();
 		assertEquals("BURST", event.getParameter("dispatchModel"));
 		assertFalse(event.getParameters().containsKey("blocksPerBeat"));
+	}
+
+	@Test
+	void canMergeWithSameEventWithinWindow() {
+		Timeline timeline = Timeline.createDefault();
+		var track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_AUTO);
+		var clip = TimelineOperations.addClip(track, 0.0, 2.0);
+		var event = TimelineOperations.addEvent(clip, 0.5, EventType.ANIMATION, Map.of("energy", 0.1));
+		var before = AnimationEventSnapshot.capture(event, clip);
+		var midParams = new HashMap<>(event.getParameters());
+		midParams.put("energy", 0.5);
+		var mid = new AnimationEventSnapshot(0.5, midParams, 0.0, 2.0);
+		var endParams = new HashMap<>(event.getParameters());
+		endParams.put("energy", 0.9);
+		var end = new AnimationEventSnapshot(0.5, endParams, 0.0, 2.0);
+
+		long anchor = System.currentTimeMillis();
+		var first = new UpdateAnimationEventCommand(
+			timeline, track.getId(), clip.getId(), event.getId(), before, mid, anchor);
+		var second = new UpdateAnimationEventCommand(
+			timeline, track.getId(), clip.getId(), event.getId(), mid, end, anchor);
+
+		assertTrue(first.canMergeWith(second));
+		UpdateAnimationEventCommand merged = (UpdateAnimationEventCommand) first.mergeWith(second);
+		merged.execute();
+		assertEquals(0.9, event.getParameter("energy"));
+		merged.undo();
+		assertEquals(0.1, event.getParameter("energy"));
+	}
+
+	@Test
+	void cannotMergeOutsideWindow() {
+		Timeline timeline = Timeline.createDefault();
+		var track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_AUTO);
+		var clip = TimelineOperations.addClip(track, 0.0, 2.0);
+		var event = TimelineOperations.addEvent(clip, 0.5, EventType.ANIMATION, Map.of());
+		var before = AnimationEventSnapshot.capture(event, clip);
+		var after = new AnimationEventSnapshot(0.5, new HashMap<>(event.getParameters()), 0.0, 2.0);
+
+		long stale = System.currentTimeMillis() - CommandMergePolicy.DEFAULT_MERGE_WINDOW_MS - 50L;
+		var first = new UpdateAnimationEventCommand(
+			timeline, track.getId(), clip.getId(), event.getId(), before, after, stale);
+		var second = new UpdateAnimationEventCommand(
+			timeline, track.getId(), clip.getId(), event.getId(), after, after, System.currentTimeMillis());
+
+		assertFalse(first.canMergeWith(second));
 	}
 }

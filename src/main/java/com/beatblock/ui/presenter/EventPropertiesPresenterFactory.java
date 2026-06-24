@@ -1,6 +1,6 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.BeatBlock;
+import com.beatblock.runtime.BeatBlockContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
@@ -13,25 +13,25 @@ final class EventPropertiesPresenterFactory {
 
 	private EventPropertiesPresenterFactory() {}
 
-	static EventPropertiesPresenter create() {
+	static EventPropertiesPresenter create(BeatBlockContext context) {
 		return new EventPropertiesPresenter(
-			id -> BeatBlock.blockAnimationEngine != null
-				&& BeatBlock.blockAnimationEngine.getStageObjectSystem().get(id) != null,
+			id -> context.blockAnimationEngine() != null
+				&& context.blockAnimationEngine().getStageObjectSystem().get(id) != null,
 			blockId -> {
 				Identifier parsed = Identifier.tryParse(blockId);
 				return parsed != null && Registries.BLOCK.containsId(parsed);
 			},
 			() -> EventPropertiesPresenter.collectAnimationOptions(() -> {
-				if (BeatBlock.blockAnimationEngine == null) {
+				if (context.blockAnimationEngine() == null) {
 					return Map.of();
 				}
-				return BeatBlock.blockAnimationEngine.getAnimationLibrary().getAll();
+				return context.blockAnimationEngine().getAnimationLibrary().getAll();
 			}),
 			() -> EventPropertiesPresenter.collectTargetOptions(() -> {
-				if (BeatBlock.blockAnimationEngine == null) {
+				if (context.blockAnimationEngine() == null) {
 					return List.of();
 				}
-				return new ArrayList<>(BeatBlock.blockAnimationEngine.getStageObjectSystem().getAll());
+				return new ArrayList<>(context.blockAnimationEngine().getStageObjectSystem().getAll());
 			}),
 			EventPropertiesPresenterFactory::readCameraView
 		);

@@ -24,7 +24,10 @@ class MarkerPanelPresenterTest {
 		timeline = Timeline.createDefault();
 		timeline.setDurationSeconds(120.0);
 		editor = new TimelineEditor(timeline);
-		presenter = new MarkerPanelPresenter(new TimelineEditorPresenter(() -> editor, time -> {}));
+		presenter = new MarkerPanelPresenter(
+			new TimelineEditorPresenter(() -> editor, time -> {}),
+			() -> timeline
+		);
 	}
 
 	@Test

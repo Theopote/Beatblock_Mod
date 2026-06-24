@@ -13,6 +13,7 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.audio.analysis.AudioAnalysisEngine;
+import com.beatblock.runtime.BeatBlockContext;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,9 +39,14 @@ public class BeatBlock implements ModInitializer {
 	public static AudioConversionService audioConversionService;
 	public static StemMixer stemMixer;
 
+	private static BeatBlockContext context;
+
+	public static BeatBlockContext getContext() {
+		return context != null ? context : BeatBlockContext.fromLegacyStatics();
+	}
+
 	public static IAudioPlayer getActiveAudioPlayer() {
-		if (stemMixer != null && stemMixer.hasStems()) return stemMixer;
-		return musicPlayer;
+		return getContext().activeAudioPlayer();
 	}
 
 	@Override
@@ -55,6 +61,18 @@ public class BeatBlock implements ModInitializer {
 		audioAnalysisEngine = new AudioAnalysisEngine();
 		externalAudioAnalyzer = new AudioAnalysisService();
 		audioConversionService = new AudioConversionService();
+		context = new BeatBlockContext(
+			audioLoader,
+			musicPlayer,
+			stemMixer,
+			stageManager,
+			timeline,
+			timelineEditor,
+			blockAnimationEngine,
+			audioAnalysisEngine,
+			externalAudioAnalyzer,
+			audioConversionService
+		);
 		AudioAssetManager.getInstance().setConversionRequestHandler((asset, targetFormat) -> {
 			if (asset == null || asset.getPath() == null) return;
 			asset.setStatus(com.beatblock.audio.assets.AudioAssetStatus.ANALYZING);

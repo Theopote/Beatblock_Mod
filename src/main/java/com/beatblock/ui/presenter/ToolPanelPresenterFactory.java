@@ -1,24 +1,23 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockUIScreen;
 import com.beatblock.client.input.BeatBlockInputSystem;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
 final class ToolPanelPresenterFactory {
 
 	private ToolPanelPresenterFactory() {}
 
-	static ToolPanelPresenter create() {
+	static ToolPanelPresenter create(BeatBlockContext context) {
 		return new ToolPanelPresenter(
 			BeatBlockSelectionManager::get,
-			() -> BeatBlock.blockAnimationEngine != null
-				? BeatBlock.blockAnimationEngine.getStageObjectSystem()
+			() -> context.blockAnimationEngine() != null
+				? context.blockAnimationEngine().getStageObjectSystem()
 				: null,
 			() -> {
 				MinecraftClient mc = MinecraftClient.getInstance();

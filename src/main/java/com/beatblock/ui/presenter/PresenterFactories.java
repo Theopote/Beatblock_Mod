@@ -3,33 +3,54 @@ package com.beatblock.ui.presenter;
 import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.engine.layer.BuildLayerManager;
-import net.fabricmc.loader.api.FabricLoader;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.selection.BeatBlockSelectionManager;
-import com.beatblock.timeline.Timeline;
-import com.beatblock.timeline.TimelineEditor;
-import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.runtime.BeatBlockContext;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.function.Supplier;
 
+/**
+ * Presenter 工厂：从 {@link BeatBlockContext} 注入依赖，避免 Panel 直接访问静态字段。
+ */
 public final class PresenterFactories {
+
+	private static Supplier<BeatBlockContext> contextSource = BeatBlock::getContext;
 
 	private PresenterFactories() {}
 
+	/** 测试用：替换运行时上下文来源。 */
+	static void setContextSourceForTests(Supplier<BeatBlockContext> source) {
+		contextSource = source != null ? source : BeatBlock::getContext;
+	}
+
+	static void resetContextSourceForTests() {
+		contextSource = BeatBlock::getContext;
+	}
+
+	private static BeatBlockContext ctx() {
+		return contextSource.get();
+	}
+
 	public static BuildLayersPresenter buildLayersPresenter() {
+		return buildLayersPresenter(ctx());
+	}
+
+	public static BuildLayersPresenter buildLayersPresenter(BeatBlockContext context) {
 		return new BuildLayersPresenter(
-			(Supplier<CommandManager>) () -> BeatBlock.timelineEditor != null
-				? BeatBlock.timelineEditor.getCommandManager()
-				: null,
-			(Supplier<BuildLayerManager>) () -> BeatBlock.blockAnimationEngine != null
-				? BeatBlock.blockAnimationEngine.getBuildLayerManager()
-				: null
+			() -> context.commandManager(),
+			() -> context.buildLayerManager()
 		);
 	}
 
 	public static EventPropertiesPresenter eventPropertiesPresenter() {
-		return EventPropertiesPresenterFactory.create();
+		return eventPropertiesPresenter(ctx());
+	}
+
+	public static EventPropertiesPresenter eventPropertiesPresenter(BeatBlockContext context) {
+		return EventPropertiesPresenterFactory.create(context);
 	}
 
 	public static SelectionPropertiesPresenter selectionPropertiesPresenter() {
@@ -37,7 +58,11 @@ public final class PresenterFactories {
 	}
 
 	public static ToolPanelPresenter toolPanelPresenter() {
-		return ToolPanelPresenterFactory.create();
+		return toolPanelPresenter(ctx());
+	}
+
+	public static ToolPanelPresenter toolPanelPresenter(BeatBlockContext context) {
+		return ToolPanelPresenterFactory.create(context);
 	}
 
 	public static TimelinePanelPresenter timelinePanelPresenter() {
@@ -45,38 +70,52 @@ public final class PresenterFactories {
 	}
 
 	public static TimelineEditorPresenter timelineEditorPresenter() {
+		return timelineEditorPresenter(ctx());
+	}
+
+	public static TimelineEditorPresenter timelineEditorPresenter(BeatBlockContext context) {
 		return new TimelineEditorPresenter(
-			() -> BeatBlock.timelineEditor,
+			context::timelineEditor,
 			time -> {
-				if (BeatBlock.musicPlayer != null) {
-					BeatBlock.musicPlayer.setCurrentTimeSeconds(time);
+				if (context.musicPlayer() != null) {
+					context.musicPlayer().setCurrentTimeSeconds(time);
 				}
 			}
 		);
 	}
 
 	public static MarkerPanelPresenter markerPanelPresenter() {
-		return new MarkerPanelPresenter(timelineEditorPresenter());
+		return markerPanelPresenter(ctx());
+	}
+
+	public static MarkerPanelPresenter markerPanelPresenter(BeatBlockContext context) {
+		return new MarkerPanelPresenter(timelineEditorPresenter(context), context::timeline);
 	}
 
 	public static MenuBarPresenter menuBarPresenter() {
+		return menuBarPresenter(ctx());
+	}
+
+	public static MenuBarPresenter menuBarPresenter(BeatBlockContext context) {
 		return new MenuBarPresenter(
-			timelineEditorPresenter(),
-			() -> BeatBlock.timeline,
-			() -> BeatBlock.timelineEditor,
-			() -> BeatBlock.blockAnimationEngine != null
-				? BeatBlock.blockAnimationEngine.getBuildLayerManager()
-				: null,
-			() -> BeatBlock.audioLoader
+			timelineEditorPresenter(context),
+			context::timeline,
+			context::timelineEditor,
+			context::buildLayerManager,
+			context::audioLoader
 		);
 	}
 
 	public static TimelineTransportPresenter timelineTransportPresenter() {
+		return timelineTransportPresenter(ctx());
+	}
+
+	public static TimelineTransportPresenter timelineTransportPresenter(BeatBlockContext context) {
 		return new TimelineTransportPresenter(
-			() -> BeatBlock.timelineEditor,
-			() -> BeatBlock.timeline,
-			() -> BeatBlock.musicPlayer,
-			BeatBlock::getActiveAudioPlayer,
+			context::timelineEditor,
+			context::timeline,
+			context::musicPlayer,
+			context::activeAudioPlayer,
 			new TimelineTransportPresenter.TimelineDriveControl() {
 				@Override
 				public boolean isDriving() {
@@ -97,26 +136,38 @@ public final class PresenterFactories {
 	}
 
 	public static TimelineToolbarActionsPresenter timelineToolbarActionsPresenter() {
+		return timelineToolbarActionsPresenter(ctx());
+	}
+
+	public static TimelineToolbarActionsPresenter timelineToolbarActionsPresenter(BeatBlockContext context) {
 		return new TimelineToolbarActionsPresenter(
-			() -> BeatBlock.timeline,
-			() -> BeatBlock.timelineEditor,
+			context::timeline,
+			context::timelineEditor,
 			PresenterFactories::currentCameraPositionOrZero
 		);
 	}
 
 	public static TimelineToolbarConfigPresenter timelineToolbarConfigPresenter() {
+		return timelineToolbarConfigPresenter(ctx());
+	}
+
+	public static TimelineToolbarConfigPresenter timelineToolbarConfigPresenter(BeatBlockContext context) {
 		return new TimelineToolbarConfigPresenter(
-			() -> BeatBlock.timeline,
+			context::timeline,
 			() -> FabricLoader.getInstance().getGameDir()
 				.resolve("config").resolve("beatblock").resolve("ui.json")
 		);
 	}
 
 	public static TimelineBindingEditorPresenter timelineBindingEditorPresenter() {
+		return timelineBindingEditorPresenter(ctx());
+	}
+
+	public static TimelineBindingEditorPresenter timelineBindingEditorPresenter(BeatBlockContext context) {
 		return new TimelineBindingEditorPresenter(
-			() -> BeatBlock.timeline,
-			() -> BeatBlock.timelineEditor,
-			() -> BeatBlock.blockAnimationEngine
+			context::timeline,
+			context::timelineEditor,
+			context::blockAnimationEngine
 		);
 	}
 

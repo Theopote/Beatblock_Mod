@@ -105,6 +105,11 @@ public final class TimelineEditor {
 		return commandManager;
 	}
 
+	/** 打开/切换工程后丢弃 Undo/Redo 栈，避免旧命令引用已替换的时间线状态。 */
+	public void clearUndoHistory() {
+		commandManager.clear();
+	}
+
 	public TimelineToolbarState getToolbarState() {
 		return toolbarState;
 	}

@@ -61,4 +61,36 @@ class ApplyClipDragCommandTest {
 		));
 		assertTrue(!commands.canUndo());
 	}
+
+	@Test
+	void mergesContinuousClipDragSnapshots() {
+		Timeline timeline = Timeline.createDefault();
+		var audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		var clip = TimelineOperations.addClip(audioTrack, 1.0, 4.0);
+
+		ClipDragStateSnapshot before = ClipDragStateSnapshot.capture(
+			timeline, audioTrack.getId(), clip.getId(), Map.of(), Map.of());
+
+		clip.setStartTimeSeconds(2.0);
+		clip.setEndTimeSeconds(5.0);
+		ClipDragStateSnapshot mid = before.captureCurrent(timeline);
+
+		clip.setStartTimeSeconds(3.0);
+		clip.setEndTimeSeconds(6.0);
+		ClipDragStateSnapshot after = before.captureCurrent(timeline);
+
+		long anchor = System.currentTimeMillis();
+		var first = new ApplyClipDragCommand(timeline, before, mid, anchor);
+		var second = new ApplyClipDragCommand(timeline, mid, after, anchor);
+
+		assertTrue(first.canMergeWith(second));
+		ApplyClipDragCommand merged = (ApplyClipDragCommand) first.mergeWith(second);
+		merged.execute();
+		assertEquals(3.0, clip.getStartTimeSeconds(), 1e-9);
+		assertEquals(6.0, clip.getEndTimeSeconds(), 1e-9);
+
+		merged.undo();
+		assertEquals(1.0, clip.getStartTimeSeconds(), 1e-9);
+		assertEquals(4.0, clip.getEndTimeSeconds(), 1e-9);
+	}
 }

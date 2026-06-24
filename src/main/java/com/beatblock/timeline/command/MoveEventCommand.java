@@ -7,7 +7,9 @@ import com.beatblock.timeline.TimelineEvent;
 /**
  * 移动事件时间：execute 设为 newTime，undo 恢复 oldTime。
  */
-public final class MoveEventCommand implements Command {
+public final class MoveEventCommand implements MergeableCommand {
+
+	private static final double TIME_EPSILON = 1e-9;
 
 	private final Timeline timeline;
 	private final String trackId;
@@ -15,14 +17,54 @@ public final class MoveEventCommand implements Command {
 	private final String eventId;
 	private final double oldTimeSeconds;
 	private final double newTimeSeconds;
+	private final long mergeAnchorMs;
 
 	public MoveEventCommand(Timeline timeline, String trackId, String clipId, String eventId, double oldTimeSeconds, double newTimeSeconds) {
+		this(timeline, trackId, clipId, eventId, oldTimeSeconds, newTimeSeconds, System.currentTimeMillis());
+	}
+
+	MoveEventCommand(
+		Timeline timeline,
+		String trackId,
+		String clipId,
+		String eventId,
+		double oldTimeSeconds,
+		double newTimeSeconds,
+		long mergeAnchorMs
+	) {
 		this.timeline = timeline;
 		this.trackId = trackId;
 		this.clipId = clipId;
 		this.eventId = eventId;
 		this.oldTimeSeconds = oldTimeSeconds;
 		this.newTimeSeconds = newTimeSeconds;
+		this.mergeAnchorMs = mergeAnchorMs;
+	}
+
+	@Override
+	public long mergeWindowMs() {
+		return CommandMergePolicy.DEFAULT_MERGE_WINDOW_MS;
+	}
+
+	@Override
+	public boolean canMergeWith(Command other) {
+		if (!(other instanceof MoveEventCommand cmd)) return false;
+		if (!CommandMergePolicy.withinMergeWindow(mergeAnchorMs, mergeWindowMs())) return false;
+		if (!CommandMergePolicy.withinMergeWindow(cmd.mergeAnchorMs, cmd.mergeWindowMs())) return false;
+		if (timeline != cmd.timeline
+			|| !trackId.equals(cmd.trackId)
+			|| !clipId.equals(cmd.clipId)
+			|| !eventId.equals(cmd.eventId)) {
+			return false;
+		}
+		return Math.abs(newTimeSeconds - cmd.oldTimeSeconds) <= TIME_EPSILON;
+	}
+
+	@Override
+	public Command mergeWith(Command other) {
+		MoveEventCommand cmd = (MoveEventCommand) other;
+		return new MoveEventCommand(
+			timeline, trackId, clipId, eventId, oldTimeSeconds, cmd.newTimeSeconds, mergeAnchorMs);
 	}
 
 	@Override

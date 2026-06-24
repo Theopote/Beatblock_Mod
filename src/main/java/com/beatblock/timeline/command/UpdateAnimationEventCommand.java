@@ -9,7 +9,7 @@ import com.beatblock.timeline.editing.AnimationEventSnapshot;
 /**
  * 更新时间线事件属性、片段时间与相关元数据；支持 Undo/Redo。
  */
-public final class UpdateAnimationEventCommand implements Command {
+public final class UpdateAnimationEventCommand implements MergeableCommand {
 
 	private final Timeline timeline;
 	private final String trackId;
@@ -17,6 +17,7 @@ public final class UpdateAnimationEventCommand implements Command {
 	private final String eventId;
 	private final AnimationEventSnapshot before;
 	private final AnimationEventSnapshot after;
+	private final long mergeAnchorMs;
 
 	public UpdateAnimationEventCommand(
 		Timeline timeline,
@@ -26,12 +27,48 @@ public final class UpdateAnimationEventCommand implements Command {
 		AnimationEventSnapshot before,
 		AnimationEventSnapshot after
 	) {
+		this(timeline, trackId, clipId, eventId, before, after, System.currentTimeMillis());
+	}
+
+	UpdateAnimationEventCommand(
+		Timeline timeline,
+		String trackId,
+		String clipId,
+		String eventId,
+		AnimationEventSnapshot before,
+		AnimationEventSnapshot after,
+		long mergeAnchorMs
+	) {
 		this.timeline = timeline;
 		this.trackId = trackId;
 		this.clipId = clipId;
 		this.eventId = eventId;
 		this.before = before;
 		this.after = after;
+		this.mergeAnchorMs = mergeAnchorMs;
+	}
+
+	@Override
+	public long mergeWindowMs() {
+		return CommandMergePolicy.DEFAULT_MERGE_WINDOW_MS;
+	}
+
+	@Override
+	public boolean canMergeWith(Command other) {
+		if (!(other instanceof UpdateAnimationEventCommand cmd)) return false;
+		if (!CommandMergePolicy.withinMergeWindow(mergeAnchorMs, mergeWindowMs())) return false;
+		if (!CommandMergePolicy.withinMergeWindow(cmd.mergeAnchorMs, cmd.mergeWindowMs())) return false;
+		return timeline == cmd.timeline
+			&& trackId.equals(cmd.trackId)
+			&& clipId.equals(cmd.clipId)
+			&& eventId.equals(cmd.eventId);
+	}
+
+	@Override
+	public Command mergeWith(Command other) {
+		UpdateAnimationEventCommand cmd = (UpdateAnimationEventCommand) other;
+		return new UpdateAnimationEventCommand(
+			timeline, trackId, clipId, eventId, before, cmd.after, mergeAnchorMs);
 	}
 
 	@Override

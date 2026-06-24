@@ -95,6 +95,7 @@ public final class MenuBarPresenter {
 			}
 			TimelineEditor editor = timelineEditor.get();
 			if (editor != null) {
+				editor.clearUndoHistory();
 				editor.syncClockDuration();
 			}
 			if (layers != null) {

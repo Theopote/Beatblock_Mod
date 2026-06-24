@@ -1,6 +1,7 @@
 package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.PresenterFactories;
@@ -12,6 +13,8 @@ import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
+import java.util.function.Supplier;
+
 /**
  * 底部通栏时间线面板：固定工具栏 + 固定时间刻度，轨道区在可滚动子窗口中一行一行显示。
  */
@@ -20,13 +23,19 @@ public class TimelinePanel {
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private final TimelineToolbar toolbar = new TimelineToolbar();
 	private final TimelinePanelPresenter presenter;
+	private final Supplier<BeatBlockContext> context;
 
 	public TimelinePanel() {
-		this(PresenterFactories.timelinePanelPresenter());
+		this(PresenterFactories.timelinePanelPresenter(), BeatBlock::getContext);
 	}
 
-	TimelinePanel(TimelinePanelPresenter presenter) {
+	TimelinePanel(TimelinePanelPresenter presenter, Supplier<BeatBlockContext> context) {
 		this.presenter = presenter;
+		this.context = context;
+	}
+
+	private BeatBlockContext runtime() {
+		return context.get();
 	}
 
 	public void render(ImBoolean pOpen) {
@@ -38,12 +47,12 @@ public class TimelinePanel {
 			return;
 		}
 		try {
-			double musicDuration = BeatBlock.musicPlayer != null
-				? BeatBlock.musicPlayer.getDurationSeconds()
+			double musicDuration = runtime().musicPlayer() != null
+				? runtime().musicPlayer().getDurationSeconds()
 				: 0.0;
 			TimelinePanelPresenter.TimelinePanelViewState viewState = presenter.viewState(
-				BeatBlock.timeline,
-				BeatBlock.timelineEditor,
+				runtime().timeline(),
+				runtime().timelineEditor(),
 				musicDuration
 			);
 			if (!viewState.timelineLoaded()) {
@@ -51,7 +60,7 @@ public class TimelinePanel {
 				return;
 			}
 
-			TimelineEditor editor = BeatBlock.timelineEditor;
+			TimelineEditor editor = runtime().timelineEditor();
 
 			if (editor != null) {
 				toolbar.render(editor, editor.getToolbarState());

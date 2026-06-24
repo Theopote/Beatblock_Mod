@@ -1,6 +1,5 @@
 package com.beatblock.ui.panels;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
@@ -86,7 +85,7 @@ public class MarkerPanel {
 	}
 
 	private void renderMarkerManager() {
-		Timeline timeline = BeatBlock.timeline;
+		Timeline timeline = presenter.currentTimeline();
 
 		ImGui.spacing();
 		ImGui.text("时间线 Marker");

@@ -8,6 +8,7 @@ import com.beatblock.timeline.TimelineMarker;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 /**
  * Marker 面板业务逻辑：列表、编辑、删除与相邻 Marker 查询。
@@ -30,9 +31,15 @@ public final class MarkerPanelPresenter {
 	public record MarkerEditOutcome(PresenterResult result, MarkerFormSnapshot formSnapshot) {}
 
 	private final TimelineEditorPresenter editorPresenter;
+	private final Supplier<Timeline> timeline;
 
-	public MarkerPanelPresenter(TimelineEditorPresenter editorPresenter) {
+	public MarkerPanelPresenter(TimelineEditorPresenter editorPresenter, Supplier<Timeline> timeline) {
 		this.editorPresenter = editorPresenter;
+		this.timeline = timeline;
+	}
+
+	public Timeline currentTimeline() {
+		return timeline != null ? timeline.get() : null;
 	}
 
 	public TimelineEditorPresenter editorPresenter() {
