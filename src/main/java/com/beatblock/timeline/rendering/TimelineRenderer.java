@@ -134,7 +134,8 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		// 首次（或 trackListState 更换后）注册静音/独奏变更回调
 		if (registeredMuteListenerFor != trackListState) {
 			registeredMuteListenerFor = trackListState;
-			trackListState.setMuteChangeListener(() -> syncStemMuteState(trackListState));
+			trackListState.setMuteChangeListener(() ->
+				TimelineStemMuteSync.syncStemMuteState(ctx(), trackListState, currentAudioSubTracks));
 		}
 
 		denseFeatureApplier.applyPendingUpdates(ctx(), timeline);
@@ -164,10 +165,10 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		syncPairedFeatureLaneState(trackListState);
 		layout.setActiveAnimationSubRowCount(currentAnimationSubTracks.size());
 		if (trackListState != null) {
-			syncPrimaryPlayerMuteState(trackListState);
+			TimelineStemMuteSync.syncPrimaryPlayerMuteState(ctx(), trackListState, currentAudioSubTracks);
 		}
 		if (trackListState != null && ctx().stemMixer() != null && ctx().stemMixer().hasStems()) {
-			syncStemMuteState(trackListState);
+			TimelineStemMuteSync.syncStemMuteState(ctx(), trackListState, currentAudioSubTracks);
 		}
 
 		// 预留轨道区总高度，使子窗口滚动范围正确
@@ -718,12 +719,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	 * 仅主混音与 Demucs 茎波形轨是可真实发声轨道，才显示静音/独奏控制。
 	 */
 	private boolean isPlaybackControlRow(int rowIndex) {
-		if (!TimelineTrackMeta.isAudioSubRow(rowIndex)) return false;
-		int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
-		if (slot < 0 || slot >= currentAudioSubTracks.size()) return false;
-		String key = currentAudioSubTracks.get(slot).getKey();
-		if (key == null || key.isBlank()) return false;
-		return "waveform".equals(key) || key.startsWith("stem_wf_");
+		return TimelineStemMuteSync.isPlayableAudioControlRow(rowIndex, currentAudioSubTracks);
 	}
 
 	private void renderBuildReverseTrackDropTarget(
@@ -804,91 +800,6 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	/** 释放后台 dense 特征分析线程。 */
 	public void shutdown() {
 		denseFeatureApplier.shutdown();
-	}
-
-	/**
-	 * 将 trackListState 的茎轨道静音/独奏状态同步到 {@link BeatBlock#stemMixer}。
-	 * 仅影响 key 为 "stem_wf_*" 的音频子轨对应的茎。
-	 */
-	private void syncStemMuteState(TimelineTrackListState trackListState) {
-		if (ctx().stemMixer() == null || !ctx().stemMixer().hasStems()) return;
-		syncOneStemMute(trackListState, "drums");
-		syncOneStemMute(trackListState, "bass");
-		syncOneStemMute(trackListState, "vocals");
-		syncOneStemMute(trackListState, "other");
-	}
-
-	private void syncOneStemMute(TimelineTrackListState trackListState, String stemName) {
-		boolean hasMappedRow = false;
-		boolean anyAudibleMappedRow = false;
-		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
-			TrackDefinition td = currentAudioSubTracks.get(slot);
-			String key = td.getKey();
-			if (!mapsToStemAudioControl(key, stemName)) continue;
-			hasMappedRow = true;
-			int rowIndex = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
-			if (!isPlayableAudioRowEffectivelyMuted(trackListState, rowIndex)) {
-				anyAudibleMappedRow = true;
-			}
-		}
-
-		// 语义：仅当存在映射行且这些行都被静音/独奏抑制时，才静音该茎
-		boolean muted = hasMappedRow && !anyAudibleMappedRow;
-		ctx().stemMixer().setStemMuted(stemName, muted);
-	}
-
-	private boolean mapsToStemAudioControl(String trackKey, String stemName) {
-		if (trackKey == null || stemName == null) return false;
-		if (trackKey.startsWith("stem_wf_")) {
-			return stemName.equals(trackKey.substring("stem_wf_".length()));
-		}
-		return false;
-	}
-
-	private boolean isPlayableAudioControlRow(int rowIndex) {
-		if (!TimelineTrackMeta.isAudioSubRow(rowIndex)) return false;
-		int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
-		if (slot < 0 || slot >= currentAudioSubTracks.size()) return false;
-		String key = currentAudioSubTracks.get(slot).getKey();
-		return "waveform".equals(key) || (key != null && key.startsWith("stem_wf_"));
-	}
-
-	private boolean isPlayableAudioRowEffectivelyMuted(TimelineTrackListState trackListState, int rowIndex) {
-		if (trackListState == null) return false;
-		if (trackListState.isMuted(rowIndex)) return true;
-
-		boolean groupSoloed = trackListState.isSoloed(TimelineTrackMeta.ROW_AUDIO_GROUP);
-		boolean anyPlayableSolo = groupSoloed;
-		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
-			int candidateRowIndex = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
-			if (!isPlayableAudioControlRow(candidateRowIndex)) continue;
-			if (trackListState.isSoloed(candidateRowIndex)) {
-				anyPlayableSolo = true;
-				break;
-			}
-		}
-
-		if (!anyPlayableSolo) return false;
-		if (groupSoloed) return false;
-		return !trackListState.isSoloed(rowIndex);
-	}
-
-	private void syncPrimaryPlayerMuteState(TimelineTrackListState trackListState) {
-		if (ctx().musicPlayer() == null) return;
-
-		boolean anyAudioRowAudible = false;
-		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
-			TrackDefinition td = currentAudioSubTracks.get(slot);
-			if (!"waveform".equals(td.getKey())) continue;
-			int rowIndex = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
-			if (!isPlayableAudioRowEffectivelyMuted(trackListState, rowIndex)) {
-				anyAudioRowAudible = true;
-				break;
-			}
-		}
-
-		// 没有任何可听音频子轨时静音主播放器。
-		ctx().musicPlayer().setMuted(!anyAudioRowAudible);
 	}
 
 	/**
