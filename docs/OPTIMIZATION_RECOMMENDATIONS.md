@@ -59,23 +59,24 @@
 
 #### 2.1.1 阶段 4.3：相机轨道与方块事件轨道对齐
 
-**现状（2026-06 复核）**: UI 层已基本统一；剩余为验收级 polish。
+**状态（2026-06-24 验收）**: ✅ **已通过**
 
 | 项 | 状态 | 说明 |
 |---|---|---|
 | 同一 `TimelineLayout` / 播放头 | ✅ | `TimelinePanel` + `TimelineEditor` 共享标尺与 playhead |
-| 相机关键帧轨渲染 | ✅ | `EventRenderer.renderCameraKeyframeRow`、`TrackRenderer` 关键帧按钮 |
-| 相机↔动画行 hover 联动 | ✅ | `TimelineRowHoverHighlighter.drawActionCameraHoverHighlight` |
-| 对齐辅助线 | ✅ | `InteractionState.alignmentGuideTimes` + `TimelineRenderer.drawAlignmentGuides` |
-| 跨轨吸附覆盖相机关键帧 | 🟡 | 事件/片段吸附已有；相机关键帧专用吸附待确认 |
-| 时间单位一致性单测 | 🟡 | `CameraKeyframe` / `TimelineAnimationEvent` 均用秒；缺显式回归测试 |
+| 相机关键帧轨渲染与编辑 | ✅ | `EventRenderer`、`TimelineInteraction`、`TrackRenderer` |
+| 相机↔动画行 hover 联动 | ✅ | `TimelineRowHoverHighlighter` |
+| 对齐辅助线 | ✅ | `InteractionState.alignmentGuideTimes` + `TimelineRenderer` |
+| 时间单位（秒）一致 | ✅ | `CameraKeyframe` / `TimelineEvent` / `TimelineAnimationEvent` 均用 `timeSeconds` |
+| 相机关键帧 Snap | ✅ | `SnapSystem` magnet + `DragController` / `TimelineCameraClipResizeHandler` |
+| 验收单测 | ✅ | `CameraTrackAlignmentAcceptanceTest`（10 用例） |
 
-**剩余工作**（约 0.5–1 天）:
-```
-1. 编写 4.3 验收清单单测（时间精度、关键帧与事件同刻度）
-2. 确认相机关键帧拖拽是否参与 SnapSystem
-3. 通过后 REFACTOR_ROADMAP 4.3 标 ✅
-```
+**验收测试覆盖**:
+- 相机关键帧列表与 `TimelineEvent` 时间一致
+- 动画/相机事件共享秒级时间基
+- 同一 `TimelineViewState` 下相同时间 → 相同屏幕 X
+- Magnet 吸附：相机关键帧 ↔ 动画事件、片段拖放、clip 缩放
+- 相机行位于动作组内，与动画行同一布局区
 
 ---
 
@@ -1569,7 +1570,7 @@ public class PathValidator {
 
 **时间**: 2-3周
 
-1. 🟡 完成阶段 4.3：相机轨道对齐（UI 已统一，验收单测待补）
+1. 🟡 完成阶段 4.3：相机轨道对齐（**✅ 2026-06-24** `CameraTrackAlignmentAcceptanceTest`）
 2. ✅ 补充核心模块单元测试（197 测试类，`./gradlew test` 通过）
 3. ⏸ 建立性能基准测试（JMH 未接入）
 4. ⏸ 添加线程安全检查（`ThreadAssert` 等未实现；见 §3.4）
@@ -1652,11 +1653,10 @@ public class PathValidator {
 
 **下一批推荐（2026-06-24）**:
 
-1. ~~**`AudioAnalysisPanel` ImGui 拆分**~~ ✅ — `ui/panels/audioanalysis/*`（~89 行门面 + 子控件）
-2. **4.3 验收闭环** — 相机轨 Snap/单测，然后 REFACTOR 4.3 标 ✅
-3. **JaCoCo 或 SpotBugs 接入 CI** — 让质量目标可度量
-4. **文档** — 阶段 6 README / Demucs requirements 说明
-5. **`EventPropertiesPanel` ImGui 拆分**（可选，~924 行）
+1. ~~**4.3 验收闭环**~~ ✅ — `CameraTrackAlignmentAcceptanceTest`
+2. **JaCoCo 或 SpotBugs 接入 CI** — 让质量目标可度量
+3. **文档** — 阶段 6 README / Demucs requirements 说明
+4. **`EventPropertiesPanel` ImGui 拆分**（可选，~924 行）
 
 ---
 

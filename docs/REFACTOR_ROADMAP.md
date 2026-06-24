@@ -14,7 +14,7 @@
 | 3 跨平台 | ✅ | 三平台 imgui natives + CI JNI 烟雾测试 |
 | 4.1 三层边界 | ✅ | 文档 + 禁止播放层读分析轨 |
 | 4.2 草稿生成器 | ✅ | `TimelineDraftWriter` 统一 AutoMap / Renderer / BindingEngine / TimelineBuilder；`eventOrigin` + 合并动画缓存 |
-| 4.3 相机轨 UI 对齐 | 🟡 | 共享 layout/播放头/hover/对齐线 ✅；验收单测与相机吸附待补 |
+| 4.3 相机轨 UI 对齐 | ✅ | 共享 layout/播放头/hover/对齐线/Snap；`CameraTrackAlignmentAcceptanceTest` |
 | 4.4 维度化效果 | ✅ | `BlockInfluencePresets` + `BlockInfluenceEvaluator` + `VfxEmitter` |
 | 4.5 生成式 STEP | ✅ | `PacingStrategy` + `StepSequencePlanner`；调度/烘焙展开；UI「烘焙 STEP」 |
 | 5 测试 | 🟡 | 核心引擎/AutoMap/OscProjectStore 单测 ✅；Lasso/Brush 集成、JaCoCo 基线待补 |
@@ -120,7 +120,7 @@ runtimeOnly "io.github.spair:imgui-java-natives-macos:1.86.11"
 
 ### 4.3 相机轨道与方块事件轨道平级
 
-> **状态（2026-06）**: 🟡 **大部分已落地**，待验收闭环。
+> **状态（2026-06-24）**: ✅ **验收通过** — 见 `CameraTrackAlignmentAcceptanceTest`。
 
 | 项 | 状态 |
 |---|---|
@@ -128,8 +128,8 @@ runtimeOnly "io.github.spair:imgui-java-natives-macos:1.86.11"
 | 相机关键帧轨渲染与编辑 | ✅ `EventRenderer`、`TimelineInteraction`、`TrackRenderer` |
 | 相机↔动画/Build Reverse hover 联动 | ✅ `TimelineRowHoverHighlighter` |
 | 对齐辅助线 | ✅ `InteractionState.alignmentGuideTimes` |
-| 时间单位（秒）一致 | ✅ 代码层一致；缺单测 |
-| 相机关键帧 Snap 覆盖 | 🟡 待确认 |
+| 时间单位（秒）一致 | ✅ 单测：`animationAndCameraEventsShareSecondsTimeBase` |
+| Snap（关键帧/片段拖放/缩放） | ✅ `SnapSystem` + `DragController` + `TimelineCameraClipResizeHandler` |
 
 改造目标（原文）：
 
@@ -273,4 +273,4 @@ interface PacingStrategy {
                        阶段 6（收尾工程化）
 ```
 
-阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。**下一批收尾**：4.3 验收闭环、JaCoCo/SpotBugs 基线、阶段 6 README / Demucs 说明、（可选）`EventPropertiesPanel` ImGui 拆分。
+阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。**下一批收尾**：JaCoCo/SpotBugs 基线、阶段 6 README / Demucs 说明、（可选）`EventPropertiesPanel` ImGui 拆分。
