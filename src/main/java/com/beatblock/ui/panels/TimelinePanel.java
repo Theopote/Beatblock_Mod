@@ -3,9 +3,10 @@ package com.beatblock.ui.panels;
 import com.beatblock.BeatBlock;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.presenter.TimelinePanelPresenter;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.rendering.TimelineToolbar;
-import com.beatblock.timeline.util.MusicTimeFormatter;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
@@ -18,6 +19,15 @@ public class TimelinePanel {
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private final TimelineToolbar toolbar = new TimelineToolbar();
+	private final TimelinePanelPresenter presenter;
+
+	public TimelinePanel() {
+		this(PresenterFactories.timelinePanelPresenter());
+	}
+
+	TimelinePanel(TimelinePanelPresenter presenter) {
+		this.presenter = presenter;
+	}
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
@@ -28,7 +38,15 @@ public class TimelinePanel {
 			return;
 		}
 		try {
-			if (BeatBlock.timeline == null) {
+			double musicDuration = BeatBlock.musicPlayer != null
+				? BeatBlock.musicPlayer.getDurationSeconds()
+				: 0.0;
+			TimelinePanelPresenter.TimelinePanelViewState viewState = presenter.viewState(
+				BeatBlock.timeline,
+				BeatBlock.timelineEditor,
+				musicDuration
+			);
+			if (!viewState.timelineLoaded()) {
 				ImGui.text("时间线（未加载模型）");
 				return;
 			}
@@ -38,12 +56,7 @@ public class TimelinePanel {
 			if (editor != null) {
 				toolbar.render(editor, editor.getToolbarState());
 			}
-			double duration = editor != null && BeatBlock.timeline.getDurationSeconds() > 0
-				? BeatBlock.timeline.getDurationSeconds()
-				: (BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.getDurationSeconds() > 0 ? BeatBlock.musicPlayer.getDurationSeconds() : 60.0);
-			double currentTime = editor != null ? editor.getClock().getCurrentTimeSeconds() : 0;
-			double bpm = BeatBlock.timeline != null ? BeatBlock.timeline.getBpm() : 0;
-			String timeDisplay = MusicTimeFormatter.formatPositionDisplay(currentTime, duration, bpm);
+			String timeDisplay = viewState.positionDisplay();
 			ImVec2 timeSize = ImGui.calcTextSize(timeDisplay);
 			float rightPadding = 12f;
 			float targetX = Math.max(ImGui.getCursorPosX(), ImGui.getWindowContentRegionMaxX() - timeSize.x - rightPadding);

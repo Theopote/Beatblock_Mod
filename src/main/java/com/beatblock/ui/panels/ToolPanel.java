@@ -1,32 +1,20 @@
 package com.beatblock.ui.panels;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
-import com.beatblock.client.BeatBlockUIScreen;
 import com.beatblock.client.BeatBlockWorldPick;
-import com.beatblock.client.input.BeatBlockInputSystem;
-import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
-import com.beatblock.engine.StageObject;
-import com.beatblock.engine.GroupSortingStrategy;
-import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.presenter.ToolPanelPresenter;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -41,22 +29,13 @@ public class ToolPanel {
 
 	private boolean showAutoMapSettings = false;
 	private final AutoMapSettingsPanel autoMapSettingsPanel = new AutoMapSettingsPanel();
+	private final ToolPanelPresenter presenter;
 	private final ImString stageObjectNameBuffer = new ImString(64);
 	private final ImBoolean stageObjectIncludeAir = new ImBoolean(false);
 	private final ImInt stageObjectSortingIndex = new ImInt(0);
 	private final ImString stageObjectStaggerBuffer = new ImString(16);
-	private BlockPos selectionPosA;
-	private BlockPos selectionPosB;
 	private String stageObjectMessage;
 	private long stageObjectMessageTimeMs;
-	private static final int MAX_STAGE_OBJECT_BLOCKS = 32768;
-	private static final GroupSortingStrategy[] STAGE_GROUP_SORTING_VALUES = {
-		GroupSortingStrategy.SEQUENTIAL,
-		GroupSortingStrategy.RADIAL,
-		GroupSortingStrategy.SPIRAL,
-		GroupSortingStrategy.RANDOM,
-		GroupSortingStrategy.ALL
-	};
 	private static final String[] STAGE_GROUP_SORTING_LABELS = {
 		"顺序 (SEQUENTIAL)",
 		"径向 (RADIAL)",
@@ -64,19 +43,6 @@ public class ToolPanel {
 		"随机 (RANDOM)",
 		"同时 (ALL)"
 	};
-	private static final SelectionMode[] SELECTION_COMBO_ORDER = {
-			SelectionMode.OFF,
-			SelectionMode.CLICK,
-			SelectionMode.BOX,
-			SelectionMode.LINE,
-			SelectionMode.BRUSH,
-			SelectionMode.CONNECTED,
-			SelectionMode.COLUMN,
-			SelectionMode.PLANE_SLICE,
-			SelectionMode.SELECTION_WAND,
-			SelectionMode.LASSO
-	};
-
 	private final Runnable onSelectionToolChosen;
 
 	public ToolPanel() {
@@ -84,7 +50,12 @@ public class ToolPanel {
 	}
 
 	public ToolPanel(Runnable onSelectionToolChosen) {
+		this(onSelectionToolChosen, PresenterFactories.toolPanelPresenter());
+	}
+
+	ToolPanel(Runnable onSelectionToolChosen, ToolPanelPresenter presenter) {
 		this.onSelectionToolChosen = onSelectionToolChosen;
+		this.presenter = presenter;
 		stageObjectNameBuffer.set("selection_object");
 		stageObjectStaggerBuffer.set("0.00");
 	}
@@ -140,14 +111,14 @@ public class ToolPanel {
 
 	private void renderBlockSelectionTools() {
 		ImGui.text("方块选择工具");
-		var mgr = BeatBlockSelectionManager.get();
+		var state = presenter.selectionToolViewState();
 		ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
-		if (ImGui.beginCombo("##bselCombo", selectionModeComboLabel(mgr.getMode()))) {
-			for (SelectionMode m : SELECTION_COMBO_ORDER) {
-				boolean selected = mgr.getMode() == m;
-				if (ImGui.selectable(selectionModeComboLabel(m), selected)) {
-					if (mgr.getMode() != m) {
-						mgr.setMode(m);
+		if (ImGui.beginCombo("##bselCombo", ToolPanelPresenter.selectionModeLabel(state.mode()))) {
+			for (SelectionMode mode : ToolPanelPresenter.SELECTION_COMBO_ORDER) {
+				boolean selected = state.mode() == mode;
+				if (ImGui.selectable(ToolPanelPresenter.selectionModeLabel(mode), selected)) {
+					if (state.mode() != mode) {
+						presenter.setSelectionMode(mode);
 						if (onSelectionToolChosen != null) {
 							onSelectionToolChosen.run();
 						}
@@ -163,21 +134,6 @@ public class ToolPanel {
 		ImGui.separator();
 	}
 
-	private static String selectionModeComboLabel(SelectionMode m) {
-		return switch (m) {
-			case OFF -> "关闭";
-			case CLICK -> "点击选择";
-			case BOX -> "框选（两角 + 预览）";
-			case LINE -> "线选（两端点 + 预览）";
-			case BRUSH -> "笔刷（球/立方，单击或涂抹）";
-			case CONNECTED -> "魔棒（同色六邻域）";
-			case COLUMN -> "整列（同 XZ）";
-			case PLANE_SLICE -> "平面切片";
-			case SELECTION_WAND -> "选区魔棒（盒内）";
-			case LASSO -> "套索（屏幕多边形）";
-		};
-	}
-
 	private void renderStageObjectCreator() {
 		ImGui.spacing();
 		ImGui.textDisabled("动画场景对象（StageObject）");
@@ -187,8 +143,8 @@ public class ToolPanel {
 						+ "请优先用上方「方块选择工具」做出选区（任意形状均可），再点下面按钮把该选区的外接包围盒填入；"
 						+ "只有不打算用选区工具时，才展开「手动角点」用准星点两个角。");
 
-		var selMgr = BeatBlockSelectionManager.get();
-		int selCount = selMgr.getSelectionCount();
+		var selectionState = presenter.selectionToolViewState();
+		int selCount = selectionState.selectionCount();
 		if (selCount > 0) {
 			ImGui.textDisabled(String.format(Locale.ROOT, "当前方块选区：%d 个方块（包围盒用于下方创建）", selCount));
 		} else {
@@ -196,15 +152,7 @@ public class ToolPanel {
 		}
 
 		if (ImGui.button("用当前方块选区包围盒填入##stageFromSel", -1f, 0f)) {
-			BlockPos smin = selMgr.getBoundingMin();
-			BlockPos smax = selMgr.getBoundingMax();
-			if (smin != null && smax != null && selCount > 0) {
-				selectionPosA = smin.toImmutable();
-				selectionPosB = smax.toImmutable();
-				setStageObjectMessage("已从方块选区外接包围盒填入 A、B。");
-			} else {
-				setStageObjectMessage("没有可用的方块选区或包围盒。");
-			}
+			applyStageObjectMessage(presenter.fillCornersFromSelection().result());
 		}
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip("与上方选区工具联动：取 BeatBlock 选择管理器中已选方块的最小/最大角作为创建包围盒（与框选完成后的结果一致，无需再点「设置 A/B」）。");
@@ -213,17 +161,19 @@ public class ToolPanel {
 		boolean canCreateFromSelection = selCount > 0;
 		if (!canCreateFromSelection) ImGui.beginDisabled();
 		if (ImGui.button("从当前方块选区直接创建（精确快照）##stageCreateFromSelection", -1f, 0f)) {
-			createStageObjectFromCurrentSelectionSnapshot();
+			var outcome = presenter.createFromSelectionSnapshot(buildStageObjectRequest());
+			applyStageObjectMessage(outcome.result());
 		}
 		if (!canCreateFromSelection) ImGui.endDisabled();
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip("按当前选中的方块集合直接建组（不扩成包围盒），并记录为 selection_snapshot 来源。");
 		}
 
+		ToolPanelPresenter.CornerState corners = presenter.currentCorners();
 		ImGui.textDisabled("创建包围盒角点");
-		ImGui.textDisabled("  A: " + formatPos(selectionPosA));
-		ImGui.textDisabled("  B: " + formatPos(selectionPosB));
-		long selectionVolume = estimateSelectionVolume(selectionPosA, selectionPosB);
+		ImGui.textDisabled("  A: " + ToolPanelPresenter.formatPos(corners.posA()));
+		ImGui.textDisabled("  B: " + ToolPanelPresenter.formatPos(corners.posB()));
+		long selectionVolume = ToolPanelPresenter.estimateSelectionVolume(corners.posA(), corners.posB());
 		if (selectionVolume > 0) {
 			ImGui.textDisabled(String.format(Locale.ROOT, "  包围盒体积（估算）: %d 方块", selectionVolume));
 		}
@@ -232,28 +182,24 @@ public class ToolPanel {
 		if (ImGui.collapsingHeader("手动角点（准星拾取，可选）##stageManualHdr")) {
 			ImGui.textWrapped("与「方块选择」独立：在场景区用准星对准方块，分别指定长方体的两个对角。");
 			if (ImGui.button("准星 → A##stageObjSetA")) {
-				selectionPosA = readCrosshairBlockPos();
-				setStageObjectMessage(selectionPosA != null ? "已设置 A。" : "未命中方块。");
+				applyStageObjectMessage(presenter.setCornerFromCrosshair(true).result());
 			}
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip("使用当前光标射线击中的方块坐标");
 			}
 			ImGui.sameLine();
 			if (ImGui.button("准星 → B##stageObjSetB")) {
-				selectionPosB = readCrosshairBlockPos();
-				setStageObjectMessage(selectionPosB != null ? "已设置 B。" : "未命中方块。");
+				applyStageObjectMessage(presenter.setCornerFromCrosshair(false).result());
 			}
 			if (ImGui.button("清空手动角点##stageObjClearSelection")) {
-				selectionPosA = null;
-				selectionPosB = null;
-				setStageObjectMessage("已清空 A/B。");
+				applyStageObjectMessage(presenter.clearCorners().result());
 			}
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip("仅清除此处角点，不影响上方「方块选择工具」的选区");
 			}
 			BlockPos lastLeft = BeatBlockWorldPick.getLastLeftClickedBlock();
 			if (lastLeft != null) {
-				ImGui.textDisabled("最近左键方块: " + formatPos(lastLeft));
+				ImGui.textDisabled("最近左键方块: " + ToolPanelPresenter.formatPos(lastLeft));
 			}
 		}
 
@@ -270,10 +216,11 @@ public class ToolPanel {
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText("组默认步进延迟(秒)##stageGroupStagger", stageObjectStaggerBuffer);
 
-		boolean canCreate = selectionPosA != null && selectionPosB != null;
+		boolean canCreate = corners.posA() != null && corners.posB() != null;
 		if (!canCreate) ImGui.beginDisabled();
 		if (ImGui.button("从选区创建 StageObject##stageObjCreate", -1f, 0f)) {
-			createStageObjectFromSelection();
+			var outcome = presenter.createFromCuboid(buildStageObjectRequest());
+			applyStageObjectMessage(outcome.result());
 		}
 		if (!canCreate) ImGui.endDisabled();
 
@@ -286,207 +233,53 @@ public class ToolPanel {
 	}
 
 	private void renderStageObjectList() {
-		if (BeatBlock.blockAnimationEngine == null) return;
-		var sys = BeatBlock.blockAnimationEngine.getStageObjectSystem();
-		List<StageObject> objects = new ArrayList<>(sys.getAll());
+		var objects = presenter.listStageObjects();
 		if (objects.isEmpty()) {
 			ImGui.spacing();
 			ImGui.textDisabled("暂无已注册的 StageObject。");
 			return;
 		}
-		objects.sort(Comparator.comparing(StageObject::getName, String.CASE_INSENSITIVE_ORDER));
 
 		ImGui.spacing();
 		ImGui.text("已注册对象 (" + objects.size() + ")");
 		String removeId = null;
 		if (ImGui.beginChild("##StageObjectList", 0, Math.min(objects.size() * 22f + 8f, 160f), true)) {
-			for (StageObject obj : objects) {
-				String label = obj.getName() + "  [" + obj.getId() + "]  " + obj.getBlocks().size() + " blocks";
+			for (var obj : objects) {
+				String label = obj.name() + "  [" + obj.id() + "]  " + obj.blockCount() + " blocks";
 				ImGui.text(label);
 				ImGui.sameLine();
-				ImGui.textDisabled("(" + obj.getGroupSpec().getSourceType() + ")");
+				ImGui.textDisabled("(" + obj.sourceType() + ")");
 				ImGui.sameLine();
-				if (ImGui.smallButton("Delete##stageObjDel_" + obj.getId())) {
-					removeId = obj.getId();
+				if (ImGui.smallButton("Delete##stageObjDel_" + obj.id())) {
+					removeId = obj.id();
 				}
 			}
 		}
 		ImGui.endChild();
 
 		if (removeId != null) {
-			sys.remove(removeId);
-			setStageObjectMessage("已删除 StageObject: " + removeId);
+			applyStageObjectMessage(presenter.removeStageObject(removeId));
 		}
+	}
+
+	private ToolPanelPresenter.StageObjectCreateRequest buildStageObjectRequest() {
+		return new ToolPanelPresenter.StageObjectCreateRequest(
+			stageObjectNameBuffer.get(),
+			stageObjectIncludeAir.get(),
+			ToolPanelPresenter.sortingStrategyAtIndex(stageObjectSortingIndex.get()),
+			ToolPanelPresenter.parseStaggerSeconds(stageObjectStaggerBuffer.get())
+		);
+	}
+
+	private void applyStageObjectMessage(com.beatblock.ui.presenter.PresenterResult result) {
+		if (result == null || result.messageOrEmpty().isBlank()) {
+			return;
+		}
+		setStageObjectMessage(result.messageOrEmpty());
 	}
 
 	private void setStageObjectMessage(String msg) {
 		stageObjectMessage = msg;
 		stageObjectMessageTimeMs = System.currentTimeMillis();
 	}
-
-	private void createStageObjectFromSelection() {
-		if (BeatBlock.blockAnimationEngine == null) {
-			setStageObjectMessage("动画引擎未初始化，无法创建对象。");
-			return;
-		}
-		MinecraftClient mc = MinecraftClient.getInstance();
-		World world = mc != null ? mc.world : null;
-		if (world == null) {
-			setStageObjectMessage("当前无世界上下文，无法读取选区。");
-			return;
-		}
-		if (selectionPosA == null || selectionPosB == null) {
-			setStageObjectMessage("请先设置 A/B 两个选区点。");
-			return;
-		}
-
-		List<BlockPos> blocks = collectSelectionBlocks(selectionPosA, selectionPosB, stageObjectIncludeAir.get());
-		if (blocks.isEmpty()) {
-			setStageObjectMessage(stageObjectIncludeAir.get()
-				? "选区为空，未创建对象。"
-				: "选区内没有非空气方块，未创建对象。");
-			return;
-		}
-
-		String name = stageObjectNameBuffer.get() != null ? stageObjectNameBuffer.get().trim() : "";
-		if (name.isEmpty()) name = "selection_object";
-		String id = buildUniqueStageObjectId(name);
-
-		GroupSortingStrategy sortingStrategy = currentStageObjectSortingStrategy();
-		double staggerSeconds = parseStageObjectStaggerSeconds();
-		StageObject obj = StageObjectSystem.fromBlocks(
-			id,
-			name,
-			blocks,
-			com.beatblock.engine.GroupSpec.fromSelectionCuboid(
-				selectionPosA,
-				selectionPosB,
-				stageObjectIncludeAir.get(),
-				sortingStrategy,
-				staggerSeconds
-			)
-		);
-		BeatBlock.blockAnimationEngine.getStageObjectSystem().register(obj);
-		setStageObjectMessage(String.format(Locale.ROOT, "已创建 StageObject: %s (%d blocks)", id, blocks.size()));
-	}
-
-	private void createStageObjectFromCurrentSelectionSnapshot() {
-		if (BeatBlock.blockAnimationEngine == null) {
-			setStageObjectMessage("动画引擎未初始化，无法创建对象。");
-			return;
-		}
-		var selMgr = BeatBlockSelectionManager.get();
-		List<BlockPos> blocks = new ArrayList<>(selMgr.getSelectedBlocks());
-		if (blocks.isEmpty()) {
-			setStageObjectMessage("当前没有方块选区。请先使用选择工具。");
-			return;
-		}
-		if (blocks.size() > MAX_STAGE_OBJECT_BLOCKS) {
-			setStageObjectMessage(String.format(Locale.ROOT,
-				"选区过大（%d blocks），上限为 %d。", blocks.size(), MAX_STAGE_OBJECT_BLOCKS));
-			return;
-		}
-
-		String name = stageObjectNameBuffer.get() != null ? stageObjectNameBuffer.get().trim() : "";
-		if (name.isEmpty()) name = "selection_object";
-		String id = buildUniqueStageObjectId(name);
-
-		GroupSortingStrategy sortingStrategy = currentStageObjectSortingStrategy();
-		double staggerSeconds = parseStageObjectStaggerSeconds();
-		StageObject obj = StageObjectSystem.fromSelectionSnapshot(id, name, blocks, sortingStrategy, staggerSeconds);
-		BeatBlock.blockAnimationEngine.getStageObjectSystem().register(obj);
-		setStageObjectMessage(String.format(Locale.ROOT, "已创建快照 StageObject: %s (%d blocks)", id, blocks.size()));
-	}
-
-	private GroupSortingStrategy currentStageObjectSortingStrategy() {
-		int idx = Math.max(0, Math.min(stageObjectSortingIndex.get(), STAGE_GROUP_SORTING_VALUES.length - 1));
-		return STAGE_GROUP_SORTING_VALUES[idx];
-	}
-
-	private double parseStageObjectStaggerSeconds() {
-		String raw = stageObjectStaggerBuffer.get() != null ? stageObjectStaggerBuffer.get().trim() : "";
-		if (raw.isEmpty()) return 0.0;
-		try {
-			return Math.max(0.0, Double.parseDouble(raw));
-		} catch (Exception ex) {
-			return 0.0;
-		}
-	}
-
-	private List<BlockPos> collectSelectionBlocks(BlockPos a, BlockPos b, boolean includeAir) {
-		List<BlockPos> out = new ArrayList<>();
-		if (a == null || b == null) return out;
-		MinecraftClient mc = MinecraftClient.getInstance();
-		World world = mc != null ? mc.world : null;
-		if (world == null) return out;
-
-		int minX = Math.min(a.getX(), b.getX());
-		int maxX = Math.max(a.getX(), b.getX());
-		int minY = Math.min(a.getY(), b.getY());
-		int maxY = Math.max(a.getY(), b.getY());
-		int minZ = Math.min(a.getZ(), b.getZ());
-		int maxZ = Math.max(a.getZ(), b.getZ());
-
-		long volume = (long) (maxX - minX + 1) * (long) (maxY - minY + 1) * (long) (maxZ - minZ + 1);
-		if (volume > MAX_STAGE_OBJECT_BLOCKS) {
-			setStageObjectMessage(String.format(Locale.ROOT,
-				"选区过大（%d blocks），上限为 %d。", volume, MAX_STAGE_OBJECT_BLOCKS));
-			return out;
-		}
-
-		for (int x = minX; x <= maxX; x++) {
-			for (int y = minY; y <= maxY; y++) {
-				for (int z = minZ; z <= maxZ; z++) {
-					BlockPos pos = new BlockPos(x, y, z);
-					if (!includeAir && world.getBlockState(pos).isAir()) continue;
-					out.add(pos);
-				}
-			}
-		}
-		return out;
-	}
-
-	private static long estimateSelectionVolume(BlockPos a, BlockPos b) {
-		if (a == null || b == null) return 0;
-		long dx = Math.abs((long) a.getX() - b.getX()) + 1L;
-		long dy = Math.abs((long) a.getY() - b.getY()) + 1L;
-		long dz = Math.abs((long) a.getZ() - b.getZ()) + 1L;
-		return dx * dy * dz;
-	}
-
-	private String buildUniqueStageObjectId(String name) {
-		String base = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]+", "_").replaceAll("_+", "_");
-		if (base.isBlank()) base = "selection_object";
-		if (base.startsWith("_")) base = base.substring(1);
-		if (base.endsWith("_")) base = base.substring(0, base.length() - 1);
-		if (base.isEmpty()) base = "selection_object";
-
-		var sys = BeatBlock.blockAnimationEngine.getStageObjectSystem();
-		String candidate = base;
-		int suffix = 2;
-		while (sys.get(candidate) != null) {
-			candidate = base + "_" + suffix;
-			suffix++;
-		}
-		return candidate;
-	}
-
-	private BlockPos readCrosshairBlockPos() {
-		MinecraftClient mc = MinecraftClient.getInstance();
-		if (mc == null || mc.world == null) return null;
-		if (mc.currentScreen instanceof BeatBlockUIScreen) {
-			BlockHitResult bhr = BeatBlockInputSystem.raycastFromImGui();
-			if (bhr == null || bhr.getType() != HitResult.Type.BLOCK) return null;
-			return bhr.getBlockPos().toImmutable();
-		}
-		HitResult hit = mc.crosshairTarget;
-		if (!(hit instanceof BlockHitResult bhr) || bhr.getType() != HitResult.Type.BLOCK) return null;
-		return bhr.getBlockPos().toImmutable();
-	}
-
-	private static String formatPos(BlockPos pos) {
-		if (pos == null) return "(未设置)";
-		return String.format(Locale.ROOT, "%d, %d, %d", pos.getX(), pos.getY(), pos.getZ());
-	}
-
 }
