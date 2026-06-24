@@ -18,7 +18,7 @@
 | 4.4 维度化效果 | ✅ | `BlockInfluencePresets` + `BlockInfluenceEvaluator` + `VfxEmitter` |
 | 4.5 生成式 STEP | ✅ | `PacingStrategy` + `StepSequencePlanner`；调度/烘焙展开；UI「烘焙 STEP」 |
 | 5 测试 | 🟡 | 核心引擎/AutoMap/OscProjectStore 单测 ✅；Lasso/Brush 集成、JaCoCo 基线待补 |
-| 6 工程化 | 🟡 | 音频分析已拆 ✅；Timeline 交互/渲染/helper 已拆 ✅；**`AudioAnalysisPanel` ImGui 待拆**；Demucs requirements 说明待补 |
+| 6 工程化 | 🟡 | 音频分析已拆 ✅；Timeline 交互/渲染/helper 已拆 ✅；**`AudioAnalysisPanel` ImGui 已拆** ✅；Demucs requirements 说明待补 |
 
 ---
 
@@ -250,10 +250,11 @@ interface PacingStrategy {
 优先级低于以上，可以穿插进行：
 
 1. ~~拆分 `AudioAnalysisService.java`（目前 1300+ 行）~~ ✅ 已拆：`FfmpegService`、`PythonAudioAnalyzer`（`IAudioAnalyzer`）、`AudioAnalysisOrchestrator`、`PythonRuntimeHealthMonitor`；`AudioAnalysisService` 为门面。
-2. ~~UI 属性编辑 / Timeline 交互渲染解耦~~ ✅ `EventPropertiesPanel` + Presenter；`TimelineInteraction` Phase 1–4；`TimelineRenderer` R1–R5+。**待办：`AudioAnalysisPanel` ImGui 块拆分**（~1575 行，Presenter 已接入）。
-3. ~~Timeline Toolbar Presenter 化~~ ✅ `Timeline*Presenter` + `Timeline*Controls`（~175 行门面）。
-4. `analyzer/requirements.txt` 补充说明 `--demucs` 模式所需的可选依赖（`demucs`、`torch`），即使不写进硬性 `requirements.txt`（避免强制所有用户装大体积的 torch），也应该在文件里用注释或单独的 `requirements-demucs.txt` 说明。
-5. 补 README：项目简介、构建方式、依赖要求、三种核心使用场景的截图/简述（直接用你刚描述的"建造过程/跑酷敲击/镜头跟随"这三段话就是很好的素材）。
+2. ~~UI 属性编辑 / Timeline 交互渲染解耦~~ ✅ `EventPropertiesPanel` + Presenter；`TimelineInteraction` Phase 1–4；`TimelineRenderer` R1–R5+。
+3. ~~`AudioAnalysisPanel` ImGui 拆分~~ ✅ `ui/panels/audioanalysis/`（`AudioAnalysisPanelRenderer` + Toolbar/Runtime/DropZone/List/Detail 控件；门面 ~89 行）。
+4. ~~Timeline Toolbar Presenter 化~~ ✅ `Timeline*Presenter` + `Timeline*Controls`（~175 行门面）。
+5. `analyzer/requirements.txt` 补充说明 `--demucs` 模式所需的可选依赖（`demucs`、`torch`），即使不写进硬性 `requirements.txt`（避免强制所有用户装大体积的 torch），也应该在文件里用注释或单独的 `requirements-demucs.txt` 说明。
+6. 补 README：项目简介、构建方式、依赖要求、三种核心使用场景的截图/简述（直接用你刚描述的"建造过程/跑酷敲击/镜头跟随"这三段话就是很好的素材）。
 
 ---
 
@@ -272,4 +273,4 @@ interface PacingStrategy {
                        阶段 6（收尾工程化）
 ```
 
-阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。**下一批收尾**：4.3 验收闭环、**`AudioAnalysisPanel` ImGui 拆分**、JaCoCo/SpotBugs 基线、阶段 6 README / Demucs 说明。
+阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。**下一批收尾**：4.3 验收闭环、JaCoCo/SpotBugs 基线、阶段 6 README / Demucs 说明、（可选）`EventPropertiesPanel` ImGui 拆分。

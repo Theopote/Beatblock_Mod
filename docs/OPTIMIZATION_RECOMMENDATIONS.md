@@ -33,7 +33,7 @@
 - ✅ 影响维度系统设计优雅（EXISTENCE/TRANSFORM/APPEARANCE/VFX）
 
 **待改进领域**:
-- ⚠️ **UI ImGui 体量**（`AudioAnalysisPanel` ~1575 行；Presenter 已有，Panel 待拆）
+- ⚠️ **`EventPropertiesPanel` ImGui 体量**（~924 行；Presenter 已有）
 - ⚠️ **可度量基线**未建（JaCoCo 行覆盖、JMH 性能基准）
 - ⚠️ 选区 Lasso/Brush 集成测试仍少
 - ⚠️ 错误处理和用户反馈机制待完善
@@ -128,7 +128,6 @@ AudioAnalysisService (门面)
 | `JavaNativeAnalyzer` / 远程 API | ⏸ 未来扩展 |
 
 **剩余（低优先级）**:
-- `AudioAnalysisPanel` ImGui 块拆分（~1575 行，Presenter 已接入但 Panel 仍过大）
 - `requirements-demucs.txt` 可选依赖说明（见 REFACTOR_ROADMAP 阶段 6）
 
 ---
@@ -146,10 +145,10 @@ AudioAnalysisService (门面)
 | `TimelinePanel` / Toolbar | 多个 `Timeline*Presenter` | Toolbar ~175 | ✅ |
 | `MarkerPanel` / `MenuBarPanel` | 对应 Presenter | — | ✅ |
 | `AutoMapSettingsPanel` | `AutoMapSettingsPanelPresenter` | — | ✅ |
-| `AudioAnalysisPanel` | `AudioAnalysisPanelPresenter` | **~1575** | 🔄 Presenter 有，Panel 待拆 ImGui 块 |
+| `AudioAnalysisPanel` | `AudioAnalysisPanelPresenter` | **~89** + `audioanalysis/*` | ✅ ImGui 已拆至子包（Renderer + 5 控件类） |
 | `AnimationLibraryPanel` | — | ~32 | 占位 UI，无业务 |
 
-**下一推荐**: 参照 `TimelineToolbar` → `Timeline*Controls` 模式，拆 `AudioAnalysisPanel` 子控件。
+**下一推荐**: （可选）拆 `EventPropertiesPanel` ImGui 块，参照 `TimelineToolbar` / `AudioAnalysisPanel` 模式。
 
 ---
 
@@ -376,8 +375,8 @@ void testTick() {
 
 | 类名 | 行数 | 建议 |
 |------|------|------|
-| `AudioAnalysisPanel` | ~1575 | 拆 ImGui 子控件（Presenter 已有） |
-| `EventPropertiesPanel` | ~924 | 可选：拆动画/相机编辑器块 |
+| `AudioAnalysisPanel` + `audioanalysis/*` | ~89 + ~1.5k | ✅ 已拆 ImGui 子控件 |
+| `EventPropertiesPanel` | ~924 | 拆 ImGui 子控件（Presenter 已有） |
 | `TimelineAnimationFeatureMapper` | ~523 | R1 拆出，体量可接受 |
 
 **TimelineRenderer 已拆 helper（R1–R5+）**:
@@ -470,7 +469,7 @@ public final class BeatBlockSelectionManager {
 | 复杂逻辑位置 | 单方法 if-else | 已分散至 `scheduleExpandedStepSequence`、`scheduleFromTimelineEventWithSpatial` 等私有方法 |
 | 策略模式 | 推荐立即做 | **⏸ 暂缓** — 仅当恢复 BUILD/PLACE 等多 `ActionMode` 分支时再引入 |
 
-**结论**: 文档原示例已过时；当前优先级低于 `AudioAnalysisPanel` ImGui 拆分。若需进一步瘦身，可单独抽 `StepSequenceSchedulingSupport`（纯函数），不必上完整 Strategy 框架。
+**结论**: 文档原示例已过时；当前优先级低于 UI 层剩余 ImGui 拆分。若需进一步瘦身，可单独抽 `StepSequenceSchedulingSupport`（纯函数），不必上完整 Strategy 框架。
 
 ---
 
@@ -1604,7 +1603,7 @@ public class PathValidator {
 
 **时间**: 4-6周
 
-1. 🟡 模块解耦（音频 ✅；**UI ImGui 块** — `AudioAnalysisPanel` 待拆）
+1. 🟡 模块解耦（音频 ✅；UI ImGui — `AudioAnalysisPanel` ✅，`EventPropertiesPanel` 待拆）
 2. ✅ 依赖注入重构（`BeatBlockContext` + Presenter；legacy 静态桥接保留）
 3. ✅ 命令模式增强（Merge + Undo 清空已落地；Macro 暂缓）
 4. ⏸ 性能监控系统（JMH / 运行时指标未建）
@@ -1653,10 +1652,11 @@ public class PathValidator {
 
 **下一批推荐（2026-06-24）**:
 
-1. **`AudioAnalysisPanel` ImGui 拆分** — 当前最大单体
+1. ~~**`AudioAnalysisPanel` ImGui 拆分**~~ ✅ — `ui/panels/audioanalysis/*`（~89 行门面 + 子控件）
 2. **4.3 验收闭环** — 相机轨 Snap/单测，然后 REFACTOR 4.3 标 ✅
 3. **JaCoCo 或 SpotBugs 接入 CI** — 让质量目标可度量
 4. **文档** — 阶段 6 README / Demucs requirements 说明
+5. **`EventPropertiesPanel` ImGui 拆分**（可选，~924 行）
 
 ---
 
