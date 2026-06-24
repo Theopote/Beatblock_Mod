@@ -1,7 +1,8 @@
 # BeatBlock 重构路线图
 
-> 目标：把"音乐可视化创作工具"这个产品定位，落实成代码里**唯一、无歧义**的数据流。
-> 原则：每一阶段结束后项目都必须能编译、能在游戏里跑起来——不做"大爆炸式"重写。
+> 目标：把"音乐可视化创作工具"这个产品定位，落实成代码里**唯一、无歧义**的数据流。  
+> 原则：每一阶段结束后项目都必须能编译、能在游戏里跑起来——不做"大爆炸式"重写。  
+> **最近复核**: 2026-06-24
 
 ## 进度快照（2026-06）
 
@@ -13,10 +14,11 @@
 | 3 跨平台 | ✅ | 三平台 imgui natives + CI JNI 烟雾测试 |
 | 4.1 三层边界 | ✅ | 文档 + 禁止播放层读分析轨 |
 | 4.2 草稿生成器 | ✅ | `TimelineDraftWriter` 统一 AutoMap / Renderer / BindingEngine / TimelineBuilder；`eventOrigin` + 合并动画缓存 |
+| 4.3 相机轨 UI 对齐 | 🟡 | 共享 layout/播放头/hover/对齐线 ✅；验收单测与相机吸附待补 |
 | 4.4 维度化效果 | ✅ | `BlockInfluencePresets` + `BlockInfluenceEvaluator` + `VfxEmitter` |
-| 4.5 生成式 STEP | ✅ | `PacingStrategy` + `StepSequencePlanner`；调度/烘焙展开；UI「烘焙 STEP」；Timeline 不再需存 `dispatchModel=STEP` |
-| 5 测试 | 🟡 | influence / pacing（`StepSequencePlanner`）单测已加；`DistancePacing`、AutoMap 映射测试待补 |
-| 6 工程化 | 🟡 | 音频分析已拆；UI 编辑/拖拽已走 Command（Phase A–D）；Demucs requirements 说明待补 |
+| 4.5 生成式 STEP | ✅ | `PacingStrategy` + `StepSequencePlanner`；调度/烘焙展开；UI「烘焙 STEP」 |
+| 5 测试 | 🟡 | 核心引擎/AutoMap/OscProjectStore 单测 ✅；Lasso/Brush 集成、JaCoCo 基线待补 |
+| 6 工程化 | 🟡 | 音频分析已拆 ✅；Timeline 交互/渲染/helper 已拆 ✅；**`AudioAnalysisPanel` ImGui 待拆**；Demucs requirements 说明待补 |
 
 ---
 
@@ -118,7 +120,18 @@ runtimeOnly "io.github.spair:imgui-java-natives-macos:1.86.11"
 
 ### 4.3 相机轨道与方块事件轨道平级
 
-现状 `CameraDirector`、`TimelineCameraController` 与方块动画相关类是分开的两条逻辑线。改造目标：
+> **状态（2026-06）**: 🟡 **大部分已落地**，待验收闭环。
+
+| 项 | 状态 |
+|---|---|
+| 同一 `TimelineLayout`、共享播放头 | ✅ |
+| 相机关键帧轨渲染与编辑 | ✅ `EventRenderer`、`TimelineInteraction`、`TrackRenderer` |
+| 相机↔动画/Build Reverse hover 联动 | ✅ `TimelineRowHoverHighlighter` |
+| 对齐辅助线 | ✅ `InteractionState.alignmentGuideTimes` |
+| 时间单位（秒）一致 | ✅ 代码层一致；缺单测 |
+| 相机关键帧 Snap 覆盖 | 🟡 待确认 |
+
+改造目标（原文）：
 
 - 在 Timeline 编辑器 UI（`TimelinePanel`）里，相机关键帧轨道和方块事件轨道应该在同一个时间刻度上左右对齐显示、可以同时拖拽编辑、共享同一个播放头（playhead）。
 - 检查 `CameraKeyframe` 与 `TimelineAnimationEvent` 当前是否共享同一套"时间单位"（采样率/精度一致），确保两条轨道在时间轴上严格对齐，不存在"方块用毫秒、相机用 tick"这种隐性不一致。
@@ -192,7 +205,7 @@ interface PacingStrategy {
 | `PacingStrategy` + `StepSequencePlanner` | ✅ | `timeline/generation/` |
 | 烘焙进 Timeline | ✅ | `StepSequenceBaker`、`StepBurstEventFactory`；UI「烘焙 STEP」 |
 | 统一草稿写入 + Undo | ✅ | `TimelineDraftWriter` |
-| 单测 | 🟡 | `StepSequencePlanner` / `DistancePacing` / `StepBurstEventFactory`；AutoMap 映射待补 |
+| 单测 | ✅ | `StepSequencePlanner` / `DistancePacing` / `StepBurstEventFactory` / `AutoMapGenerator` / `OscProjectStore` 等 |
 | **理想态**：文件里只有 N 个普通事件 | 🟡 | 需用户点「烘焙 STEP」；未烘焙时 Timeline 仍可存 `dispatchModel=STEP` |
 | **过渡态**：调度时展开 | 🟡 | `BlockAnimationEngine.scheduleExpandedStepSequence` 在**首次调度**时用同一 planner 展开（无状态机，但非持久化） |
 | `DistancePacing` | ✅ | `pacingMode=DISTANCE` + 路径累加；UI「跳跃距离」 |
@@ -236,10 +249,11 @@ interface PacingStrategy {
 
 优先级低于以上，可以穿插进行：
 
-1. ~~拆分 `AudioAnalysisService.java`（目前 1300+ 行）~~ ✅ 已拆：`FfmpegLocator` / `FfmpegPcmDecoder`、`PythonAudioAnalyzer`（`IAudioAnalyzer`）、`AudioAnalysisOrchestrator`、`PythonRuntimeHealthMonitor`；`AudioAnalysisService` 为门面。
-2. ~~UI 属性编辑解耦（`EventPropertiesPanel` / `TimelineInteraction`）~~ ✅ Phase A–D：`AnimationEventPropertiesEditor`、`CameraEventPropertiesEditor`、`GenericEventPropertiesEditor` + `UpdateAnimationEventCommand` / `MoveEventCommand` / `ApplyClipDragCommand` + `TimelineEventEditActions`；属性面板、内联弹窗、事件/片段拖拽均支持 Undo。待办：`AudioAnalysisPanel` 解耦。
-3. `analyzer/requirements.txt` 补充说明 `--demucs` 模式所需的可选依赖（`demucs`、`torch`），即使不写进硬性 `requirements.txt`（避免强制所有用户装大体积的 torch），也应该在文件里用注释或单独的 `requirements-demucs.txt` 说明。
-4. 补 README：项目简介、构建方式、依赖要求、三种核心使用场景的截图/简述（直接用你刚描述的"建造过程/跑酷敲击/镜头跟随"这三段话就是很好的素材）。
+1. ~~拆分 `AudioAnalysisService.java`（目前 1300+ 行）~~ ✅ 已拆：`FfmpegService`、`PythonAudioAnalyzer`（`IAudioAnalyzer`）、`AudioAnalysisOrchestrator`、`PythonRuntimeHealthMonitor`；`AudioAnalysisService` 为门面。
+2. ~~UI 属性编辑 / Timeline 交互渲染解耦~~ ✅ `EventPropertiesPanel` + Presenter；`TimelineInteraction` Phase 1–4；`TimelineRenderer` R1–R5+。**待办：`AudioAnalysisPanel` ImGui 块拆分**（~1575 行，Presenter 已接入）。
+3. ~~Timeline Toolbar Presenter 化~~ ✅ `Timeline*Presenter` + `Timeline*Controls`（~175 行门面）。
+4. `analyzer/requirements.txt` 补充说明 `--demucs` 模式所需的可选依赖（`demucs`、`torch`），即使不写进硬性 `requirements.txt`（避免强制所有用户装大体积的 torch），也应该在文件里用注释或单独的 `requirements-demucs.txt` 说明。
+5. 补 README：项目简介、构建方式、依赖要求、三种核心使用场景的截图/简述（直接用你刚描述的"建造过程/跑酷敲击/镜头跟随"这三段话就是很好的素材）。
 
 ---
 
@@ -258,4 +272,4 @@ interface PacingStrategy {
                        阶段 6（收尾工程化）
 ```
 
-阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。剩余收尾：**4.3 相机轨 UI 对齐**、**AutoMap 单测**、阶段 6 README / Demucs 说明。
+阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。**下一批收尾**：4.3 验收闭环、**`AudioAnalysisPanel` ImGui 拆分**、JaCoCo/SpotBugs 基线、阶段 6 README / Demucs 说明。

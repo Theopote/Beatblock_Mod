@@ -1,6 +1,7 @@
 # BeatBlock 项目优化建议报告
 
 > **生成日期**: 2026-06-21  
+> **最近复核**: 2026-06-24（Timeline R5+、Presenter/DI、测试与文档对齐）  
 > **分析范围**: 架构设计、代码质量、性能优化、工程化实践  
 > **项目版本**: v1.0.0 (基于 commit ab40941)
 
@@ -32,9 +33,9 @@
 - ✅ 影响维度系统设计优雅（EXISTENCE/TRANSFORM/APPEARANCE/VFX）
 
 **待改进领域**:
-- ⚠️ 测试覆盖率不足（部分核心模块缺少单元测试）
-- ⚠️ 部分模块职责边界模糊（需进一步解耦）
-- ⚠️ 性能优化空间（大规模方块动画、音频处理）
+- ⚠️ **UI ImGui 体量**（`AudioAnalysisPanel` ~1575 行；Presenter 已有，Panel 待拆）
+- ⚠️ **可度量基线**未建（JaCoCo 行覆盖、JMH 性能基准）
+- ⚠️ 选区 Lasso/Brush 集成测试仍少
 - ⚠️ 错误处理和用户反馈机制待完善
 - ⚠️ 配置管理和扩展性有提升空间
 
@@ -42,11 +43,11 @@
 
 | 指标 | 当前值 | 目标值 | 优先级 |
 |------|--------|--------|--------|
-| 重构完成度 | ~85% | 100% | 高 |
-| 单元测试覆盖率 | ~30% | 70%+ | 高 |
-| 代码复杂度（待评估） | - | 降低20% | 中 |
-| 文档完整性 | 85% | 95% | 中 |
-| 性能基准（待建立） | - | 建立基线 | 高 |
+| 重构完成度 | ~92% | 100% | 高 |
+| 单元测试 | **197** 个测试类（`./gradlew test` 通过） | 70%+ 行覆盖 | 高 |
+| 代码复杂度 | Timeline/Selection 大类已拆 | 降低 20% | 中 |
+| 文档完整性 | ~90% | 95% | 中 |
+| 性能基准 | **未建立**（无 JMH / JaCoCo） | 建立基线 | 中 |
 
 ---
 
@@ -58,58 +59,47 @@
 
 #### 2.1.1 阶段 4.3：相机轨道与方块事件轨道对齐
 
-**现状**: 相机系统与方块动画系统在 UI 层存在分离
+**现状（2026-06 复核）**: UI 层已基本统一；剩余为验收级 polish。
 
-**优化建议**:
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 同一 `TimelineLayout` / 播放头 | ✅ | `TimelinePanel` + `TimelineEditor` 共享标尺与 playhead |
+| 相机关键帧轨渲染 | ✅ | `EventRenderer.renderCameraKeyframeRow`、`TrackRenderer` 关键帧按钮 |
+| 相机↔动画行 hover 联动 | ✅ | `TimelineRowHoverHighlighter.drawActionCameraHoverHighlight` |
+| 对齐辅助线 | ✅ | `InteractionState.alignmentGuideTimes` + `TimelineRenderer.drawAlignmentGuides` |
+| 跨轨吸附覆盖相机关键帧 | 🟡 | 事件/片段吸附已有；相机关键帧专用吸附待确认 |
+| 时间单位一致性单测 | 🟡 | `CameraKeyframe` / `TimelineAnimationEvent` 均用秒；缺显式回归测试 |
+
+**剩余工作**（约 0.5–1 天）:
 ```
-优先级: 🔴 高
-工作量: 中（3-5天）
-
-改进方案:
-1. 在 TimelinePanel 中统一时间刻度显示
-2. 相机关键帧轨道与方块动画轨道共享同一播放头
-3. 确保时间单位（毫秒/tick）的一致性
-4. 实现轨道间的可视化对齐辅助线
-
-技术要点:
-- 重构 TimelineEditor.renderTrackArea() 以支持统一布局
-- CameraKeyframe 与 TimelineAnimationEvent 使用相同的时间精度
-- 添加跨轨道的时间标记吸附功能
+1. 编写 4.3 验收清单单测（时间精度、关键帧与事件同刻度）
+2. 确认相机关键帧拖拽是否参与 SnapSystem
+3. 通过后 REFACTOR_ROADMAP 4.3 标 ✅
 ```
-
-**收益**: 
-- 提升编辑体验，方便创作者精确对齐相机运动与方块动画
-- 减少因时间单位不一致导致的对齐误差
 
 ---
 
 #### 2.1.2 阶段 5：测试覆盖完善
 
-**现状**: 
-- ✅ 已有：`StepSequencePlanner`、`DistancePacing`、`BlockInfluenceEvaluator` 单元测试
-- ⚠️ 缺失：AutoMap 映射逻辑、复杂选区算法、建造序列器测试
+**现状（2026-06 复核）**:
 
-**优化建议**:
+| 模块 | 状态 | 测试类 |
+|---|---|---|
+| `StepSequencePlanner` / `DistancePacing` | ✅ | `StepSequencePlannerTest`、`DistancePacingTest` |
+| `BlockInfluenceEvaluator` | ✅ | `BlockInfluenceEvaluatorTest` 等 |
+| `BuildSequencer` | ✅ | `BuildSequencerTest` |
+| `AnimationPlayer` | ✅ | `AnimationPlayerTest` |
+| `BlockControlExecutor` | ✅ | `BlockControlExecutorTest` |
+| `AutoMapGenerator` | ✅ | `AutoMapGeneratorTest` |
+| `OscProjectStore` | ✅ | `OscProjectStoreTest` |
+| `BeatBlockSelectionManager` | 🟡 | `BeatBlockSelectionManagerTest` + `collect/*` / `tools/*`；Lasso/Brush 端到端仍少 |
+| Timeline / Interaction / Rendering | ✅ | `com.beatblock.timeline.*` 大量单测（含 R1–R5 helper） |
+
+**仍待补充**（优先级 🟡 中）:
 ```
-优先级: 🔴 高
-工作量: 大（1-2周）
-
-需补充的测试模块:
-1. AutoMapGenerator 测试套件
-   - 测试不同 feature key 到 animation type 的映射规则
-   - 边界条件：空 timeline、零能量事件、超长时间
-   
-2. BeatBlockSelectionManager 测试
-   - 各种选区模式的正确性（box、lasso、brush、magic wand）
-   - 边界检查：超大选区、空选区、重叠选区
-   
-3. BuildSequencer 集成测试
-   - 不同 BuildSequenceMode 的排序一致性
-   - 时间戳计算精度验证
-   
-4. Timeline 持久化测试 (OscProjectStore)
-   - 序列化/反序列化往返一致性
-   - 向后兼容性（v1 → v2 升级）
+1. 选区：Lasso / Brush 完整 stroke 生命周期集成测试
+2. 集成：导入音频 → 分析 → 选区 → 播放 端到端（§5.2）
+3. JaCoCo 行覆盖率基线（当前无数值，仅测试类计数）
 ```
 
 ---
@@ -118,88 +108,48 @@
 
 #### 2.2.1 音频处理模块解耦
 
-**现状**: `AudioAnalysisService` 承担了过多职责（已部分拆分）
+**现状（2026-06 复核）**: 主干已落地；`AudioAnalysisService` 为门面。
 
 **当前结构**:
 ```
-AudioAnalysisService (任务调度)
-  ├── PythonEnvironmentDiagnostics (环境检测)
-  ├── BeatmapAnalysisCache (缓存管理)
-  └── AnalyzerProcessIo (进程通信)
+AudioAnalysisService (门面)
+  ├── AudioAnalysisOrchestrator ✅ (任务生命周期、并发)
+  ├── IAudioAnalyzer / PythonAudioAnalyzer ✅
+  ├── FfmpegService ✅ (MusicPlayer / StemMixer / AudioConversionService 共用)
+  ├── PythonEnvironmentDiagnostics
+  └── BeatmapAnalysisCache / AnalyzerProcessIo
 ```
 
-**优化建议**:
-```
-优先级: 🟡 中
-工作量: 中（5-7天）
+| 项 | 状态 |
+|---|---|
+| `AudioAnalysisOrchestrator` | ✅ 已落地 |
+| `FfmpegService` | ✅ 已落地 |
+| `IAudioAnalyzer` | ✅ 已落地 |
+| `JavaNativeAnalyzer` / 远程 API | ⏸ 未来扩展 |
 
-进一步拆分:
-1. 创建 AudioAnalysisOrchestrator
-   - 统一调度分析任务的生命周期
-   - 管理多任务并发与取消
-   
-2. 独立 FfmpegService
-   - 从 AudioConversionService 和 MusicPlayer 中提取共用的 ffmpeg 逻辑
-   - 统一 ffmpeg 路径解析、版本检测、进程调用
-   
-3. 抽象 IAudioAnalyzer 接口
-   - 支持未来替代 Python 分析器（如 Java 原生实现、远程 API）
-   - 便于单元测试 mock
-```
-
-**代码示例**:
-```java
-// 新接口设计
-public interface IAudioAnalyzer {
-    Future<Beatmap> analyze(Path audioPath, AnalysisOptions options);
-    boolean isAvailable();
-    String getVersion();
-}
-
-public class PythonAudioAnalyzer implements IAudioAnalyzer {
-    // 当前 Python 调用逻辑
-}
-
-// 未来可扩展
-public class JavaNativeAnalyzer implements IAudioAnalyzer { ... }
-public class RemoteApiAnalyzer implements IAudioAnalyzer { ... }
-```
+**剩余（低优先级）**:
+- `AudioAnalysisPanel` ImGui 块拆分（~1575 行，Presenter 已接入但 Panel 仍过大）
+- `requirements-demucs.txt` 可选依赖说明（见 REFACTOR_ROADMAP 阶段 6）
 
 ---
 
 #### 2.2.2 UI 与业务逻辑分离
 
-**现状**: 部分 UI Panel 包含业务逻辑
+**现状（2026-06 复核）**: Presenter 层已覆盖主要 Panel；**下一批债务在 ImGui 体量**。
 
-**问题示例**:
-- `EventPropertiesPanel` 直接操作 Timeline 数据
-- `BuildLayersPanel` 包含图层管理逻辑
+| Panel / 区域 | Presenter | Panel 行数 | 状态 |
+|---|---|---|---|
+| `LayerPanel` | `BuildLayersPresenter` | ~190 | ✅ |
+| `EventPropertiesPanel` | `EventPropertiesPresenter` | ~924 | 🟡 业务已抽，ImGui 仍大 |
+| `SelectionPropertiesPanel` | `SelectionPropertiesPresenter` | — | ✅ |
+| `ToolPanel` | `ToolPanelPresenter` | ~280 | ✅ |
+| `TimelinePanel` / Toolbar | 多个 `Timeline*Presenter` | Toolbar ~175 | ✅ |
+| `MarkerPanel` / `MenuBarPanel` | 对应 Presenter | — | ✅ |
+| `AutoMapSettingsPanel` | `AutoMapSettingsPanelPresenter` | — | ✅ |
+| `AudioAnalysisPanel` | `AudioAnalysisPanelPresenter` | **~1575** | 🔄 Presenter 有，Panel 待拆 ImGui 块 |
+| `AnimationLibraryPanel` | — | ~32 | 占位 UI，无业务 |
 
-**优化建议**:
-```
-优先级: 🟡 中
-工作量: 中（3-5天）
-
-重构方案:
-1. 引入 Presenter/ViewModel 层
-   - EventPropertiesPresenter：处理事件属性变更逻辑
-   - BuildLayersPresenter：管理图层操作命令
-   
-2. UI Panel 只负责：
-   - 渲染 ImGui 控件
-   - 接收用户输入
-   - 调用 Presenter 方法
-   
-3. Presenter 负责：
-   - 数据验证
-   - 业务规则执行
-   - Command 封装与提交
-```
-
-**收益**:
-- UI 层可独立测试（通过 mock Presenter）
-- 业务逻辑可脱离 ImGui 进行单元测试
-- 更容易支持未来的 Web UI 或其他界面技术
+**下一推荐**: 参照 `TimelineToolbar` → `Timeline*Controls` 模式，拆 `AudioAnalysisPanel` 子控件。
 
 ---
 
@@ -324,7 +274,7 @@ public class UpdateEventParameterCommand implements MergeableCommand {
 
 ### 2.5 依赖注入与可测试性
 
-**现状**: 大量使用静态方法和单例模式
+**现状（2026-06 复核）**: 第一阶段已落地；legacy 静态字段作过渡桥接。
 
 **问题**:
 - `BeatBlock.getActiveAudioPlayer()` 静态访问
@@ -415,12 +365,29 @@ void testTick() {
 
 | 类名 | 当前行数 | 状态 | 优化建议 |
 |------|----------|------|----------|
-| `BeatBlockSelectionManager` | ~720 → ~568 | ✅ Phase 3 | `SelectionToolRegistry` + `tools/*` 点击分发；`collect/*` + `SelectionFeedback`；门面 `get()` 不变 |
-| `TimelineInteraction` | ~1816 → ~724 | ✅ Phase 4 | Phase 1–4 helper 拆出；主类保留 update 状态机 |
-| `TimelineRenderer` | ~1897 → ~344 | ✅ R5+ | R1–R5 helper 拆出 + 行标签/hover/配对可见性/音频组高亮 |
-| `MusicPlayer` | ~787 → ~470 | ✅ 已拆 | `playback/StreamMusicBackend`、`OpenAlMusicBackend`、`JavaSoundMixerSupport`；Clip 仍留门面 |
-| `BlockAnimationEngine` | ~397 | ✅ 已门面化 | 子系统已抽出（`BuildSequencer`、`AnimationPlayer` 等），暂无需再拆 |
-| `TimelineEditor` | ~384 | ✅ 已协调层 | 交互/渲染已委托 `TimelineInteraction` / `TimelineRenderer`，本身不必再动 |
+| `BeatBlockSelectionManager` | ~720 → ~568 | ✅ Phase 3 | `SelectionToolRegistry` + `tools/*` + `collect/*` |
+| `TimelineInteraction` | ~1816 → ~671 | ✅ Phase 4 | Phase 1–4 helper 拆出；主类保留 update 状态机 |
+| `TimelineRenderer` | ~1897 → ~299 | ✅ R5+ | R1–R5 + `TimelineRowLabelResolver` / hover / 配对可见性 |
+| `MusicPlayer` | ~787 → ~468 | ✅ 已拆 | `playback/*` backend；Clip 仍留门面 |
+| `BlockAnimationEngine` | ~397 | ✅ 已门面化 | 子系统已抽出，暂无需再拆 |
+| `TimelineEditor` | ~384 | ✅ 已协调层 | 交互/渲染已委托，本身不必再动 |
+
+**下一批关注（UI 层，非 3.1.1 原表）**:
+
+| 类名 | 行数 | 建议 |
+|------|------|------|
+| `AudioAnalysisPanel` | ~1575 | 拆 ImGui 子控件（Presenter 已有） |
+| `EventPropertiesPanel` | ~924 | 可选：拆动画/相机编辑器块 |
+| `TimelineAnimationFeatureMapper` | ~523 | R1 拆出，体量可接受 |
+
+**TimelineRenderer 已拆 helper（R1–R5+）**:
+
+- R1 `TimelineAnimationFeatureMapper`
+- R2 `TimelineAudioDropHandler` / `TimelineAudioFeatureFillSupport` / `TimelineAudioDropHost`
+- R3 `TimelineDenseFeatureApplier`
+- R4 `TimelineStemMuteSync`
+- R5 `TimelineRowContentRenderer`
+- R5+ `TimelineRowLabelResolver` / `TimelineRowHoverHighlighter` / `TimelinePairedFeatureLaneSync` / `TimelineFeatureLaneIndex` / `TimelineAudioGroupDropHighlight`
 
 **已拆出的选区 helper（`com.beatblock.selection`）**:
 
@@ -495,51 +462,15 @@ public final class BeatBlockSelectionManager {
 
 #### 3.1.2 方法复杂度优化
 
-**高复杂度方法识别**:
+**`BlockAnimationEngine.scheduleTimelineEvent`（2026-06 复核）**
 
-```java
-// 示例：BlockAnimationEngine.scheduleTimelineEvent 方法过长
-// 当前：~150行，包含多个分支逻辑
+| 项 | 原建议 | 现状 |
+|---|---|---|
+| 入口方法行数 | ~150 行，需 SchedulingStrategy | **~7 行**，仅分发 `ANIMATE` → `scheduleAnimateEvent` |
+| 复杂逻辑位置 | 单方法 if-else | 已分散至 `scheduleExpandedStepSequence`、`scheduleFromTimelineEventWithSpatial` 等私有方法 |
+| 策略模式 | 推荐立即做 | **⏸ 暂缓** — 仅当恢复 BUILD/PLACE 等多 `ActionMode` 分支时再引入 |
 
-优化方案:
-1. 提取 SchedulingStrategy 接口
-   - AnimateSchedulingStrategy (ANIMATE mode)
-   - BuildSchedulingStrategy (BUILD mode)
-   - ControlSchedulingStrategy (PLACE/CLEAR/DESTROY)
-   
-2. 使用策略模式替代 if-else 分支
-   
-3. 每个策略类专注单一职责，方法行数<50行
-```
-
-**重构后**:
-```java
-public class BlockAnimationEngine {
-    private Map<TimelineAnimationActionMode, SchedulingStrategy> strategies;
-    
-    public void scheduleTimelineEvent(TimelineAnimationEvent event) {
-        SchedulingStrategy strategy = strategies.get(event.getActionMode());
-        if (strategy == null) {
-            LOGGER.warn("No strategy for action mode: {}", event.getActionMode());
-            return;
-        }
-        
-        strategy.schedule(event, this);
-    }
-}
-
-interface SchedulingStrategy {
-    void schedule(TimelineAnimationEvent event, BlockAnimationEngine engine);
-}
-
-class AnimateSchedulingStrategy implements SchedulingStrategy {
-    @Override
-    public void schedule(TimelineAnimationEvent event, BlockAnimationEngine engine) {
-        // 专注处理 ANIMATE 模式
-        // 代码行数控制在50行以内
-    }
-}
-```
+**结论**: 文档原示例已过时；当前优先级低于 `AudioAnalysisPanel` ImGui 拆分。若需进一步瘦身，可单独抽 `StepSequenceSchedulingSupport`（纯函数），不必上完整 Strategy 框架。
 
 ---
 
@@ -763,6 +694,8 @@ try (AudioResourceCleanup cleanup = new AudioResourceCleanup()) {
 ### 3.4 并发安全性
 
 #### 3.4.1 线程安全问题识别
+
+**状态（2026-06 复核）**: ⏸ **建议仍有效，代码未系统落地** — 无 `ThreadAssert`、`TimelineSnapshot`；`AudioAnalysisOrchestratorTest` 覆盖部分并发场景。
 
 **潜在风险点**:
 1. `Timeline` 在客户端线程读取，服务端线程可能写入（BuildSequencer）
@@ -1152,11 +1085,14 @@ List<TimelineAnimationEvent> events = PerformanceMonitor.measure(
 
 | 模块 | 测试内容 | 预计用例数 | 状态 |
 |------|----------|------------|------|
-| BlockInfluenceEvaluator | 各通道求值正确性 | 15+ | ✅ 已有 |
-| StepSequencePlanner | 时间戳生成算法 | 10+ | ✅ 已有 |
-| BuildSequencer | 排序模式正确性 | 8+ | ⚠️ 待补充 |
-| AnimationPlayer | 实例生命周期管理 | 6+ | ❌ 缺失 |
-| BlockControlExecutor | 方块变更计划 | 8+ | ❌ 缺失 |
+| BlockInfluenceEvaluator | 各通道求值正确性 | 15+ | ✅ `BlockInfluenceEvaluatorTest` 等 |
+| StepSequencePlanner | 时间戳生成算法 | 10+ | ✅ `StepSequencePlannerTest` |
+| BuildSequencer | 排序模式正确性 | 8+ | ✅ `BuildSequencerTest` |
+| AnimationPlayer | 实例生命周期管理 | 6+ | ✅ `AnimationPlayerTest` |
+| BlockControlExecutor | 方块变更计划 | 8+ | ✅ `BlockControlExecutorTest` |
+| AutoMapGenerator | feature → 动画映射 | 8+ | ✅ `AutoMapGeneratorTest` |
+| OscProjectStore | 序列化往返 | 6+ | ✅ `OscProjectStoreTest` |
+| BeatBlockSelectionManager | 选区模式 | 10+ | 🟡 基础 + collect/tools 有；Lasso/Brush 集成少 |
 
 **测试模板**:
 ```java
@@ -1198,7 +1134,9 @@ void testBuildSequencer_horizontalMode_sortsCorrectly() {
 
 #### 5.1.2 AutoMap 测试
 
-**优先级**: 🔴 高
+**状态**: ✅ 已落地 — 见 `src/test/java/com/beatblock/automap/AutoMapGeneratorTest.java`。
+
+以下为历史示例（保留作参考）:
 
 ```java
 @Test
@@ -1251,7 +1189,10 @@ void testAutoMapGenerator_beatsToJumpAnimation() {
 
 #### 5.3.1 基准测试套件
 
-**优先级**: 🟡 中
+**优先级**: 🟡 中  
+**状态**: ⏸ **未集成** — 文档附录列 JMH，但 `build.gradle` 无 JMH 依赖，无 `*Benchmark*` 类。
+
+建议首次落地时选 2–3 个热点：`BlockInfluenceEvaluator.applyPreset`、`Timeline` 事件查询、`StepSequencePlanner.plan`。
 
 ```java
 @Benchmark
@@ -1345,7 +1286,9 @@ org.gradle.parallel=true
 
 #### 6.2.1 持续集成增强
 
-**优先级**: 🟡 中
+**优先级**: 🟡 中  
+**现状**: ✅ 已有 `.github/workflows/build.yml`（Ubuntu + `./gradlew build`，含测试与 natives 校验）。  
+**待增强**: 多 OS 矩阵、JaCoCo 报告上传、SpotBugs 门禁（见 §6.3）。
 
 ```yaml
 # .github/workflows/ci.yml（建议）
@@ -1400,6 +1343,8 @@ jobs:
 ### 6.3 代码质量工具
 
 #### 6.3.1 静态分析
+
+**状态（2026-06 复核）**: ⏸ **未接入** — `build.gradle` 无 Checkstyle / PMD / SpotBugs；CI（`.github/workflows/build.yml`）仅 `./gradlew build`。
 
 **优化建议**:
 ```
@@ -1625,14 +1570,14 @@ public class PathValidator {
 
 **时间**: 2-3周
 
-1. ✅ 完成阶段 4.3：相机轨道对齐
-2. ✅ 补充核心模块单元测试
-3. ✅ 建立性能基准测试
-4. ✅ 添加线程安全检查
+1. 🟡 完成阶段 4.3：相机轨道对齐（UI 已统一，验收单测待补）
+2. ✅ 补充核心模块单元测试（197 测试类，`./gradlew test` 通过）
+3. ⏸ 建立性能基准测试（JMH 未接入）
+4. ⏸ 添加线程安全检查（`ThreadAssert` 等未实现；见 §3.4）
 
 **验收标准**:
-- 测试覆盖率达到 60%+
-- 所有重构阶段完成
+- JaCoCo 行覆盖率基线（目标 60%+，**当前未度量**）
+- Timeline / Selection / Renderer 大类拆分完成 ✅
 - 无已知的高优先级 bug
 
 ---
@@ -1641,13 +1586,13 @@ public class PathValidator {
 
 **时间**: 2-3周
 
-1. ✅ 大规模方块渲染优化
-2. ✅ Timeline 查询优化
-3. ✅ 异常层次重构
-4. ✅ 资源清理审查
+1. 🟡 大规模方块渲染优化（持续调优，无 JMH 基线）
+2. 🟡 Timeline 查询优化（子轨脏检测等已做，缺基准数据）
+3. 🟡 异常层次重构（部分落地，未全面审计）
+4. 🟡 资源清理审查（`TimelineRenderer.shutdown`、分析线程等已做，需定期复查）
 
 **验收标准**:
-- 1000+ 方块场景保持 60 FPS
+- 1000+ 方块场景保持 60 FPS（**需实测记录**）
 - 无内存泄漏
 - 错误恢复机制完善
 
@@ -1659,10 +1604,10 @@ public class PathValidator {
 
 **时间**: 4-6周
 
-1. 🔄 模块解耦（音频、UI/业务）
-2. 🔄 依赖注入重构
-3. 🔄 命令模式增强
-4. 🔄 性能监控系统
+1. 🟡 模块解耦（音频 ✅；**UI ImGui 块** — `AudioAnalysisPanel` 待拆）
+2. ✅ 依赖注入重构（`BeatBlockContext` + Presenter；legacy 静态桥接保留）
+3. ✅ 命令模式增强（Merge + Undo 清空已落地；Macro 暂缓）
+4. ⏸ 性能监控系统（JMH / 运行时指标未建）
 
 ---
 
@@ -1705,6 +1650,15 @@ public class PathValidator {
 ---
 
 ### 9.5 实施建议
+
+**下一批推荐（2026-06-24）**:
+
+1. **`AudioAnalysisPanel` ImGui 拆分** — 当前最大单体
+2. **4.3 验收闭环** — 相机轨 Snap/单测，然后 REFACTOR 4.3 标 ✅
+3. **JaCoCo 或 SpotBugs 接入 CI** — 让质量目标可度量
+4. **文档** — 阶段 6 README / Demucs requirements 说明
+
+---
 
 1. **敏捷迭代**: 每 2 周一个 Sprint，每个 Sprint 聚焦 1-2 个高优先级任务
 
