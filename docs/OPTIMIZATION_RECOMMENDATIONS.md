@@ -34,7 +34,7 @@
 
 **待改进领域**:
 - ⚠️ **`EventPropertiesPanel` ImGui 体量**（~924 行；Presenter 已有）
-- ⚠️ **可度量基线**未建（JaCoCo 行覆盖、JMH 性能基准）
+- ⚠️ **可度量基线**：JaCoCo 行覆盖 **~36%**（基线已建）；JMH 性能基准仍缺
 - ⚠️ 选区 Lasso/Brush 集成测试仍少
 - ⚠️ 错误处理和用户反馈机制待完善
 - ⚠️ 配置管理和扩展性有提升空间
@@ -44,10 +44,10 @@
 | 指标 | 当前值 | 目标值 | 优先级 |
 |------|--------|--------|--------|
 | 重构完成度 | ~92% | 100% | 高 |
-| 单元测试 | **197** 个测试类（`./gradlew test` 通过） | 70%+ 行覆盖 | 高 |
+| 单元测试 | **197** 个测试类（`./gradlew test` 通过）；JaCoCo 行覆盖 **~36%** | 70%+ 行覆盖 | 高 |
 | 代码复杂度 | Timeline/Selection 大类已拆 | 降低 20% | 中 |
 | 文档完整性 | ~90% | 95% | 中 |
-| 性能基准 | **未建立**（无 JMH / JaCoCo） | 建立基线 | 中 |
+| 性能基准 | JaCoCo ✅ / SpotBugs ✅（CI 上传报告）；JMH 未建立 | 建立 JMH 基线 | 中 |
 
 ---
 
@@ -100,7 +100,7 @@
 ```
 1. 选区：Lasso / Brush 完整 stroke 生命周期集成测试
 2. 集成：导入音频 → 分析 → 选区 → 播放 端到端（§5.2）
-3. JaCoCo 行覆盖率基线（当前无数值，仅测试类计数）
+3. JaCoCo 行覆盖率基线 ✅（~36%，2026-06-24）
 ```
 
 ---
@@ -1288,7 +1288,7 @@ org.gradle.parallel=true
 
 **优先级**: 🟡 中  
 **现状**: ✅ 已有 `.github/workflows/build.yml`（Ubuntu + `./gradlew build`，含测试与 natives 校验）。  
-**待增强**: 多 OS 矩阵、JaCoCo 报告上传、SpotBugs 门禁（见 §6.3）。
+**待增强**: 多 OS 矩阵、JMH 基准（JaCoCo / SpotBugs 报告上传 ✅，见 §6.3）。
 
 ```yaml
 # .github/workflows/ci.yml（建议）
@@ -1344,9 +1344,17 @@ jobs:
 
 #### 6.3.1 静态分析
 
-**状态（2026-06 复核）**: ⏸ **未接入** — `build.gradle` 无 Checkstyle / PMD / SpotBugs；CI（`.github/workflows/build.yml`）仅 `./gradlew build`。
+**状态（2026-06-24）**: ✅ **JaCoCo + SpotBugs 已接入** — `build.gradle` 含 `jacoco` 插件与 `spotbugsMain` 任务（SpotBugs 4.10.2 CLI，兼容 Java 25）；CI（`.github/workflows/build.yml`）`./gradlew build` 含 `check` → 测试 + 覆盖率报告 + 静态分析，并上传 `quality-reports` artifact。
 
-**优化建议**:
+**基线（2026-06-24 本地 `./gradlew check`）**:
+- JaCoCo 行覆盖（`com.beatblock/**`）：**~36%**（7,414 / 20,787 行）
+- SpotBugs（medium+）：**293** 条（High 20 / Medium 273）；当前为**报告模式**（未设 `-exitcode` 门禁）
+
+**本地查看**:
+- 覆盖率：`build/reports/jacoco/test/html/index.html`
+- 静态分析：`build/reports/spotbugs/main/index.html`
+
+**优化建议**（Checkstyle / PMD 仍可选）:
 ```
 优先级: 🟡 中
 工作量: 小（2-3天）
@@ -1365,30 +1373,22 @@ jobs:
    - 复杂度、命名等
 ```
 
-**build.gradle 配置**:
+**build.gradle 配置（节选，当前已落地）**:
 ```groovy
 plugins {
-    id 'checkstyle'
-    id 'pmd'
-    id 'com.github.spotbugs' version '6.0.9'
+    id 'jacoco'
 }
 
-checkstyle {
-    toolVersion = '10.12.0'
-    configFile = file('config/checkstyle/checkstyle.xml')
+jacoco {
+    toolVersion = '0.8.12'
 }
 
-pmd {
-    toolVersion = '6.55.0'
-    ruleSets = []
-    ruleSetFiles = files('config/pmd/ruleset.xml')
-}
-
-spotbugs {
-    effort = 'max'
-    reportLevel = 'medium'
-}
+// spotbugsMain：JavaExec + Maven Central spotbugs:4.10.2（Java 25 字节码）
+// 过滤：config/spotbugs/exclude.xml
+// check.dependsOn jacocoTestReport, spotbugsMain
 ```
+
+**可选后续（Checkstyle / PMD 示例）**:
 
 ---
 
@@ -1576,7 +1576,7 @@ public class PathValidator {
 4. ⏸ 添加线程安全检查（`ThreadAssert` 等未实现；见 §3.4）
 
 **验收标准**:
-- JaCoCo 行覆盖率基线（目标 60%+，**当前未度量**）
+- JaCoCo 行覆盖率基线：**~36%**（2026-06-24；目标 60%+）
 - Timeline / Selection / Renderer 大类拆分完成 ✅
 - 无已知的高优先级 bug
 
@@ -1654,7 +1654,7 @@ public class PathValidator {
 **下一批推荐（2026-06-24）**:
 
 1. ~~**4.3 验收闭环**~~ ✅ — `CameraTrackAlignmentAcceptanceTest`
-2. **JaCoCo 或 SpotBugs 接入 CI** — 让质量目标可度量
+2. ~~**JaCoCo / SpotBugs 接入 CI**~~ ✅ — `./gradlew check` + `quality-reports` artifact
 3. **文档** — 阶段 6 README / Demucs requirements 说明
 4. **`EventPropertiesPanel` ImGui 拆分**（可选，~924 行）
 

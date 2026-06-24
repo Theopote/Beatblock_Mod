@@ -17,7 +17,7 @@
 | 4.3 相机轨 UI 对齐 | ✅ | 共享 layout/播放头/hover/对齐线/Snap；`CameraTrackAlignmentAcceptanceTest` |
 | 4.4 维度化效果 | ✅ | `BlockInfluencePresets` + `BlockInfluenceEvaluator` + `VfxEmitter` |
 | 4.5 生成式 STEP | ✅ | `PacingStrategy` + `StepSequencePlanner`；调度/烘焙展开；UI「烘焙 STEP」 |
-| 5 测试 | 🟡 | 核心引擎/AutoMap/OscProjectStore 单测 ✅；Lasso/Brush 集成、JaCoCo 基线待补 |
+| 5 测试 | 🟡 | 核心引擎/AutoMap/OscProjectStore 单测 ✅；JaCoCo 基线 ~36% ✅；SpotBugs 293 条基线 ✅；Lasso/Brush 集成待补 |
 | 6 工程化 | 🟡 | 音频分析已拆 ✅；Timeline 交互/渲染/helper 已拆 ✅；**`AudioAnalysisPanel` ImGui 已拆** ✅；Demucs requirements 说明待补 |
 
 ---
@@ -273,4 +273,4 @@ interface PacingStrategy {
                        阶段 6（收尾工程化）
 ```
 
-阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。**下一批收尾**：JaCoCo/SpotBugs 基线、阶段 6 README / Demucs 说明、（可选）`EventPropertiesPanel` ImGui 拆分。
+阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。**下一批收尾**：阶段 6 README / Demucs 说明、SpotBugs 告警逐步消减、（可选）`EventPropertiesPanel` ImGui 拆分。
