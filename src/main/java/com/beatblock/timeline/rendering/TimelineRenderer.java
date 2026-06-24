@@ -5,7 +5,6 @@ import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
-import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.timeline.*;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.editor.SelectionBox;
@@ -17,7 +16,6 @@ import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -39,7 +37,7 @@ import java.util.function.Supplier;
 /**
  * 时间线渲染入口：按 4 区域绘制（1.时间尺 2.轨道名 3.网格 4.内容/事件/播放头/框选）。
  */
-public final class TimelineRenderer {
+public final class TimelineRenderer implements TimelineAudioDropHost {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TimelineRenderer.class);
 	private static final long DENSE_FAILURE_COOLDOWN_MS = 30_000L;
 	private static final long PENDING_DENSE_PAYLOAD_TTL_MS = 120_000L;
@@ -395,7 +393,7 @@ public final class TimelineRenderer {
 
 		// ── 音频组标题行 ──────────────────────────────────────────────────────
 		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) {
-			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout, trackListState);
+			TimelineAudioDropHandler.renderAudioGroupDropTarget(this, rowIndex, rowHeight, timeline, layout, trackListState);
 			ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
 				rowScreenY + rowHeight, true);
 			renderAudioRootTrackClips(rowY, rowHeight, timeline, layout, viewState, selectionState);
@@ -408,7 +406,7 @@ public final class TimelineRenderer {
 			int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
 			if (slot < 0 || slot >= currentAudioSubTracks.size()) return;
 			TrackDefinition td = currentAudioSubTracks.get(slot);
-			renderAudioGroupDropTarget(rowIndex, rowY, rowHeight, timeline, layout, trackListState);
+			TimelineAudioDropHandler.renderAudioGroupDropTarget(this, rowIndex, rowHeight, timeline, layout, trackListState);
 			ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
 				rowScreenY + rowHeight, true);
 			renderAudioSubTrack(td, rowY, rowHeight, timeline, layout, viewState);
@@ -439,10 +437,10 @@ public final class TimelineRenderer {
 		ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
 			rowScreenY + rowHeight, true);
 		if (rowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK) {
-			renderAnimationTrackDropTarget(rowIndex, rowHeight, timeline, layout);
+			TimelineAudioDropHandler.renderAnimationTrackDropTarget(this, rowIndex, rowHeight, timeline, layout);
 			eventRenderer.renderAnimationEventBlocks(rowY, timeline.getBlockAnimationEvents(), layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_ANIM_AUTO) {
-			renderAnimationTrackDropTarget(rowIndex, rowHeight, timeline, layout);
+			TimelineAudioDropHandler.renderAnimationTrackDropTarget(this, rowIndex, rowHeight, timeline, layout);
 			eventRenderer.renderAnimationEventBlocks(rowY, timeline.getAutoAnimationEvents(), layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_BUILD_REVERSE) {
 			renderBuildReverseTrackDropTarget(rowY, rowHeight, timeline, layout, viewState);
@@ -519,7 +517,7 @@ public final class TimelineRenderer {
 		if (timeline == null || clip == null) return null;
 		Object clipPathObj = timeline.getMetadata("clipAudioPath_" + clip.getId());
 		if (clipPathObj == null) return null;
-		String clipAudioKey = normalizeAudioPath(clipPathObj.toString());
+		String clipAudioKey = TimelineAudioFeatureFillSupport.normalizeAudioPath(clipPathObj.toString());
 		if (clipAudioKey == null) return null;
 
 		AudioAsset asset = findAssetByAudioKey(clipAudioKey);
@@ -539,7 +537,7 @@ public final class TimelineRenderer {
 		if (max > 1e-6f && max != 1f) {
 			for (int i = 0; i < peaks.length; i++) peaks[i] /= max;
 		}
-		double duration = resolveAssetDurationSeconds(asset, timeline);
+		double duration = TimelineAudioDropHandler.resolveAssetDurationSeconds(asset, timeline);
 		int sampleRate = beatmap.meta != null ? beatmap.meta.sampleRate() : 44100;
 		return new WaveformData(peaks, duration, sampleRate);
 	}
@@ -746,69 +744,6 @@ public final class TimelineRenderer {
 		return "waveform".equals(key) || key.startsWith("stem_wf_");
 	}
 
-	/**
-	 * 在指定行放置一个不可见按钮作为拖放目标（内容区），接受音频资产拖放。
-	 * 行 0~4（音频组/波形/低中高频）均调用此方法；松手后自动填充整组数据。
-	 */
-	private void renderAudioGroupDropTarget(int rowIndex, float rowY, float rowHeight,
-	                                        Timeline timeline, TimelineLayout layout,
-	                                        TimelineTrackListState trackListState) {
-		float screenY = layout.getRowScreenY(rowIndex);
-		if (screenY < 0) return;
-		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
-		ImGui.invisibleButton("##AudioDropTarget_" + rowIndex, layout.contentWidth, rowHeight);
-		boolean audioGroupLocked = trackListState != null && trackListState.isLocked(TimelineTrackMeta.ROW_AUDIO_GROUP);
-
-		if (!audioGroupLocked && ImGui.isItemHovered()) {
-			audioGroupDropHighlight = true;
-		}
-
-		if (!audioGroupLocked) {
-			acceptAudioAssetDrop(timeline);
-		}
-	}
-
-	/**
-	 * 共用的音频资产拖放接受逻辑。在 invisibleButton 之后调用。
-	 */
-	private void acceptAudioAssetDrop(Timeline timeline) {
-		if (ImGui.beginDragDropTarget()) {
-			byte[] payload = ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID");
-			if (payload != null) {
-				String assetId = new String(payload, StandardCharsets.UTF_8).trim();
-				AudioAsset asset = AudioAssetManager.getInstance().findById(assetId);
-				if (asset == null) {
-					asset = AudioAssetManager.getInstance().getCurrentDragAsset();
-				}
-				handleDroppedAudioAsset(timeline, asset, -1);
-			}
-			ImGui.endDragDropTarget();
-		}
-	}
-
-	private void renderAnimationTrackDropTarget(int rowIndex, float rowHeight, Timeline timeline, TimelineLayout layout) {
-		float screenY = layout.getRowScreenY(rowIndex);
-		if (screenY < 0) return;
-		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
-		ImGui.invisibleButton("##AnimDropTarget_" + rowIndex, layout.contentWidth, rowHeight);
-		acceptAudioAssetDropForAnimationTrack(timeline, rowIndex);
-	}
-
-	private void acceptAudioAssetDropForAnimationTrack(Timeline timeline, int targetRowIndex) {
-		if (ImGui.beginDragDropTarget()) {
-			byte[] payload = ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID");
-			if (payload != null) {
-				String assetId = new String(payload, StandardCharsets.UTF_8).trim();
-				AudioAsset asset = AudioAssetManager.getInstance().findById(assetId);
-				if (asset == null) {
-					asset = AudioAssetManager.getInstance().getCurrentDragAsset();
-				}
-				handleDroppedAudioAsset(timeline, asset, targetRowIndex);
-			}
-			ImGui.endDragDropTarget();
-		}
-	}
-
 	private void renderBuildReverseTrackDropTarget(
 		float rowY,
 		float rowHeight,
@@ -840,87 +775,33 @@ public final class TimelineRenderer {
 		}
 	}
 
-	private void handleDroppedAudioAsset(Timeline timeline, AudioAsset asset, int dropTargetRowIndex) {
-		if (asset == null || ctx().audioAnalysisEngine() == null) return;
+	@Override
+	public BeatBlockContext context() {
+		return ctx();
+	}
 
-		// 计算新片段起始偏移（必须在 upsertAudioRootClip 之前，避免计入将要创建的片段）
-		double startOffset = computeNextClipStartOffset(timeline);
-		bindDroppedAudioToPlayback(timeline, asset);
-		upsertAudioRootClip(timeline, asset);
-		String droppedAudioKey = buildAudioAssetKey(asset);
-		// 持久化偏移，供后台分析完成后的延迟填充使用
-		if (startOffset > 0) {
-			timeline.setMetadata("audioClipOffset_" + droppedAudioKey, startOffset);
-		}
+	@Override
+	public void setAudioGroupDropHighlight(boolean highlight) {
+		audioGroupDropHighlight = highlight;
+	}
+
+	@Override
+	public void resetBeatmapAutoApplySignature() {
 		lastAutoAppliedBeatmapSignature = null;
-		boolean canUseBeatmapNow = asset.getStatus() == AudioAssetStatus.COMPLETED && asset.getBeatmap() != null;
-		if (canUseBeatmapNow && !isBeatmapReadyForImmediateApply(asset.getBeatmap())) {
-			canUseBeatmapNow = false;
-			LOGGER.info("BeatBlock Timeline: cached beatmap has unreadable/missing demucs stems, scheduling re-analysis path={}", asset.getPath());
-			AudioAssetManager.getInstance().startAnalysis(asset);
-		}
-		if (canUseBeatmapNow) {
-			timeline.setMetadata("awaitingAnalyzedBeatmap", null);
-			double prevDuration = timeline.getDurationSeconds();
-			Map<String, SavedFeatureTrack> savedFeatureEvents = saveFeatureEvents(timeline);
-			ctx().audioAnalysisEngine().fillTimelineFromBeatmap(timeline, asset.getBeatmap());
-			shiftFeatureEventsByOffset(timeline, startOffset);
-			restoreFeatureEvents(timeline, savedFeatureEvents);
-			timeline.setDurationSeconds(prevDuration);
-			requestDenseFeatureEnrichment(timeline, asset);
-			bindStemAudioIfDemucs(asset.getBeatmap());
-		} else if (asset.getFeatureTimeline() != null) {
-			timeline.setMetadata("awaitingAnalyzedBeatmap", droppedAudioKey);
-			LOGGER.info("BeatBlock Timeline: dropped asset not completed yet, using feature timeline temporarily path={} status={}",
-				asset.getPath(), asset.getStatus());
-			double prevDuration = timeline.getDurationSeconds();
-			ctx().audioAnalysisEngine().fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
-			shiftFeatureEventsByOffset(timeline, startOffset);
-			timeline.setDurationSeconds(prevDuration);
-		} else {
-			timeline.setMetadata("awaitingAnalyzedBeatmap", droppedAudioKey);
-			LOGGER.info("BeatBlock Timeline: dropped asset pending analysis, waiting for auto-apply path={} status={}",
-				asset.getPath(), asset.getStatus());
-			requestDenseFeatureEnrichment(timeline, asset);
-		}
-
-		if (dropTargetRowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK
-			|| dropTargetRowIndex == TimelineTrackMeta.ROW_ANIM_AUTO) {
-			TimelineAnimationFeatureMapper.populateFromAudioFeatures(timeline, dropTargetRowIndex, this::resolveDefaultTargetObjectId);
-		}
-
-		if (ctx().timelineEditor() != null) {
-			ctx().timelineEditor().syncClockDuration();
-		}
 	}
 
-	private boolean isBeatmapReadyForImmediateApply(com.beatblock.audio.beatmap.Beatmap beatmap) {
-		if (beatmap == null || beatmap.meta == null) return false;
-		if (!beatmap.meta.hasStemSeparation()) return true;
-		if (beatmap.beatmapFilePath == null || beatmap.meta.stems() == null) return false;
-		Path beatmapDir = beatmap.beatmapFilePath.getParent();
-		if (beatmapDir == null) return false;
-
-		for (Map.Entry<String, String> entry : beatmap.meta.stems().entrySet()) {
-			String relPath = entry.getValue();
-			if (relPath == null || relPath.isBlank()) return false;
-			Path stemPath = beatmapDir.resolve(relPath).normalize();
-			try {
-				// Note: AudioSystem.getAudioFileFormat() is NOT used here because JavaSound
-				// is unavailable in Minecraft's LWJGL environment (0 mixers). We verify
-				// stems are present with a minimum size check instead; StemMixer's own
-				// WAV parser / ffmpeg fallback handles format validation at load time.
-				if (!java.nio.file.Files.isRegularFile(stemPath) || java.nio.file.Files.size(stemPath) <= 1024) {
-					return false;
-				}
-			} catch (IOException e) {
-				return false;
-			}
-		}
-		return true;
+	@Override
+	public void requestDenseFeatureEnrichment(Timeline timeline, AudioAsset asset) {
+		requestDenseFeatureEnrichmentInternal(timeline, asset);
 	}
 
-	private String resolveDefaultTargetObjectId() {
+	@Override
+	public void bindStemAudioIfDemucs(com.beatblock.audio.beatmap.Beatmap beatmap) {
+		bindStemAudioIfDemucsInternal(beatmap);
+	}
+
+	@Override
+	public String resolveDefaultTargetObjectId() {
 		if (ctx().blockAnimationEngine() != null) {
 			var sys = ctx().blockAnimationEngine().getStageObjectSystem();
 			var all = sys.getAll();
@@ -931,14 +812,21 @@ public final class TimelineRenderer {
 		return "default";
 	}
 
+	@Override
+	public void syncClockDuration() {
+		if (ctx().timelineEditor() != null) {
+			ctx().timelineEditor().syncClockDuration();
+		}
+	}
+
 	/**
 	 * 触发高分辨率频段数据补全：已有特征时立即应用；否则在后台分析，主线程按当前时间线音频路径安全回填。
 	 */
-	private void requestDenseFeatureEnrichment(Timeline timeline, AudioAsset asset) {
+	private void requestDenseFeatureEnrichmentInternal(Timeline timeline, AudioAsset asset) {
 		if (timeline == null || asset == null || ctx().audioAnalysisEngine() == null) return;
 		if (denseFeatureExecutorShutdown) return;
 
-		String audioKey = buildAudioAssetKey(asset);
+		String audioKey = TimelineAudioFeatureFillSupport.buildAudioAssetKey(asset);
 		if (audioKey == null) return;
 		long now = System.currentTimeMillis();
 		Long failureUntil = denseAnalysisFailureUntilMs.get(audioKey);
@@ -1004,7 +892,7 @@ public final class TimelineRenderer {
 		if (pendingDenseApplies.isEmpty()) return;
 		pruneStalePendingDenseApplies();
 		if (timeline == null || pendingDenseApplies.isEmpty()) return;
-		String timelineAudioKey = getTimelineAudioPathKey(timeline);
+		String timelineAudioKey = TimelineAudioFeatureFillSupport.getTimelineAudioPathKey(timeline);
 		if (timelineAudioKey == null) return;
 		DenseApplyPayload payload = pendingDenseApplies.remove(timelineAudioKey);
 		if (payload != null) {
@@ -1019,13 +907,13 @@ public final class TimelineRenderer {
 
 	private void applyDenseFeatureData(Timeline timeline, AudioAsset asset, AudioFeatureTimeline feature, String expectedAudioKey) {
 		if (timeline == null || asset == null || feature == null || ctx().audioAnalysisEngine() == null) return;
-		String timelineAudioKey = getTimelineAudioPathKey(timeline);
+		String timelineAudioKey = TimelineAudioFeatureFillSupport.getTimelineAudioPathKey(timeline);
 		if (!Objects.equals(timelineAudioKey, expectedAudioKey)) return;
 
-		double startOffset = readClipOffset(timeline, expectedAudioKey);
+		double startOffset = TimelineAudioFeatureFillSupport.readClipOffset(timeline, expectedAudioKey);
 		double prevDuration = timeline.getDurationSeconds();
 		ctx().audioAnalysisEngine().fillTimelineFromFeature(timeline, feature, asset.getSampleRate());
-		shiftFeatureEventsByOffset(timeline, startOffset);
+		TimelineAudioFeatureFillSupport.shiftFeatureEventsByOffset(timeline, startOffset);
 		timeline.setDurationSeconds(prevDuration);
 		if (asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
 			timeline.setMetadata("bpm", asset.getBeatmap().meta.bpm());
@@ -1038,11 +926,11 @@ public final class TimelineRenderer {
 
 	private void tryAutoApplyAnalyzedBeatmap(Timeline timeline) {
 		if (timeline == null || ctx().audioAnalysisEngine() == null) return;
-		String timelineAudioKey = getTimelineAudioPathKey(timeline);
+		String timelineAudioKey = TimelineAudioFeatureFillSupport.getTimelineAudioPathKey(timeline);
 		if (timelineAudioKey == null) return;
 
 		Object awaitingRaw = timeline.getMetadata("awaitingAnalyzedBeatmap");
-		String awaitingKey = awaitingRaw != null ? normalizeAudioPath(awaitingRaw.toString()) : null;
+		String awaitingKey = awaitingRaw != null ? TimelineAudioFeatureFillSupport.normalizeAudioPath(awaitingRaw.toString()) : null;
 		if (!Objects.equals(awaitingKey, timelineAudioKey)) return;
 
 		AudioAsset matched = findAssetByAudioKey(timelineAudioKey);
@@ -1051,15 +939,15 @@ public final class TimelineRenderer {
 		String signature = buildBeatmapApplySignature(timelineAudioKey, matched.getBeatmap());
 		if (Objects.equals(signature, lastAutoAppliedBeatmapSignature)) return;
 
-		double startOffset = readClipOffset(timeline, timelineAudioKey);
+		double startOffset = TimelineAudioFeatureFillSupport.readClipOffset(timeline, timelineAudioKey);
 		double prevDuration = timeline.getDurationSeconds();
-		Map<String, SavedFeatureTrack> savedFeatureEvents = saveFeatureEvents(timeline);
+		Map<String, TimelineAudioFeatureFillSupport.SavedFeatureTrack> savedFeatureEvents = TimelineAudioFeatureFillSupport.saveFeatureEvents(timeline);
 		ctx().audioAnalysisEngine().fillTimelineFromBeatmap(timeline, matched.getBeatmap());
-		shiftFeatureEventsByOffset(timeline, startOffset);
-		restoreFeatureEvents(timeline, savedFeatureEvents);
+		TimelineAudioFeatureFillSupport.shiftFeatureEventsByOffset(timeline, startOffset);
+		TimelineAudioFeatureFillSupport.restoreFeatureEvents(timeline, savedFeatureEvents);
 		timeline.setDurationSeconds(prevDuration);
-		requestDenseFeatureEnrichment(timeline, matched);
-		bindStemAudioIfDemucs(matched.getBeatmap());
+		requestDenseFeatureEnrichmentInternal(timeline, matched);
+		bindStemAudioIfDemucsInternal(matched.getBeatmap());
 		timeline.setMetadata("awaitingAnalyzedBeatmap", null);
 		lastAutoAppliedBeatmapSignature = signature;
 		if (ctx().timelineEditor() != null) {
@@ -1071,7 +959,7 @@ public final class TimelineRenderer {
 	private AudioAsset findAssetByAudioKey(String audioKey) {
 		if (audioKey == null) return null;
 		for (AudioAsset asset : AudioAssetManager.getInstance().getAssets()) {
-			String key = buildAudioAssetKey(asset);
+			String key = TimelineAudioFeatureFillSupport.buildAudioAssetKey(asset);
 			if (Objects.equals(key, audioKey)) {
 				return asset;
 			}
@@ -1085,84 +973,6 @@ public final class TimelineRenderer {
 		String generatedAt = (beatmap.meta != null && beatmap.meta.generatedAt() != null) ? beatmap.meta.generatedAt() : "";
 		return audioKey + "|" + beatmapPath + "|" + generatedAt;
 	}
-
-	private String buildAudioAssetKey(AudioAsset asset) {
-		if (asset == null || asset.getPath() == null) return null;
-		return normalizeAudioPath(asset.getPath().toAbsolutePath().normalize().toString());
-	}
-
-	private String getTimelineAudioPathKey(Timeline timeline) {
-		if (timeline == null) return null;
-		Object audioPath = timeline.getMetadata("audioPath");
-		if (audioPath == null) return null;
-		return normalizeAudioPath(audioPath.toString());
-	}
-
-	private String normalizeAudioPath(String rawPath) {
-		if (rawPath == null || rawPath.isBlank()) return null;
-
-	// ── 多段音频偏移支持辅助方法 ──────────────────────────────────────────
-		return rawPath.trim().toLowerCase();
-	}
-
-	// ── 多段音频偏移支持辅助方法 ─────────────────────────────────────────
-	/** 计算下一个音频片段应放置的时间起点（所有已有片段最大结束时间）。 */
-	private double computeNextClipStartOffset(Timeline timeline) {
-		if (timeline == null) return 0.0;
-		Track audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
-		if (audioTrack == null || audioTrack.getClips().isEmpty()) return 0.0;
-		double maxEnd = 0.0;
-		for (Clip c : audioTrack.getClips()) {
-			if (c != null) maxEnd = Math.max(maxEnd, c.getEndTimeSeconds());
-		}
-		return maxEnd;
-	}
-
-	/** 保存当前所有特征轨道的事件（用于填充前的快照）。 */
-	private Map<String, SavedFeatureTrack> saveFeatureEvents(Timeline timeline) {
-		if (timeline == null) return Map.of();
-		java.util.Map<String, FeatureTrack> tracks = timeline.getFeatureTracks();
-		if (tracks == null || tracks.isEmpty()) return Map.of();
-		Map<String, SavedFeatureTrack> result = new HashMap<>();
-		for (Map.Entry<String, FeatureTrack> e : tracks.entrySet()) {
-			result.put(e.getKey(), new SavedFeatureTrack(e.getValue().getLabel(), new ArrayList<>(e.getValue().getEvents())));
-		}
-		return result;
-	}
-
-	/** 将当前所有特征轨道的事件时间整体偏移 offset 秒（就地修改）。 */
-	private void shiftFeatureEventsByOffset(Timeline timeline, double offset) {
-		if (offset <= 0 || timeline == null) return;
-		java.util.Map<String, FeatureTrack> tracks = timeline.getFeatureTracks();
-		if (tracks == null || tracks.isEmpty()) return;
-		for (FeatureTrack ft : tracks.values()) {
-			List<FeatureEvent> evts = new ArrayList<>(ft.getEvents());
-			ft.clear();
-			for (FeatureEvent e : evts) {
-				ft.addEvent(new FeatureEvent(e.getTimeSeconds() + offset, e.getEnergy()));
-			}
-		}
-	}
-
-	/** 将快照中的事件重新写入对应特征轨道（合并到当前数据中）。 */
-	private void restoreFeatureEvents(Timeline timeline, Map<String, SavedFeatureTrack> saved) {
-		if (timeline == null || saved == null || saved.isEmpty()) return;
-		for (Map.Entry<String, SavedFeatureTrack> e : saved.entrySet()) {
-			for (FeatureEvent fe : e.getValue().events()) {
-				timeline.addFeatureEvent(e.getKey(), e.getValue().label(), fe);
-			}
-		}
-	}
-
-	/** 从 Timeline 元数据读取指定音频的片段起始偏移。 */
-	private double readClipOffset(Timeline timeline, String audioKey) {
-		if (timeline == null || audioKey == null) return 0.0;
-		Object raw = timeline.getMetadata("audioClipOffset_" + audioKey);
-		if (raw instanceof Number n) return n.doubleValue();
-		return 0.0;
-	}
-
-	private record SavedFeatureTrack(String label, List<FeatureEvent> events) {}
 
 	private record DenseApplyPayload(AudioAsset asset, AudioFeatureTimeline feature, long createdAtMs) {}
 
@@ -1255,7 +1065,7 @@ public final class TimelineRenderer {
 	 * 若 beatmap 为 Demucs 茎分离模式，将各茎 WAV 加载进 {@link BeatBlock#stemMixer}，
 	 * 若非 Demucs 模式则清空 stemMixer。
 	 */
-	private void bindStemAudioIfDemucs(com.beatblock.audio.beatmap.Beatmap beatmap) {
+	private void bindStemAudioIfDemucsInternal(com.beatblock.audio.beatmap.Beatmap beatmap) {
 		if (ctx().stemMixer() == null) return;
 		ctx().stemMixer().clearStems();
 
@@ -1289,72 +1099,6 @@ public final class TimelineRenderer {
 		}
 	}
 
-	private void bindDroppedAudioToPlayback(Timeline timeline, AudioAsset asset) {
-		String audioPath = asset.getPath().toAbsolutePath().normalize().toString();
-		timeline.setMetadata("audioPath", audioPath);
-		if (ctx().musicPlayer() != null) {
-			boolean loaded = ctx().musicPlayer().loadAudio(audioPath);
-			ctx().musicPlayer().setCurrentTimeSeconds(0);
-			if (loaded) {
-				LOGGER.info("BeatBlock Timeline: dropped audio asset bound to playback path={}", audioPath);
-			} else {
-				LOGGER.warn("BeatBlock Timeline: dropped audio asset failed to bind path={} reason={}", audioPath, ctx().musicPlayer().getLastLoadError());
-			}
-		} else {
-			LOGGER.warn("BeatBlock Timeline: dropped audio asset has no MusicPlayer instance path={}", audioPath);
-		}
-	}
-
-	/**
-	 * 每次拖拽新音频到时间线时，在顶部音频轨追加一个整段片段。
-	 * 若已存在片段，则将新片段放在最右侧（时间上紧接最后一个片段）。
-	 */
-	private void upsertAudioRootClip(Timeline timeline, AudioAsset asset) {
-		if (timeline == null || asset == null) return;
-		Track audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
-		if (audioTrack == null) return;
-
-		double start = 0.0;
-		for (Clip c : audioTrack.getClips()) {
-			if (c == null) continue;
-			start = Math.max(start, c.getEndTimeSeconds());
-		}
-
-		double duration = resolveAssetDurationSeconds(asset, timeline);
-		double end = start + duration;
-
-		Clip rootClip = TimelineOperations.addClip(audioTrack, start, end);
-		if (rootClip != null) {
-			timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), end));
-			timeline.setMetadata("audioRootClipId", rootClip.getId());
-			timeline.setMetadata("audioAssetId", asset.getId());
-			// 存储音频文件名（无扩展名），供片段条渲染时显示
-			String fn = asset.getPath().getFileName().toString();
-			int dot = fn.lastIndexOf('.');
-			if (dot > 0) fn = fn.substring(0, dot);
-			timeline.setMetadata("clipLabel_" + rootClip.getId(), fn);
-			// 多段音频播放：为每个片段绑定独立音频路径
-			timeline.setMetadata("clipAudioPath_" + rootClip.getId(), asset.getPath().toAbsolutePath().normalize().toString());
-			String clipAudioKey = buildAudioAssetKey(asset);
-			if (clipAudioKey != null) {
-				timeline.setMetadata("clipAudioKey_" + rootClip.getId(), clipAudioKey);
-			}
-		}
-	}
-
-	private double resolveAssetDurationSeconds(AudioAsset asset, Timeline timeline) {
-		double duration = asset != null ? asset.getDurationSeconds() : 0.0;
-		if (duration > 0) return duration;
-		if (asset != null && asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
-			double beatmapDuration = asset.getBeatmap().meta.durationMs() / 1000.0;
-			if (beatmapDuration > 0) return beatmapDuration;
-		}
-		if (asset != null && asset.getFeatureTimeline() != null && asset.getFeatureTimeline().getDurationSeconds() > 0) {
-			return asset.getFeatureTimeline().getDurationSeconds();
-		}
-		double fallback = timeline != null ? timeline.getDurationSeconds() : 0.0;
-		return Math.max(0.1, fallback > 0 ? fallback : 1.0);
-	}
 
 	/**
 	 * 绘制音频组拖放高亮边框（row 0~4 内容区外围），并在帧末重置标记。
