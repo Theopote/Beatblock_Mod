@@ -29,4 +29,12 @@ public final class PresenterFactories {
 	public static SelectionPropertiesPresenter selectionPropertiesPresenter() {
 		return new SelectionPropertiesPresenter(BeatBlockSelectionManager::get);
 	}
+
+	public static ToolPanelPresenter toolPanelPresenter() {
+		return ToolPanelPresenterFactory.create();
+	}
+
+	public static TimelinePanelPresenter timelinePanelPresenter() {
+		return new TimelinePanelPresenter();
+	}
 }
