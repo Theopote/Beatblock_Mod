@@ -17,8 +17,8 @@
 | 4.3 相机轨 UI 对齐 | ✅ | 共享 layout/播放头/hover/对齐线/Snap；`CameraTrackAlignmentAcceptanceTest` |
 | 4.4 维度化效果 | ✅ | `BlockInfluencePresets` + `BlockInfluenceEvaluator` + `VfxEmitter` |
 | 4.5 生成式 STEP | ✅ | `PacingStrategy` + `StepSequencePlanner`；调度/烘焙展开；UI「烘焙 STEP」 |
-| 5 测试 | 🟡 | 核心引擎/AutoMap/OscProjectStore 单测 ✅；JaCoCo 基线 ~36% ✅；SpotBugs 293 条基线 ✅；Lasso/Brush 集成待补 |
-| 6 工程化 | 🟡 | 音频分析已拆 ✅；Timeline 交互/渲染/helper 已拆 ✅；**`AudioAnalysisPanel` ImGui 已拆** ✅；Demucs requirements 说明待补 |
+| 5 测试 | 🟡 | 核心引擎/AutoMap/OscProjectStore 单测 ✅；JaCoCo 基线 ~36% ✅；SpotBugs 293 条基线 ✅；Lasso/Brush 集成 ✅ |
+| 6 工程化 | 🟡 | 音频分析已拆 ✅；Timeline 交互/渲染/helper 已拆 ✅；**`AudioAnalysisPanel` ImGui 已拆** ✅；README + Demucs requirements ✅ |
 
 ---
 
@@ -253,8 +253,8 @@ interface PacingStrategy {
 2. ~~UI 属性编辑 / Timeline 交互渲染解耦~~ ✅ `EventPropertiesPanel` + Presenter；`TimelineInteraction` Phase 1–4；`TimelineRenderer` R1–R5+。
 3. ~~`AudioAnalysisPanel` ImGui 拆分~~ ✅ `ui/panels/audioanalysis/`（`AudioAnalysisPanelRenderer` + Toolbar/Runtime/DropZone/List/Detail 控件；门面 ~89 行）。
 4. ~~Timeline Toolbar Presenter 化~~ ✅ `Timeline*Presenter` + `Timeline*Controls`（~175 行门面）。
-5. `analyzer/requirements.txt` 补充说明 `--demucs` 模式所需的可选依赖（`demucs`、`torch`），即使不写进硬性 `requirements.txt`（避免强制所有用户装大体积的 torch），也应该在文件里用注释或单独的 `requirements-demucs.txt` 说明。
-6. 补 README：项目简介、构建方式、依赖要求、三种核心使用场景的截图/简述（直接用你刚描述的"建造过程/跑酷敲击/镜头跟随"这三段话就是很好的素材）。
+5. ~~`analyzer/requirements.txt` 补充 Demucs 可选依赖说明~~ ✅ — `requirements-demucs.txt` + README §Python 分析与 Demucs 分轨。
+6. ~~补 README：构建方式、Python/Demucs 依赖、配置路径~~ ✅ — 2026-06-24。
 
 ---
 
@@ -273,4 +273,4 @@ interface PacingStrategy {
                        阶段 6（收尾工程化）
 ```
 
-阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。**下一批收尾**：阶段 6 README / Demucs 说明、SpotBugs 告警逐步消减、（可选）`EventPropertiesPanel` ImGui 拆分。
+阶段 3 和阶段 2 可以今天就动手，几乎零风险、零依赖。阶段 0 和阶段 1 是核心（**阶段 1 与 4.5 主干已完成**）。阶段 4 建议顺序：4.2（草稿写入）→ 4.4（维度化效果）→ 4.5（生成式 STEP；与 4.4 可并行，不必严格阻塞）。**下一批收尾**：SpotBugs 告警逐步消减、（可选）`EventPropertiesPanel` ImGui 拆分。

@@ -93,12 +93,12 @@
 | `BlockControlExecutor` | ✅ | `BlockControlExecutorTest` |
 | `AutoMapGenerator` | ✅ | `AutoMapGeneratorTest` |
 | `OscProjectStore` | ✅ | `OscProjectStoreTest` |
-| `BeatBlockSelectionManager` | 🟡 | `BeatBlockSelectionManagerTest` + `collect/*` / `tools/*`；Lasso/Brush 端到端仍少 |
+| `BeatBlockSelectionManager` | ✅ | `BeatBlockSelectionManagerTest` + `LassoBrushSelectionIntegrationTest`；Lasso 多边形/客户端射线仍靠 `LassoPointInPolygonTest` |
 | Timeline / Interaction / Rendering | ✅ | `com.beatblock.timeline.*` 大量单测（含 R1–R5 helper） |
 
 **仍待补充**（优先级 🟡 中）:
 ```
-1. 选区：Lasso / Brush 完整 stroke 生命周期集成测试
+1. ~~选区：Lasso / Brush 完整 stroke 生命周期集成测试~~ ✅ `LassoBrushSelectionIntegrationTest`
 2. 集成：导入音频 → 分析 → 选区 → 播放 端到端（§5.2）
 3. JaCoCo 行覆盖率基线 ✅（~36%，2026-06-24）
 ```
@@ -1655,7 +1655,7 @@ public class PathValidator {
 
 1. ~~**4.3 验收闭环**~~ ✅ — `CameraTrackAlignmentAcceptanceTest`
 2. ~~**JaCoCo / SpotBugs 接入 CI**~~ ✅ — `./gradlew check` + `quality-reports` artifact
-3. **文档** — 阶段 6 README / Demucs requirements 说明
+3. ~~**文档** — README / Demucs requirements 说明~~ ✅ — 2026-06-24
 4. **`EventPropertiesPanel` ImGui 拆分**（可选，~924 行）
 
 ---
