@@ -4,7 +4,12 @@ import com.beatblock.BeatBlock;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.runtime.BeatBlockContext;
+import com.beatblock.selection.collect.BoxSelectionCollector;
+import com.beatblock.selection.collect.BrushSelectionCollector;
 import com.beatblock.selection.collect.ColumnSelectionCollector;
+import com.beatblock.selection.collect.ConnectedSelectionCollector;
+import com.beatblock.selection.collect.LineSelectionCollector;
+import com.beatblock.selection.collect.PlaneSliceSelectionCollector;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -513,162 +518,90 @@ public final class BeatBlockSelectionManager {
 		);
 	}
 
-	private List<BlockPos> collectPlaneSlice(World world, BlockPos pos, Direction face) {
-		PlaneSliceBounds b = computePlaneSliceBoundsInternal(world, pos, face);
-		if (b.isEmpty()) {
-			lastMessage = "平面切片：该平面与当前范围无交集（可先有选区再切，或对准区块内）。";
-			return null;
-		}
-		long vol = b.volume();
-		if (vol > maxBlocks) {
-			lastMessage = String.format("平面切片体积 %d 超过上限 %d。", vol, maxBlocks);
-			return null;
-		}
-		List<BlockPos> out = new ArrayList<>((int) vol);
-		for (int x = b.minX(); x <= b.maxX(); x++) {
-			for (int y = b.minY(); y <= b.maxY(); y++) {
-				for (int z = b.minZ(); z <= b.maxZ(); z++) {
-					BlockPos p = new BlockPos(x, y, z);
-					if (!isWithinCameraReach(p)) continue;
-					if (!includeAir && world.getBlockState(p).isAir()) continue;
-					out.add(p.toImmutable());
-					if (out.size() > maxBlocks) {
-						lastMessage = String.format("平面切片超过上限 %d。", maxBlocks);
-						return null;
-					}
-				}
-			}
-		}
-		return out;
-	}
-
-	private List<BlockPos> collectConnectedInBounds(World world, BlockPos start, BlockPos bMin, BlockPos bMax) {
-		BlockPos startImm = start.toImmutable();
-		if (!isWithinCameraReach(startImm)) {
-			lastMessage = "选区魔棒：起点超出「相对视角最大距离」。";
-			return null;
-		}
-		ConnectedSelectionFloodFill.Result result = ConnectedSelectionFloodFill.collect(
-			world::getBlockState,
-			new ConnectedSelectionFloodFill.Request(
-				startImm,
-				bMin,
-				bMax,
-				includeAir,
-				connectedMatchFullState,
-				maxBlocks,
-				maxMagicWandSpreadFromSeed,
-				this::isWithinCameraReach
-			)
-		);
-		if (result.truncated()) {
-			lastMessage = String.format("选区魔棒已达上限 %d，已选 %d 个方块（未完全展开）。", maxBlocks, result.blocks().size());
-		}
-		return result.blocks();
-	}
-
-	private List<BlockPos> collectBrush(World world, BlockPos center) {
-		return switch (brushShape) {
-			case SPHERE -> collectSphere(world, center, sphereBrushRadius);
-			case CUBE -> collectCube(world, center, sphereBrushRadius);
-		};
-	}
-
-	private List<BlockPos> collectCube(World world, BlockPos center, int r) {
-		List<BlockPos> raw = SelectionBrushRegions.cubePositions(center, r, maxBlocks);
-		if (raw == null) {
-			long worst = (2L * r + 1) * (2L * r + 1) * (2L * r + 1);
-			lastMessage = String.format("立方笔刷包络约 %d 方块，超过上限 %d。", worst, maxBlocks);
-			return null;
-		}
-		List<BlockPos> out = new ArrayList<>(raw.size());
-		for (BlockPos p : raw) {
-			if (!isWithinCameraReach(p)) continue;
-			if (!includeAir && world.getBlockState(p).isAir()) continue;
-			out.add(p.toImmutable());
-		}
-		return out;
-	}
-
-	private List<BlockPos> collectBox(World world, BlockPos a, BlockPos b) {
-		List<BlockPos> raw = SelectionRegions.cuboidPositions(a, b, maxBlocks);
-		if (raw == null) {
-			lastMessage = String.format("框选体积 %d 超过上限 %d，已取消。", SelectionRegions.cuboidVolume(a, b), maxBlocks);
-			return null;
-		}
-		List<BlockPos> out = new ArrayList<>(raw.size());
-		for (BlockPos p : raw) {
-			if (!isWithinCameraReach(p)) continue;
-			if (!includeAir && world.getBlockState(p).isAir()) continue;
-			out.add(p.toImmutable());
-		}
-		return out;
-	}
-
-	private List<BlockPos> collectLine(World world, BlockPos a, BlockPos b) {
-		List<BlockPos> raw = BlockSelectionLine.blocksForSegment(a, b, lineThicknessRadius, maxBlocks);
-		if (raw == null) {
-			lastMessage = String.format("线选候选方块超过上限 %d（可缩小线粗细或框选上限）。", maxBlocks);
-			return null;
-		}
-		List<BlockPos> out = new ArrayList<>();
-		for (BlockPos p : raw) {
-			if (!isWithinCameraReach(p)) continue;
-			if (!includeAir && world.getBlockState(p).isAir()) continue;
-			out.add(p.toImmutable());
-		}
-		return out;
-	}
-
-	private List<BlockPos> collectSphere(World world, BlockPos center, int r) {
-		List<BlockPos> raw = SelectionBrushRegions.spherePositions(center, r, maxBlocks);
-		if (raw == null) {
-			long worst = (2L * r + 1) * (2L * r + 1) * (2L * r + 1);
-			lastMessage = String.format("球体包络方块数约 %d，超过上限 %d，请缩小半径。", worst, maxBlocks);
-			return null;
-		}
-		List<BlockPos> out = new ArrayList<>(raw.size());
-		for (BlockPos p : raw) {
-			if (!isWithinCameraReach(p)) continue;
-			if (!includeAir && world.getBlockState(p).isAir()) continue;
-			out.add(p.toImmutable());
-		}
-		return out;
-	}
-
-	private List<BlockPos> collectColumn(World world, BlockPos pos) {
-		SelectionCollectResult result = ColumnSelectionCollector.collect(
-			world, pos, includeAir, maxBlocks, this::isWithinCameraReach);
+	private List<BlockPos> resolveCollectResult(SelectionCollectResult result) {
 		if (result.failed()) {
 			lastMessage = result.errorMessage();
 			return null;
 		}
+		if (result.noticeMessage() != null) {
+			lastMessage = result.noticeMessage();
+		}
 		return result.blocks();
 	}
 
-	private List<BlockPos> collectConnected(World world, BlockPos start) {
-		BlockPos startImm = start.toImmutable();
-		if (!isWithinCameraReach(startImm)) {
-			lastMessage = "魔棒：起点超出「相对视角最大距离」，请靠近或在属性面板调大范围。";
-			return null;
-		}
-		ConnectedSelectionFloodFill.Result result = ConnectedSelectionFloodFill.collect(
+	private List<BlockPos> collectPlaneSlice(World world, BlockPos pos, Direction face) {
+		return resolveCollectResult(PlaneSliceSelectionCollector.collect(
+			world,
+			pos,
+			face,
+			getBoundingMin(),
+			getBoundingMax(),
+			includeAir,
+			maxBlocks,
+			this::isWithinCameraReach
+		));
+	}
+
+	private List<BlockPos> collectConnectedInBounds(World world, BlockPos start, BlockPos bMin, BlockPos bMax) {
+		return resolveCollectResult(ConnectedSelectionCollector.collect(
 			world::getBlockState,
-			new ConnectedSelectionFloodFill.Request(
-				startImm,
-				null,
-				null,
-				includeAir,
-				connectedMatchFullState,
-				maxBlocks,
-				maxMagicWandSpreadFromSeed,
-				this::isWithinCameraReach
-			)
-		);
-		if (result.truncated()) {
-			lastMessage = String.format("魔棒已达上限 %d，已选 %d 个方块（未完全展开）。", maxBlocks, result.blocks().size());
-		}
-		return result.blocks();
+			start,
+			bMin,
+			bMax,
+			includeAir,
+			connectedMatchFullState,
+			maxBlocks,
+			maxMagicWandSpreadFromSeed,
+			this::isWithinCameraReach,
+			"选区魔棒：起点超出「相对视角最大距离」。",
+			"选区魔棒已达上限 %d，已选 %d 个方块（未完全展开）。"
+		));
+	}
+
+	private List<BlockPos> collectBrush(World world, BlockPos center) {
+		return resolveCollectResult(BrushSelectionCollector.collect(
+			world,
+			center,
+			brushShape,
+			sphereBrushRadius,
+			includeAir,
+			maxBlocks,
+			this::isWithinCameraReach
+		));
+	}
+
+	private List<BlockPos> collectBox(World world, BlockPos a, BlockPos b) {
+		return resolveCollectResult(BoxSelectionCollector.collect(
+			world, a, b, includeAir, maxBlocks, this::isWithinCameraReach
+		));
+	}
+
+	private List<BlockPos> collectLine(World world, BlockPos a, BlockPos b) {
+		return resolveCollectResult(LineSelectionCollector.collect(
+			world, a, b, lineThicknessRadius, includeAir, maxBlocks, this::isWithinCameraReach
+		));
+	}
+
+	private List<BlockPos> collectColumn(World world, BlockPos pos) {
+		return resolveCollectResult(ColumnSelectionCollector.collect(
+			world, pos, includeAir, maxBlocks, this::isWithinCameraReach
+		));
+	}
+
+	private List<BlockPos> collectConnected(World world, BlockPos start) {
+		return resolveCollectResult(ConnectedSelectionCollector.collect(
+			world::getBlockState,
+			start,
+			null,
+			null,
+			includeAir,
+			connectedMatchFullState,
+			maxBlocks,
+			maxMagicWandSpreadFromSeed,
+			this::isWithinCameraReach,
+			"魔棒：起点超出「相对视角最大距离」，请靠近或在属性面板调大范围。",
+			"魔棒已达上限 %d，已选 %d 个方块（未完全展开）。"
+		));
 	}
 
 	private void mergeBlockListIntoSelection(List<BlockPos> blocks, SelectionOperation op) {

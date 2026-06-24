@@ -415,7 +415,7 @@ void testTick() {
 
 | 类名 | 当前行数 | 状态 | 优化建议 |
 |------|----------|------|----------|
-| `BeatBlockSelectionManager` | ~720 | 🔄 进行中 | 已拆 helper（`SelectionMerge`、`ConnectedSelectionFloodFill` 等）；Phase 1 `SelectionFeedback` ✅；Phase 2 `collect/*` 收集器进行中 |
+| `BeatBlockSelectionManager` | ~720 → ~577 | 🔄 Phase 2 ✅ | helper + `SelectionFeedback` + 全部 `collect/*` 收集器已落地；Phase 3 模式分发待做 |
 | `TimelineInteraction` | ~1816 | ⏸ 待拆 | 按 ruler / drag / popup / hit-test 拆 handler（**比 TimelineEditor 优先级更高**） |
 | `TimelineRenderer` | ~1707 | ⏸ 待拆 | 按 ruler / track / clip / drag-drop 拆 renderer |
 | `MusicPlayer` | ~787 | ⏸ 待拆 | 分离 Clip / SourceDataLine / OpenAL 播放后端 |
@@ -437,7 +437,7 @@ void testTick() {
 工作量: 增量 3–5 天（全量 Tool 化仍约 1–2 周）
 
 Phase 1 ✅  SelectionFeedback — 合并/图层跳过反馈文案
-Phase 2 🔄  selection/collect/* — 各模式 BlockCollector（返回 SelectionCollectResult）
+Phase 2 ✅  selection/collect/* — BlockCollector（Box/Line/Brush/Connected/PlaneSlice/Column）
 Phase 3 ⏸  SelectionToolRegistry — 模式分发；保留 BeatBlockSelectionManager.get() 门面
 Phase 4 ⏸  （可选）重命名 SelectionManager，旧类作 alias
 
@@ -456,9 +456,13 @@ src/main/java/com/beatblock/selection/
   ├── SelectionFeedback.java           ✅
   ├── SelectionCollectResult.java      ✅
   └── collect/
-      ├── ColumnSelectionCollector.java ✅
-      ├── BoxSelectionCollector.java    (待拆)
-      └── ...
+      ├── SelectionCollectSupport.java   ✅
+      ├── ColumnSelectionCollector.java  ✅
+      ├── BoxSelectionCollector.java     ✅
+      ├── LineSelectionCollector.java    ✅
+      ├── BrushSelectionCollector.java   ✅
+      ├── ConnectedSelectionCollector.java ✅
+      └── PlaneSliceSelectionCollector.java ✅
 ```
 
 **收集器接口（Phase 2，替代文档旧版 ISelectionTool.renderConfigUI）**:

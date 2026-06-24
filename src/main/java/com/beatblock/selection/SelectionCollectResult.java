@@ -5,14 +5,18 @@ import net.minecraft.util.math.BlockPos;
 import java.util.List;
 
 /** 单次选区收集（魔棒/整列/框选等）的结果。 */
-public record SelectionCollectResult(List<BlockPos> blocks, String errorMessage) {
+public record SelectionCollectResult(List<BlockPos> blocks, String errorMessage, String noticeMessage) {
 
 	public static SelectionCollectResult success(List<BlockPos> blocks) {
-		return new SelectionCollectResult(blocks, null);
+		return new SelectionCollectResult(blocks, null, null);
+	}
+
+	public static SelectionCollectResult success(List<BlockPos> blocks, String noticeMessage) {
+		return new SelectionCollectResult(blocks, null, noticeMessage);
 	}
 
 	public static SelectionCollectResult failure(String errorMessage) {
-		return new SelectionCollectResult(null, errorMessage);
+		return new SelectionCollectResult(null, errorMessage, null);
 	}
 
 	public boolean failed() {
