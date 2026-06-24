@@ -3,6 +3,8 @@ package com.beatblock.ui.presenter;
 import com.beatblock.BeatBlock;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.selection.BeatBlockSelectionManager;
+import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.command.CommandManager;
 
 import java.util.function.Supplier;
@@ -36,5 +38,32 @@ public final class PresenterFactories {
 
 	public static TimelinePanelPresenter timelinePanelPresenter() {
 		return new TimelinePanelPresenter();
+	}
+
+	public static TimelineEditorPresenter timelineEditorPresenter() {
+		return new TimelineEditorPresenter(
+			() -> BeatBlock.timelineEditor,
+			time -> {
+				if (BeatBlock.musicPlayer != null) {
+					BeatBlock.musicPlayer.setCurrentTimeSeconds(time);
+				}
+			}
+		);
+	}
+
+	public static MarkerPanelPresenter markerPanelPresenter() {
+		return new MarkerPanelPresenter(timelineEditorPresenter());
+	}
+
+	public static MenuBarPresenter menuBarPresenter() {
+		return new MenuBarPresenter(
+			timelineEditorPresenter(),
+			() -> BeatBlock.timeline,
+			() -> BeatBlock.timelineEditor,
+			() -> BeatBlock.blockAnimationEngine != null
+				? BeatBlock.blockAnimationEngine.getBuildLayerManager()
+				: null,
+			() -> BeatBlock.audioLoader
+		);
 	}
 }

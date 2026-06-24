@@ -7,6 +7,8 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.ui.presenter.MarkerPanelPresenter;
+import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
@@ -24,12 +26,21 @@ public class MarkerPanel {
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 
+	private final MarkerPanelPresenter presenter;
 	private String selectedMarkerId;
 	private final ImString markerNameBuffer = new ImString(128);
 	private final ImString markerTimeBuffer = new ImString(32);
 	private final ImInt markerTypeIndex = new ImInt(0);
 
 	private static final String[] MARKER_TYPE_LABELS = MarkerType.displayNames();
+
+	public MarkerPanel() {
+		this(PresenterFactories.markerPanelPresenter());
+	}
+
+	MarkerPanel(MarkerPanelPresenter presenter) {
+		this.presenter = presenter;
+	}
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
@@ -51,7 +62,7 @@ public class MarkerPanel {
 		ImGui.text("时间线动作（调试）");
 		ImGui.separator();
 
-		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getLastTimelineActionExecutionReport();
+		BeatBlockClientDriver.TimelineActionExecutionReport report = presenter.lastActionExecutionReport();
 		if (report == null) {
 			ImGui.textDisabled("暂无执行记录。");
 		} else {
@@ -92,158 +103,104 @@ public class MarkerPanel {
 			return;
 		}
 
-		if (selectedMarkerId != null && timeline.findMarkerIndexById(selectedMarkerId) < 0) {
+		if (selectedMarkerId != null && !presenter.markerExists(timeline, selectedMarkerId)) {
 			selectedMarkerId = null;
 		}
 
 		if (ImGui.beginChild("##MarkerList", 0, 110, true)) {
-			for (TimelineMarker marker : timeline.getMarkers()) {
-				if (marker == null) continue;
-				String markerId = marker.getId();
-				boolean selected = markerId.equals(selectedMarkerId);
-				String label = String.format(Locale.ROOT, "[%s] %.2fs  %s##%s",
-					marker.getType().getDisplayName(),
-					marker.getTimeSeconds(),
-					marker.getName() == null || marker.getName().isBlank() ? "(unnamed)" : marker.getName(),
-					markerId);
-				int abgr = marker.getType().getColorAbgr();
+			for (MarkerPanelPresenter.MarkerListItem item : presenter.listMarkers(timeline)) {
+				boolean selected = item.id().equals(selectedMarkerId);
+				int abgr = item.colorAbgr();
 				ImGui.pushStyleColor(ImGuiCol.Text, abgrToR(abgr), abgrToG(abgr), abgrToB(abgr), abgrToA(abgr));
-				if (ImGui.selectable(label, selected)) {
-					selectedMarkerId = markerId;
-					markerNameBuffer.set(marker.getName());
-					markerTimeBuffer.set(String.format(Locale.ROOT, "%.3f", marker.getTimeSeconds()));
-					markerTypeIndex.set(marker.getType().ordinal());
+				if (ImGui.selectable(item.listLabel() + "##" + item.id(), selected)) {
+					selectedMarkerId = item.id();
+					applyFormSnapshot(presenter.formSnapshotFor(presenter.findMarker(timeline, item.id())));
 				}
 				ImGui.popStyleColor();
 			}
 		}
 		ImGui.endChild();
 
-		int markerIndex = selectedMarkerId != null ? timeline.findMarkerIndexById(selectedMarkerId) : -1;
-		if (markerIndex < 0) return;
-
-		TimelineMarker marker = timeline.getMarkers().get(markerIndex);
+		TimelineMarker marker = presenter.findMarker(timeline, selectedMarkerId);
+		if (marker == null) return;
 		ImGui.textDisabled("选中 Marker");
 		ImGui.setNextItemWidth(-1);
 		ImGui.inputText("名称##markerName", markerNameBuffer);
 		ImGui.setNextItemWidth(-1);
 		ImGui.inputText("时间(秒)##markerTime", markerTimeBuffer);
-		markerTypeIndex.set(Math.max(0, Math.min(marker.getType().ordinal(), MARKER_TYPE_LABELS.length - 1)));
+		markerTypeIndex.set(MarkerPanelPresenter.clampTypeIndex(marker.getType().ordinal()));
 		if (ImGui.combo("类型##markerType", markerTypeIndex, MARKER_TYPE_LABELS)) {
-			applyMarkerEdits(timeline, selectedMarkerId, marker);
+			submitMarkerEdits(timeline, selectedMarkerId);
 		}
 
 		if (ImGui.button("Jump##toolMarkerJump")) {
-			jumpToMarker(marker);
+			presenter.jumpToMarker(marker);
 		}
 		ImGui.sameLine();
 		if (ImGui.button("Apply##toolMarkerApply")) {
-			applyMarkerEdits(timeline, selectedMarkerId, marker);
+			submitMarkerEdits(timeline, selectedMarkerId);
 		}
 		ImGui.sameLine();
 		if (ImGui.button("Delete##toolMarkerDelete")) {
-			timeline.removeMarker(selectedMarkerId);
-			selectedMarkerId = null;
+			if (presenter.deleteMarker(timeline, selectedMarkerId).ok()) {
+				selectedMarkerId = null;
+			}
 		}
 
 		ImGui.spacing();
 		ImGui.textDisabled("循环区");
 		if (ImGui.button("Set In##toolMarkerSetIn")) {
-			setLoopIn(marker.getTimeSeconds());
+			presenter.setLoopInFromMarker(marker);
 		}
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip("将当前 Marker 设为循环起点");
 		}
 		ImGui.sameLine();
 		if (ImGui.button("Set Out##toolMarkerSetOut")) {
-			setLoopOut(marker.getTimeSeconds());
+			presenter.setLoopOutFromMarker(marker);
 		}
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip("将当前 Marker 设为循环终点");
 		}
 
-		TimelineMarker prevMarker = markerIndex > 0 ? timeline.getMarkers().get(markerIndex - 1) : null;
-		TimelineMarker nextMarker = markerIndex + 1 < timeline.getMarkers().size() ? timeline.getMarkers().get(markerIndex + 1) : null;
+		MarkerPanelPresenter.MarkerNeighbors neighbors = presenter.neighborsOf(timeline, selectedMarkerId);
 
 		if (ImGui.button("Prev->This##toolMarkerLoopPrev", 0, 0)) {
-			applyLoopRange(prevMarker, marker);
+			presenter.applyLoopRangeBetween(neighbors.previous(), marker);
 		}
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(prevMarker != null ? "将上一个 Marker 到当前 Marker 设为循环区" : "没有上一个 Marker");
+			ImGui.setTooltip(neighbors.previous() != null
+				? "将上一个 Marker 到当前 Marker 设为循环区"
+				: "没有上一个 Marker");
 		}
 		ImGui.sameLine();
 		if (ImGui.button("This->Next##toolMarkerLoopNext", 0, 0)) {
-			applyLoopRange(marker, nextMarker);
+			presenter.applyLoopRangeBetween(marker, neighbors.next());
 		}
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(nextMarker != null ? "将当前 Marker 到下一个 Marker 设为循环区" : "没有下一个 Marker");
+			ImGui.setTooltip(neighbors.next() != null
+				? "将当前 Marker 到下一个 Marker 设为循环区"
+				: "没有下一个 Marker");
 		}
 	}
 
-	private void jumpToMarker(TimelineMarker marker) {
-		if (marker == null || BeatBlock.timelineEditor == null) return;
-		double t = marker.getTimeSeconds();
-		BeatBlock.timelineEditor.getClock().seek(t);
-		if (BeatBlock.musicPlayer != null) {
-			BeatBlock.musicPlayer.setCurrentTimeSeconds(t);
+	private void submitMarkerEdits(Timeline timeline, String markerId) {
+		var outcome = presenter.applyMarkerEdit(
+			timeline,
+			markerId,
+			markerNameBuffer.get(),
+			markerTimeBuffer.get(),
+			markerTypeIndex.get()
+		);
+		if (outcome.formSnapshot() != null) {
+			applyFormSnapshot(outcome.formSnapshot());
 		}
 	}
 
-	private void applyMarkerEdits(Timeline timeline, String markerId, TimelineMarker marker) {
-		if (timeline == null || markerId == null || marker == null) return;
-		String name = markerNameBuffer.get() == null ? "" : markerNameBuffer.get().trim();
-		double timeSeconds = marker.getTimeSeconds();
-		MarkerType type = MarkerType.values()[Math.max(0, Math.min(markerTypeIndex.get(), MarkerType.values().length - 1))];
-		try {
-			String raw = markerTimeBuffer.get();
-			if (raw != null && !raw.isBlank()) {
-				timeSeconds = Math.max(0, Double.parseDouble(raw.trim()));
-			}
-		} catch (NumberFormatException ignored) {
-			markerTimeBuffer.set(String.format(Locale.ROOT, "%.3f", marker.getTimeSeconds()));
-			return;
-		}
-		timeline.updateMarker(markerId, timeSeconds, name, type);
-		int newIndex = timeline.findMarkerIndexById(markerId);
-		if (newIndex >= 0) {
-			TimelineMarker updated = timeline.getMarkers().get(newIndex);
-			markerNameBuffer.set(updated.getName());
-			markerTimeBuffer.set(String.format(Locale.ROOT, "%.3f", updated.getTimeSeconds()));
-			markerTypeIndex.set(updated.getType().ordinal());
-		}
-	}
-
-	private void setLoopIn(double timeSeconds) {
-		if (BeatBlock.timelineEditor == null) return;
-		var toolbarState = BeatBlock.timelineEditor.getToolbarState();
-		toolbarState.setLoopInSeconds(timeSeconds);
-		if (toolbarState.getLoopOutSeconds() <= timeSeconds) {
-			toolbarState.setLoopOutSeconds(timeSeconds + 0.1);
-		}
-		toolbarState.setLoop(true);
-	}
-
-	private void setLoopOut(double timeSeconds) {
-		if (BeatBlock.timelineEditor == null) return;
-		var toolbarState = BeatBlock.timelineEditor.getToolbarState();
-		double loopIn = toolbarState.getLoopInSeconds();
-		toolbarState.setLoopOutSeconds(Math.max(timeSeconds, loopIn + 0.1));
-		toolbarState.setLoop(true);
-	}
-
-	private void applyLoopRange(TimelineMarker startMarker, TimelineMarker endMarker) {
-		if (startMarker == null || endMarker == null || BeatBlock.timelineEditor == null) return;
-		double start = Math.min(startMarker.getTimeSeconds(), endMarker.getTimeSeconds());
-		double end = Math.max(startMarker.getTimeSeconds(), endMarker.getTimeSeconds());
-		if (end <= start) return;
-		var toolbarState = BeatBlock.timelineEditor.getToolbarState();
-		toolbarState.setLoopInSeconds(start);
-		toolbarState.setLoopOutSeconds(end);
-		toolbarState.setLoop(true);
-		BeatBlock.timelineEditor.getClock().seek(start);
-		if (BeatBlock.musicPlayer != null) {
-			BeatBlock.musicPlayer.setCurrentTimeSeconds(start);
-		}
+	private void applyFormSnapshot(MarkerPanelPresenter.MarkerFormSnapshot snapshot) {
+		markerNameBuffer.set(snapshot.name());
+		markerTimeBuffer.set(snapshot.timeText());
+		markerTypeIndex.set(snapshot.typeIndex());
 	}
 
 	private static float abgrToR(int abgr) { return ((abgr) & 0xFF) / 255f; }

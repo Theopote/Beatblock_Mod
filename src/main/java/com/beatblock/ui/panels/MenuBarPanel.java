@@ -1,14 +1,12 @@
 package com.beatblock.ui.panels;
 
-import com.beatblock.BeatBlock;
-import com.beatblock.timeline.project.OscProjectStore;
 import com.beatblock.ui.BeatBlockPanelVisibility;
+import com.beatblock.ui.presenter.MenuBarPresenter;
+import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
-
-import java.nio.file.Path;
 
 /**
  * 顶部通栏菜单栏：文件、编辑、视图、演出、帮助。
@@ -17,6 +15,7 @@ public class MenuBarPanel {
 
 	private static final int IMPORT_PATH_CAPACITY = 512;
 
+	private final MenuBarPresenter presenter;
 	private final Runnable onCloseRequest;
 	private final BeatBlockPanelVisibility panels;
 	private final Runnable onOpenSmartAutoMap;
@@ -34,6 +33,13 @@ public class MenuBarPanel {
 
 	public MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
 			Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout) {
+		this(onCloseRequest, panels, onOpenSmartAutoMap, onResetLayout, onSaveLayout, onLoadLayout,
+			PresenterFactories.menuBarPresenter());
+	}
+
+	MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
+			Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout, MenuBarPresenter presenter) {
+		this.presenter = presenter;
 		this.onCloseRequest = onCloseRequest;
 		this.panels = panels != null ? panels : new BeatBlockPanelVisibility();
 		this.onOpenSmartAutoMap = onOpenSmartAutoMap != null ? onOpenSmartAutoMap : () -> {};
@@ -55,8 +61,7 @@ public class MenuBarPanel {
 				if (ImGui.menuItem("保存工程(.osc)", "Ctrl+S")) {
 					showSaveProjectDialog = true;
 					projectDialogMessage = "";
-					Object p = BeatBlock.timeline != null ? BeatBlock.timeline.getMetadata("projectPath") : null;
-					saveProjectPath.set(p == null ? "" : String.valueOf(p));
+					saveProjectPath.set(presenter.defaultSaveProjectPath());
 				}
 				ImGui.separator();
 				if (ImGui.menuItem("导入音乐", "Ctrl+O")) {
@@ -71,15 +76,12 @@ public class MenuBarPanel {
 			}
 			// 编辑
 			if (ImGui.beginMenu("编辑")) {
-				boolean canUndo = BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getCommandManager() != null && BeatBlock.timelineEditor.getCommandManager().canUndo();
-				boolean canRedo = BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getCommandManager() != null && BeatBlock.timelineEditor.getCommandManager().canRedo();
-				if (ImGui.menuItem("撤销", "Ctrl+Z", false, canUndo)) {
-					if (BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getCommandManager() != null)
-						BeatBlock.timelineEditor.getCommandManager().undo();
+				var undoRedo = presenter.undoRedoState();
+				if (ImGui.menuItem("撤销", "Ctrl+Z", false, undoRedo.canUndo())) {
+					presenter.undo();
 				}
-				if (ImGui.menuItem("重做", "Ctrl+Y", false, canRedo)) {
-					if (BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getCommandManager() != null)
-						BeatBlock.timelineEditor.getCommandManager().redo();
+				if (ImGui.menuItem("重做", "Ctrl+Y", false, undoRedo.canRedo())) {
+					presenter.redo();
 				}
 				ImGui.endMenu();
 			}
@@ -163,10 +165,9 @@ public class MenuBarPanel {
 			ImGui.setNextItemWidth(-1);
 			ImGui.inputText("##path", importPath);
 			if (ImGui.button("导入")) {
-				String path = importPath.get().trim();
-				if (!path.isEmpty() && BeatBlock.audioLoader != null) {
-					boolean ok = BeatBlock.audioLoader.load(path);
-					if (ok) showImportDialog = false;
+				var result = presenter.importAudio(importPath.get());
+				if (result.ok()) {
+					showImportDialog = false;
 				}
 			}
 			ImGui.sameLine();
@@ -185,39 +186,10 @@ public class MenuBarPanel {
 			ImGui.setNextItemWidth(-1);
 			ImGui.inputText("##openOscPath", openProjectPath);
 			if (ImGui.button("打开")) {
-				String p = openProjectPath.get().trim();
-				if (p.isEmpty()) {
-					projectDialogMessage = "路径不能为空";
-				} else if (BeatBlock.timeline == null) {
-					projectDialogMessage = "Timeline 不可用";
-				} else {
-					try {
-						var layerMgr = BeatBlock.blockAnimationEngine != null
-							? BeatBlock.blockAnimationEngine.getBuildLayerManager() : null;
-						OscProjectStore.LoadedProject loaded = OscProjectStore.load(Path.of(p), layerMgr, BeatBlock.timeline);
-						if (!loaded.getTimelineName().isBlank()) {
-							BeatBlock.timeline.setName(loaded.getTimelineName());
-						}
-						BeatBlock.timeline.setMetadata("projectId", loaded.getProjectId());
-						BeatBlock.timeline.setMetadata("projectPath", loaded.getProjectPath());
-						if (!loaded.getAudioPath().isBlank()) {
-							BeatBlock.timeline.setMetadata("audioPath", loaded.getAudioPath());
-						}
-						BeatBlock.timeline.setMarkers(loaded.getMarkers());
-						if (!loaded.getAudioPath().isBlank() && BeatBlock.audioLoader != null) {
-							BeatBlock.audioLoader.load(loaded.getAudioPath());
-						}
-						if (BeatBlock.timelineEditor != null) {
-							BeatBlock.timelineEditor.syncClockDuration();
-						}
-						if (layerMgr != null) {
-							layerMgr.applyPersistedWorldState(com.beatblock.engine.layer.BuildLayerManager.currentWorld());
-						}
-						projectDialogMessage = "工程已打开";
-						showOpenProjectDialog = false;
-					} catch (Exception e) {
-						projectDialogMessage = "打开失败: " + e.getMessage();
-					}
+				var result = presenter.openProject(openProjectPath.get());
+				projectDialogMessage = result.messageOrEmpty();
+				if (result.ok()) {
+					showOpenProjectDialog = false;
 				}
 			}
 			ImGui.sameLine();
@@ -240,21 +212,10 @@ public class MenuBarPanel {
 			ImGui.setNextItemWidth(-1);
 			ImGui.inputText("##saveOscPath", saveProjectPath);
 			if (ImGui.button("保存")) {
-				String p = saveProjectPath.get().trim();
-				if (p.isEmpty()) {
-					projectDialogMessage = "路径不能为空";
-				} else if (BeatBlock.timeline == null) {
-					projectDialogMessage = "Timeline 不可用";
-				} else {
-					try {
-						var layerMgr = BeatBlock.blockAnimationEngine != null
-							? BeatBlock.blockAnimationEngine.getBuildLayerManager() : null;
-						OscProjectStore.save(Path.of(p), BeatBlock.timeline, layerMgr);
-						projectDialogMessage = "工程已保存";
-						showSaveProjectDialog = false;
-					} catch (Exception e) {
-						projectDialogMessage = "保存失败: " + e.getMessage();
-					}
+				var result = presenter.saveProject(saveProjectPath.get());
+				projectDialogMessage = result.messageOrEmpty();
+				if (result.ok()) {
+					showSaveProjectDialog = false;
 				}
 			}
 			ImGui.sameLine();
