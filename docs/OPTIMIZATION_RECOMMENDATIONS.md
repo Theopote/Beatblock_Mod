@@ -396,7 +396,8 @@ void testTick() {
 | Presenter 层构造器注入 | ✅ 已落地 | `PresenterFactories` 从 Context 取依赖；支持 `setContextSourceForTests` 注入 mock |
 | UI Panel 去静态化（第一批） | ✅ 已落地 | `TimelinePanel`、`EventPropertiesPanel`、`MarkerPanel`、`LayerPanel` 经 Context / Presenter 访问服务 |
 | UI Panel 去静态化（第二批） | ✅ 已落地 | `AudioAnalysisPanel` + `AudioAnalysisPanelPresenter`；`AutoMapSettingsPanel` + `AutoMapSettingsPanelPresenter` |
-| 引擎 / 客户端驱动去静态化 | 🔄 进行中 | `BeatBlockClientDriver`、`TimelineCameraController`、`TimelineInteraction` 已注入；`TimelineRenderer`、`AudioLoader`、`TrackRenderer`、世界渲染器已改；`TimelineEditor` 音乐播放逻辑已本地化 |
+| 引擎 / 客户端驱动去静态化 | ✅ 已落地 | `BeatBlockClientDriver`、`TimelineCameraController`、`TimelineInteraction` 已注入；`TimelineRenderer`、`AudioLoader`、`TrackRenderer`、世界渲染器已改；`TimelineEditor` 音乐播放逻辑已本地化 |
+| SelectionManager / 代码生成路径 | ✅ 已落地 | `BeatBlockSelectionManager.bindContext`；`TimelineDraftWriter`、`StepSequenceBaker`、`AnimationBindingEngine`、`TimelineBuilder`、`AutoMapGenerator` 经 `BeatBlockContext` 解析引擎/命令依赖 |
 | 全局 DI 容器 | ⏸ 暂缓 | 手动构造器注入已够用；暂不引入 Guice / Spring |
 
 **新代码约定**: 业务逻辑优先通过 `BeatBlockContext` 或 Presenter 注入；Panel 避免新增 `BeatBlock.*` 静态访问。

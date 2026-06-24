@@ -98,8 +98,9 @@ public final class AutoMapGenerator {
 	}
 
 	private static String resolveTargetObjectId() {
-		if (BeatBlock.stageManager != null && BeatBlock.stageManager.getCurrentStage().isPresent()) {
-			return BeatBlock.stageManager.getCurrentStage().get().getId();
+		var stageManager = BeatBlock.getContext().stageManager();
+		if (stageManager != null && stageManager.getCurrentStage().isPresent()) {
+			return stageManager.getCurrentStage().get().getId();
 		}
 		return DEFAULT_TARGET_ID;
 	}

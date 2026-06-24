@@ -397,10 +397,11 @@ public final class AnimationBindingEngine {
 	}
 
 	private static String resolveDefaultTargetObjectId() {
-		if (BeatBlock.blockAnimationEngine == null) {
+		var engine = BeatBlock.getContext().blockAnimationEngine();
+		if (engine == null) {
 			return "";
 		}
-		var all = BeatBlock.blockAnimationEngine.getStageObjectSystem().getAll();
+		var all = engine.getStageObjectSystem().getAll();
 		if (all.isEmpty()) return "";
 		return all.iterator().next().getId();
 	}

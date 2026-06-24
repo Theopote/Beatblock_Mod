@@ -1,6 +1,5 @@
 package com.beatblock.timeline.generation;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.GroupSpec;
 import com.beatblock.engine.StageObject;
@@ -10,7 +9,6 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineOperations;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -28,12 +26,6 @@ class StepSequenceBakerTest {
 	@BeforeEach
 	void setUp() {
 		engine = new BlockAnimationEngine();
-		BeatBlock.blockAnimationEngine = engine;
-	}
-
-	@AfterEach
-	void tearDown() {
-		BeatBlock.blockAnimationEngine = null;
 	}
 
 	@Test
@@ -59,7 +51,8 @@ class StepSequenceBakerTest {
 			"pacingMode", "BEAT_GRID"
 		));
 
-		StepSequenceBaker.BakeResult result = StepSequenceBaker.bake(timeline, null, Vec3d.ZERO);
+		StepSequenceBaker.BakeResult result = StepSequenceBaker.bake(
+			timeline, null, Vec3d.ZERO, engine.getStageObjectSystem());
 
 		assertEquals(1, result.stepEventsBaked());
 		assertEquals(2, result.burstEventsCreated());
@@ -81,7 +74,8 @@ class StepSequenceBakerTest {
 			"animationType", "BlockTap"
 		));
 
-		StepSequenceBaker.BakeResult result = StepSequenceBaker.bake(timeline, null, Vec3d.ZERO);
+		StepSequenceBaker.BakeResult result = StepSequenceBaker.bake(
+			timeline, null, Vec3d.ZERO, engine.getStageObjectSystem());
 		assertEquals(0, result.stepEventsBaked());
 		assertTrue(result.stepEventsSkipped() >= 1);
 	}

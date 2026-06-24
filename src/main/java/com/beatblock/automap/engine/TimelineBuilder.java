@@ -88,8 +88,9 @@ public final class TimelineBuilder {
 				if (id != null && !id.isBlank()) return id;
 			}
 		}
-		if (BeatBlock.blockAnimationEngine != null) {
-			var sys = BeatBlock.blockAnimationEngine.getStageObjectSystem();
+		var engine = BeatBlock.getContext().blockAnimationEngine();
+		if (engine != null) {
+			var sys = engine.getStageObjectSystem();
 			var all = sys != null ? sys.getAll() : null;
 			if (all != null && !all.isEmpty()) return all.iterator().next().getId();
 		}

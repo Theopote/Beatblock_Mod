@@ -36,11 +36,17 @@ public final class StepSequenceBaker {
 	private StepSequenceBaker() {}
 
 	public static BakeResult bake(Timeline timeline, CommandManager commandManager, Vec3d runtimeCameraPosition) {
+		return bake(timeline, commandManager, runtimeCameraPosition, stageObjectsFromContext());
+	}
+
+	public static BakeResult bake(
+		Timeline timeline,
+		CommandManager commandManager,
+		Vec3d runtimeCameraPosition,
+		StageObjectSystem stageObjects
+	) {
 		if (timeline == null) return new BakeResult(0, 0, 0);
 
-		StageObjectSystem stageObjects = BeatBlock.blockAnimationEngine != null
-			? BeatBlock.blockAnimationEngine.getStageObjectSystem()
-			: null;
 		double[] beats = ReferenceBeatResolver.resolveBeatTimesSeconds(timeline);
 		double bpm = timeline.getBpm() > 0 ? timeline.getBpm() : 120.0;
 
@@ -96,6 +102,11 @@ public final class StepSequenceBaker {
 		}
 		timeline.sortAll();
 		return new BakeResult(stepEventsBaked, burstEventsCreated, stepEventsSkipped);
+	}
+
+	private static StageObjectSystem stageObjectsFromContext() {
+		var engine = BeatBlock.getContext().blockAnimationEngine();
+		return engine != null ? engine.getStageObjectSystem() : null;
 	}
 
 	private static List<StepEventRef> collectStepEvents(Timeline timeline) {

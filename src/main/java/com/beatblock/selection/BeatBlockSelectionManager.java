@@ -2,6 +2,8 @@ package com.beatblock.selection;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.engine.layer.BuildLayer;
+import com.beatblock.engine.layer.BuildLayerManager;
+import com.beatblock.runtime.BeatBlockContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -19,6 +21,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * BeatBlock 方块选区：点击、框选、线选、球/立方笔刷、连通魔棒、选区魔棒、整列、平面切片等。
@@ -64,8 +67,26 @@ public final class BeatBlockSelectionManager {
 	/** 逐块半透明填充（仅当选区不大时绘制，开销高） */
 	private boolean selectionFillEnabled;
 	private String lastMessage = "";
+	private Supplier<BeatBlockContext> contextSource = BeatBlock::getContext;
 
 	private BeatBlockSelectionManager() {}
+
+	public void bindContext(Supplier<BeatBlockContext> source) {
+		this.contextSource = source != null ? source : BeatBlock::getContext;
+	}
+
+	static void resetContextBindingForTests() {
+		INSTANCE.bindContext(BeatBlock::getContext);
+	}
+
+	private BeatBlockContext ctx() {
+		return contextSource.get();
+	}
+
+	private BuildLayerManager buildLayerManager() {
+		var engine = ctx().blockAnimationEngine();
+		return engine != null ? engine.getBuildLayerManager() : null;
+	}
 
 	public SelectionMode getMode() {
 		return mode;
@@ -781,23 +802,25 @@ public final class BeatBlockSelectionManager {
 		}
 	}
 
-	private static boolean isClaimedByBuildLayer(BlockPos pos) {
-		if (pos == null || BeatBlock.blockAnimationEngine == null) return false;
-		return BeatBlock.blockAnimationEngine.getBuildLayerManager().isBlockClaimed(pos);
+	private boolean isClaimedByBuildLayer(BlockPos pos) {
+		if (pos == null) return false;
+		BuildLayerManager manager = buildLayerManager();
+		return manager != null && manager.isBlockClaimed(pos);
 	}
 
-	private static String layerClaimedMessage(BlockPos pos) {
-		if (BeatBlock.blockAnimationEngine == null) return "该方块已属于某图层，无法选入选区。";
-		BuildLayer owner = BeatBlock.blockAnimationEngine.getBuildLayerManager().getLayerOwningBlock(pos);
+	private String layerClaimedMessage(BlockPos pos) {
+		BuildLayerManager manager = buildLayerManager();
+		if (manager == null) return "该方块已属于某图层，无法选入选区。";
+		BuildLayer owner = manager.getLayerOwningBlock(pos);
 		if (owner == null) return "该方块已属于某图层，无法选入选区。";
 		return "该方块已属于图层「" + owner.getName() + "」，无法选入选区。";
 	}
 
-	private static List<BlockPos> excludeLayerClaimed(List<BlockPos> blocks) {
-		return SelectionLayerBlocks.excludeClaimed(blocks, BeatBlockSelectionManager::isClaimedByBuildLayer);
+	private List<BlockPos> excludeLayerClaimed(List<BlockPos> blocks) {
+		return SelectionLayerBlocks.excludeClaimed(blocks, this::isClaimedByBuildLayer);
 	}
 
-	private static int countLayerClaimed(List<BlockPos> blocks) {
-		return SelectionLayerBlocks.countClaimed(blocks, BeatBlockSelectionManager::isClaimedByBuildLayer);
+	private int countLayerClaimed(List<BlockPos> blocks) {
+		return SelectionLayerBlocks.countClaimed(blocks, this::isClaimedByBuildLayer);
 	}
 }

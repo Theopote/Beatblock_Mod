@@ -1,8 +1,12 @@
 package com.beatblock.timeline.generation;
 
+import com.beatblock.audio.MusicPlayer;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEventOrigin;
+import com.beatblock.timeline.command.CommandManager;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -10,6 +14,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class TimelineDraftWriterTest {
 
@@ -60,5 +65,20 @@ class TimelineDraftWriterTest {
 		assertEquals(1, timeline.getAutoAnimationEvents().size());
 		assertEquals(1.0, timeline.getAutoAnimationEvents().getFirst().getTimeSeconds(), 1e-9);
 		assertEquals("stage", timeline.getAutoAnimationEvents().getFirst().getTargetObjectId());
+	}
+
+	@Test
+	void commandManagerOrNullReadsFromInjectedContext() {
+		Timeline timeline = Timeline.createDefault();
+		MusicPlayer musicPlayer = new MusicPlayer();
+		TimelineEditor editor = new TimelineEditor(timeline, musicPlayer);
+		BeatBlockContext context = BeatBlockContext.builder()
+			.timeline(timeline)
+			.timelineEditor(editor)
+			.build();
+
+		CommandManager commands = TimelineDraftWriter.commandManagerOrNull(context);
+
+		assertSame(editor.getCommandManager(), commands);
 	}
 }

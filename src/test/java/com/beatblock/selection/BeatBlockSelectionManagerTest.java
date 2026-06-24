@@ -1,7 +1,7 @@
 package com.beatblock.selection;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.engine.StageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayer;
@@ -23,18 +23,20 @@ class BeatBlockSelectionManagerTest {
 
 	private BeatBlockSelectionManager manager;
 	private BlockAnimationEngine engine;
+	private BeatBlockContext context;
 
 	@BeforeEach
 	void setUp() {
 		manager = BeatBlockSelectionManager.get();
 		manager.reset();
 		engine = new BlockAnimationEngine();
-		BeatBlock.blockAnimationEngine = engine;
+		context = BeatBlockContext.builder().blockAnimationEngine(engine).build();
+		manager.bindContext(() -> context);
 	}
 
 	@AfterEach
 	void tearDown() {
-		BeatBlock.blockAnimationEngine = null;
+		BeatBlockSelectionManager.resetContextBindingForTests();
 	}
 
 	@Test

@@ -1,9 +1,9 @@
 package com.beatblock.timeline.generation;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
-import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.command.AddTimelineAnimationEventCommand;
 import com.beatblock.timeline.command.ClearAnimationTrackCommand;
@@ -90,7 +90,11 @@ public final class TimelineDraftWriter {
 	}
 
 	private static CommandManager commandManagerOrNull() {
-		TimelineEditor editor = BeatBlock.timelineEditor;
-		return editor != null ? editor.getCommandManager() : null;
+		return commandManagerOrNull(BeatBlock.getContext());
+	}
+
+	static CommandManager commandManagerOrNull(BeatBlockContext context) {
+		if (context == null) return null;
+		return context.commandManager();
 	}
 }
