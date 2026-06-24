@@ -30,8 +30,8 @@ public class MusicPlayer implements IAudioPlayer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MusicPlayer.class);
 
 	private boolean playing;
-	private double currentTimeSeconds;
-	private double durationSeconds;
+	private volatile double currentTimeSeconds;
+	private volatile double durationSeconds;
 	private double playbackSpeed = 1.0;
 	private Clip audioClip;
 	private final StreamMusicBackend streamBackend = new StreamMusicBackend();
