@@ -1,7 +1,7 @@
 package com.beatblock.timeline.interaction;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.BeatBlockClient;
+import com.beatblock.audio.MusicPlayer;
 import com.beatblock.client.camera.CameraKeyframeActions;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.camera.CameraPathMetadata;
@@ -92,6 +92,8 @@ public final class TimelineInteraction {
 	}
 
 	private IAudioPlayer audioPlayer;
+	private MusicPlayer musicPlayer;
+	private TimelineEditor timelineEditor;
 	private final List<ClipboardEvent> clipboardEvents = new ArrayList<>();
 	private String contextTrackId;
 	private String contextClipId;
@@ -139,6 +141,14 @@ public final class TimelineInteraction {
 
 	public void setAudioPlayer(IAudioPlayer audioPlayer) {
 		this.audioPlayer = audioPlayer;
+	}
+
+	public void setMusicPlayer(MusicPlayer musicPlayer) {
+		this.musicPlayer = musicPlayer;
+	}
+
+	public void bindTimelineEditor(TimelineEditor timelineEditor) {
+		this.timelineEditor = timelineEditor;
 	}
 
 	public TimelineInteraction() {
@@ -977,8 +987,8 @@ public final class TimelineInteraction {
 		try {
 			if (audioPlayer == null) return;
 
-			Timeline timeline = BeatBlock.timeline;
-			if (timeline == null || BeatBlock.musicPlayer == null || audioPlayer != BeatBlock.musicPlayer) {
+			Timeline timeline = timelineEditor != null ? timelineEditor.getTimeline() : null;
+			if (timeline == null || musicPlayer == null || audioPlayer != musicPlayer) {
 				audioPlayer.setCurrentTimeSeconds(clock.getCurrentTimeSeconds());
 				return;
 			}
@@ -1015,11 +1025,11 @@ public final class TimelineInteraction {
 			Object pathObj = timeline.getMetadata("clipAudioPath_" + targetClip.getId());
 			if (pathObj != null) {
 				String path = pathObj.toString();
-				String loadedPath = BeatBlock.musicPlayer.getLoadedAudioPath();
+				String loadedPath = musicPlayer.getLoadedAudioPath();
 				if (loadedPath == null || !loadedPath.equals(path)) {
-					boolean wasPlaying = BeatBlock.musicPlayer.isPlaying();
-					BeatBlock.musicPlayer.loadAudio(path);
-					if (wasPlaying) BeatBlock.musicPlayer.play();
+					boolean wasPlaying = musicPlayer.isPlaying();
+					musicPlayer.loadAudio(path);
+					if (wasPlaying) musicPlayer.play();
 				}
 				double localTime = Math.max(0.0,
 					Math.min(t - targetClip.getStartTimeSeconds(), targetClip.getDurationSeconds()));
@@ -1499,7 +1509,7 @@ public final class TimelineInteraction {
 				} else {
 					AnimationEventSnapshot after = ((GenericEventPropertiesEditor.Result.Ok) result).snapshot();
 					AnimationEventSnapshot before = AnimationEventSnapshot.capture(ref.event, ref.clip);
-					TimelineEditor editor = BeatBlock.timelineEditor;
+					TimelineEditor editor = timelineEditor;
 					if (editor != null && TimelineEventEditActions.execute(
 						timeline,
 						editor.getCommandManager(),
@@ -1896,7 +1906,7 @@ public final class TimelineInteraction {
 	}
 
 	private void commitEventDrag(Timeline timeline, InteractionState interactionState) {
-		TimelineEditor editor = BeatBlock.timelineEditor;
+		TimelineEditor editor = timelineEditor;
 		if (editor == null) return;
 		EventRef ref = findEventRef(timeline, interactionState.getActiveEventId());
 		if (ref == null || ref.event == null) return;
@@ -1919,7 +1929,7 @@ public final class TimelineInteraction {
 
 	private void commitClipDrag(Timeline timeline, ClipDragStateSnapshot before) {
 		if (before == null) return;
-		TimelineEditor editor = BeatBlock.timelineEditor;
+		TimelineEditor editor = timelineEditor;
 		if (editor == null) return;
 		ClipDragStateSnapshot after = before.captureCurrent(timeline);
 		TimelineEventEditActions.commitClipDrag(timeline, editor.getCommandManager(), before, after);

@@ -38,7 +38,8 @@ public final class BeatBlockAnimatedBlocksRenderer {
 	private BeatBlockAnimatedBlocksRenderer() {}
 
 	public static void render(MatrixStack matrices, VertexConsumerProvider consumers) {
-		if (BeatBlock.blockAnimationEngine == null) {
+		var engine = BeatBlock.getContext().blockAnimationEngine();
+		if (engine == null) {
 			return;
 		}
 		MinecraftClient mc = MinecraftClient.getInstance();
@@ -47,7 +48,7 @@ public final class BeatBlockAnimatedBlocksRenderer {
 			return;
 		}
 		BlockRenderView world = clientWorld;
-		Map<BlockPos, AnimatedBlock> frame = BeatBlock.blockAnimationEngine.getCurrentFrameBlocks();
+		Map<BlockPos, AnimatedBlock> frame = engine.getCurrentFrameBlocks();
 		if (frame == null || frame.isEmpty()) {
 			return;
 		}

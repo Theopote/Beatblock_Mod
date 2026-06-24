@@ -1,6 +1,7 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
@@ -34,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 /**
  * 时间线渲染入口：按 4 区域绘制（1.时间尺 2.轨道名 3.网格 4.内容/事件/播放头/框选）。
@@ -96,6 +98,19 @@ public final class TimelineRenderer {
 	private boolean audioGroupDropHighlight;
 	/** 已注册静音回调的 TrackListState 对象（避免重复注册）。 */
 	private TimelineTrackListState registeredMuteListenerFor;
+	private final Supplier<BeatBlockContext> contextSource;
+
+	public TimelineRenderer() {
+		this(BeatBlock::getContext);
+	}
+
+	TimelineRenderer(Supplier<BeatBlockContext> contextSource) {
+		this.contextSource = contextSource != null ? contextSource : BeatBlock::getContext;
+	}
+
+	private BeatBlockContext ctx() {
+		return contextSource.get();
+	}
 
 	private record PairVisibilitySnapshot(boolean audioVisible, boolean controlVisible) {}
 
@@ -172,7 +187,7 @@ public final class TimelineRenderer {
 		if (trackListState != null) {
 			syncPrimaryPlayerMuteState(trackListState);
 		}
-		if (trackListState != null && BeatBlock.stemMixer != null && BeatBlock.stemMixer.hasStems()) {
+		if (trackListState != null && ctx().stemMixer() != null && ctx().stemMixer().hasStems()) {
 			syncStemMuteState(trackListState);
 		}
 
@@ -215,7 +230,8 @@ public final class TimelineRenderer {
 			boolean canControlPlayback = isPlaybackControlRow(i);
 			String rowTypeLabel = resolveTypeLabel(i);
 			trackRenderer.drawTrackLabel(rowY, rowHeight, i, displayName, isGroup, trackListState,
-				layout.trackHeaderLeft, layout.trackHeaderWidth, canControlPlayback, rowTypeLabel);
+				layout.trackHeaderLeft, layout.trackHeaderWidth, canControlPlayback, rowTypeLabel,
+				timeline, clock);
 			drawRowContent(i, rowY, timeline, viewState, selectionState, layout, trackListState);
 		}
 
@@ -807,26 +823,26 @@ public final class TimelineRenderer {
 		ImGui.invisibleButton("##BuildReverseDropTarget", layout.contentWidth, rowHeight);
 		if (ImGui.beginDragDropTarget()) {
 			byte[] payload = ImGui.acceptDragDropPayload("BB_BUILD_LAYER_ID");
-			if (payload != null && BeatBlock.blockAnimationEngine != null && BeatBlock.timelineEditor != null) {
+			if (payload != null && ctx().blockAnimationEngine() != null && ctx().timelineEditor() != null) {
 				String layerId = new String(payload, StandardCharsets.UTF_8).trim();
 				double dropTime = viewState.screenToTime(ImGui.getMousePosX() - layout.contentLeft);
 				dropTime = Math.max(0, dropTime);
 				var cmd = new com.beatblock.timeline.command.layer.BindLayerToTrackCommand(
 					timeline,
-					BeatBlock.blockAnimationEngine.getBuildLayerManager(),
-					BeatBlock.timelineEditor.getCommandManager(),
+					ctx().blockAnimationEngine().getBuildLayerManager(),
+					ctx().timelineEditor().getCommandManager(),
 					layerId,
 					dropTime,
 					com.beatblock.timeline.command.layer.BindLayerToTrackCommand.DEFAULT_CLIP_DURATION_SECONDS
 				);
-				BeatBlock.timelineEditor.getCommandManager().execute(cmd);
+				ctx().timelineEditor().getCommandManager().execute(cmd);
 			}
 			ImGui.endDragDropTarget();
 		}
 	}
 
 	private void handleDroppedAudioAsset(Timeline timeline, AudioAsset asset, int dropTargetRowIndex) {
-		if (asset == null || BeatBlock.audioAnalysisEngine == null) return;
+		if (asset == null || ctx().audioAnalysisEngine() == null) return;
 
 		// 计算新片段起始偏移（必须在 upsertAudioRootClip 之前，避免计入将要创建的片段）
 		double startOffset = computeNextClipStartOffset(timeline);
@@ -848,7 +864,7 @@ public final class TimelineRenderer {
 			timeline.setMetadata("awaitingAnalyzedBeatmap", null);
 			double prevDuration = timeline.getDurationSeconds();
 			Map<String, SavedFeatureTrack> savedFeatureEvents = saveFeatureEvents(timeline);
-			BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, asset.getBeatmap());
+			ctx().audioAnalysisEngine().fillTimelineFromBeatmap(timeline, asset.getBeatmap());
 			shiftFeatureEventsByOffset(timeline, startOffset);
 			restoreFeatureEvents(timeline, savedFeatureEvents);
 			timeline.setDurationSeconds(prevDuration);
@@ -859,7 +875,7 @@ public final class TimelineRenderer {
 			LOGGER.info("BeatBlock Timeline: dropped asset not completed yet, using feature timeline temporarily path={} status={}",
 				asset.getPath(), asset.getStatus());
 			double prevDuration = timeline.getDurationSeconds();
-			BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
+			ctx().audioAnalysisEngine().fillTimelineFromFeature(timeline, asset.getFeatureTimeline(), asset.getSampleRate());
 			shiftFeatureEventsByOffset(timeline, startOffset);
 			timeline.setDurationSeconds(prevDuration);
 		} else {
@@ -874,8 +890,8 @@ public final class TimelineRenderer {
 			populateAnimationTrackFromAudioFeatures(timeline, dropTargetRowIndex);
 		}
 
-		if (BeatBlock.timelineEditor != null) {
-			BeatBlock.timelineEditor.syncClockDuration();
+		if (ctx().timelineEditor() != null) {
+			ctx().timelineEditor().syncClockDuration();
 		}
 	}
 
@@ -1317,8 +1333,8 @@ public final class TimelineRenderer {
 	}
 
 	private String resolveDefaultTargetObjectId() {
-		if (BeatBlock.blockAnimationEngine != null) {
-			var sys = BeatBlock.blockAnimationEngine.getStageObjectSystem();
+		if (ctx().blockAnimationEngine() != null) {
+			var sys = ctx().blockAnimationEngine().getStageObjectSystem();
 			var all = sys.getAll();
 			if (!all.isEmpty()) {
 				return all.iterator().next().getId();
@@ -1459,7 +1475,7 @@ public final class TimelineRenderer {
 	 * 触发高分辨率频段数据补全：已有特征时立即应用；否则在后台分析，主线程按当前时间线音频路径安全回填。
 	 */
 	private void requestDenseFeatureEnrichment(Timeline timeline, AudioAsset asset) {
-		if (timeline == null || asset == null || BeatBlock.audioAnalysisEngine == null) return;
+		if (timeline == null || asset == null || ctx().audioAnalysisEngine() == null) return;
 		if (denseFeatureExecutorShutdown) return;
 
 		String audioKey = buildAudioAssetKey(asset);
@@ -1481,7 +1497,7 @@ public final class TimelineRenderer {
 
 		denseFeatureExecutor.submit(() -> {
 			try {
-				AudioFeatureTimeline analyzed = BeatBlock.audioAnalysisEngine.analyze(audioPath);
+				AudioFeatureTimeline analyzed = ctx().audioAnalysisEngine().analyze(audioPath);
 				if (analyzed == null) {
 					denseAnalysisFailureUntilMs.put(audioKey, System.currentTimeMillis() + DENSE_FAILURE_COOLDOWN_MS);
 					LOGGER.warn("BeatBlock Timeline: dense feature enrichment returned null path={} (cooldown={}ms)",
@@ -1542,26 +1558,26 @@ public final class TimelineRenderer {
 	}
 
 	private void applyDenseFeatureData(Timeline timeline, AudioAsset asset, AudioFeatureTimeline feature, String expectedAudioKey) {
-		if (timeline == null || asset == null || feature == null || BeatBlock.audioAnalysisEngine == null) return;
+		if (timeline == null || asset == null || feature == null || ctx().audioAnalysisEngine() == null) return;
 		String timelineAudioKey = getTimelineAudioPathKey(timeline);
 		if (!Objects.equals(timelineAudioKey, expectedAudioKey)) return;
 
 		double startOffset = readClipOffset(timeline, expectedAudioKey);
 		double prevDuration = timeline.getDurationSeconds();
-		BeatBlock.audioAnalysisEngine.fillTimelineFromFeature(timeline, feature, asset.getSampleRate());
+		ctx().audioAnalysisEngine().fillTimelineFromFeature(timeline, feature, asset.getSampleRate());
 		shiftFeatureEventsByOffset(timeline, startOffset);
 		timeline.setDurationSeconds(prevDuration);
 		if (asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
 			timeline.setMetadata("bpm", asset.getBeatmap().meta.bpm());
 			timeline.setMetadata("beatCount", asset.getBeatmap().beats.size());
 		}
-		if (BeatBlock.timelineEditor != null) {
-			BeatBlock.timelineEditor.syncClockDuration();
+		if (ctx().timelineEditor() != null) {
+			ctx().timelineEditor().syncClockDuration();
 		}
 	}
 
 	private void tryAutoApplyAnalyzedBeatmap(Timeline timeline) {
-		if (timeline == null || BeatBlock.audioAnalysisEngine == null) return;
+		if (timeline == null || ctx().audioAnalysisEngine() == null) return;
 		String timelineAudioKey = getTimelineAudioPathKey(timeline);
 		if (timelineAudioKey == null) return;
 
@@ -1578,7 +1594,7 @@ public final class TimelineRenderer {
 		double startOffset = readClipOffset(timeline, timelineAudioKey);
 		double prevDuration = timeline.getDurationSeconds();
 		Map<String, SavedFeatureTrack> savedFeatureEvents = saveFeatureEvents(timeline);
-		BeatBlock.audioAnalysisEngine.fillTimelineFromBeatmap(timeline, matched.getBeatmap());
+		ctx().audioAnalysisEngine().fillTimelineFromBeatmap(timeline, matched.getBeatmap());
 		shiftFeatureEventsByOffset(timeline, startOffset);
 		restoreFeatureEvents(timeline, savedFeatureEvents);
 		timeline.setDurationSeconds(prevDuration);
@@ -1586,8 +1602,8 @@ public final class TimelineRenderer {
 		bindStemAudioIfDemucs(matched.getBeatmap());
 		timeline.setMetadata("awaitingAnalyzedBeatmap", null);
 		lastAutoAppliedBeatmapSignature = signature;
-		if (BeatBlock.timelineEditor != null) {
-			BeatBlock.timelineEditor.syncClockDuration();
+		if (ctx().timelineEditor() != null) {
+			ctx().timelineEditor().syncClockDuration();
 		}
 		LOGGER.info("BeatBlock Timeline: auto-applied analyzed beatmap path={}", matched.getPath());
 	}
@@ -1703,7 +1719,7 @@ public final class TimelineRenderer {
 	 * 仅影响 key 为 "stem_wf_*" 的音频子轨对应的茎。
 	 */
 	private void syncStemMuteState(TimelineTrackListState trackListState) {
-		if (BeatBlock.stemMixer == null || !BeatBlock.stemMixer.hasStems()) return;
+		if (ctx().stemMixer() == null || !ctx().stemMixer().hasStems()) return;
 		syncOneStemMute(trackListState, "drums");
 		syncOneStemMute(trackListState, "bass");
 		syncOneStemMute(trackListState, "vocals");
@@ -1726,7 +1742,7 @@ public final class TimelineRenderer {
 
 		// 语义：仅当存在映射行且这些行都被静音/独奏抑制时，才静音该茎
 		boolean muted = hasMappedRow && !anyAudibleMappedRow;
-		BeatBlock.stemMixer.setStemMuted(stemName, muted);
+		ctx().stemMixer().setStemMuted(stemName, muted);
 	}
 
 	private boolean mapsToStemAudioControl(String trackKey, String stemName) {
@@ -1766,7 +1782,7 @@ public final class TimelineRenderer {
 	}
 
 	private void syncPrimaryPlayerMuteState(TimelineTrackListState trackListState) {
-		if (BeatBlock.musicPlayer == null) return;
+		if (ctx().musicPlayer() == null) return;
 
 		boolean anyAudioRowAudible = false;
 		for (int slot = 0; slot < currentAudioSubTracks.size(); slot++) {
@@ -1780,7 +1796,7 @@ public final class TimelineRenderer {
 		}
 
 		// 没有任何可听音频子轨时静音主播放器。
-		BeatBlock.musicPlayer.setMuted(!anyAudioRowAudible);
+		ctx().musicPlayer().setMuted(!anyAudioRowAudible);
 	}
 
 	/**
@@ -1788,8 +1804,8 @@ public final class TimelineRenderer {
 	 * 若非 Demucs 模式则清空 stemMixer。
 	 */
 	private void bindStemAudioIfDemucs(com.beatblock.audio.beatmap.Beatmap beatmap) {
-		if (BeatBlock.stemMixer == null) return;
-		BeatBlock.stemMixer.clearStems();
+		if (ctx().stemMixer() == null) return;
+		ctx().stemMixer().clearStems();
 
 		if (beatmap == null || beatmap.meta == null || !beatmap.meta.hasStemSeparation()) return;
 		if (beatmap.beatmapFilePath == null || beatmap.meta.stems() == null) return;
@@ -1805,7 +1821,7 @@ public final class TimelineRenderer {
 			if (relativePath == null || relativePath.isBlank()) continue;
 			java.nio.file.Path stemPath = beatmapDir.resolve(relativePath).normalize();
 			if (java.nio.file.Files.isRegularFile(stemPath)) {
-				if (BeatBlock.stemMixer.loadStem(stemKey, stemPath)) {
+				if (ctx().stemMixer().loadStem(stemKey, stemPath)) {
 					anyLoaded = true;
 					loadedCount++;
 				}
@@ -1824,13 +1840,13 @@ public final class TimelineRenderer {
 	private void bindDroppedAudioToPlayback(Timeline timeline, AudioAsset asset) {
 		String audioPath = asset.getPath().toAbsolutePath().normalize().toString();
 		timeline.setMetadata("audioPath", audioPath);
-		if (BeatBlock.musicPlayer != null) {
-			boolean loaded = BeatBlock.musicPlayer.loadAudio(audioPath);
-			BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
+		if (ctx().musicPlayer() != null) {
+			boolean loaded = ctx().musicPlayer().loadAudio(audioPath);
+			ctx().musicPlayer().setCurrentTimeSeconds(0);
 			if (loaded) {
 				LOGGER.info("BeatBlock Timeline: dropped audio asset bound to playback path={}", audioPath);
 			} else {
-				LOGGER.warn("BeatBlock Timeline: dropped audio asset failed to bind path={} reason={}", audioPath, BeatBlock.musicPlayer.getLastLoadError());
+				LOGGER.warn("BeatBlock Timeline: dropped audio asset failed to bind path={} reason={}", audioPath, ctx().musicPlayer().getLastLoadError());
 			}
 		} else {
 			LOGGER.warn("BeatBlock Timeline: dropped audio asset has no MusicPlayer instance path={}", audioPath);

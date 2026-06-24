@@ -2,13 +2,17 @@ package com.beatblock.client.camera;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockClientDriver;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.editor.InteractionMode;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.function.Supplier;
 
 /**
  * 时间线摄像机控制器
@@ -22,6 +26,7 @@ public final class TimelineCameraController {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TimelineCameraController.class);
 	private static final TimelineCameraController INSTANCE = new TimelineCameraController();
 
+	private Supplier<BeatBlockContext> contextSource = BeatBlock::getContext;
 	private boolean previewingKeyframe = false;
 	private TimelineCameraEvaluator.CameraSample keyframeSample = null;
 	private int keyframePreviewFrames = 0;
@@ -32,6 +37,14 @@ public final class TimelineCameraController {
 
 	public static TimelineCameraController getInstance() {
 		return INSTANCE;
+	}
+
+	public void bindContext(Supplier<BeatBlockContext> contextSource) {
+		this.contextSource = contextSource != null ? contextSource : BeatBlock::getContext;
+	}
+
+	private BeatBlockContext ctx() {
+		return contextSource.get();
 	}
 
 	public void previewKeyframeDirect(TimelineCameraEvaluator.CameraSample sample) {
@@ -61,12 +74,18 @@ public final class TimelineCameraController {
 	}
 
 	private void updateOwnerAndSample(float deltaSeconds) {
-		boolean playing = BeatBlock.musicPlayer != null && BeatBlock.musicPlayer.isPlaying();
-        if (BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getClock().isPlaying()) playing = true;
+		var musicPlayer = ctx().musicPlayer();
+		TimelineEditor editor = ctx().timelineEditor();
+		Timeline timeline = ctx().timeline();
+
+		boolean playing = musicPlayer != null && musicPlayer.isPlaying();
+		if (editor != null && editor.getClock().isPlaying()) {
+			playing = true;
+		}
 
 		boolean scrubbing = false;
-		if (BeatBlock.timelineEditor != null && BeatBlock.timelineEditor.getInteractionState() != null) {
-			scrubbing = BeatBlock.timelineEditor.getInteractionState().getMode() == InteractionMode.SCRUB_TIME;
+		if (editor != null && editor.getInteractionState() != null) {
+			scrubbing = editor.getInteractionState().getMode() == InteractionMode.SCRUB_TIME;
 		}
 		if (scrubbing && !ImGui.isMouseDown(0)) {
 			scrubbing = false;
@@ -82,10 +101,10 @@ public final class TimelineCameraController {
 		}
 
 		CameraRuntime runtime = CameraRuntime.getInstance();
-		
+
 		boolean hasCameraTrackClips = false;
-		if (BeatBlock.timeline != null) {
-			var track = BeatBlock.timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		if (timeline != null) {
+			var track = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
 			if (track != null && !track.getClips().isEmpty()) {
 				hasCameraTrackClips = true;
 			}
@@ -112,8 +131,8 @@ public final class TimelineCameraController {
 				float fallbackPitch = client.player != null ? client.player.getPitch() : 0f;
 
 				TimelineCameraEvaluator.CameraSample sample = TimelineCameraEvaluator.evaluate(
-					BeatBlock.timeline, timeSeconds, anchor, fallbackYaw, fallbackPitch);
-				
+					timeline, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+
 				if (sample != null) {
 					runtime.applyTimelineSample(sample);
 				}

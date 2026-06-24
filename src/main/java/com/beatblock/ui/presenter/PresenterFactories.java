@@ -175,6 +175,22 @@ public final class PresenterFactories {
 		return new TimelineToolbarFeedbackPresenter();
 	}
 
+	public static AudioAnalysisPanelPresenter audioAnalysisPanelPresenter() {
+		return audioAnalysisPanelPresenter(ctx());
+	}
+
+	public static AudioAnalysisPanelPresenter audioAnalysisPanelPresenter(BeatBlockContext context) {
+		return new AudioAnalysisPanelPresenter(() -> context);
+	}
+
+	public static AutoMapSettingsPanelPresenter autoMapSettingsPanelPresenter() {
+		return autoMapSettingsPanelPresenter(ctx());
+	}
+
+	public static AutoMapSettingsPanelPresenter autoMapSettingsPanelPresenter(BeatBlockContext context) {
+		return new AutoMapSettingsPanelPresenter(() -> context);
+	}
+
 	private static Vec3d currentCameraPositionOrZero() {
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client != null && client.gameRenderer != null && client.gameRenderer.getCamera() != null) {

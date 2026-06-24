@@ -1,13 +1,13 @@
 package com.beatblock.ui.panels;
 
-import com.beatblock.BeatBlock;
-import com.beatblock.audio.AudioAnalysisService;
 import com.beatblock.audio.IAudioAnalyzer;
 import com.beatblock.audio.python.PythonEnvironmentDiagnostics;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.ui.presenter.AudioAnalysisPanelPresenter;
+import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.client.imgui.ImGuiFontManager;
 import com.beatblock.client.imgui.ImGuiRenderer;
 import com.beatblock.ui.imgui.IconButtonStyle;
@@ -107,6 +107,7 @@ public final class AudioAnalysisPanel {
     private static final int COLLAPSED_TEXT_MAX_CHARS = 56;
 
     // ── 状态字段 ────────────────────────────────────────────────────────────
+    private final AudioAnalysisPanelPresenter presenter;
     private final ImString importPath = new ImString(512);
     private AudioAsset selectedAsset;
     private boolean detailExpanded = true;
@@ -116,6 +117,15 @@ public final class AudioAnalysisPanel {
 	private long panelHintExpireAtMs;
     private final ImBoolean demucsToggle = new ImBoolean(false);
     private final Set<String> expandedDetailRows = new HashSet<>();
+
+    public AudioAnalysisPanel() {
+        this(PresenterFactories.audioAnalysisPanelPresenter());
+    }
+
+    AudioAnalysisPanel(AudioAnalysisPanelPresenter presenter) {
+        this.presenter = presenter;
+    }
+
     // ── 公共入口 ─────────────────────────────────────────────────────────────
 
     public void render(ImBoolean pOpen) {
@@ -233,13 +243,13 @@ public final class AudioAnalysisPanel {
         if (ImGui.isItemHovered()) ImGui.setTooltip(detailExpanded ? "折叠详情" : "展开详情");
 
         // Demucs 茎分离开关
-        if (BeatBlock.externalAudioAnalyzer != null) {
+        if (presenter.isAnalyzerAvailable()) {
             ImGui.sameLine();
             ImGui.spacing();
             ImGui.sameLine();
-            demucsToggle.set(BeatBlock.externalAudioAnalyzer.isUseDemucs());
+            demucsToggle.set(presenter.isUseDemucs());
             if (ImGui.checkbox("新任务默认 Demucs##demucsToggle", demucsToggle)) {
-                BeatBlock.externalAudioAnalyzer.setUseDemucs(demucsToggle.get());
+                presenter.setUseDemucs(demucsToggle.get());
             }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("只影响之后新加入或重新提交的任务\n已在队列中的任务会保留提交时锁定的模式\n关闭后使用仅 librosa 的 Basic 快速分析模式");
@@ -253,22 +263,22 @@ public final class AudioAnalysisPanel {
     }
 
     private void renderPythonRuntimeHint() {
-        if (BeatBlock.externalAudioAnalyzer == null) return;
-        String py = BeatBlock.externalAudioAnalyzer.getPythonRuntimeSummary();
+        if (!presenter.isAnalyzerAvailable()) return;
+        String py = presenter.pythonRuntimeSummary();
         if (py == null || py.isBlank()) return;
-        PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot = BeatBlock.externalAudioAnalyzer.getRuntimeHealthSnapshot();
+        PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot = presenter.runtimeHealthSnapshot();
         renderRuntimeHealth(py, snapshot);
 
-        IAudioAnalyzer analyzer = BeatBlock.externalAudioAnalyzer.getAnalyzer();
+        IAudioAnalyzer analyzer = presenter.backendAnalyzer();
         if (analyzer != null) {
             String backendLabel = analyzer.backendId();
             if (!analyzer.isAvailable()) {
                 backendLabel += "（不可用）";
             }
             ImGui.textDisabled("分析后端 · " + backendLabel);
-            if (BeatBlock.externalAudioAnalyzer.getActiveAnalysisCount() > 0) {
+            if (presenter.activeAnalysisCount() > 0) {
                 ImGui.sameLine();
-                ImGui.textDisabled("· 进行中 " + BeatBlock.externalAudioAnalyzer.getActiveAnalysisCount());
+                ImGui.textDisabled("· 进行中 " + presenter.activeAnalysisCount());
             }
         }
 

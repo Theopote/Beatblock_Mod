@@ -1,13 +1,11 @@
 package com.beatblock.ui.panels;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.automap.engine.AutoMapSettings;
 import com.beatblock.automap.engine.AutoMapStyle;
 import com.beatblock.automap.engine.Complexity;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
-import com.beatblock.audio.analysis.AudioFeatureTimeline;
-import com.beatblock.timeline.Timeline;
-import com.beatblock.timeline.TimelineEditor;
+import com.beatblock.ui.presenter.AutoMapSettingsPanelPresenter;
+import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
@@ -23,9 +21,18 @@ public final class AutoMapSettingsPanel {
 	private static final String[] STYLE_LABELS = { "EDM", "Cinematic", "Ambient", "Chaos", "Minimal" };
 	private static final String[] COMPLEXITY_LABELS = { "Low", "Medium", "High", "Extreme" };
 
+	private final AutoMapSettingsPanelPresenter presenter;
 	private final AutoMapSettings settings = new AutoMapSettings();
 	private final ImInt styleIndex = new ImInt(0);
 	private final ImInt complexityIndex = new ImInt(1);
+
+	public AutoMapSettingsPanel() {
+		this(PresenterFactories.autoMapSettingsPanelPresenter());
+	}
+
+	AutoMapSettingsPanel(AutoMapSettingsPanelPresenter presenter) {
+		this.presenter = presenter;
+	}
 
 	/**
 	 * 渲染弹窗。若返回 true 表示已执行生成并关闭，onResult 已被调用。
@@ -75,19 +82,19 @@ public final class AutoMapSettingsPanel {
 
 		boolean generated = false;
 		if (ImGui.button("Generate", 120, 0)) {
-			AudioFeatureTimeline feature = BeatBlock.audioAnalysisEngine != null ? BeatBlock.audioAnalysisEngine.getLastFeatureTimeline() : null;
-			Timeline timeline = BeatBlock.timeline;
-			if (feature == null) {
-				ImGui.setTooltip("请先导入音乐以进行分析");
-			} else if (timeline != null) {
-				SmartAutoMapEngine.AutoMapResult res = SmartAutoMapEngine.generate(feature, settings, timeline);
-				if (BeatBlock.timelineEditor != null) BeatBlock.timelineEditor.syncClockDuration();
-				if (onResult != null) onResult.accept(res);
+			var outcome = presenter.generate(settings);
+			if (outcome.result().ok()) {
+				if (onResult != null) {
+					onResult.accept(outcome.autoMapResult());
+				}
 				generated = true;
 			}
 		}
-		if (ImGui.isItemHovered() && BeatBlock.audioAnalysisEngine != null && BeatBlock.audioAnalysisEngine.getLastFeatureTimeline() == null) {
-			ImGui.setTooltip("请先通过菜单导入音乐");
+		if (ImGui.isItemHovered() && !presenter.canGenerate()) {
+			String reason = presenter.generateBlockedReason();
+			if (reason != null) {
+				ImGui.setTooltip(reason);
+			}
 		}
 
 		ImGui.end();

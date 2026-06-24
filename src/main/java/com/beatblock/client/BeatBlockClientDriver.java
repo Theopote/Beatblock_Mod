@@ -4,6 +4,7 @@ import com.beatblock.BeatBlock;
 import com.beatblock.client.vfx.VfxEmitter;
 import com.beatblock.engine.BlockControlExecutor;
 import com.beatblock.engine.WorldMutationSink;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
@@ -11,7 +12,6 @@ import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 import java.util.HashMap;
@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * 第 3 层 — 客户端播放编排：按 Timeline 时钟推进音频预览与舞台/相机回放。
@@ -28,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 相机由 {@link com.beatblock.client.camera.TimelineCameraController} 独立处理。
  */
 public final class BeatBlockClientDriver {
+
 	public record TimelineActionExecutionReport(
 		long timestampMs,
 		String eventId,
@@ -38,26 +40,58 @@ public final class BeatBlockClientDriver {
 		String detail
 	) {}
 
-	private static long lastTickNanos;
-	private static boolean driving;
-	private static final Set<String> scheduledTimelineAnimationIds = new HashSet<>();
-	private static final Set<String> scheduledAutoAnimationIds = new HashSet<>();
-	private static final Set<String> scheduledBuildReverseIds = new HashSet<>();
+	private static BeatBlockClientDriver instance;
+
+	private final Supplier<BeatBlockContext> contextSource;
+
+	private long lastTickNanos;
+	private boolean driving;
+	private final Set<String> scheduledTimelineAnimationIds = new HashSet<>();
+	private final Set<String> scheduledAutoAnimationIds = new HashSet<>();
+	private final Set<String> scheduledBuildReverseIds = new HashSet<>();
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
-	private static double lastTimelineAnimationTime;
-	private static double lastAutoAnimationTime;
-	private static double lastBuildReverseTime;
-	private static final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
-	private static RegistryKey<World> timelineMutationWorldKey;
-	private static volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
-	private static final Map<String, TimelineActionExecutionReport> timelineActionReportByEventId = new ConcurrentHashMap<>();
+	private double lastTimelineAnimationTime;
+	private double lastAutoAnimationTime;
+	private double lastBuildReverseTime;
+	private final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
+	private RegistryKey<World> timelineMutationWorldKey;
+	private volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
+	private final Map<String, TimelineActionExecutionReport> timelineActionReportByEventId = new ConcurrentHashMap<>();
 	private static final int MAX_ACTION_REPORT_CACHE_SIZE = 4096;
 
+	public BeatBlockClientDriver(Supplier<BeatBlockContext> contextSource) {
+		this.contextSource = contextSource != null ? contextSource : BeatBlock::getContext;
+	}
+
+	public static void install(Supplier<BeatBlockContext> contextSource) {
+		instance = new BeatBlockClientDriver(contextSource);
+	}
+
+	static void resetForTests() {
+		instance = null;
+	}
+
+	private static BeatBlockClientDriver requireInstance() {
+		if (instance == null) {
+			install(BeatBlock::getContext);
+		}
+		return instance;
+	}
+
+	private BeatBlockContext ctx() {
+		return contextSource.get();
+	}
+
 	public static void onClientTick() {
+		requireInstance().tick();
+	}
+
+	void tick() {
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
-		if (BeatBlock.blockAnimationEngine != null && mc != null && mc.gameRenderer != null && mc.gameRenderer.getCamera() != null) {
-			BeatBlock.blockAnimationEngine.setRuntimeCameraPosition(mc.gameRenderer.getCamera().getCameraPos());
+		var engine = ctx().blockAnimationEngine();
+		if (engine != null && mc != null && mc.gameRenderer != null && mc.gameRenderer.getCamera() != null) {
+			engine.setRuntimeCameraPosition(mc.gameRenderer.getCamera().getCameraPos());
 		}
 		com.beatblock.client.camera.TimelineCameraController.getInstance().tick();
 
@@ -68,97 +102,128 @@ public final class BeatBlockClientDriver {
 			double delta = lastTickNanos > 0 ? (now - lastTickNanos) / 1e9 : 1.0 / 20.0;
 			lastTickNanos = now;
 
-			BeatBlock.musicPlayer.tick(delta);
+			var musicPlayer = ctx().musicPlayer();
+			if (musicPlayer != null) {
+				musicPlayer.tick(delta);
+			}
 			syncStemMixerToMusicPlayer();
-			double currentTime = BeatBlock.musicPlayer.getCurrentTimeSeconds();
+			double currentTime = musicPlayer != null ? musicPlayer.getCurrentTimeSeconds() : 0.0;
 			tickBlockAnimationEngine(currentTime, false, world);
 			return;
 		}
 
-		if (world != null && BeatBlock.blockAnimationEngine != null && BeatBlock.timeline != null) {
+		if (world != null && engine != null && ctx().timeline() != null) {
 			tickBlockAnimationEngine(previewTimelineTimeSeconds(), true, world);
 		}
 	}
 
-	private static void tickBlockAnimationEngine(double currentTime, boolean previewOnly, World world) {
-		if (BeatBlock.blockAnimationEngine == null) return;
+	private void tickBlockAnimationEngine(double currentTime, boolean previewOnly, World world) {
+		var engine = ctx().blockAnimationEngine();
+		if (engine == null) return;
 		syncTimelineBlockAnimationEvents(currentTime, previewOnly);
 		syncTimelineAutoAnimationEvents(currentTime, previewOnly);
 		syncTimelineBuildReverseEvents(currentTime, previewOnly);
 		WorldMutationSink sink = previewOnly
 			? WorldMutationSink.NO_OP
-			: BeatBlockAuthoritativeWorldMutator.sinkFor(BeatBlock.blockAnimationEngine.getBlockControlExecutor(), world);
-		BeatBlock.blockAnimationEngine.tick(currentTime, previewOnly ? null : world, sink);
-		if (!previewOnly && world != null && BeatBlock.blockAnimationEngine != null) {
-			VfxEmitter.emit(MinecraftClient.getInstance(), BeatBlock.blockAnimationEngine.getLastInfluenceFrame());
+			: BeatBlockAuthoritativeWorldMutator.sinkFor(engine.getBlockControlExecutor(), world);
+		engine.tick(currentTime, previewOnly ? null : world, sink);
+		if (!previewOnly && world != null) {
+			VfxEmitter.emit(MinecraftClient.getInstance(), engine.getLastInfluenceFrame());
 		}
 	}
 
-	private static double[] readReferenceBeatTimes() {
-		if (BeatBlock.timeline == null) {
+	private double[] readReferenceBeatTimes() {
+		var timeline = ctx().timeline();
+		if (timeline == null) {
 			return new double[0];
 		}
-		return ReferenceBeatResolver.resolveBeatTimesSeconds(BeatBlock.timeline);
+		return ReferenceBeatResolver.resolveBeatTimesSeconds(timeline);
 	}
 
-	private static void syncStemMixerToMusicPlayer() {
-		if (BeatBlock.stemMixer == null || !BeatBlock.stemMixer.hasStems()) return;
-		boolean musicPlaying = BeatBlock.musicPlayer.isPlaying();
-		double musicTime = BeatBlock.musicPlayer.getCurrentTimeSeconds();
-		double stemTime = BeatBlock.stemMixer.getCurrentTimeSeconds();
+	private void syncStemMixerToMusicPlayer() {
+		var stemMixer = ctx().stemMixer();
+		var musicPlayer = ctx().musicPlayer();
+		if (stemMixer == null || !stemMixer.hasStems() || musicPlayer == null) return;
+		boolean musicPlaying = musicPlayer.isPlaying();
+		double musicTime = musicPlayer.getCurrentTimeSeconds();
+		double stemTime = stemMixer.getCurrentTimeSeconds();
 
 		if (Math.abs(stemTime - musicTime) > 0.05) {
-			BeatBlock.stemMixer.setCurrentTimeSeconds(musicTime);
+			stemMixer.setCurrentTimeSeconds(musicTime);
 		}
 
 		if (musicPlaying) {
-			if (!BeatBlock.stemMixer.isPlaying()) {
-				BeatBlock.stemMixer.setCurrentTimeSeconds(musicTime);
-				BeatBlock.stemMixer.play();
+			if (!stemMixer.isPlaying()) {
+				stemMixer.setCurrentTimeSeconds(musicTime);
+				stemMixer.play();
 			}
-		} else if (BeatBlock.stemMixer.isPlaying()) {
-			BeatBlock.stemMixer.pause();
+		} else if (stemMixer.isPlaying()) {
+			stemMixer.pause();
 		}
 	}
 
 	public static void startDriving() {
+		requireInstance().startDrivingInternal();
+	}
+
+	private void startDrivingInternal() {
 		lastTickNanos = 0;
 		resetTimelineAnimationScheduling();
 		driving = true;
 	}
 
 	public static void stopDriving() {
+		requireInstance().stopDrivingInternal();
+	}
+
+	private void stopDrivingInternal() {
 		driving = false;
 		resetTimelineAnimationScheduling();
 	}
 
 	public static boolean isDriving() {
-		return driving;
+		return requireInstance().driving;
 	}
 
 	public static void stopPlayback() {
-		BeatBlock.musicPlayer.pause();
-		if (BeatBlock.stemMixer != null && BeatBlock.stemMixer.hasStems()) {
-			BeatBlock.stemMixer.pause();
+		requireInstance().stopPlaybackInternal();
+	}
+
+	private void stopPlaybackInternal() {
+		var musicPlayer = ctx().musicPlayer();
+		if (musicPlayer != null) {
+			musicPlayer.pause();
+		}
+		var stemMixer = ctx().stemMixer();
+		if (stemMixer != null && stemMixer.hasStems()) {
+			stemMixer.pause();
 		}
 		resetTimelineAnimationScheduling();
-		stopDriving();
+		stopDrivingInternal();
 		com.beatblock.client.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
 	}
 
 	public static double previewTimelineTimeSeconds() {
-		if (BeatBlock.timelineEditor != null) {
-			return BeatBlock.timelineEditor.getClock().getCurrentTimeSeconds();
-		}
-		return BeatBlock.musicPlayer != null ? BeatBlock.musicPlayer.getCurrentTimeSeconds() : 0.0;
+		return requireInstance().previewTimelineTimeSecondsInternal();
 	}
 
-	private static void syncTimelineBlockAnimationEvents(double currentTime, boolean previewOnly) {
-		if (BeatBlock.timeline == null || BeatBlock.blockAnimationEngine == null) return;
+	private double previewTimelineTimeSecondsInternal() {
+		var editor = ctx().timelineEditor();
+		if (editor != null) {
+			return editor.getClock().getCurrentTimeSeconds();
+		}
+		var musicPlayer = ctx().musicPlayer();
+		return musicPlayer != null ? musicPlayer.getCurrentTimeSeconds() : 0.0;
+	}
+
+	private void syncTimelineBlockAnimationEvents(double currentTime, boolean previewOnly) {
+		var timeline = ctx().timeline();
+		var engine = ctx().blockAnimationEngine();
+		if (timeline == null || engine == null) return;
 		if (currentTime + TIMELINE_EVENT_EPSILON < lastTimelineAnimationTime) {
 			resetTimelineAnimationScheduling();
 		}
-		for (TimelineAnimationEvent event : BeatBlock.timeline.getBlockAnimationEvents()) {
+		for (TimelineAnimationEvent event : timeline.getBlockAnimationEvents()) {
 			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
 				break;
 			}
@@ -169,13 +234,15 @@ public final class BeatBlockClientDriver {
 		lastTimelineAnimationTime = currentTime;
 	}
 
-	private static void syncTimelineAutoAnimationEvents(double currentTime, boolean previewOnly) {
-		if (BeatBlock.timeline == null || BeatBlock.blockAnimationEngine == null) return;
+	private void syncTimelineAutoAnimationEvents(double currentTime, boolean previewOnly) {
+		var timeline = ctx().timeline();
+		var engine = ctx().blockAnimationEngine();
+		if (timeline == null || engine == null) return;
 		if (currentTime + TIMELINE_EVENT_EPSILON < lastAutoAnimationTime) {
 			scheduledAutoAnimationIds.clear();
 			lastAutoAnimationTime = 0.0;
 		}
-		for (TimelineAnimationEvent event : BeatBlock.timeline.getAutoAnimationEvents()) {
+		for (TimelineAnimationEvent event : timeline.getAutoAnimationEvents()) {
 			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
 				break;
 			}
@@ -186,13 +253,15 @@ public final class BeatBlockClientDriver {
 		lastAutoAnimationTime = currentTime;
 	}
 
-	private static void syncTimelineBuildReverseEvents(double currentTime, boolean previewOnly) {
-		if (BeatBlock.timeline == null || BeatBlock.blockAnimationEngine == null) return;
+	private void syncTimelineBuildReverseEvents(double currentTime, boolean previewOnly) {
+		var timeline = ctx().timeline();
+		var engine = ctx().blockAnimationEngine();
+		if (timeline == null || engine == null) return;
 		if (currentTime + TIMELINE_EVENT_EPSILON < lastBuildReverseTime) {
 			scheduledBuildReverseIds.clear();
 			lastBuildReverseTime = 0.0;
 		}
-		for (TimelineAnimationEvent event : BeatBlock.timeline.getBuildReverseEvents()) {
+		for (TimelineAnimationEvent event : timeline.getBuildReverseEvents()) {
 			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
 				break;
 			}
@@ -203,8 +272,9 @@ public final class BeatBlockClientDriver {
 		lastBuildReverseTime = currentTime;
 	}
 
-	private static void applyTimelineActionEvent(TimelineAnimationEvent event, boolean previewOnly) {
-		if (event == null || BeatBlock.blockAnimationEngine == null) return;
+	private void applyTimelineActionEvent(TimelineAnimationEvent event, boolean previewOnly) {
+		var engine = ctx().blockAnimationEngine();
+		if (event == null || engine == null) return;
 		if (!passesEnergyThreshold(event)) {
 			recordActionReport(event, 0, "SKIPPED", "energy-below-threshold");
 			return;
@@ -215,14 +285,15 @@ public final class BeatBlockClientDriver {
 		}
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
 			double[] beats = readReferenceBeatTimes();
-			double bpm = BeatBlock.timeline != null ? BeatBlock.timeline.getBpm() : 120.0;
-			BeatBlock.blockAnimationEngine.scheduleTimelineEvent(event, beats, bpm > 0 ? bpm : 120.0);
+			var timeline = ctx().timeline();
+			double bpm = timeline != null ? timeline.getBpm() : 120.0;
+			engine.scheduleTimelineEvent(event, beats, bpm > 0 ? bpm : 120.0);
 			recordActionReport(event, 0, "ANIMATE", "scheduled");
 			return;
 		}
 
 		if (actionMode == TimelineAnimationActionMode.BUILD) {
-			var inst = BeatBlock.blockAnimationEngine.getBuildSequencer().schedule(event);
+			var inst = engine.getBuildSequencer().schedule(event);
 			if (inst != null) {
 				recordActionReport(event, inst.getTotalBlocks(), "BUILD", "scheduled-" + inst.getTotalBlocks() + "-blocks");
 			} else {
@@ -237,7 +308,7 @@ public final class BeatBlockClientDriver {
 			recordActionReport(event, 0, "SKIPPED", "no-world");
 			return;
 		}
-		var plan = BeatBlock.blockAnimationEngine.planControl(event, world);
+		var plan = engine.planControl(event, world);
 		var mutations = plan.mutations();
 		if (mutations == null || mutations.isEmpty()) {
 			String detail = plan.skipReason() != null
@@ -250,12 +321,12 @@ public final class BeatBlockClientDriver {
 			captureTimelineMutationOriginalState(world, mutation.pos(), mutation.fromState());
 		}
 		WorldMutationSink sink = BeatBlockAuthoritativeWorldMutator.sinkFor(
-			BeatBlock.blockAnimationEngine.getBlockControlExecutor(), world);
-		BeatBlock.blockAnimationEngine.applyControlMutations(mutations, sink);
+			engine.getBlockControlExecutor(), world);
+		engine.applyControlMutations(mutations, sink);
 		recordActionReport(event, mutations.size(), "APPLIED", "ok");
 	}
 
-	private static void recordActionReport(TimelineAnimationEvent event, int mutationCount, String status, String detail) {
+	private void recordActionReport(TimelineAnimationEvent event, int mutationCount, String status, String detail) {
 		if (event == null) return;
 		TimelineActionExecutionReport report = new TimelineActionExecutionReport(
 			System.currentTimeMillis(),
@@ -276,7 +347,7 @@ public final class BeatBlockClientDriver {
 		}
 	}
 
-	private static boolean passesEnergyThreshold(TimelineAnimationEvent event) {
+	private boolean passesEnergyThreshold(TimelineAnimationEvent event) {
 		if (event == null) return false;
 		Object raw = event.getParameters().get("energyThreshold");
 		double threshold = 0.0;
@@ -293,7 +364,7 @@ public final class BeatBlockClientDriver {
 		return event.getEnergy() + 1e-6 >= threshold;
 	}
 
-	private static void captureTimelineMutationOriginalState(World world, BlockPos pos, BlockState currentState) {
+	private void captureTimelineMutationOriginalState(World world, BlockPos pos, BlockState currentState) {
 		if (!shouldRestoreTimelineMutations()) return;
 		if (world == null || pos == null || currentState == null) return;
 		RegistryKey<World> worldKey = world.getRegistryKey();
@@ -306,7 +377,7 @@ public final class BeatBlockClientDriver {
 		timelineMutationSnapshot.putIfAbsent(pos.toImmutable(), currentState);
 	}
 
-	private static void restoreTimelineMutationSnapshot() {
+	private void restoreTimelineMutationSnapshot() {
 		if (timelineMutationSnapshot.isEmpty()) {
 			timelineMutationWorldKey = null;
 			return;
@@ -325,15 +396,16 @@ public final class BeatBlockClientDriver {
 		timelineMutationWorldKey = null;
 	}
 
-	private static boolean shouldRestoreTimelineMutations() {
-		if (BeatBlock.timeline == null) return true;
-		Object raw = BeatBlock.timeline.getMetadata("timelineActionRollbackMode");
+	private boolean shouldRestoreTimelineMutations() {
+		var timeline = ctx().timeline();
+		if (timeline == null) return true;
+		Object raw = timeline.getMetadata("timelineActionRollbackMode");
 		if (raw == null) return true;
 		String mode = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
 		return !"persistent".equals(mode) && !"performance".equals(mode);
 	}
 
-	private static void resetTimelineAnimationScheduling() {
+	private void resetTimelineAnimationScheduling() {
 		restoreTimelineMutationSnapshot();
 		scheduledTimelineAnimationIds.clear();
 		scheduledAutoAnimationIds.clear();
@@ -341,8 +413,9 @@ public final class BeatBlockClientDriver {
 		lastTimelineAnimationTime = 0.0;
 		lastAutoAnimationTime = 0.0;
 		lastBuildReverseTime = 0.0;
-		if (BeatBlock.blockAnimationEngine != null) {
-			BeatBlock.blockAnimationEngine.clear();
+		var engine = ctx().blockAnimationEngine();
+		if (engine != null) {
+			engine.clear();
 		}
 	}
 
@@ -358,20 +431,26 @@ public final class BeatBlockClientDriver {
 	}
 
 	public static TimelineActionExecutionReport getLastTimelineActionExecutionReport() {
-		return lastTimelineActionExecutionReport;
+		return requireInstance().lastTimelineActionExecutionReport;
 	}
 
 	public static TimelineActionExecutionReport getTimelineActionExecutionReport(String eventId) {
 		if (eventId == null || eventId.isBlank()) return null;
-		return timelineActionReportByEventId.get(eventId);
+		return requireInstance().timelineActionReportByEventId.get(eventId);
 	}
 
 	public static void togglePlayback() {
-		if (BeatBlock.musicPlayer.isPlaying()) {
-			stopPlayback();
+		requireInstance().togglePlaybackInternal();
+	}
+
+	private void togglePlaybackInternal() {
+		var musicPlayer = ctx().musicPlayer();
+		if (musicPlayer == null) return;
+		if (musicPlayer.isPlaying()) {
+			stopPlaybackInternal();
 		} else {
-			BeatBlock.musicPlayer.play();
-			startDriving();
+			musicPlayer.play();
+			startDrivingInternal();
 		}
 	}
 }

@@ -288,6 +288,11 @@ public final class AudioAnalysisEngine {
 		return lastFeatureTimeline;
 	}
 
+	/** 绑定最近特征时间线（测试或从外部缓存回放）。 */
+	public void bindLastFeatureTimeline(AudioFeatureTimeline timeline) {
+		this.lastFeatureTimeline = timeline;
+	}
+
 	public AudioBuffer getLastBuffer() {
 		return lastBuffer;
 	}

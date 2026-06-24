@@ -1,7 +1,8 @@
 package com.beatblock.timeline.rendering;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.client.camera.CameraKeyframeActions;
+import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.editor.TimelineClock;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
 import imgui.ImGui;
@@ -61,7 +62,9 @@ public final class TrackRenderer {
 		float trackHeaderLeft,
 		float trackHeaderWidth,
 		boolean showMuteSolo,
-		String typeLabel
+		String typeLabel,
+		Timeline timeline,
+		TimelineClock playheadClock
 	) {
 		ImGui.setCursorPosY(rowY);
 		float baseX = trackHeaderLeft;
@@ -251,8 +254,8 @@ public final class TrackRenderer {
 			if (!showMuteSolo && rowIndex == TimelineTrackMeta.ROW_CAMERA) {
 				ImGui.setCursorScreenPos(baseX + camKfX, rowOriginScreenY + iconOffsetY);
 				if (ImGui.button(Icons.Timeline.KEYFRAME + "##camKf" + rowIndex, iconBtn, iconBtn)) {
-					if (BeatBlock.timeline != null && BeatBlock.timelineEditor != null) {
-						CameraKeyframeActions.addKeyframeAtPlayhead(BeatBlock.timeline, BeatBlock.timelineEditor.getClock());
+					if (timeline != null && playheadClock != null) {
+						CameraKeyframeActions.addKeyframeAtPlayhead(timeline, playheadClock);
 					}
 				}
 				if (ImGui.isItemHovered()) {

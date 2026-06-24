@@ -4,9 +4,12 @@ import com.beatblock.BeatBlock;
 import com.beatblock.audio.analysis.AudioAnalysisEngine;
 import com.beatblock.audio.analysis.AudioBuffer;
 import com.beatblock.audio.analysis.AudioDecoder;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.function.Supplier;
 
 /**
  * 负责加载音频资源（WAV 路径），解码后分析波形与频段并写入 Timeline，同时更新 MusicPlayer 时长。
@@ -15,7 +18,20 @@ public class AudioLoader {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AudioLoader.class);
 
+	private final Supplier<BeatBlockContext> contextSource;
 	private String loadedPath;
+
+	public AudioLoader() {
+		this(BeatBlock::getContext);
+	}
+
+	AudioLoader(Supplier<BeatBlockContext> contextSource) {
+		this.contextSource = contextSource != null ? contextSource : BeatBlock::getContext;
+	}
+
+	private BeatBlockContext ctx() {
+		return contextSource.get();
+	}
 
 	/**
 	 * 当前是否已加载指定资源。
@@ -35,15 +51,14 @@ public class AudioLoader {
 		DecodedAudio audio = WavDecoder.loadFromPath(pathOrId);
 		if (audio == null) return false;
 
-		Timeline timeline = BeatBlock.timeline;
+		Timeline timeline = ctx().timeline();
 		if (timeline != null) {
 			timeline.setMetadata("audioPath", pathOrId);
 			Object existingProjectPath = timeline.getMetadata("projectPath");
 			if (existingProjectPath == null || String.valueOf(existingProjectPath).isBlank()) {
 				timeline.setMetadata("projectPath", pathOrId);
 			}
-			// 优先使用 Audio Analysis Engine（节拍检测、BPM、频段、波形）
-			AudioAnalysisEngine engine = BeatBlock.audioAnalysisEngine;
+			AudioAnalysisEngine engine = ctx().audioAnalysisEngine();
 			if (engine != null) {
 				AudioBuffer buffer = AudioDecoder.fromDecodedAudio(audio);
 				if (buffer != null && engine.analyzeBuffer(buffer) != null) {
@@ -55,13 +70,15 @@ public class AudioLoader {
 				AudioAnalyzer.analyzeAndFillTimeline(audio, timeline);
 			}
 		}
-		if (BeatBlock.musicPlayer != null) {
-			BeatBlock.musicPlayer.setDurationSeconds(audio.getDurationSeconds());
-			BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
-			BeatBlock.musicPlayer.loadAudio(pathOrId);
+		var musicPlayer = ctx().musicPlayer();
+		if (musicPlayer != null) {
+			musicPlayer.setDurationSeconds(audio.getDurationSeconds());
+			musicPlayer.setCurrentTimeSeconds(0);
+			musicPlayer.loadAudio(pathOrId);
 		}
-		if (BeatBlock.timelineEditor != null) {
-			BeatBlock.timelineEditor.syncClockDuration();
+		var editor = ctx().timelineEditor();
+		if (editor != null) {
+			editor.syncClockDuration();
 		}
 		loadedPath = pathOrId;
 		LOGGER.info("BeatBlock: 已导入音乐 {} ({}s)", pathOrId, audio.getDurationSeconds());
@@ -73,18 +90,21 @@ public class AudioLoader {
 	 */
 	public void loadFromDecoded(DecodedAudio audio) {
 		if (audio == null) return;
-		if (BeatBlock.timeline != null) {
-			BeatBlock.timeline.setMetadata("audioPath", "(decoded)");
-			BeatBlock.timeline.setMetadata("projectId", "decoded");
-			AudioAnalyzer.analyzeAndFillTimeline(audio, BeatBlock.timeline);
+		Timeline timeline = ctx().timeline();
+		if (timeline != null) {
+			timeline.setMetadata("audioPath", "(decoded)");
+			timeline.setMetadata("projectId", "decoded");
+			AudioAnalyzer.analyzeAndFillTimeline(audio, timeline);
 		}
-		if (BeatBlock.musicPlayer != null) {
-			BeatBlock.musicPlayer.setDurationSeconds(audio.getDurationSeconds());
-			BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
-			BeatBlock.musicPlayer.loadAudio(null);
+		var musicPlayer = ctx().musicPlayer();
+		if (musicPlayer != null) {
+			musicPlayer.setDurationSeconds(audio.getDurationSeconds());
+			musicPlayer.setCurrentTimeSeconds(0);
+			musicPlayer.loadAudio(null);
 		}
-		if (BeatBlock.timelineEditor != null) {
-			BeatBlock.timelineEditor.syncClockDuration();
+		var editor = ctx().timelineEditor();
+		if (editor != null) {
+			editor.syncClockDuration();
 		}
 		loadedPath = "(decoded)";
 	}

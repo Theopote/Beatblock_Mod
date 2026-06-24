@@ -1,6 +1,5 @@
 package com.beatblock.timeline.rendering;
 
-import com.beatblock.BeatBlock;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.ui.presenter.TimelineToolbarViewPresenter;
 import imgui.ImGui;
@@ -49,7 +48,7 @@ final class TimelineToolbarViewControls {
 	private void renderFit(TimelineEditor editor, String label, String tooltipOverride, float widthPadding) {
 		if (ImGui.button(label)) {
 			TimelineToolbarViewPresenter.fitToDuration(
-				editor, BeatBlock.timeline, ImGui.getContentRegionAvailX() - widthPadding);
+				editor, editor.getTimeline(), ImGui.getContentRegionAvailX() - widthPadding);
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? TOOLTIP_FIT : tooltipOverride);
 	}

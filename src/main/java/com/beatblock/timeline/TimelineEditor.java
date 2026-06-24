@@ -1,6 +1,6 @@
 package com.beatblock.timeline;
 
-import com.beatblock.BeatBlock;
+import com.beatblock.audio.MusicPlayer;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.interaction.TimelineInteraction;
@@ -32,6 +32,7 @@ public final class TimelineEditor {
 	private final TimelineRenderer renderer;
 	private final TimelineInteraction interactionSystem;
 	private final CommandManager commandManager;
+	private final MusicPlayer musicPlayer;
 	private final TimelineToolbarState toolbarState = new TimelineToolbarState();
 	private final TimelineTrackListState trackListState = new TimelineTrackListState();
 	private final TimelineUiStateStore uiStateStore = new TimelineUiStateStore();
@@ -60,10 +61,15 @@ public final class TimelineEditor {
 	public TimelineEditor(Timeline timeline, IAudioPlayer audioPlayer) {
 		this.timeline = timeline;
 		this.audioPlayer = audioPlayer;
+		this.musicPlayer = audioPlayer instanceof MusicPlayer mp ? mp : null;
 		this.state = new TimelineEditorState(timeline);
 		this.renderer = new TimelineRenderer();
 		this.interactionSystem = new TimelineInteraction();
 		this.interactionSystem.setAudioPlayer(audioPlayer);
+		this.interactionSystem.bindTimelineEditor(this);
+		if (audioPlayer instanceof MusicPlayer musicPlayer) {
+			this.interactionSystem.setMusicPlayer(musicPlayer);
+		}
 		this.commandManager = new CommandManager();
 		this.uiStateStore.loadTrackListState(timeline, trackListState);
 	}
@@ -306,7 +312,7 @@ public final class TimelineEditor {
 	}
 
 	private boolean syncClockFromSegmentedAudioPlayback() {
-		if (timeline == null || BeatBlock.musicPlayer == null || audioPlayer != BeatBlock.musicPlayer) return false;
+		if (timeline == null || musicPlayer == null || audioPlayer != musicPlayer) return false;
 		Track audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
 		if (audioTrack == null || audioTrack.getClips().isEmpty()) return false;
 		boolean segmentedTimeline = false;
@@ -330,8 +336,8 @@ public final class TimelineEditor {
 		}
 		if (active == null) {
 			if (!segmentedTimeline) return false;
-			if (BeatBlock.musicPlayer.isPlaying()) {
-				BeatBlock.musicPlayer.pause();
+			if (musicPlayer.isPlaying()) {
+				musicPlayer.pause();
 			}
 			return true;
 		}
@@ -339,15 +345,15 @@ public final class TimelineEditor {
 		Object pathObj = timeline.getMetadata("clipAudioPath_" + active.getId());
 		if (pathObj == null) return false;
 		String targetPath = pathObj.toString();
-		String loadedPath = BeatBlock.musicPlayer.getLoadedAudioPath();
+		String loadedPath = musicPlayer.getLoadedAudioPath();
 		if (loadedPath == null || !loadedPath.equals(targetPath)) {
-			BeatBlock.musicPlayer.loadAudio(targetPath);
-			BeatBlock.musicPlayer.play();
+			musicPlayer.loadAudio(targetPath);
+			musicPlayer.play();
 			double local = Math.max(0.0, Math.min(clockTime - active.getStartTimeSeconds(), active.getDurationSeconds()));
-			BeatBlock.musicPlayer.setCurrentTimeSeconds(local);
+			musicPlayer.setCurrentTimeSeconds(local);
 		}
 
-		double globalTime = active.getStartTimeSeconds() + BeatBlock.musicPlayer.getCurrentTimeSeconds();
+		double globalTime = active.getStartTimeSeconds() + musicPlayer.getCurrentTimeSeconds();
 		if (globalTime >= active.getEndTimeSeconds()) {
 			Clip next = null;
 			for (Clip c : audioTrack.getClips()) {
@@ -359,11 +365,11 @@ public final class TimelineEditor {
 				Object nextPathObj = timeline.getMetadata("clipAudioPath_" + next.getId());
 				if (nextPathObj != null) {
 					String nextPath = nextPathObj.toString();
-					if (!nextPath.equals(BeatBlock.musicPlayer.getLoadedAudioPath())) {
-						BeatBlock.musicPlayer.loadAudio(nextPath);
+					if (!nextPath.equals(musicPlayer.getLoadedAudioPath())) {
+						musicPlayer.loadAudio(nextPath);
 					}
-					BeatBlock.musicPlayer.setCurrentTimeSeconds(0);
-					BeatBlock.musicPlayer.play();
+					musicPlayer.setCurrentTimeSeconds(0);
+					musicPlayer.play();
 					globalTime = next.getStartTimeSeconds();
 				}
 			}

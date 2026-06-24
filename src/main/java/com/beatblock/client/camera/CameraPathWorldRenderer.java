@@ -42,7 +42,7 @@ public final class CameraPathWorldRenderer {
 	public static void renderIfNeeded(MatrixStack matrices, VertexConsumerProvider consumers) {
 		MinecraftClient mc = MinecraftClient.getInstance();
 		if (mc == null || mc.world == null || mc.gameRenderer == null) return;
-		Timeline timeline = BeatBlock.timeline;
+		Timeline timeline = BeatBlock.getContext().timeline();
 		if (timeline == null) return;
 		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
 		if (cam == null || cam.getClips().isEmpty()) return;

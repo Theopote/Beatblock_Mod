@@ -54,8 +54,8 @@ final class TimelineToolbarToolsControls {
 	}
 
 	private void renderStageObjectWarning(boolean inlineSpacing) {
-		int objCount = BeatBlock.blockAnimationEngine != null
-			? BeatBlock.blockAnimationEngine.getStageObjectSystem().size() : 0;
+		int objCount = BeatBlock.getContext().blockAnimationEngine() != null
+			? BeatBlock.getContext().blockAnimationEngine().getStageObjectSystem().size() : 0;
 		if (objCount != 0) return;
 		ImGui.textColored(0.95f, 0.65f, 0.30f, 1f, "无对象");
 		if (ImGui.isItemHovered()) {

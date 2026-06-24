@@ -35,6 +35,9 @@ public class BeatBlockClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+		BeatBlockClientDriver.install(BeatBlock::getContext);
+		com.beatblock.client.camera.TimelineCameraController.getInstance().bindContext(BeatBlock::getContext);
+
 		hud = new HUD();
 		editorScreen = new EditorScreen();
 		importScreen = new ImportScreen();
