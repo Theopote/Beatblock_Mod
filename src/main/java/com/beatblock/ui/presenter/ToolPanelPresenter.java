@@ -29,7 +29,7 @@ public final class ToolPanelPresenter {
 		GroupSortingStrategy.ALL
 	};
 
-	public static final SelectionMode[] SELECTION_COMBO_ORDER = {
+	private static final SelectionMode[] SELECTION_COMBO_ORDER = {
 		SelectionMode.OFF,
 		SelectionMode.CLICK,
 		SelectionMode.BOX,
@@ -41,6 +41,10 @@ public final class ToolPanelPresenter {
 		SelectionMode.SELECTION_WAND,
 		SelectionMode.LASSO
 	};
+
+	public static SelectionMode[] selectionComboOrder() {
+		return SELECTION_COMBO_ORDER.clone();
+	}
 
 	@FunctionalInterface
 	public interface CrosshairBlockPicker {

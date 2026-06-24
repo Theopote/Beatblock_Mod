@@ -51,6 +51,13 @@ public class BeatBlock implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		initializeMod();
+		registerAssetConversionHandler();
+		BeatBlockItems.initialize();
+		LOGGER.info("BeatBlock 模组已加载 — 音乐可视化创作工具");
+	}
+
+	private static void initializeMod() {
 		audioLoader = new AudioLoader();
 		musicPlayer = new MusicPlayer();
 		stemMixer = new StemMixer();
@@ -73,6 +80,9 @@ public class BeatBlock implements ModInitializer {
 			externalAudioAnalyzer,
 			audioConversionService
 		);
+	}
+
+	private static void registerAssetConversionHandler() {
 		AudioAssetManager.getInstance().setConversionRequestHandler((asset, targetFormat) -> {
 			if (asset == null || asset.getPath() == null) return;
 			asset.setStatus(com.beatblock.audio.assets.AudioAssetStatus.ANALYZING);
@@ -106,9 +116,5 @@ public class BeatBlock implements ModInitializer {
 				}
 			);
 		});
-
-		BeatBlockItems.initialize();
-
-		LOGGER.info("BeatBlock 模组已加载 — 音乐可视化创作工具");
 	}
 }

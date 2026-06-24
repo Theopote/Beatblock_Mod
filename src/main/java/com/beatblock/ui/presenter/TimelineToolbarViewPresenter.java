@@ -9,13 +9,21 @@ import com.beatblock.timeline.rendering.TimelineTrackListState;
  */
 public final class TimelineToolbarViewPresenter {
 
-	public static final String[] ZOOM_PRESET_LABELS = { "0.25x", "0.5x", "1x", "2x", "3x", "4x" };
+	private static final String[] ZOOM_PRESET_LABELS = { "0.25x", "0.5x", "1x", "2x", "3x", "4x" };
 	private static final float ZOOM_BASE = 10f;
 	public static final float[] ZOOM_PRESET_VALUES = {
 		0.25f * ZOOM_BASE, 0.5f * ZOOM_BASE, ZOOM_BASE, 2f * ZOOM_BASE, 3f * ZOOM_BASE, 4f * ZOOM_BASE
 	};
-	public static final String[] SPEED_LABELS = { "0.5x", "0.75x", "1x", "1.25x", "1.5x", "2x" };
+	private static final String[] SPEED_LABELS = { "0.5x", "0.75x", "1x", "1.25x", "1.5x", "2x" };
 	public static final double[] SPEED_VALUES = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
+
+	public static String[] zoomPresetLabels() {
+		return ZOOM_PRESET_LABELS.clone();
+	}
+
+	public static String[] speedLabels() {
+		return SPEED_LABELS.clone();
+	}
 
 	public record TrackHeightViewState(float min, float max, float current) {}
 

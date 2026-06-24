@@ -22,18 +22,54 @@ public final class TimelineToolbarConfigPresenter {
 	private static final Logger LOGGER = LoggerFactory.getLogger(TimelineToolbarConfigPresenter.class);
 	private static final Gson UI_CONFIG_GSON = new GsonBuilder().setPrettyPrinting().create();
 
-	public static final String[] DEMUCS_PRESET_LABELS = { "Drive", "Balanced", "Detail" };
-	public static final String[] DEMUCS_PRESET_VALUES = { "drive", "balanced", "detail" };
-	public static final String[] CLIP_GENERATION_MODE_LABELS = { "Mixed", "Trigger", "Sustain" };
-	public static final String[] CLIP_GENERATION_MODE_VALUES = { "mixed", "trigger", "sustain" };
-	public static final String[] ACTION_ROLLBACK_LABELS = { "Preview", "Persistent" };
-	public static final String[] ACTION_ROLLBACK_VALUES = { "preview", "persistent" };
-	public static final String[] DEMUCS_FEATURE_KEYS = {
+	private static final String[] DEMUCS_PRESET_LABELS = { "Drive", "Balanced", "Detail" };
+	private static final String[] DEMUCS_PRESET_VALUES = { "drive", "balanced", "detail" };
+	private static final String[] CLIP_GENERATION_MODE_LABELS = { "Mixed", "Trigger", "Sustain" };
+	private static final String[] CLIP_GENERATION_MODE_VALUES = { "mixed", "trigger", "sustain" };
+	private static final String[] ACTION_ROLLBACK_LABELS = { "Preview", "Persistent" };
+	private static final String[] ACTION_ROLLBACK_VALUES = { "preview", "persistent" };
+	private static final String[] DEMUCS_FEATURE_KEYS = {
 		"kick", "snare", "hihat", "hihat_open", "snare_hi", "bass", "vocals", "other"
 	};
-	public static final String[] DEMUCS_FEATURE_LABELS = {
+	private static final String[] DEMUCS_FEATURE_LABELS = {
 		"Kick", "Snare", "HiHat", "HiHat Open", "Snare Hi", "Bass", "Vocals", "Other"
 	};
+
+	public static String[] demucsPresetLabels() {
+		return DEMUCS_PRESET_LABELS.clone();
+	}
+
+	public static String demucsPresetValueAt(int index) {
+		return DEMUCS_PRESET_VALUES[index];
+	}
+
+	public static String[] clipGenerationModeLabels() {
+		return CLIP_GENERATION_MODE_LABELS.clone();
+	}
+
+	public static String clipGenerationModeValueAt(int index) {
+		return CLIP_GENERATION_MODE_VALUES[index];
+	}
+
+	public static String[] actionRollbackLabels() {
+		return ACTION_ROLLBACK_LABELS.clone();
+	}
+
+	public static String actionRollbackValueAt(int index) {
+		return ACTION_ROLLBACK_VALUES[index];
+	}
+
+	public static int demucsFeatureCount() {
+		return DEMUCS_FEATURE_KEYS.length;
+	}
+
+	public static String demucsFeatureKeyAt(int index) {
+		return DEMUCS_FEATURE_KEYS[index];
+	}
+
+	public static String demucsFeatureLabelAt(int index) {
+		return DEMUCS_FEATURE_LABELS[index];
+	}
 
 	public static final double DEMUCS_SCALE_MIN = 0.5;
 	public static final double DEMUCS_SCALE_MAX = 2.0;

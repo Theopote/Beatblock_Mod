@@ -29,15 +29,51 @@ import java.util.function.Supplier;
 public final class TimelineBindingEditorPresenter {
 
 	public static final String SECTION_ALL = "ALL";
-	public static final String[] TEMPLATE_LABELS = { "Rhythm Parkour", "Architectural Show" };
-	public static final String[] TEMPLATE_VALUES = {
+	private static final String[] TEMPLATE_LABELS = { "Rhythm Parkour", "Architectural Show" };
+	private static final String[] TEMPLATE_VALUES = {
 		AnimationBindingEngine.TEMPLATE_RHYTHM_PARKOUR,
 		AnimationBindingEngine.TEMPLATE_ARCHITECTURAL_SHOW
 	};
-	public static final String[] ACTION_LABELS = { "动画", "放置", "清除", "建造" };
-	public static final String[] ACTION_VALUES = { "ANIMATE", "PLACE", "CLEAR", "BUILD" };
-	public static final String[] SPATIAL_LABELS = { "ALL", "SEQUENTIAL", "RADIAL", "RANDOM", "SPIRAL" };
-	public static final String[] SPATIAL_VALUES = { "ALL", "SEQUENTIAL", "RADIAL", "RANDOM", "SPIRAL" };
+	private static final String[] ACTION_LABELS = { "动画", "放置", "清除", "建造" };
+	private static final String[] ACTION_VALUES = { "ANIMATE", "PLACE", "CLEAR", "BUILD" };
+	private static final String[] SPATIAL_LABELS = { "ALL", "SEQUENTIAL", "RADIAL", "RANDOM", "SPIRAL" };
+	private static final String[] SPATIAL_VALUES = { "ALL", "SEQUENTIAL", "RADIAL", "RANDOM", "SPIRAL" };
+
+	public static String[] templateLabels() {
+		return TEMPLATE_LABELS.clone();
+	}
+
+	public static String templateLabelAt(int index) {
+		return TEMPLATE_LABELS[index];
+	}
+
+	public static String[] actionLabels() {
+		return ACTION_LABELS.clone();
+	}
+
+	public static String actionValueAt(int index) {
+		return ACTION_VALUES[index];
+	}
+
+	public static int actionValueCount() {
+		return ACTION_VALUES.length;
+	}
+
+	public static int indexOfActionValue(String target) {
+		return indexOfValue(ACTION_VALUES, target);
+	}
+
+	public static String[] spatialLabels() {
+		return SPATIAL_LABELS.clone();
+	}
+
+	public static int spatialValueCount() {
+		return SPATIAL_VALUES.length;
+	}
+
+	public static int indexOfSpatialValue(String target) {
+		return indexOfValue(SPATIAL_VALUES, target);
+	}
 
 	public record EditorLists(
 		List<String> featureKeys,
