@@ -62,6 +62,9 @@ public record AnimationEventSnapshot(
 				CameraPathMetadata.metadataValue(CameraPathMetadata.isPathVisible(timeline, clipId))
 			);
 		}
+		if (event == null) {
+			return captureClipOnly(clip, timeline, clipId);
+		}
 		return new AnimationEventSnapshot(
 			event.getTimeSeconds(),
 			new HashMap<>(event.getParameters()),
@@ -134,7 +137,7 @@ public record AnimationEventSnapshot(
 		return eventTimes;
 	}
 
-	private static Map<String, String> capturePathMetadata(Timeline timeline, String clipId) {
+	private static Map<String, String> capturePathMetadata(@Nullable Timeline timeline, @Nullable String clipId) {
 		if (timeline == null || clipId == null || clipId.isBlank()) {
 			return Map.of();
 		}

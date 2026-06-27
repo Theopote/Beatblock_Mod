@@ -8,6 +8,10 @@ import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.MoveEventCommand;
 import com.beatblock.timeline.command.UpdateAnimationEventCommand;
 
+import com.beatblock.timeline.Track;
+
+import org.jspecify.annotations.Nullable;
+
 /**
  * 通过 CommandManager 提交事件属性编辑，供 Panel 与 Interaction 共用。
  */
@@ -16,11 +20,11 @@ public final class TimelineEventEditActions {
 	private TimelineEventEditActions() {}
 
 	public static boolean execute(
-		Timeline timeline,
-		CommandManager commandManager,
-		String trackId,
-		String clipId,
-		String eventId,
+		@Nullable Timeline timeline,
+		@Nullable CommandManager commandManager,
+		@Nullable String trackId,
+		@Nullable String clipId,
+		@Nullable String eventId,
 		AnimationEventSnapshot before,
 		AnimationEventSnapshot after
 	) {
@@ -29,7 +33,8 @@ public final class TimelineEventEditActions {
 		}
 		String resolvedEventId = eventId;
 		if (resolvedEventId == null || resolvedEventId.isBlank()) {
-			Clip clip = timeline.getTrack(trackId) != null ? timeline.getTrack(trackId).getClip(clipId) : null;
+			Track track = timeline.getTrack(trackId);
+			Clip clip = track != null ? track.getClip(clipId) : null;
 			if (clip == null || clip.getEvents().isEmpty()) return false;
 			resolvedEventId = clip.getEvents().get(0).getId();
 		}
@@ -40,11 +45,11 @@ public final class TimelineEventEditActions {
 	}
 
 	public static boolean execute(
-		Timeline timeline,
-		CommandManager commandManager,
-		String trackId,
-		Clip clip,
-		TimelineEvent event,
+		@Nullable Timeline timeline,
+		@Nullable CommandManager commandManager,
+		@Nullable String trackId,
+		@Nullable Clip clip,
+		@Nullable TimelineEvent event,
 		AnimationEventSnapshot before,
 		AnimationEventSnapshot after
 	) {

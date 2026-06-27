@@ -65,7 +65,7 @@ public final class AudioAssetManager {
 		return contextSource.get();
 	}
 
-	private AudioAnalysisService externalAnalyzer() {
+	private @Nullable AudioAnalysisService externalAnalyzer() {
 		return ctx().externalAudioAnalyzer();
 	}
 
@@ -164,7 +164,7 @@ public final class AudioAssetManager {
 		}
 	}
 
-	private boolean isSupportedAudioFile(Path path) {
+	private boolean isSupportedAudioFile(@Nullable Path path) {
 		if (path == null || path.getFileName() == null) return false;
 		String name = path.getFileName().toString();
 		int idx = name.lastIndexOf('.');

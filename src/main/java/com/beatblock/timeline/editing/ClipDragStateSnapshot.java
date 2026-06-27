@@ -42,8 +42,10 @@ public record ClipDragStateSnapshot(
 		@Nullable Map<String, List<double[]>> featureSnapshot
 	) {
 		Map<String, ClipBounds> clips = new LinkedHashMap<>();
-		Track primaryTrack = timeline != null ? timeline.getTrack(primaryTrackId) : null;
-		if (primaryTrack != null) {
+		Track primaryTrack = (timeline != null && primaryTrackId != null)
+			? timeline.getTrack(primaryTrackId)
+			: null;
+		if (primaryTrack != null && primaryTrackId != null && primaryClipId != null) {
 			Clip primaryClip = primaryTrack.getClip(primaryClipId);
 			if (primaryClip != null) {
 				clips.put(clipKey(primaryTrackId, primaryClipId), new ClipBounds(
@@ -144,7 +146,7 @@ public record ClipDragStateSnapshot(
 		return trackId + "|" + clipId;
 	}
 
-	private static TimelineEvent findEvent(Timeline timeline, String eventId) {
+	private static @Nullable TimelineEvent findEvent(Timeline timeline, String eventId) {
 		for (Track track : timeline.getTracks()) {
 			for (Clip clip : track.getClips()) {
 				TimelineEvent event = clip.getEvent(eventId);
