@@ -21,6 +21,8 @@ import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 public class BeatBlock implements ModInitializer {
 	public static final String MOD_ID = "beatblock";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
@@ -91,12 +93,12 @@ public class BeatBlock implements ModInitializer {
 
 	private static void registerAssetConversionHandler() {
 		AudioAssetManager.getInstance().setConversionRequestHandler((asset, targetFormat) -> {
-			if (asset == null || asset.getPath() == null) return;
+			if (asset.getPath() == null) return;
 			asset.setStatus(com.beatblock.audio.assets.AudioAssetStatus.ANALYZING);
 			asset.setAnalysisProgressPercent(3);
 			asset.setProcessingStatusText(BBTexts.get("beatblock.audio.ffmpeg_converting"));
 			asset.setErrorMessage(null);
-			getContext().audioConversionService().convertToMp3Async(
+			Objects.requireNonNull(getContext().audioConversionService()).convertToMp3Async(
 				asset.getPath(),
 				(message, percent) -> {
 					asset.setStatus(com.beatblock.audio.assets.AudioAssetStatus.ANALYZING);
