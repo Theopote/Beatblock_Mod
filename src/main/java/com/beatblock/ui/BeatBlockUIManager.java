@@ -1,5 +1,6 @@
 package com.beatblock.ui;
 
+import com.beatblock.client.export.VideoExportCoordinator;
 import com.beatblock.client.render.BeatBlockLassoOverlay;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
@@ -10,6 +11,7 @@ import com.beatblock.ui.preferences.UiPreferences;
 import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
 import imgui.ImGuiIO;
+import imgui.ImGuiViewport;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
@@ -48,6 +50,7 @@ public class BeatBlockUIManager {
 	private final EventLibraryPanel eventLibraryPanel;
 	private final PerformanceMonitorPanel performanceMonitorPanel;
 	private final PreferencesPanel preferencesPanel;
+	private final VideoExportDialog videoExportDialog;
 
 	private final BeatBlockPanelVisibility panelVisibility = new BeatBlockPanelVisibility();
 	private boolean firstLayout = true;
@@ -62,7 +65,7 @@ public class BeatBlockUIManager {
 			() -> toolPanel.setShowAutoMapSettings(true),
 			this::generateRhythmDropFromMenu,
 			this::resetLayoutState, this::saveCurrentLayout, this::loadSavedLayout,
-			this::openQuickStartWizard);
+			this::openQuickStartWizard, this::openVideoExportDialog);
 		this.eventPropertiesPanel = new EventPropertiesPanel();
 		this.cameraPropertiesPanel = new CameraPropertiesPanel();
 		this.timelinePanel = new TimelinePanel();
@@ -75,10 +78,15 @@ public class BeatBlockUIManager {
 		this.eventLibraryPanel = new EventLibraryPanel();
 		this.performanceMonitorPanel = new PerformanceMonitorPanel();
 		this.preferencesPanel = new PreferencesPanel();
+		this.videoExportDialog = new VideoExportDialog();
 	}
 
 	public void openQuickStartWizard() {
 		quickStartWizardPanel.open();
+	}
+
+	public void openVideoExportDialog() {
+		videoExportDialog.open();
 	}
 
 	public void setOnCloseRequest(Runnable onCloseRequest) {
@@ -118,6 +126,11 @@ public class BeatBlockUIManager {
 
 	public void render() {
 		BeatBlockShortcutHandler.processGlobalShortcuts();
+
+		if (VideoExportCoordinator.getInstance().shouldHideUi()) {
+			renderExportProgressOverlay();
+			return;
+		}
 
 		// 1. 菜单栏（独立于 Dockspace）
 		menuBarPanel.render();
@@ -171,8 +184,29 @@ public class BeatBlockUIManager {
 		UiPreferences.popPanelThemeColors();
 
 		quickStartWizardPanel.render();
+		videoExportDialog.render();
 		BeatBlockLassoOverlay.render();
 		ToastNotificationSystem.render();
+	}
+
+	private void renderExportProgressOverlay() {
+		var ctx = com.beatblock.BeatBlock.getContext();
+		var service = ctx.videoExportService();
+		if (service == null) {
+			return;
+		}
+		var progress = service.activeProgress();
+		if (progress == null) {
+			return;
+		}
+		ImGuiViewport viewport = ImGui.getMainViewport();
+		ImGui.setNextWindowPos(viewport.getWorkPosX() + 24f, viewport.getWorkPosY() + 24f);
+		ImGui.setNextWindowSize(360, 0);
+		if (ImGui.begin("##beatblockExportProgress", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize)) {
+			ImGui.text(com.beatblock.ui.i18n.BBTexts.get("beatblock.export.progress.title"));
+			ImGui.progressBar(progress.percent() / 100f, 320, 0, progress.message());
+		}
+		ImGui.end();
 	}
 
 	public void resetLayoutState() {

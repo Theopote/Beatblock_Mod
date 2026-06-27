@@ -46,6 +46,20 @@ class FfmpegLocatorTest {
 	}
 
 	@Test
+	void findsFfmpegInNestedSubfolder() throws Exception {
+		Path configDir = tempRoot.resolve("config");
+		Path gameDir = tempRoot.resolve("game");
+		Files.createDirectories(configDir.resolve("beatblock"));
+		Path nestedExe = gameDir.resolve("tools/ffmpeg/bin/ffmpeg.exe");
+		Files.createDirectories(nestedExe.getParent());
+		Files.writeString(nestedExe, "placeholder");
+		String nestedPath = nestedExe.toAbsolutePath().toString();
+
+		String resolved = FfmpegLocator.resolveExecutable(configDir, gameDir, exe -> exe.equals(nestedPath));
+		assertEquals(nestedPath, resolved);
+	}
+
+	@Test
 	void skipsInvalidConfigAndUsesPathFallback() throws Exception {
 		Path configDir = tempRoot.resolve("config");
 		Path gameDir = tempRoot.resolve("game");

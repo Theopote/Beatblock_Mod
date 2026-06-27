@@ -15,6 +15,7 @@ import com.beatblock.timeline.IAudioPlayer;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.video.VideoExportService;
 
 /**
  * 运行时核心服务容器：构造器注入入口，替代原 {@link com.beatblock.BeatBlock} 静态字段访问。
@@ -32,6 +33,7 @@ public final class BeatBlockContext {
 	private final @Nullable AudioAnalysisEngine audioAnalysisEngine;
 	private final @Nullable AudioAnalysisService externalAudioAnalyzer;
 	private final @Nullable AudioConversionService audioConversionService;
+	private final @Nullable VideoExportService videoExportService;
 
 	public BeatBlockContext(
 		@Nullable AudioLoader audioLoader,
@@ -43,7 +45,8 @@ public final class BeatBlockContext {
 		@Nullable BlockAnimationEngine blockAnimationEngine,
 		@Nullable AudioAnalysisEngine audioAnalysisEngine,
 		@Nullable AudioAnalysisService externalAudioAnalyzer,
-		@Nullable AudioConversionService audioConversionService
+		@Nullable AudioConversionService audioConversionService,
+		@Nullable VideoExportService videoExportService
 	) {
 		this.audioLoader = audioLoader;
 		this.musicPlayer = musicPlayer;
@@ -55,6 +58,7 @@ public final class BeatBlockContext {
 		this.audioAnalysisEngine = audioAnalysisEngine;
 		this.externalAudioAnalyzer = externalAudioAnalyzer;
 		this.audioConversionService = audioConversionService;
+		this.videoExportService = videoExportService;
 	}
 
 	public static Builder builder() {
@@ -108,6 +112,10 @@ public final class BeatBlockContext {
 		return musicPlayer;
 	}
 
+	public @Nullable VideoExportService videoExportService() {
+		return videoExportService;
+	}
+
 	public @Nullable CommandManager commandManager() {
 		return timelineEditor != null ? timelineEditor.getCommandManager() : null;
 	}
@@ -127,6 +135,7 @@ public final class BeatBlockContext {
 		private @Nullable AudioAnalysisEngine audioAnalysisEngine;
 		private @Nullable AudioAnalysisService externalAudioAnalyzer;
 		private @Nullable AudioConversionService audioConversionService;
+		private @Nullable VideoExportService videoExportService;
 
 		public Builder audioLoader(AudioLoader audioLoader) {
 			this.audioLoader = audioLoader;
@@ -178,6 +187,11 @@ public final class BeatBlockContext {
 			return this;
 		}
 
+		public Builder videoExportService(VideoExportService videoExportService) {
+			this.videoExportService = videoExportService;
+			return this;
+		}
+
 		public BeatBlockContext build() {
 			return new BeatBlockContext(
 				audioLoader,
@@ -189,7 +203,8 @@ public final class BeatBlockContext {
 				blockAnimationEngine,
 				audioAnalysisEngine,
 				externalAudioAnalyzer,
-				audioConversionService
+				audioConversionService,
+				videoExportService
 			);
 		}
 	}

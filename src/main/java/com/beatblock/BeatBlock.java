@@ -14,6 +14,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.audio.analysis.AudioAnalysisEngine;
 import com.beatblock.runtime.BeatBlockContext;
+import com.beatblock.video.VideoExportService;
 import net.fabricmc.api.ModInitializer;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -71,6 +72,7 @@ public class BeatBlock implements ModInitializer {
 		AudioAnalysisEngine analysisEngine = new AudioAnalysisEngine();
 		AudioAnalysisService analyzer = new AudioAnalysisService();
 		AudioConversionService conversionService = new AudioConversionService();
+		VideoExportService videoExportService = new VideoExportService(com.beatblock.client.export.ClientThreadExecutor::run);
 		context = new BeatBlockContext(
 			loader,
 			player,
@@ -81,7 +83,8 @@ public class BeatBlock implements ModInitializer {
 			animationEngine,
 			analysisEngine,
 			analyzer,
-			conversionService
+			conversionService,
+			videoExportService
 		);
 	}
 

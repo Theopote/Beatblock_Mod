@@ -1,6 +1,7 @@
 package com.beatblock.audio.ffmpeg;
 
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * ffmpeg 能力统一入口：路径解析、PCM 解码、MP3 转码。
@@ -28,5 +29,11 @@ public final class FfmpegService {
 		FfmpegTranscoder.ProgressListener onProgress
 	) {
 		return FfmpegTranscoder.transcodeToMp3(inputAudio, fallbackOutputDir, onProgress);
+	}
+
+	public static List<String> describeSearchLocations() {
+		return FfmpegLocator.describeSearchLocations(
+			net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir()
+		);
 	}
 }

@@ -25,6 +25,7 @@ public class MenuBarPanel {
 	private final Runnable onSaveLayout;
 	private final Runnable onLoadLayout;
 	private final Runnable onOpenQuickStartWizard;
+	private final Runnable onOpenVideoExport;
 	private boolean showImportDialog;
 	private boolean showOpenProjectDialog;
 	private boolean showSaveProjectDialog;
@@ -36,14 +37,14 @@ public class MenuBarPanel {
 
 	public MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
 			Runnable onGenerateRhythmDrop, Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout,
-			Runnable onOpenQuickStartWizard) {
+			Runnable onOpenQuickStartWizard, Runnable onOpenVideoExport) {
 		this(onCloseRequest, panels, onOpenSmartAutoMap, onGenerateRhythmDrop, onResetLayout, onSaveLayout, onLoadLayout,
-			onOpenQuickStartWizard, PresenterFactories.menuBarPresenter());
+			onOpenQuickStartWizard, onOpenVideoExport, PresenterFactories.menuBarPresenter());
 	}
 
 	MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
 			Runnable onGenerateRhythmDrop, Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout,
-			Runnable onOpenQuickStartWizard, MenuBarPresenter presenter) {
+			Runnable onOpenQuickStartWizard, Runnable onOpenVideoExport, MenuBarPresenter presenter) {
 		this.presenter = presenter;
 		this.onCloseRequest = onCloseRequest;
 		this.panels = panels != null ? panels : new BeatBlockPanelVisibility();
@@ -53,6 +54,7 @@ public class MenuBarPanel {
 		this.onSaveLayout = onSaveLayout != null ? onSaveLayout : () -> {};
 		this.onLoadLayout = onLoadLayout != null ? onLoadLayout : () -> {};
 		this.onOpenQuickStartWizard = onOpenQuickStartWizard != null ? onOpenQuickStartWizard : () -> {};
+		this.onOpenVideoExport = onOpenVideoExport != null ? onOpenVideoExport : () -> {};
 	}
 
 	public void render() {
@@ -73,6 +75,9 @@ public class MenuBarPanel {
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.import_music"), "Ctrl+O")) {
 					showImportDialog = true;
 					importPath.set("");
+				}
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.export_video"))) {
+					onOpenVideoExport.run();
 				}
 				ImGui.separator();
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.close_beatblock"), "Esc")) {

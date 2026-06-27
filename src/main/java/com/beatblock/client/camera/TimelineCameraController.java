@@ -64,6 +64,30 @@ public final class TimelineCameraController {
 		LOGGER.debug("[TimelineCameraController] UI 关闭，释放摄像机控制权");
 	}
 
+	/** 视频导出：在指定时间采样镜头并应用到 CameraRuntime。 */
+	public void sampleAtExportTime(double timeSeconds) {
+		Timeline timeline = ctx().timeline();
+		if (timeline == null) {
+			return;
+		}
+		MinecraftClient client = MinecraftClient.getInstance();
+		Vec3d anchor = client != null && client.player != null ? client.player.getEyePos() : Vec3d.ZERO;
+		float fallbackYaw = client != null && client.player != null ? client.player.getYaw() : 0f;
+		float fallbackPitch = client != null && client.player != null ? client.player.getPitch() : 0f;
+		TimelineCameraEvaluator.CameraSample sample = TimelineCameraEvaluator.evaluate(
+			timeline,
+			timeSeconds,
+			anchor,
+			fallbackYaw,
+			fallbackPitch
+		);
+		CameraRuntime runtime = CameraRuntime.getInstance();
+		runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+		if (sample != null) {
+			runtime.applyTimelineSample(sample);
+		}
+	}
+
 	public synchronized void tick() {
 		long now = System.nanoTime();
 		float delta = lastUpdateNanoTime == 0L ? 1f / 60f : (now - lastUpdateNanoTime) / 1_000_000_000f;

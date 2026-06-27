@@ -209,6 +209,33 @@ public final class BeatBlockClientDriver {
 		return requireInstance().previewTimelineTimeSecondsInternal();
 	}
 
+	/**
+	 * 视频导出专用：将时间线 seek 到指定时刻并刷新动画/镜头预览。
+	 */
+	public static void prepareExportFrame(double timeSeconds) {
+		requireInstance().prepareExportFrameInternal(timeSeconds);
+	}
+
+	private void prepareExportFrameInternal(double timeSeconds) {
+		stopPlaybackInternal();
+		var editor = ctx().timelineEditor();
+		if (editor != null) {
+			double duration = ctx().timeline() != null ? ctx().timeline().getDurationSeconds() : 0.0;
+			double clamped = duration > 0 ? Math.max(0.0, Math.min(timeSeconds, duration)) : Math.max(0.0, timeSeconds);
+			editor.getClock().setCurrentTimeSeconds(clamped);
+		}
+		var musicPlayer = ctx().musicPlayer();
+		if (musicPlayer != null) {
+			musicPlayer.setCurrentTimeSeconds(timeSeconds);
+		}
+		resetTimelineAnimationScheduling();
+		MinecraftClient mc = MinecraftClient.getInstance();
+		World world = mc != null ? mc.world : null;
+		if (world != null) {
+			tickBlockAnimationEngine(timeSeconds, true, world);
+		}
+	}
+
 	private double previewTimelineTimeSecondsInternal() {
 		var editor = ctx().timelineEditor();
 		if (editor != null) {

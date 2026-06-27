@@ -1,6 +1,7 @@
 package com.beatblock.mixin.client;
 
 import com.beatblock.client.BeatBlockUIScreen;
+import com.beatblock.client.export.VideoExportCoordinator;
 import com.beatblock.client.imgui.ImGuiRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
@@ -23,9 +24,18 @@ public class RenderSystemMixin {
 		if (mc == null || mc.currentScreen == null) return;
 		if (!(mc.currentScreen instanceof BeatBlockUIScreen)) return;
 
-		ImGuiRenderer renderer = ImGuiRenderer.getInstance();
-		if (renderer.isInitialized() && renderer.hasPendingDrawData()) {
-			renderer.renderPendingDrawData();
+		VideoExportCoordinator exportCoordinator = VideoExportCoordinator.getInstance();
+		boolean exporting = exportCoordinator.isActive();
+		boolean hideUi = exportCoordinator.shouldHideUi();
+
+		if (!exporting || !hideUi) {
+			ImGuiRenderer renderer = ImGuiRenderer.getInstance();
+			if (renderer.isInitialized() && renderer.hasPendingDrawData()) {
+				renderer.renderPendingDrawData();
+			}
+		}
+		if (exporting) {
+			exportCoordinator.onBeforeFlipFrame();
 		}
 	}
 }

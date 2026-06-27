@@ -2,6 +2,7 @@ package com.beatblock.test;
 
 import com.beatblock.audio.AudioAnalysisService;
 import com.beatblock.audio.AudioConversionService;
+import com.beatblock.video.VideoExportService;
 import com.beatblock.audio.AudioLoader;
 import com.beatblock.audio.MusicPlayer;
 import com.beatblock.audio.StemMixer;
@@ -36,6 +37,7 @@ public final class BeatBlockTestSupport {
 			.audioAnalysisEngine(new AudioAnalysisEngine())
 			.externalAudioAnalyzer(new AudioAnalysisService())
 			.audioConversionService(new AudioConversionService())
+			.videoExportService(new VideoExportService(Runnable::run))
 			.build();
 	}
 }

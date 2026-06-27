@@ -1,0 +1,285 @@
+package com.beatblock.client.export;
+
+import com.beatblock.BeatBlock;
+import com.beatblock.audio.ffmpeg.FfmpegService;
+import com.beatblock.audio.ffmpeg.FfmpegTranscodeOutcome;
+import com.beatblock.audio.ffmpeg.FfmpegVideoEncoder;
+import com.beatblock.client.BeatBlockClientDriver;
+import com.beatblock.client.camera.TimelineCameraController;
+import com.beatblock.ui.notification.ToastNotificationSystem;
+import com.beatblock.video.VideoExportProgress;
+import com.beatblock.video.VideoExportService;
+import com.beatblock.video.VideoExportSettings;
+import net.minecraft.client.MinecraftClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/**
+ * 客户端视频导出协调器：逐帧 seek 时间线、捕获 framebuffer、写入 ffmpeg pipe。
+ */
+public final class VideoExportCoordinator {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(VideoExportCoordinator.class);
+	private static final VideoExportCoordinator INSTANCE = new VideoExportCoordinator();
+
+	private enum Phase {
+		IDLE,
+		PREPARING,
+		WAITING_FRAME,
+		FINALIZING
+	}
+
+	private Phase phase = Phase.IDLE;
+	private VideoExportSettings settings;
+	private VideoExportService service;
+	private FfmpegVideoEncoder encoder;
+	private Path outputPath;
+	private int nextFrameIndex;
+	private int captureWidth;
+	private int captureHeight;
+	private boolean hideUi;
+	private boolean cancelRequested;
+	private int pendingWarmupFrames;
+
+	private VideoExportCoordinator() {}
+
+	public static VideoExportCoordinator getInstance() {
+		return INSTANCE;
+	}
+
+	public boolean isActive() {
+		return phase != Phase.IDLE;
+	}
+
+	public boolean shouldHideUi() {
+		return isActive() && hideUi;
+	}
+
+	public void start(VideoExportSettings exportSettings, VideoExportService exportService) {
+		if (exportSettings == null || exportService == null || phase != Phase.IDLE) {
+			return;
+		}
+		String ffmpeg = FfmpegService.resolveExecutable();
+		if (ffmpeg == null) {
+			failImmediately(exportSettings, exportService, "找不到 ffmpeg。请将 ffmpeg.exe 放到 Minecraft 游戏目录或其子文件夹，或在 config/beatblock/ffmpeg_path.txt 中指定路径。");
+			return;
+		}
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client == null || client.getWindow() == null) {
+			failImmediately(exportSettings, exportService, "客户端窗口不可用，无法导出视频。");
+			return;
+		}
+
+		this.settings = exportSettings;
+		this.outputPath = exportSettings.outputPath();
+		this.service = exportService;
+		this.hideUi = exportSettings.hideUi();
+		this.nextFrameIndex = 0;
+		this.cancelRequested = false;
+		this.pendingWarmupFrames = 2;
+		this.phase = Phase.PREPARING;
+
+		int nativeWidth = Math.max(1, client.getWindow().getFramebufferWidth());
+		int nativeHeight = Math.max(1, client.getWindow().getFramebufferHeight());
+		int[] target = FfmpegVideoEncoder.resolveTargetSize(
+			exportSettings.width(),
+			exportSettings.height(),
+			nativeWidth,
+			nativeHeight
+		);
+		this.captureWidth = target[0];
+		this.captureHeight = target[1];
+
+		updateProgress(VideoExportProgress.State.STARTING, "准备导出...", 0);
+		try {
+			Path audioPath = resolveAudioPath(exportSettings);
+			this.encoder = new FfmpegVideoEncoder(
+				ffmpeg,
+				exportSettings.outputPath(),
+				captureWidth,
+				captureHeight,
+				exportSettings.fps(),
+				exportSettings.totalFrames(),
+				exportSettings.includeAudio() ? audioPath : null,
+				(message, percent) -> updateProgress(VideoExportProgress.State.RUNNING, message, percent)
+			);
+			BeatBlockClientDriver.stopPlayback();
+			scheduleNextFrame();
+		} catch (IOException e) {
+			cleanup();
+			failImmediately(exportSettings, exportService, "无法启动 ffmpeg: " + e.getMessage());
+		}
+	}
+
+	public void cancel() {
+		cancelRequested = true;
+	}
+
+	public void onClientTick() {
+		if (phase == Phase.IDLE || cancelRequested) {
+			if (cancelRequested && phase != Phase.IDLE) {
+				abort("导出已取消。");
+			}
+		}
+	}
+
+	public void onBeforeFlipFrame() {
+		if (phase != Phase.WAITING_FRAME || cancelRequested) {
+			return;
+		}
+		if (pendingWarmupFrames > 0) {
+			pendingWarmupFrames--;
+			return;
+		}
+		try {
+			byte[] rgba = VideoFrameCapturer.captureRgbaTopDown(captureWidth, captureHeight);
+			encoder.writeFrame(rgba);
+			nextFrameIndex++;
+			updateProgress(
+				VideoExportProgress.State.RUNNING,
+				"正在渲染帧 " + nextFrameIndex + "/" + settings.totalFrames(),
+				Math.min(99, (int) Math.round((nextFrameIndex * 100.0) / settings.totalFrames()))
+			);
+			if (nextFrameIndex >= settings.totalFrames()) {
+				finishEncoding();
+			} else {
+				scheduleNextFrame();
+			}
+		} catch (IOException e) {
+			abort("写入视频帧失败: " + e.getMessage());
+		}
+	}
+
+	private void scheduleNextFrame() {
+		double frameTime = settings.startTimeSeconds() + (nextFrameIndex / (double) settings.fps());
+		BeatBlockClientDriver.prepareExportFrame(frameTime);
+		TimelineCameraController.getInstance().sampleAtExportTime(frameTime);
+		phase = Phase.WAITING_FRAME;
+		pendingWarmupFrames = nextFrameIndex == 0 ? 2 : 1;
+	}
+
+	private void finishEncoding() {
+		phase = Phase.FINALIZING;
+		updateProgress(VideoExportProgress.State.FINALIZING, "正在完成编码...", 99);
+		Thread finisher = new Thread(() -> {
+			FfmpegTranscodeOutcome outcome = encoder.finishAndAwait();
+			MinecraftClient.getInstance().execute(() -> {
+				if (outcome instanceof FfmpegTranscodeOutcome.Success) {
+					completeSuccess(outputPath);
+				} else if (outcome instanceof FfmpegTranscodeOutcome.Failure failure) {
+					abort(failure.message());
+				} else {
+					abort("视频导出失败。");
+				}
+			});
+		}, "beatblock-video-export-finalize");
+		finisher.setDaemon(true);
+		finisher.start();
+	}
+
+	private void completeSuccess(Path output) {
+		String message = "视频已导出: " + output.toAbsolutePath();
+		updateProgress(VideoExportProgress.State.SUCCEEDED, message, 100);
+		if (service != null) {
+			service.onCompleted(new VideoExportService.VideoExportResult(
+				true,
+				output,
+				message,
+				currentProgress(VideoExportProgress.State.SUCCEEDED, message, 100)
+			));
+		}
+		ToastNotificationSystem.showSuccess(message);
+		cleanup();
+	}
+
+	private void abort(String message) {
+		LOGGER.warn("Video export aborted: {}", message);
+		if (encoder != null) {
+			encoder.close();
+		}
+		updateProgress(VideoExportProgress.State.CANCELLED, message, 0);
+		if (service != null) {
+			service.onCompleted(new VideoExportService.VideoExportResult(
+				false,
+				null,
+				message,
+				currentProgress(VideoExportProgress.State.CANCELLED, message, 0)
+			));
+		}
+		ToastNotificationSystem.showError(message);
+		cleanup();
+	}
+
+	private void failImmediately(VideoExportSettings exportSettings, VideoExportService exportService, String message) {
+		VideoExportProgress progress = new VideoExportProgress(
+			VideoExportProgress.State.FAILED,
+			exportSettings,
+			0,
+			message,
+			0,
+			exportSettings != null ? exportSettings.totalFrames() : 0
+		);
+		exportService.onCompleted(new VideoExportService.VideoExportResult(false, null, message, progress));
+		ToastNotificationSystem.showError(message);
+	}
+
+	private void cleanup() {
+		phase = Phase.IDLE;
+		settings = null;
+		service = null;
+		encoder = null;
+		nextFrameIndex = 0;
+		cancelRequested = false;
+		hideUi = false;
+	}
+
+	private void updateProgress(VideoExportProgress.State state, String message, int percent) {
+		if (service != null) {
+			service.onProgressUpdated(currentProgress(state, message, percent));
+		}
+	}
+
+	private VideoExportProgress currentProgress(VideoExportProgress.State state, String message, int percent) {
+		return new VideoExportProgress(
+			state,
+			settings,
+			percent,
+			message,
+			nextFrameIndex,
+			settings != null ? settings.totalFrames() : 0
+		);
+	}
+
+	private static Path resolveAudioPath(VideoExportSettings exportSettings) {
+		if (!exportSettings.includeAudio()) {
+			return null;
+		}
+		var ctx = BeatBlock.getContext();
+		var musicPlayer = ctx.musicPlayer();
+		if (musicPlayer != null) {
+			String loaded = musicPlayer.getLoadedAudioPath();
+			if (loaded != null && !loaded.isBlank()) {
+				Path path = Path.of(loaded);
+				if (Files.isRegularFile(path)) {
+					return path;
+				}
+			}
+		}
+		var timeline = ctx.timeline();
+		if (timeline != null) {
+			Object audioPath = timeline.getMetadata("audioPath");
+			if (audioPath != null) {
+				Path path = Path.of(String.valueOf(audioPath));
+				if (Files.isRegularFile(path)) {
+					return path;
+				}
+			}
+		}
+		return null;
+	}
+
+}

@@ -224,6 +224,14 @@ public final class PresenterFactories {
 		);
 	}
 
+	public static VideoExportPanelPresenter videoExportPanelPresenter() {
+		return videoExportPanelPresenter(ctx());
+	}
+
+	public static VideoExportPanelPresenter videoExportPanelPresenter(BeatBlockContext context) {
+		return new VideoExportPanelPresenter(() -> context, context::videoExportService);
+	}
+
 	public static UndoHistoryPanelPresenter undoHistoryPanelPresenter() {
 		return undoHistoryPanelPresenter(ctx());
 	}
