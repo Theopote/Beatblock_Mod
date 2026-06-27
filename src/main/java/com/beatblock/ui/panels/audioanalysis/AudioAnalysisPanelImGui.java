@@ -5,6 +5,7 @@ import com.beatblock.audio.assets.AudioAnalysisPhase;
 import com.beatblock.audio.assets.AudioAnalysisStep;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.beatmap.Beatmap;
+import com.beatblock.audio.beatmap.WaveformPreview;
 import com.beatblock.client.imgui.ImGuiFontManager;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.timeline.rendering.TimelineLayout;
@@ -343,6 +344,45 @@ final class AudioAnalysisPanelImGui {
 			} else {
 				host.uiState().setPanelHint(BBTexts.get("beatblock.audio.copy_failed"), true);
 			}
+		}
+	}
+
+	static void renderWaveformPreview(WaveformPreview preview) {
+		if (preview == null || preview.data() == null || preview.data().length == 0) {
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.waveform_unavailable"));
+			return;
+		}
+		float barW = Math.max(64f, ImGui.getContentRegionAvailX());
+		float barH = 48f;
+		float x0 = ImGui.getCursorScreenPosX();
+		float y0 = ImGui.getCursorScreenPosY();
+		ImGui.dummy(barW, barH + 4f);
+
+		float[] data = preview.data();
+		int samples = data.length;
+		int columns = Math.max(1, (int) barW);
+		var dl = ImGui.getWindowDrawList();
+		float midY = y0 + barH * 0.5f;
+		int waveformColor = 0xFF7777D0;
+		int bgColor = 0xFF2A2A32;
+		dl.addRectFilled(x0, y0, x0 + barW, y0 + barH, bgColor, 3f);
+		for (int col = 0; col < columns; col++) {
+			int start = (int) ((long) col * samples / columns);
+			int end = (int) ((long) (col + 1) * samples / columns);
+			if (end <= start) {
+				end = Math.min(samples, start + 1);
+			}
+			float peak = 0f;
+			for (int i = start; i < end; i++) {
+				peak = Math.max(peak, Math.abs(data[i]));
+			}
+			float halfH = peak * (barH * 0.45f);
+			float x = x0 + col;
+			dl.addLine(x, midY - halfH, x, midY + halfH, waveformColor, 1f);
+		}
+		if (preview.samplesPerSecond() > 0) {
+			float duration = samples / (float) preview.samplesPerSecond();
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.waveform_duration", duration));
 		}
 	}
 

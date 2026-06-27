@@ -144,6 +144,11 @@ final class AudioAnalysisAssetDetailControls {
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
 
+		if (AudioAnalysisPanelImGui.beginDetailSection("completed_waveform", BBTexts.get("beatblock.audio.waveform_preview"), false)) {
+			AudioAnalysisPanelImGui.renderWaveformPreview(detailBm != null ? detailBm.waveformPreview : null);
+			AudioAnalysisPanelImGui.endDetailSection();
+		}
+
 		if (AudioAnalysisPanelImGui.beginDetailSection("completed_distribution",
 			hasStemSeparation ? BBTexts.get("beatblock.audio.stem_tracks") : BBTexts.get("beatblock.audio.band_distribution"), false)) {
 			if (!hasStemSeparation) {

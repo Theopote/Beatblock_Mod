@@ -223,4 +223,65 @@ class EventPropertiesPresenterTest {
 		assertEquals("1.000000", snapshot.camClipStart());
 		assertEquals("5.000000", snapshot.camClipEnd());
 	}
+
+	@Test
+	void applyBatchAnimationEditUpdatesEnergyAndTimeOffset() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 10.0);
+		var first = TimelineOperations.addEvent(
+			clip,
+			1.0,
+			EventType.ANIMATION,
+			Map.of("animationType", "pulse", "targetObject", "target-1", "energy", 0.3)
+		);
+		var second = TimelineOperations.addEvent(
+			clip,
+			3.0,
+			EventType.ANIMATION,
+			Map.of("animationType", "pulse", "targetObject", "target-1", "energy", 0.3)
+		);
+
+		SelectionState selection = editor.getSelectionState();
+		selection.selectEvent(first.getId());
+		selection.selectEvent(second.getId());
+
+		var outcome = presenter.applyBatchAnimationEdit(
+			timeline,
+			selection,
+			commandManager,
+			new EventPropertiesPresenter.BatchAnimationEditRequest(0.9f, null, 0.5)
+		);
+		assertTrue(outcome.success());
+		assertEquals(2, outcome.updatedCount());
+		assertEquals(0.9f, ((Number) first.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertEquals(0.9f, ((Number) second.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertEquals(1.5, first.getTimeSeconds(), 1e-9);
+		assertEquals(3.5, second.getTimeSeconds(), 1e-9);
+	}
+
+	@Test
+	void countSelectedAnimationEventsIgnoresNonAnimationSelection() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 4.0);
+		var animation = TimelineOperations.addEvent(
+			clip,
+			1.0,
+			EventType.ANIMATION,
+			Map.of("animationType", "pulse", "targetObject", "target-1")
+		);
+		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		var camClip = TimelineOperations.addClip(cam, 0.0, 2.0);
+		var marker = TimelineOperations.addEvent(
+			camClip,
+			0.5,
+			EventType.CAMERA_KEYFRAME,
+			Map.of("x", 0.0, "y", 64.0, "z", 0.0)
+		);
+
+		SelectionState selection = editor.getSelectionState();
+		selection.selectEvent(animation.getId());
+		selection.selectEvent(marker.getId());
+
+		assertEquals(1, presenter.countSelectedAnimationEvents(timeline, selection));
+	}
 }

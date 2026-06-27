@@ -88,9 +88,9 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 			ImInt dockBottom = new ImInt();
 			imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Down, 0.22f, dockBottom, dockMain);
 
-			// 2. 左侧分割：音频解析 + 工具面板（总宽约 18%）
+			// 2. 左侧分割：音频解析 + 工具面板（总宽约 22%）
 			ImInt dockLeft = new ImInt();
-			imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, 0.18f, dockLeft, dockMain);
+			imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, 0.22f, dockLeft, dockMain);
 
 			// 2.1 左侧再纵向分割：上半音频解析，中制40%工具，下半60%Marker与调试
 			ImInt dockLeftTop = new ImInt();
@@ -99,9 +99,9 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 			imgui.internal.ImGui.dockBuilderSplitNode(dockLeft.get(), ImGuiDir.Up, 0.52f, dockLeftTop, dockLeftMiddle);
 			imgui.internal.ImGui.dockBuilderSplitNode(dockLeftMiddle.get(), ImGuiDir.Up, 0.55f, dockLeftMiddle, dockLeftBottom);
 
-			// 3. 右侧分割：属性面板（约 22%），再纵向分为事件属性 + 摄像机属性
+			// 3. 右侧分割：属性面板（约 26%），再纵向分为事件属性 + 摄像机属性
 			ImInt dockRight = new ImInt();
-			imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Right, 0.22f, dockRight, dockMain);
+			imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Right, 0.26f, dockRight, dockMain);
 			ImInt dockRightTop = new ImInt();
 			ImInt dockRightBottom = new ImInt();
 			imgui.internal.ImGui.dockBuilderSplitNode(dockRight.get(), ImGuiDir.Up, 0.5f, dockRightTop, dockRightBottom);

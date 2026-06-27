@@ -27,6 +27,8 @@ import com.beatblock.timeline.rendering.TrackDefinition;
 import com.beatblock.timeline.rendering.TrackRegistry;
 import com.beatblock.ui.i18n.BBTexts;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -48,6 +50,18 @@ public final class EventPropertiesPresenter {
 	}
 
 	public record CameraViewSample(double x, double y, double z, float yaw, float pitch) {}
+
+	public record BatchAnimationEditRequest(
+		@Nullable Float energy,
+		@Nullable String animationId,
+		@Nullable Double timeOffsetSeconds
+	) {}
+
+	public record BatchEditOutcome(int updatedCount, @Nullable String errorMessage) {
+		public boolean success() {
+			return errorMessage == null || errorMessage.isBlank();
+		}
+	}
 
 	@FunctionalInterface
 	public interface CameraViewProvider {
@@ -706,5 +720,100 @@ public final class EventPropertiesPresenter {
 			));
 		}
 		return options;
+	}
+
+	public int countSelectedAnimationEvents(Timeline timeline, SelectionState selectionState) {
+		if (timeline == null || selectionState == null) {
+			return 0;
+		}
+		int count = 0;
+		for (String eventId : selectionState.getSelectedEvents()) {
+			EventPropertiesRef ref = findAnimationEventRef(timeline, eventId);
+			if (ref != null) {
+				count++;
+			}
+		}
+		return count;
+	}
+
+	public BatchEditOutcome applyBatchAnimationEdit(
+		Timeline timeline,
+		SelectionState selectionState,
+		CommandManager commandManager,
+		BatchAnimationEditRequest request
+	) {
+		if (commandManager == null) {
+			return new BatchEditOutcome(0, BBTexts.get("beatblock.common.timeline_editor_not_initialized"));
+		}
+		if (timeline == null || selectionState == null || request == null) {
+			return new BatchEditOutcome(0, BBTexts.get("beatblock.event.batch.none"));
+		}
+		boolean hasChange = request.energy() != null
+			|| (request.animationId() != null && !request.animationId().isBlank())
+			|| request.timeOffsetSeconds() != null;
+		if (!hasChange) {
+			return new BatchEditOutcome(0, BBTexts.get("beatblock.event.batch.no_changes"));
+		}
+
+		int updated = 0;
+		String lastError = null;
+		for (String eventId : selectionState.getSelectedEvents()) {
+			EventPropertiesRef ref = findAnimationEventRef(timeline, eventId);
+			if (ref == null) {
+				continue;
+			}
+			AnimationEventSnapshot before = AnimationEventSnapshot.capture(
+				ref.event(), ref.clip(), timeline, ref.clip().getId());
+			Map<String, Object> params = new HashMap<>(before.parameters());
+			double newTime = before.timeSeconds();
+
+			if (request.energy() != null) {
+				params.put("energy", request.energy());
+			}
+			if (request.animationId() != null && !request.animationId().isBlank()) {
+				params.put("animationType", request.animationId());
+			}
+			Map<String, Double> eventTimes = new HashMap<>(before.clipEventTimesById());
+			if (request.timeOffsetSeconds() != null) {
+				newTime = Math.max(0, newTime + request.timeOffsetSeconds());
+				eventTimes.put(ref.event().getId(), newTime);
+			}
+
+			AnimationEventSnapshot after = new AnimationEventSnapshot(
+				newTime,
+				params,
+				before.clipStartSeconds(),
+				before.clipEndSeconds(),
+				eventTimes,
+				before.timelineMetadata(),
+				before.timelineDurationSeconds()
+			);
+			try {
+				commitEventEdit(ref, timeline, commandManager, before, after);
+				updated++;
+			} catch (RuntimeException ex) {
+				lastError = ex.getMessage();
+			}
+		}
+		if (updated == 0) {
+			return new BatchEditOutcome(0, lastError != null ? lastError : BBTexts.get("beatblock.event.batch.none"));
+		}
+		timeline.sortAll();
+		return new BatchEditOutcome(updated, lastError);
+	}
+
+	private static EventPropertiesRef findAnimationEventRef(Timeline timeline, String eventId) {
+		if (timeline == null || eventId == null || eventId.isBlank()) {
+			return null;
+		}
+		for (Track track : timeline.getTracks()) {
+			for (Clip clip : track.getClips()) {
+				TimelineEvent event = clip.getEvent(eventId);
+				if (event != null && event.getType() == EventType.ANIMATION) {
+					return new EventPropertiesRef(track, clip, event);
+				}
+			}
+		}
+		return null;
 	}
 }

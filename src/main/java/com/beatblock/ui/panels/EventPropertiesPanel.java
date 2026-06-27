@@ -69,8 +69,17 @@ public class EventPropertiesPanel {
 	private final ImString meteorScatterBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString impactThresholdBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private String validationError;
+	private String batchMessage;
+	private String animationPreviewPresetId;
 	private final EventPropertiesPresenter presenter;
 	private final Supplier<BeatBlockContext> context;
+	private final ImString batchEnergyBuffer = new ImString(16);
+	private final ImString batchTimeOffsetBuffer = new ImString(16);
+	private final ImInt batchAnimationIndex = new ImInt(0);
+	private final ImBoolean batchApplyEnergy = new ImBoolean(true);
+	private final ImBoolean batchApplyAnimation = new ImBoolean(false);
+	private final ImBoolean batchApplyTimeOffset = new ImBoolean(false);
+	private final ImBoolean livePreviewOnApply = new ImBoolean(true);
 
 	public EventPropertiesPanel() {
 		this(PresenterFactories.eventPropertiesPresenter(), BeatBlock::getContext);
@@ -157,17 +166,21 @@ public class EventPropertiesPanel {
 			if (!isAnimationRef(ref)) {
 				boundRefKey = null;
 				validationError = null;
+				batchMessage = null;
 				ImGui.textWrapped(BBTexts.get("beatblock.event.select_hint"));
 				return;
+			}
+
+			int batchCount = presenter.countSelectedAnimationEvents(timeline, editor.getSelectionState());
+			if (batchCount > 1) {
+				renderBatchEditor(timeline, editor, batchCount);
+				ImGui.separator();
 			}
 
 			String rk = EventPropertiesRef.refKey(ref);
 			if (!rk.equals(boundRefKey)) {
 				bindBuffers(ref);
 			}
-
-			renderEventSummary(ref, timeline);
-			ImGui.separator();
 
 			boolean trackLocked = presenter.isTrackLocked(timeline, editor, ref.track().getId());
 			if (trackLocked) {
@@ -176,7 +189,7 @@ public class EventPropertiesPanel {
 				ImGui.beginDisabled();
 			}
 
-			renderAnimationEditor(ref, timeline);
+			renderAnimationEditor(ref, timeline, editor, batchCount);
 
 			if (trackLocked) {
 				ImGui.endDisabled();
@@ -221,13 +234,186 @@ public class EventPropertiesPanel {
 		ImGui.text(TimelineAnimationActionMode.fromValue(viewState.actionMode()).name());
 	}
 
-	private void renderAnimationEditor(EventPropertiesRef ref, Timeline timeline) {
+	private void renderBatchEditor(Timeline timeline, TimelineEditor editor, int batchCount) {
+		ImGui.textColored(0.4f, 0.8f, 1f, 1f, BBTexts.get("beatblock.event.batch.title", batchCount));
+		ImGui.spacing();
+
+		List<EventPropertiesOption> animationOptions = presenter.animationOptions();
+		String[] animationLabels = optionLabels(animationOptions);
+
+		ImGui.checkbox(BBTexts.get("beatblock.event.batch.apply_energy") + "##batchEnergy", batchApplyEnergy);
+		ImGui.setNextItemWidth(-1f);
+		if (!batchApplyEnergy.get()) ImGui.beginDisabled();
+		ImGui.inputText(BBTexts.get("beatblock.event.energy") + "##batchEnergyVal", batchEnergyBuffer);
+		if (!batchApplyEnergy.get()) ImGui.endDisabled();
+
+		ImGui.checkbox(BBTexts.get("beatblock.event.batch.apply_animation") + "##batchAnim", batchApplyAnimation);
+		ImGui.setNextItemWidth(-1f);
+		if (!batchApplyAnimation.get()) ImGui.beginDisabled();
+		ImGui.combo(BBTexts.get("beatblock.event.animation_preset") + "##batchAnimVal", batchAnimationIndex, animationLabels);
+		if (!batchApplyAnimation.get()) ImGui.endDisabled();
+
+		ImGui.checkbox(BBTexts.get("beatblock.event.batch.apply_time_offset") + "##batchTime", batchApplyTimeOffset);
+		ImGui.setNextItemWidth(-1f);
+		if (!batchApplyTimeOffset.get()) ImGui.beginDisabled();
+		ImGui.inputText(BBTexts.get("beatblock.event.batch.time_offset") + "##batchTimeVal", batchTimeOffsetBuffer);
+		if (!batchApplyTimeOffset.get()) ImGui.endDisabled();
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.event.batch.time_offset.tooltip"));
+		}
+
+		if (ImGui.button(BBTexts.get("beatblock.event.batch.apply") + "##batchApply", -1f, 0f)) {
+			applyBatchEdit(timeline, editor, animationOptions);
+		}
+
+		if (batchMessage != null && !batchMessage.isBlank()) {
+			ImGui.textWrapped(batchMessage);
+		}
+	}
+
+	private void applyBatchEdit(Timeline timeline, TimelineEditor editor, List<EventPropertiesOption> animationOptions) {
+		Float energy = null;
+		if (batchApplyEnergy.get()) {
+			try {
+				energy = Float.parseFloat(batchEnergyBuffer.get().trim());
+			} catch (NumberFormatException ex) {
+				batchMessage = BBTexts.get("beatblock.event.invalid_number");
+				return;
+			}
+		}
+		String animationId = null;
+		if (batchApplyAnimation.get() && batchAnimationIndex.get() >= 0
+				&& batchAnimationIndex.get() < animationOptions.size()) {
+			animationId = animationOptions.get(batchAnimationIndex.get()).id();
+		}
+		Double timeOffset = null;
+		if (batchApplyTimeOffset.get()) {
+			try {
+				timeOffset = Double.parseDouble(batchTimeOffsetBuffer.get().trim());
+			} catch (NumberFormatException ex) {
+				batchMessage = BBTexts.get("beatblock.event.invalid_number");
+				return;
+			}
+		}
+		var outcome = presenter.applyBatchAnimationEdit(
+			timeline,
+			editor.getSelectionState(),
+			editor.getCommandManager(),
+			new EventPropertiesPresenter.BatchAnimationEditRequest(energy, animationId, timeOffset)
+		);
+		batchMessage = outcome.success()
+			? BBTexts.get("beatblock.event.batch.applied", outcome.updatedCount())
+			: outcome.errorMessage();
+	}
+
+	private void renderAnimationEditor(EventPropertiesRef ref, Timeline timeline, TimelineEditor editor, int batchCount) {
 		Map<String, Object> params = ref.event().getParameters();
 		AnimationEditorViewState viewState = presenter.readAnimationEditorState(params);
 		List<EventPropertiesOption> actionOptions = presenter.actionOptions();
 		List<EventPropertiesOption> animationOptions = presenter.animationOptions();
 		List<EventPropertiesOption> targetOptions = presenter.targetOptions();
 
+		ImInt stepStartModeIndex = new ImInt(indexOfValue(STEP_START_MODE_VALUES, viewState.stepStartMode()));
+		ImInt stepCompletionIndex = new ImInt(indexOfValue(STEP_COMPLETION_VALUES, viewState.stepCompletionMode()));
+		ImInt pacingModeIndex = new ImInt(indexOfValue(PACING_MODE_VALUES, viewState.pacingMode()));
+		if (pacingModeIndex.get() < 0 || pacingModeIndex.get() >= PACING_MODE_VALUES.length) pacingModeIndex.set(0);
+		ImInt actionIndex = new ImInt(indexOfOption(actionOptions, viewState.actionMode()));
+		ImInt animationIndex = new ImInt(indexOfOption(animationOptions, viewState.animationId()));
+		ImInt targetIndex = new ImInt(indexOfOption(targetOptions, viewState.targetId()));
+		ImInt spatialModeIndex = new ImInt(indexOfValue(SPATIAL_MODE_VALUES, viewState.spatialMode()));
+		if (spatialModeIndex.get() < 0 || spatialModeIndex.get() >= SPATIAL_MODE_VALUES.length) spatialModeIndex.set(0);
+		ImBoolean inheritGroupSpatial = new ImBoolean(viewState.inheritGroupSpatial());
+		ImBoolean stepDispatch = new ImBoolean(viewState.stepDispatch());
+		ImBoolean cameraAdaptiveStep = new ImBoolean(viewState.cameraAdaptiveStep());
+		ImBoolean cameraFrustumGating = new ImBoolean(viewState.cameraFrustumGating());
+		ImBoolean usePhaseAnimation = new ImBoolean(viewState.usePhaseAnimation());
+		ImBoolean vfxEnabled = new ImBoolean(viewState.vfxEnabled());
+
+		String[] actionLabels = optionLabels(actionOptions);
+		String[] animationLabels = optionLabels(animationOptions);
+		String[] targetLabels = optionLabels(targetOptions);
+
+		if (batchCount > 1) {
+			ImGui.textDisabled(BBTexts.get("beatblock.event.batch.primary_hint", batchCount));
+			ImGui.spacing();
+		}
+
+		if (ImGui.beginTabBar("##eventPropTabs")) {
+			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.basic"))) {
+				renderBasicTab(animationOptions, actionIndex, animationIndex, targetIndex,
+					actionLabels, animationLabels, targetLabels, vfxEnabled);
+				ImGui.endTabItem();
+			}
+			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.spatial"))) {
+				renderSpatialTab(actionOptions, actionIndex, animationOptions, animationIndex,
+					inheritGroupSpatial, spatialModeIndex);
+				ImGui.endTabItem();
+			}
+			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.advanced"))) {
+				renderAdvancedTab(stepDispatch, stepStartModeIndex, stepCompletionIndex, pacingModeIndex,
+					cameraAdaptiveStep, cameraFrustumGating, usePhaseAnimation);
+				ImGui.endTabItem();
+			}
+			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.info"))) {
+				renderEventSummary(ref, timeline);
+				ImGui.spacing();
+				ImGui.text(BBTexts.get("beatblock.event.metadata"));
+				ImGui.textDisabled(BBTexts.get("beatblock.event.mapping", viewState.mappingProfile()));
+				ImGui.textDisabled(BBTexts.get("beatblock.event.source_stem", viewState.sourceStem()));
+				renderRuntimeStatus(ref);
+				ImGui.endTabItem();
+			}
+			ImGui.endTabBar();
+		}
+
+		if (validationError != null && !validationError.isBlank()) {
+			ImGui.spacing();
+			ImGui.textColored(1f, 0.45f, 0.45f, 1f, validationError);
+		}
+
+		ImGui.spacing();
+		ImGui.checkbox(BBTexts.get("beatblock.event.live_preview") + "##eventLivePreview", livePreviewOnApply);
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.event.live_preview.tooltip"));
+		}
+
+		ImGui.spacing();
+		boolean applied = ImGui.button(BBTexts.get("beatblock.common.apply") + "##eventPropertiesApply", 120f, 0f);
+		ImGui.sameLine();
+		boolean reset = ImGui.button(BBTexts.get("beatblock.common.reset") + "##eventPropertiesReset", 120f, 0f);
+
+		if (applied) {
+			applyAnimationChanges(ref, timeline,
+				actionOptions.get(actionIndex.get()).id(),
+				animationOptions.get(animationIndex.get()).id(),
+				targetOptions.get(targetIndex.get()).id(),
+				inheritGroupSpatial.get(),
+				SPATIAL_MODE_VALUES[Math.max(0, Math.min(spatialModeIndex.get(), SPATIAL_MODE_VALUES.length - 1))],
+				stepDispatch.get(),
+				STEP_START_MODE_VALUES[Math.max(0, Math.min(stepStartModeIndex.get(), STEP_START_MODE_VALUES.length - 1))],
+				STEP_COMPLETION_VALUES[Math.max(0, Math.min(stepCompletionIndex.get(), STEP_COMPLETION_VALUES.length - 1))],
+				PACING_MODE_VALUES[Math.max(0, Math.min(pacingModeIndex.get(), PACING_MODE_VALUES.length - 1))],
+				cameraAdaptiveStep.get(),
+				cameraFrustumGating.get(),
+				usePhaseAnimation.get(),
+				vfxEnabled.get());
+		}
+		if (reset) {
+			bindBuffers(ref);
+		}
+		renderAnimationPreviewPopup();
+	}
+
+	private void renderBasicTab(
+		List<EventPropertiesOption> animationOptions,
+		ImInt actionIndex,
+		ImInt animationIndex,
+		ImInt targetIndex,
+		String[] actionLabels,
+		String[] animationLabels,
+		String[] targetLabels,
+		ImBoolean vfxEnabled
+	) {
 		ImGui.text(BBTexts.get("beatblock.event.timing"));
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText(BBTexts.get("beatblock.event.start_time") + "##eventTime", timeBuffer);
@@ -237,27 +423,6 @@ public class EventPropertiesPanel {
 		ImGui.inputText(BBTexts.get("beatblock.event.energy") + "##eventEnergy", energyBuffer);
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText(BBTexts.get("beatblock.event.energy_threshold") + "##eventEnergyThreshold", energyThresholdBuffer);
-
-		String currentAnimationId = viewState.animationId();
-		String currentTargetId = viewState.targetId();
-		String currentActionMode = viewState.actionMode();
-		boolean inheritGroupSpatial = viewState.inheritGroupSpatial();
-		boolean stepDispatch = viewState.stepDispatch();
-		boolean cameraAdaptiveStep = viewState.cameraAdaptiveStep();
-		boolean cameraFrustumGating = viewState.cameraFrustumGating();
-		boolean usePhaseAnimation = viewState.usePhaseAnimation();
-		ImInt stepStartModeIndex = new ImInt(indexOfValue(STEP_START_MODE_VALUES, viewState.stepStartMode()));
-		ImInt stepCompletionIndex = new ImInt(indexOfValue(STEP_COMPLETION_VALUES, viewState.stepCompletionMode()));
-		ImInt pacingModeIndex = new ImInt(indexOfValue(PACING_MODE_VALUES, viewState.pacingMode()));
-		if (pacingModeIndex.get() < 0 || pacingModeIndex.get() >= PACING_MODE_VALUES.length) pacingModeIndex.set(0);
-		ImInt actionIndex = new ImInt(indexOfOption(actionOptions, currentActionMode));
-		ImInt animationIndex = new ImInt(indexOfOption(animationOptions, currentAnimationId));
-		ImInt targetIndex = new ImInt(indexOfOption(targetOptions, currentTargetId));
-		ImInt spatialModeIndex = new ImInt(indexOfValue(SPATIAL_MODE_VALUES, viewState.spatialMode()));
-		if (spatialModeIndex.get() < 0 || spatialModeIndex.get() >= SPATIAL_MODE_VALUES.length) spatialModeIndex.set(0);
-		String[] actionLabels = optionLabels(actionOptions);
-		String[] animationLabels = optionLabels(animationOptions);
-		String[] targetLabels = optionLabels(targetOptions);
 
 		ImGui.spacing();
 		ImGui.text(BBTexts.get("beatblock.event.binding"));
@@ -269,13 +434,15 @@ public class EventPropertiesPanel {
 		}
 		String selectedAnimationId = animationOptions.get(animationIndex.get()).id();
 		renderPresetChannelPreview(selectedAnimationId);
-		boolean vfxEnabled = viewState.vfxEnabled();
-		ImBoolean vfxEnabledProxy = new ImBoolean(vfxEnabled);
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.vfx") + "##eventVfxEnabled", vfxEnabledProxy)) {
-			vfxEnabled = vfxEnabledProxy.get();
+		ImGui.sameLine();
+		if (ImGui.button(BBTexts.get("beatblock.event.preview_animation") + "##eventAnimPreview")) {
+			animationPreviewPresetId = selectedAnimationId;
+			ImGui.openPopup("##eventAnimPreviewPopup");
+		}
+		if (ImGui.checkbox(BBTexts.get("beatblock.event.vfx") + "##eventVfxEnabled", vfxEnabled)) {
 			validationError = null;
 		}
-		BlockInfluencePreset selectedPreset = BlockInfluencePresets.get(animationOptions.get(animationIndex.get()).id());
+		BlockInfluencePreset selectedPreset = BlockInfluencePresets.get(selectedAnimationId);
 		if (selectedPreset != null && !selectedPreset.channelsFor(InfluenceDimension.APPEARANCE).isEmpty()) {
 			ImGui.setNextItemWidth(-1f);
 			ImGui.inputText(BBTexts.get("beatblock.event.flash_block") + "##eventFlashBlock", flashBlockBuffer);
@@ -286,84 +453,22 @@ public class EventPropertiesPanel {
 		if (ImGui.combo(BBTexts.get("beatblock.event.target") + "##eventTarget", targetIndex, targetLabels)) {
 			validationError = null;
 		}
+	}
+
+	private void renderSpatialTab(
+		List<EventPropertiesOption> actionOptions,
+		ImInt actionIndex,
+		List<EventPropertiesOption> animationOptions,
+		ImInt animationIndex,
+		ImBoolean inheritGroupSpatial,
+		ImInt spatialModeIndex
+	) {
+		String selectedAnimationId = animationOptions.get(animationIndex.get()).id();
 		renderWorldTrajectoryParams(selectedAnimationId);
-		ImBoolean stepDispatchProxy = new ImBoolean(stepDispatch);
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.step_dispatch") + "##eventDispatchStep", stepDispatchProxy)) {
-			stepDispatch = stepDispatchProxy.get();
+		if (ImGui.checkbox(BBTexts.get("beatblock.event.inherit_spatial") + "##eventInheritGroupSpatial", inheritGroupSpatial)) {
 			validationError = null;
 		}
-		if (stepDispatch) {
-			if (ImGui.combo(BBTexts.get("beatblock.event.pacing_mode") + "##eventPacingMode", pacingModeIndex, pacingModeLabels())) {
-				validationError = null;
-			}
-			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(BBTexts.get("beatblock.event.pacing_mode.tooltip"));
-			}
-			boolean distancePacing = "DISTANCE".equals(PACING_MODE_VALUES[pacingModeIndex.get()]);
-			if (!distancePacing) {
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.blocks_per_beat") + "##eventBlocksPerBeat", blocksPerBeatBuffer);
-			}
-			if (distancePacing) {
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.distance_pace") + "##eventDistancePaceSeconds", distancePaceSecondsBuffer);
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.min_gap") + "##eventDistancePaceMinGap", distancePaceMinGapBuffer);
-			}
-			if (ImGui.combo(BBTexts.get("beatblock.event.step_start") + "##eventStepStartMode", stepStartModeIndex, stepStartModeLabels())) {
-				validationError = null;
-			}
-			if (ImGui.combo(BBTexts.get("beatblock.event.step_completion") + "##eventStepCompletionMode", stepCompletionIndex, stepCompletionLabels())) {
-				validationError = null;
-			}
-			ImBoolean cameraAdaptiveProxy = new ImBoolean(cameraAdaptiveStep);
-			if (ImGui.checkbox(BBTexts.get("beatblock.event.camera_adaptive") + "##eventCameraAdaptiveStep", cameraAdaptiveProxy)) {
-				cameraAdaptiveStep = cameraAdaptiveProxy.get();
-				validationError = null;
-			}
-			if (cameraAdaptiveStep) {
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.near_distance") + "##eventCameraNearDistance", cameraNearDistanceBuffer);
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.far_distance") + "##eventCameraFarDistance", cameraFarDistanceBuffer);
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.near_scale") + "##eventCameraNearScale", cameraNearScaleBuffer);
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.far_scale") + "##eventCameraFarScale", cameraFarScaleBuffer);
-			}
-			ImBoolean frustumGatingProxy = new ImBoolean(cameraFrustumGating);
-			if (ImGui.checkbox(BBTexts.get("beatblock.event.frustum_gating") + "##eventCameraFrustumGating", frustumGatingProxy)) {
-				cameraFrustumGating = frustumGatingProxy.get();
-				validationError = null;
-			}
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.edge_priority") + "##eventCameraEdgePriority", cameraEdgePriorityBuffer);
-			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(BBTexts.get("beatblock.event.edge_priority.tooltip"));
-			}
-			ImBoolean phaseAnimationProxy = new ImBoolean(usePhaseAnimation);
-			if (ImGui.checkbox(BBTexts.get("beatblock.event.phase_animation") + "##eventUsePhaseAnimation", phaseAnimationProxy)) {
-				usePhaseAnimation = phaseAnimationProxy.get();
-				validationError = null;
-			}
-			if (usePhaseAnimation) {
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.entry_phase") + "##eventEntryDuration", entryDurationBuffer);
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.idle_phase") + "##eventIdleDuration", idleDurationBuffer);
-				ImGui.setNextItemWidth(-1f);
-				ImGui.inputText(BBTexts.get("beatblock.event.exit_phase") + "##eventExitDuration", exitDurationBuffer);
-				if (ImGui.isItemHovered()) {
-					ImGui.setTooltip(BBTexts.get("beatblock.event.phase.tooltip"));
-				}
-			}
-		}
-		ImBoolean inheritSpatialProxy = new ImBoolean(inheritGroupSpatial);
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.inherit_spatial") + "##eventInheritGroupSpatial", inheritSpatialProxy)) {
-			inheritGroupSpatial = inheritSpatialProxy.get();
-			validationError = null;
-		}
-		if (!inheritGroupSpatial) {
+		if (!inheritGroupSpatial.get()) {
 			if (ImGui.combo(BBTexts.get("beatblock.event.spatial_mode") + "##eventSpatialMode", spatialModeIndex, spatialModeLabels())) {
 				validationError = null;
 			}
@@ -378,41 +483,109 @@ public class EventPropertiesPanel {
 				ImGui.setTooltip(BBTexts.get("beatblock.event.place_block.tooltip"));
 			}
 		}
+	}
 
-		ImGui.spacing();
-		ImGui.text(BBTexts.get("beatblock.event.metadata"));
-		ImGui.textDisabled(BBTexts.get("beatblock.event.mapping", viewState.mappingProfile()));
-		ImGui.textDisabled(BBTexts.get("beatblock.event.source_stem", viewState.sourceStem()));
-		renderRuntimeStatus(ref);
-
-		if (validationError != null && !validationError.isBlank()) {
-			ImGui.spacing();
-			ImGui.textColored(1f, 0.45f, 0.45f, 1f, validationError);
+	private void renderAdvancedTab(
+		ImBoolean stepDispatch,
+		ImInt stepStartModeIndex,
+		ImInt stepCompletionIndex,
+		ImInt pacingModeIndex,
+		ImBoolean cameraAdaptiveStep,
+		ImBoolean cameraFrustumGating,
+		ImBoolean usePhaseAnimation
+	) {
+		if (ImGui.checkbox(BBTexts.get("beatblock.event.step_dispatch") + "##eventDispatchStep", stepDispatch)) {
+			validationError = null;
 		}
-
-		ImGui.spacing();
-		boolean applied = ImGui.button(BBTexts.get("beatblock.common.apply") + "##eventPropertiesApply", 120f, 0f);
-		ImGui.sameLine();
-		boolean reset = ImGui.button(BBTexts.get("beatblock.common.reset") + "##eventPropertiesReset", 120f, 0f);
-
-		if (applied) {
-			applyAnimationChanges(ref, timeline,
-				actionOptions.get(actionIndex.get()).id(),
-				animationOptions.get(animationIndex.get()).id(),
-				targetOptions.get(targetIndex.get()).id(),
-				inheritGroupSpatial,
-				SPATIAL_MODE_VALUES[Math.max(0, Math.min(spatialModeIndex.get(), SPATIAL_MODE_VALUES.length - 1))],
-				stepDispatch,
-				STEP_START_MODE_VALUES[Math.max(0, Math.min(stepStartModeIndex.get(), STEP_START_MODE_VALUES.length - 1))],
-				STEP_COMPLETION_VALUES[Math.max(0, Math.min(stepCompletionIndex.get(), STEP_COMPLETION_VALUES.length - 1))],
-				PACING_MODE_VALUES[Math.max(0, Math.min(pacingModeIndex.get(), PACING_MODE_VALUES.length - 1))],
-				cameraAdaptiveStep,
-				cameraFrustumGating,
-				usePhaseAnimation,
-				vfxEnabled);
+		if (!stepDispatch.get()) {
+			return;
 		}
-		if (reset) {
-			bindBuffers(ref);
+		if (ImGui.combo(BBTexts.get("beatblock.event.pacing_mode") + "##eventPacingMode", pacingModeIndex, pacingModeLabels())) {
+			validationError = null;
+		}
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.event.pacing_mode.tooltip"));
+		}
+		boolean distancePacing = "DISTANCE".equals(PACING_MODE_VALUES[pacingModeIndex.get()]);
+		if (!distancePacing) {
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.blocks_per_beat") + "##eventBlocksPerBeat", blocksPerBeatBuffer);
+		}
+		if (distancePacing) {
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.distance_pace") + "##eventDistancePaceSeconds", distancePaceSecondsBuffer);
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.min_gap") + "##eventDistancePaceMinGap", distancePaceMinGapBuffer);
+		}
+		if (ImGui.combo(BBTexts.get("beatblock.event.step_start") + "##eventStepStartMode", stepStartModeIndex, stepStartModeLabels())) {
+			validationError = null;
+		}
+		if (ImGui.combo(BBTexts.get("beatblock.event.step_completion") + "##eventStepCompletionMode", stepCompletionIndex, stepCompletionLabels())) {
+			validationError = null;
+		}
+		if (ImGui.checkbox(BBTexts.get("beatblock.event.camera_adaptive") + "##eventCameraAdaptiveStep", cameraAdaptiveStep)) {
+			validationError = null;
+		}
+		if (cameraAdaptiveStep.get()) {
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.near_distance") + "##eventCameraNearDistance", cameraNearDistanceBuffer);
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.far_distance") + "##eventCameraFarDistance", cameraFarDistanceBuffer);
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.near_scale") + "##eventCameraNearScale", cameraNearScaleBuffer);
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.far_scale") + "##eventCameraFarScale", cameraFarScaleBuffer);
+		}
+		if (ImGui.checkbox(BBTexts.get("beatblock.event.frustum_gating") + "##eventCameraFrustumGating", cameraFrustumGating)) {
+			validationError = null;
+		}
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputText(BBTexts.get("beatblock.event.edge_priority") + "##eventCameraEdgePriority", cameraEdgePriorityBuffer);
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.event.edge_priority.tooltip"));
+		}
+		if (ImGui.checkbox(BBTexts.get("beatblock.event.phase_animation") + "##eventUsePhaseAnimation", usePhaseAnimation)) {
+			validationError = null;
+		}
+		if (usePhaseAnimation.get()) {
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.entry_phase") + "##eventEntryDuration", entryDurationBuffer);
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.idle_phase") + "##eventIdleDuration", idleDurationBuffer);
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.event.exit_phase") + "##eventExitDuration", exitDurationBuffer);
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip(BBTexts.get("beatblock.event.phase.tooltip"));
+			}
+		}
+	}
+
+	private void renderAnimationPreviewPopup() {
+		if (!ImGui.beginPopup("##eventAnimPreviewPopup")) {
+			return;
+		}
+		BlockInfluencePreset preset = BlockInfluencePresets.get(animationPreviewPresetId);
+		if (preset == null) {
+			ImGui.textDisabled(BBTexts.get("beatblock.common.unbound"));
+		} else {
+			PresetChannelPreview.renderSummaryLine(preset);
+			PresetChannelPreview.renderChannelBullets(preset);
+		}
+		ImGui.endPopup();
+	}
+
+	private void previewEventAtTime(double timeSeconds) {
+		TimelineEditor editor = runtime().timelineEditor();
+		if (editor == null) {
+			return;
+		}
+		editor.getClock().seek(timeSeconds);
+		var music = runtime().musicPlayer();
+		if (music != null) {
+			music.setCurrentTimeSeconds(timeSeconds);
+		}
+		if (!BeatBlockClientDriver.isDriving()) {
+			BeatBlockClientDriver.startDriving();
 		}
 	}
 
@@ -489,6 +662,9 @@ public class EventPropertiesPanel {
 				return;
 			}
 			validationError = null;
+			if (livePreviewOnApply.get()) {
+				previewEventAtTime(input.timeSeconds());
+			}
 			bindBuffers(ref);
 		} catch (NumberFormatException ex) {
 			validationError = BBTexts.get("beatblock.event.invalid_number");
