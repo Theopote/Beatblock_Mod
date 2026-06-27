@@ -1,18 +1,24 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.test.WithBeatBlockContext;
+import com.beatblock.ui.i18n.BBTexts;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class TimelineTrackMetaTest {
 
 	@Test
 	void cameraRowIsAdjacentToBuildReverseInActionGroup() {
 		assertEquals(TimelineTrackMeta.ROW_BUILD_REVERSE + 1, TimelineTrackMeta.ROW_CAMERA);
 		assertEquals(TimelineTrackMeta.ROW_ACTION_GROUP, TimelineTrackMeta.getParentRowIndex(TimelineTrackMeta.ROW_CAMERA));
-		assertEquals("摄像机", TimelineTrackMeta.getDefaultName(TimelineTrackMeta.ROW_CAMERA));
+		assertEquals(
+			BBTexts.get("beatblock.track.default.camera"),
+			TimelineTrackMeta.getDefaultName(TimelineTrackMeta.ROW_CAMERA)
+		);
 	}
 
 	@Test
@@ -27,8 +33,17 @@ class TimelineTrackMetaTest {
 
 	@Test
 	void categoryLabelsMatchRowKind() {
-		assertEquals("节奏特征", TimelineTrackMeta.getCategoryTypeLabel(TimelineTrackMeta.ROW_ANIMATION_GROUP));
-		assertEquals("动画", TimelineTrackMeta.getCategoryTypeLabel(TimelineTrackMeta.ROW_ANIM_BLOCK));
-		assertEquals("事件", TimelineTrackMeta.getCategoryTypeLabel(TimelineTrackMeta.ROW_GLOBAL_EVENT));
+		assertEquals(
+			BBTexts.get("beatblock.track.type.feature"),
+			TimelineTrackMeta.getCategoryTypeLabel(TimelineTrackMeta.ROW_ANIMATION_GROUP)
+		);
+		assertEquals(
+			BBTexts.get("beatblock.track.type.animation"),
+			TimelineTrackMeta.getCategoryTypeLabel(TimelineTrackMeta.ROW_ANIM_BLOCK)
+		);
+		assertEquals(
+			BBTexts.get("beatblock.track.type.event"),
+			TimelineTrackMeta.getCategoryTypeLabel(TimelineTrackMeta.ROW_GLOBAL_EVENT)
+		);
 	}
 }

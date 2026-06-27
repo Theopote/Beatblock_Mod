@@ -1,5 +1,6 @@
 package com.beatblock.ui.util;
 
+import com.beatblock.ui.i18n.BBTexts;
 import imgui.type.ImString;
 
 import java.awt.EventQueue;
@@ -42,25 +43,26 @@ public final class AudioFilePicker {
 					}
 				} catch (Throwable psErr) {
 					if (onError != null) {
-						onError.accept("打开文件选择器失败: "
-							+ describeThrowable(nativeErr)
-							+ " | 备用方案失败: "
-							+ describeThrowable(swingErr)
-							+ " | PowerShell 方案失败: "
-							+ describeThrowable(psErr));
+						onError.accept(BBTexts.get(
+							"beatblock.audio.picker.open_failed_all",
+							describeThrowable(nativeErr),
+							describeThrowable(swingErr),
+							describeThrowable(psErr)
+						));
 					}
 					return null;
 				}
 				if (onError != null) {
-					onError.accept("打开文件选择器失败: "
-						+ describeThrowable(nativeErr)
-						+ " | 备用方案失败: "
-						+ describeThrowable(swingErr));
+					onError.accept(BBTexts.get(
+						"beatblock.audio.picker.open_failed_with_fallback",
+						describeThrowable(nativeErr),
+						describeThrowable(swingErr)
+					));
 				}
 				return null;
 			}
 			if (onError != null) {
-				onError.accept("打开文件选择器失败: " + describeThrowable(nativeErr));
+				onError.accept(BBTexts.get("beatblock.audio.picker.open_failed", describeThrowable(nativeErr)));
 			}
 			return null;
 		}
@@ -70,7 +72,7 @@ public final class AudioFilePicker {
 	private static String openNativeDialog(ImString importPath) throws Exception {
 		final String[] selected = new String[1];
 		Runnable dialogTask = () -> {
-			FileDialog dialog = new FileDialog((Frame) null, "选择音频文件", FileDialog.LOAD);
+			FileDialog dialog = new FileDialog((Frame) null, BBTexts.get("beatblock.audio.picker.title"), FileDialog.LOAD);
 			dialog.setMultipleMode(false);
 			dialog.setFilenameFilter((dir, name) -> {
 				String lower = name == null ? "" : name.toLowerCase();
@@ -108,11 +110,11 @@ public final class AudioFilePicker {
 		final String[] selected = new String[1];
 		Runnable chooserTask = () -> {
 			JFileChooser chooser = new JFileChooser();
-			chooser.setDialogTitle("选择音频文件");
+			chooser.setDialogTitle(BBTexts.get("beatblock.audio.picker.title"));
 			chooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
 			chooser.setAcceptAllFileFilterUsed(false);
 			chooser.setFileFilter(new FileNameExtensionFilter(
-				"音频文件 (*.mp3, *.wav, *.ogg, *.flac)", "mp3", "wav", "ogg", "flac"));
+				BBTexts.get("beatblock.audio.picker.filter"), "mp3", "wav", "ogg", "flac"));
 			String current = importPath.get().trim();
 			if (!current.isEmpty()) {
 				chooser.setSelectedFile(new File(current));
@@ -133,13 +135,15 @@ public final class AudioFilePicker {
 	private static String openWindowsPowerShellDialog(ImString importPath) throws Exception {
 		String os = System.getProperty("os.name", "").toLowerCase();
 		if (!os.contains("win")) {
-			throw new UnsupportedOperationException("当前系统不是 Windows");
+			throw new UnsupportedOperationException("Current OS is not Windows");
 		}
+		String pickerTitle = BBTexts.get("beatblock.audio.picker.title").replace("'", "''");
+		String pickerFilter = BBTexts.get("beatblock.audio.picker.filter").replace("'", "''");
 		String script = String.join("; ",
 			"Add-Type -AssemblyName System.Windows.Forms",
 			"$dlg = New-Object System.Windows.Forms.OpenFileDialog",
-			"$dlg.Title = '选择音频文件'",
-			"$dlg.Filter = '音频文件 (*.mp3;*.wav;*.ogg;*.flac)|*.mp3;*.wav;*.ogg;*.flac'",
+			"$dlg.Title = '" + pickerTitle + "'",
+			"$dlg.Filter = '" + pickerFilter + "|*.mp3;*.wav;*.ogg;*.flac'",
 			"$dlg.Multiselect = $false",
 			"$seed = $env:BB_AUDIO_PICKER_SEED",
 			"if (-not [string]::IsNullOrWhiteSpace($seed)) { try { $dir=[System.IO.Path]::GetDirectoryName($seed); if (-not [string]::IsNullOrWhiteSpace($dir)) { $dlg.InitialDirectory = $dir } } catch {} }",
@@ -167,7 +171,7 @@ public final class AudioFilePicker {
 		}
 		int exit = process.waitFor();
 		if (exit != 0) {
-			throw new IOException("PowerShell 退出码=" + exit + (output.isEmpty() ? "" : ("; " + output)));
+			throw new IOException("PowerShell exit code=" + exit + (output.isEmpty() ? "" : ("; " + output)));
 		}
 		if (output.isEmpty()) return null;
 		if (output.startsWith("B64:")) {
@@ -180,14 +184,14 @@ public final class AudioFilePicker {
 	}
 
 	private static String describeThrowable(Throwable t) {
-		if (t == null) return "未知错误";
+		if (t == null) return BBTexts.get("beatblock.audio.picker.unknown_error");
 		Throwable root = t;
 		while (root.getCause() != null && root.getCause() != root) {
 			root = root.getCause();
 		}
 		String msg = root.getMessage();
 		if (msg == null || msg.isBlank()) {
-			msg = "无详细信息";
+			msg = BBTexts.get("beatblock.audio.picker.no_details");
 		}
 		return root.getClass().getSimpleName() + "(" + msg + ")";
 	}

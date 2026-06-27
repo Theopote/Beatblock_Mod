@@ -2,6 +2,9 @@ package com.beatblock.selection.collect;
 
 import com.beatblock.selection.BrushShape;
 import com.beatblock.selection.ConnectedCellLookup;
+import com.beatblock.selection.SelectionRegions;
+import com.beatblock.test.WithBeatBlockContext;
+import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -12,21 +15,31 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class SelectionCollectorsTest {
 
 	@Test
 	void boxCollectorRejectsOversizedVolume() {
+		var cornerA = new BlockPos(0, 64, 0);
+		var cornerB = new BlockPos(100, 164, 100);
 		var result = BoxSelectionCollector.collect(
 			null,
-			new BlockPos(0, 64, 0),
-			new BlockPos(100, 164, 100),
+			cornerA,
+			cornerB,
 			true,
 			10,
 			null
 		);
 
 		assertTrue(result.failed());
-		assertTrue(result.errorMessage().contains("框选体积"));
+		assertEquals(
+			BBTexts.get(
+				"beatblock.selection.error.box.volume_exceeded",
+				SelectionRegions.cuboidVolume(cornerA, cornerB),
+				10
+			),
+			result.errorMessage()
+		);
 	}
 
 	@Test
@@ -42,7 +55,10 @@ class SelectionCollectorsTest {
 		);
 
 		assertTrue(result.failed());
-		assertTrue(result.errorMessage().contains("线选候选方块超过上限"));
+		assertEquals(
+			BBTexts.get("beatblock.selection.error.line.candidates_exceeded", 50),
+			result.errorMessage()
+		);
 	}
 
 	@Test
@@ -58,7 +74,11 @@ class SelectionCollectorsTest {
 		);
 
 		assertTrue(result.failed());
-		assertTrue(result.errorMessage().contains("球体包络"));
+		long worst = (2L * 20 + 1) * (2L * 20 + 1) * (2L * 20 + 1);
+		assertEquals(
+			BBTexts.get("beatblock.selection.error.brush.sphere_envelope_exceeded", worst, 100),
+			result.errorMessage()
+		);
 	}
 
 	@Test

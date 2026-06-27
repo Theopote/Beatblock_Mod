@@ -1,20 +1,23 @@
 package com.beatblock.selection;
 
+import com.beatblock.test.WithBeatBlockContext;
+import com.beatblock.ui.i18n.BBTexts;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class SelectionFeedbackTest {
 
 	@Test
 	void mergeAfterNewUsesModeSpecificLabel() {
 		assertEquals(
-			"新建笔刷（球体）：3 个方块",
+			BBTexts.get("beatblock.selection.feedback.new.brush", BBTexts.get("beatblock.tool.shape.sphere"), 3),
 			SelectionFeedback.mergeAfterNew(SelectionMode.BRUSH, BrushShape.SPHERE, 3)
 		);
 		assertEquals(
-			"新建框选：2 个方块",
+			BBTexts.get("beatblock.selection.feedback.new.box", 2),
 			SelectionFeedback.mergeAfterNew(SelectionMode.BOX, BrushShape.SPHERE, 2)
 		);
 	}
@@ -22,11 +25,11 @@ class SelectionFeedbackTest {
 	@Test
 	void mergeAfterOperationDispatchesByOperation() {
 		assertEquals(
-			"加选套索后共 5 个方块",
+			BBTexts.get("beatblock.selection.feedback.add.lasso", 5),
 			SelectionFeedback.mergeAfterOperation(SelectionMode.LASSO, BrushShape.CUBE, SelectionOperation.ADD, 2, 5)
 		);
 		assertEquals(
-			"与线求交后共 1 个方块",
+			BBTexts.get("beatblock.selection.feedback.intersect.line", 1),
 			SelectionFeedback.mergeAfterOperation(SelectionMode.LINE, BrushShape.SPHERE, SelectionOperation.INTERSECT, 0, 1)
 		);
 	}
@@ -34,19 +37,20 @@ class SelectionFeedbackTest {
 	@Test
 	void emptyMergeMessagePrefersLayerClaimedNotice() {
 		assertEquals(
-			"选区内方块均已属于某图层，无法加入选区。",
+			BBTexts.get("beatblock.selection.feedback.all_in_layers"),
 			SelectionFeedback.emptyMergeMessage(SelectionMode.BOX, BrushShape.SPHERE, 2)
 		);
 		assertEquals(
-			"新建整列：0 个方块",
+			BBTexts.get("beatblock.selection.feedback.new.column", 0),
 			SelectionFeedback.emptyMergeMessage(SelectionMode.COLUMN, BrushShape.SPHERE, 0)
 		);
 	}
 
 	@Test
 	void appendSkippedLayerNoticeAppendsSuffix() {
-		String merged = SelectionFeedback.appendSkippedLayerNotice("新建框选：4 个方块", 3);
-		assertTrue(merged.contains("已跳过 3 个"));
-		assertEquals("新建框选：4 个方块", SelectionFeedback.appendSkippedLayerNotice("新建框选：4 个方块", 0));
+		String base = BBTexts.get("beatblock.selection.feedback.new.box", 4);
+		String merged = SelectionFeedback.appendSkippedLayerNotice(base, 3);
+		assertTrue(merged.contains(BBTexts.get("beatblock.selection.feedback.skipped_layers", 3).trim()));
+		assertEquals(base, SelectionFeedback.appendSkippedLayerNotice(base, 0));
 	}
 }

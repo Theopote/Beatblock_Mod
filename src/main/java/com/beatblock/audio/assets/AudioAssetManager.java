@@ -3,6 +3,7 @@ package com.beatblock.audio.assets;
 import com.beatblock.BeatBlock;
 import com.beatblock.audio.AudioAnalysisService;
 import com.beatblock.runtime.BeatBlockContext;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.audio.beatmap.BeatEvent;
 import com.beatblock.audio.beatmap.BeatmapMeta;
@@ -200,14 +201,14 @@ public final class AudioAssetManager {
 	}
 
 	public String clearCacheAndReanalyze(AudioAsset asset, AudioAnalysisMode mode) {
-		if (asset == null || asset.getPath() == null) return "无效音频资产";
+		if (asset == null || asset.getPath() == null) return BBTexts.get("beatblock.audio.invalid_asset");
 		AudioAnalysisService service = externalAnalyzer();
-		if (service == null) return "外部音频分析器未初始化";
+		if (service == null) return BBTexts.get("beatblock.audio.analyzer_uninitialized");
 
 		AudioAnalysisMode resolvedMode = mode != null ? mode : AudioAnalysisMode.BASIC;
 		int removed = service.clearAllAnalysisCacheForAudio(asset.getPath());
 		startAnalysis(asset, resolvedMode);
-		return "已清理 " + removed + " 个缓存文件（含 stem 缓存），开始以 " + resolvedMode.label() + " 重新解析";
+		return BBTexts.get("beatblock.audio.cache_cleared_reanalyze", removed, resolvedMode.label());
 	}
 
 	public int getQueuePosition(String assetId) {
@@ -347,7 +348,7 @@ public final class AudioAssetManager {
 		asset.setAnalysisPhase(AudioAnalysisPhase.QUEUED);
 		asset.setQueueTicket(nextQueueTicket++);
 		asset.setAnalysisProgressPercent(0);
-		asset.setProcessingStatusText("排队中");
+		asset.setProcessingStatusText(BBTexts.get("beatblock.audio.queued"));
 		asset.setBeatmap(null); // 新一轮解析期间避免继续使用旧 beatmap/stem
 		asset.getFinishedSteps().clear();
 		asset.setErrorMessage(null);
@@ -361,7 +362,7 @@ public final class AudioAssetManager {
 			asset.setStatus(AudioAssetStatus.FAILED);
 			asset.setAnalysisPhase(AudioAnalysisPhase.FAILED);
 			asset.setQueueTicket(-1L);
-			asset.setErrorMessage("外部音频分析器未初始化");
+			asset.setErrorMessage(BBTexts.get("beatblock.audio.analyzer_uninitialized"));
 			return;
 		}
 
@@ -377,18 +378,18 @@ public final class AudioAssetManager {
 					case "DEPENDENCY_INSTALL" -> {
 						// 依赖安装是前置步骤，不映射到 beatmap 步骤枚举
 					}
-					case "DEMUCS_DEP_CHECK" -> asset.setInfoMessage("正在检查 Demucs 依赖...");
-					case "DEMUCS_DEP_INSTALL" -> asset.setInfoMessage("正在自动安装 Demucs 依赖，请稍候...");
-					case "DEMUCS_DEP_INSTALL_SUCCESS" -> asset.setInfoMessage("Demucs 依赖已就绪，继续进行分轨分析");
-					case "DEMUCS_DEP_INSTALL_FAILED_NETWORK" -> asset.setInfoMessage("Demucs 自动安装失败：网络或证书问题");
-					case "DEMUCS_DEP_INSTALL_FAILED_PERMISSION" -> asset.setInfoMessage("Demucs 自动安装失败：权限不足");
-					case "DEMUCS_DEP_INSTALL_FAILED_VERSION" -> asset.setInfoMessage("Demucs 自动安装失败：Python 版本/平台不匹配");
-					case "DEMUCS_DEP_INSTALL_FAILED_PIP" -> asset.setInfoMessage("Demucs 自动安装失败：当前 Python 缺少 pip");
-					case "DEMUCS_DEP_INSTALL_FAILED_DLL" -> asset.setInfoMessage("Demucs 自动安装失败：二进制依赖加载失败");
-					case "DEMUCS_DEP_INSTALL_FAILED_UNKNOWN" -> asset.setInfoMessage("Demucs 自动安装失败：未知原因");
+					case "DEMUCS_DEP_CHECK" -> asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.checking_deps"));
+					case "DEMUCS_DEP_INSTALL" -> asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.installing_deps"));
+					case "DEMUCS_DEP_INSTALL_SUCCESS" -> asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.deps_ready"));
+					case "DEMUCS_DEP_INSTALL_FAILED_NETWORK" -> asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.install_failed_network"));
+					case "DEMUCS_DEP_INSTALL_FAILED_PERMISSION" -> asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.install_failed_permission"));
+					case "DEMUCS_DEP_INSTALL_FAILED_VERSION" -> asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.install_failed_version"));
+					case "DEMUCS_DEP_INSTALL_FAILED_PIP" -> asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.install_failed_pip"));
+					case "DEMUCS_DEP_INSTALL_FAILED_DLL" -> asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.install_failed_dll"));
+					case "DEMUCS_DEP_INSTALL_FAILED_UNKNOWN" -> asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.install_failed_unknown"));
 					case "DEMUCS_DEP_INSTALL_FAILED" -> {
 						if (asset.getInfoMessage() == null || asset.getInfoMessage().isBlank()) {
-							asset.setInfoMessage("Demucs 依赖自动安装失败");
+							asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.install_failed"));
 						}
 					}
 					case "BPM_DETECTION" -> asset.markStepFinished(AudioAnalysisStep.BPM_DETECTION);
@@ -402,10 +403,11 @@ public final class AudioAssetManager {
 					}
 					case "DEMUCS_FALLBACK" -> {
 						String info = asset.getInfoMessage();
+						String fallbackSuffix = BBTexts.get("beatblock.audio.demucs_info.fallback_suffix");
 						if (info == null || info.isBlank()) {
-							asset.setInfoMessage("Demucs 不可用，已自动切换为基础分析模式（Basic）");
-						} else if (!info.contains("已自动切换为基础分析模式")) {
-							asset.setInfoMessage(info + "；已自动切换为基础分析模式（Basic）");
+							asset.setInfoMessage(BBTexts.get("beatblock.audio.demucs_info.unavailable_basic"));
+						} else if (!info.contains(fallbackSuffix.trim())) {
+							asset.setInfoMessage(info + fallbackSuffix);
 						}
 					}
 					case "STEM_ANALYSIS" -> asset.markStepFinished(AudioAnalysisStep.STEM_SEPARATION);
@@ -474,7 +476,7 @@ public final class AudioAssetManager {
 				asset.setStatus(AudioAssetStatus.ANALYZING);
 				asset.setAnalysisPhase(AudioAnalysisPhase.ENVIRONMENT);
 				asset.setQueueTicket(-1L);
-				asset.setProcessingStatusText("正在分析");
+				asset.setProcessingStatusText(BBTexts.get("beatblock.audio.analyzing"));
 			},
 			asset.getRequestedAnalysisMode() == AudioAnalysisMode.DEMUCS
 		);
@@ -494,33 +496,33 @@ public final class AudioAssetManager {
 	}
 
 	private String stepDisplayName(String step) {
-		if (step == null || step.isBlank()) return "处理中";
+		if (step == null || step.isBlank()) return BBTexts.get("beatblock.audio.processing_generic");
 		return switch (step) {
-			case "DEPENDENCY_INSTALL" -> "正在安装依赖";
-			case "DEMUCS_DEP_CHECK" -> "检查 Demucs 依赖";
-			case "DEMUCS_DEP_INSTALL" -> "自动安装 Demucs 依赖";
-			case "DEMUCS_DEP_INSTALL_SUCCESS" -> "Demucs 依赖就绪";
-			case "DEMUCS_DEP_INSTALL_FAILED_NETWORK" -> "Demucs 安装失败（网络/证书）";
-			case "DEMUCS_DEP_INSTALL_FAILED_PERMISSION" -> "Demucs 安装失败（权限不足）";
-			case "DEMUCS_DEP_INSTALL_FAILED_VERSION" -> "Demucs 安装失败（版本不匹配）";
-			case "DEMUCS_DEP_INSTALL_FAILED_PIP" -> "Demucs 安装失败（缺少 pip）";
-			case "DEMUCS_DEP_INSTALL_FAILED_DLL" -> "Demucs 安装失败（二进制依赖）";
-			case "DEMUCS_DEP_INSTALL_FAILED_UNKNOWN" -> "Demucs 安装失败（未知原因）";
-			case "DEMUCS_DEP_INSTALL_FAILED" -> "Demucs 依赖安装失败";
-			case "BPM_DETECTION" -> "BPM 检测";
-			case "BEAT_DETECTION" -> "踩点检测";
-			case "DEMUCS_SEPARATE" -> "Demucs 茎分离";
-			case "DEMUCS_FALLBACK" -> "Demucs 不可用，切换基础分析";
-			case "STEM_ANALYSIS" -> "茎轨特征分析";
-			case "SECTION_DETECTION" -> "段落识别";
-			case "WAVEFORM" -> "生成波形预览";
-			case "WRITE_BEATMAP" -> "写入 Beatmap";
+			case "DEPENDENCY_INSTALL" -> BBTexts.get("beatblock.audio.step.dependency_install");
+			case "DEMUCS_DEP_CHECK" -> BBTexts.get("beatblock.audio.step.demucs_dep_check");
+			case "DEMUCS_DEP_INSTALL" -> BBTexts.get("beatblock.audio.step.demucs_dep_install");
+			case "DEMUCS_DEP_INSTALL_SUCCESS" -> BBTexts.get("beatblock.audio.step.demucs_dep_ready");
+			case "DEMUCS_DEP_INSTALL_FAILED_NETWORK" -> BBTexts.get("beatblock.audio.step.demucs_install_failed_network");
+			case "DEMUCS_DEP_INSTALL_FAILED_PERMISSION" -> BBTexts.get("beatblock.audio.step.demucs_install_failed_permission");
+			case "DEMUCS_DEP_INSTALL_FAILED_VERSION" -> BBTexts.get("beatblock.audio.step.demucs_install_failed_version");
+			case "DEMUCS_DEP_INSTALL_FAILED_PIP" -> BBTexts.get("beatblock.audio.step.demucs_install_failed_pip");
+			case "DEMUCS_DEP_INSTALL_FAILED_DLL" -> BBTexts.get("beatblock.audio.step.demucs_install_failed_dll");
+			case "DEMUCS_DEP_INSTALL_FAILED_UNKNOWN" -> BBTexts.get("beatblock.audio.step.demucs_install_failed_unknown");
+			case "DEMUCS_DEP_INSTALL_FAILED" -> BBTexts.get("beatblock.audio.step.demucs_install_failed");
+			case "BPM_DETECTION" -> BBTexts.get("beatblock.audio.step.bpm");
+			case "BEAT_DETECTION" -> BBTexts.get("beatblock.audio.step.beat");
+			case "DEMUCS_SEPARATE" -> BBTexts.get("beatblock.audio.step.stem");
+			case "DEMUCS_FALLBACK" -> BBTexts.get("beatblock.audio.step.demucs_fallback");
+			case "STEM_ANALYSIS" -> BBTexts.get("beatblock.audio.step.stem_analysis");
+			case "SECTION_DETECTION" -> BBTexts.get("beatblock.audio.step.section");
+			case "WAVEFORM" -> BBTexts.get("beatblock.audio.step.waveform_generate");
+			case "WRITE_BEATMAP" -> BBTexts.get("beatblock.audio.step.write");
 			default -> step;
 		};
 	}
 
 	private String normalizeErrorMessage(Path audioPath, String raw) {
-		String safe = raw == null ? "未知错误" : raw.trim();
+		String safe = raw == null ? BBTexts.get("beatblock.audio.error.unknown") : raw.trim();
 		String lower = safe.toLowerCase();
 		String ext = "";
 		if (audioPath != null && audioPath.getFileName() != null) {
@@ -538,7 +540,7 @@ public final class AudioAssetManager {
 			|| lower.contains("could not")
 			|| lower.contains("can't")
 			|| lower.contains("cannot load audio")) {
-			return "当前格式可能不受支持。建议先转换为 MP3 或 WAV，再重新解析。";
+			return BBTexts.get("beatblock.audio.error.unsupported_format");
 		}
 		return safe;
 	}
