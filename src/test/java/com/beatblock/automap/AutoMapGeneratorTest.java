@@ -1,5 +1,6 @@
 package com.beatblock.automap;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class AutoMapGeneratorTest {
 
 	@Test

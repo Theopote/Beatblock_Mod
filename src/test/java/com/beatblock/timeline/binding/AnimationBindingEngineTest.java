@@ -1,5 +1,6 @@
 package com.beatblock.timeline.binding;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
@@ -13,6 +14,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class AnimationBindingEngineTest {
 
 	@Test

@@ -1,5 +1,6 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.engine.GroupSortingStrategy;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.selection.BeatBlockSelectionManager;
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class ToolPanelPresenterTest {
 
 	private BeatBlockSelectionManager selectionManager;

@@ -1,5 +1,6 @@
 package com.beatblock.automap.engine;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.DetectedBeat;
 import com.beatblock.audio.analysis.EnergyFrame;
@@ -12,6 +13,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class SmartAutoMapEngineTest {
 
 	@Test

@@ -1,5 +1,6 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.BrushShape;
 import com.beatblock.selection.SelectionMode;
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class SelectionPropertiesPresenterTest {
 
 	private BeatBlockSelectionManager manager;

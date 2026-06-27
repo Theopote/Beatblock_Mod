@@ -1,5 +1,6 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class TimelineBindingEditorPresenterTest {
 
 	private Timeline timeline;

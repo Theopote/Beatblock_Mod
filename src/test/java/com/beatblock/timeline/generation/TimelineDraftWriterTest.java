@@ -1,5 +1,6 @@
 package com.beatblock.timeline.generation;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.audio.MusicPlayer;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+@WithBeatBlockContext
 class TimelineDraftWriterTest {
 
 	@Test

@@ -1,5 +1,6 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.automap.engine.AutoMapSettings;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.AudioAnalysisEngine;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class AutoMapSettingsPanelPresenterTest {
 
 	@Test

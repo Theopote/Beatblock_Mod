@@ -1,5 +1,6 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.Timeline;
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class TimelineAnimationFeatureMapperTest {
 
 	@Test

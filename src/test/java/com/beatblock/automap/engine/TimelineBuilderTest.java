@@ -1,5 +1,6 @@
 package com.beatblock.automap.engine;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import org.junit.jupiter.api.Test;
 
@@ -8,6 +9,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class TimelineBuilderTest {
 
 	@Test
