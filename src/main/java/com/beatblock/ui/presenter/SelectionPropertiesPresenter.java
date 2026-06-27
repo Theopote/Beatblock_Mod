@@ -1,6 +1,7 @@
 package com.beatblock.ui.presenter;
 
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.BrushShape;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.selection.SelectionOperation;

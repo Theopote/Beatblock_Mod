@@ -19,6 +19,8 @@ import com.beatblock.timeline.command.CompositeCommand;
 import com.beatblock.timeline.command.DeleteEventCommand;
 import net.minecraft.util.math.Vec3d;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,7 +45,7 @@ public final class StepSequenceBaker {
 		Timeline timeline,
 		CommandManager commandManager,
 		Vec3d runtimeCameraPosition,
-		StageObjectSystem stageObjects
+		@Nullable StageObjectSystem stageObjects
 	) {
 		if (timeline == null) return new BakeResult(0, 0, 0);
 
@@ -80,10 +82,12 @@ public final class StepSequenceBaker {
 			TimelineEventOrigin origin = stepEvent.getEventOrigin();
 			batch.add(new DeleteEventCommand(timeline, ref.trackId(), ref.clipId(), ref.event()));
 			for (TimelineAnimationEvent burst : burstEvents) {
+				TimelineAnimationEvent tagged = TimelineDraftWriter.withOrigin(burst, origin);
+				if (tagged == null) continue;
 				batch.add(new AddTimelineAnimationEventCommand(
 					timeline,
 					ref.trackId(),
-					TimelineDraftWriter.withOrigin(burst, origin)
+					tagged
 				));
 			}
 			stepEventsBaked++;
@@ -104,7 +108,7 @@ public final class StepSequenceBaker {
 		return new BakeResult(stepEventsBaked, burstEventsCreated, stepEventsSkipped);
 	}
 
-	private static StageObjectSystem stageObjectsFromContext() {
+	private static @Nullable StageObjectSystem stageObjectsFromContext() {
 		var engine = BeatBlock.getContext().blockAnimationEngine();
 		return engine != null ? engine.getStageObjectSystem() : null;
 	}
@@ -124,7 +128,7 @@ public final class StepSequenceBaker {
 		return refs;
 	}
 
-	private static TimelineAnimationEvent toAnimationEvent(StepEventRef ref) {
+	private static @Nullable TimelineAnimationEvent toAnimationEvent(@Nullable StepEventRef ref) {
 		if (ref == null || ref.event() == null) return null;
 		Map<String, Object> params = new HashMap<>(ref.event().getParameters());
 		Object durObj = params.get("durationSeconds");

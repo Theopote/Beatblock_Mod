@@ -10,6 +10,8 @@ import com.beatblock.timeline.command.AddTimelineAnimationEventCommand;
 import com.beatblock.timeline.command.ClearAnimationTrackCommand;
 import com.beatblock.timeline.command.CommandManager;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 
 /**
@@ -49,6 +51,7 @@ public final class TimelineDraftWriter {
 	) {
 		if (timeline == null || trackId == null || event == null) return false;
 		TimelineAnimationEvent tagged = withOrigin(event, origin != null ? origin : TimelineEventOrigin.AUTO_GENERATED);
+		if (tagged == null) return false;
 		CommandManager commands = commandManagerOrNull();
 		if (commands != null) {
 			commands.execute(new AddTimelineAnimationEventCommand(timeline, trackId, tagged));
@@ -73,7 +76,10 @@ public final class TimelineDraftWriter {
 		return count;
 	}
 
-	public static TimelineAnimationEvent withOrigin(TimelineAnimationEvent source, TimelineEventOrigin origin) {
+	public static @Nullable TimelineAnimationEvent withOrigin(
+		@Nullable TimelineAnimationEvent source,
+		@Nullable TimelineEventOrigin origin
+	) {
 		if (source == null) return null;
 		TimelineEventOrigin resolved = origin != null ? origin : TimelineEventOrigin.AUTO_GENERATED;
 		AnimationEventParams params = AnimationEventParams.fromAnimationEvent(source).withEventOrigin(resolved);
@@ -88,11 +94,11 @@ public final class TimelineDraftWriter {
 		);
 	}
 
-	private static CommandManager commandManagerOrNull() {
+	private static @Nullable CommandManager commandManagerOrNull() {
 		return commandManagerOrNull(BeatBlock.getContext());
 	}
 
-	static CommandManager commandManagerOrNull(BeatBlockContext context) {
+	static @Nullable CommandManager commandManagerOrNull(@Nullable BeatBlockContext context) {
 		if (context == null) return null;
 		return context.commandManager();
 	}

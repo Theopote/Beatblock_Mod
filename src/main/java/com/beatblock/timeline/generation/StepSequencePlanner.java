@@ -3,6 +3,8 @@ package com.beatblock.timeline.generation;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import net.minecraft.util.math.BlockPos;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +94,7 @@ public final class StepSequencePlanner {
 		return "IMMEDIATE".equalsIgnoreCase(String.valueOf(raw).trim());
 	}
 
-	private static int readInt(Object raw, int fallback) {
+	private static int readInt(@Nullable Object raw, int fallback) {
 		if (raw instanceof Number n) return Math.max(1, n.intValue());
 		if (raw == null) return fallback;
 		try {
@@ -102,7 +104,7 @@ public final class StepSequencePlanner {
 		}
 	}
 
-	private static double readDouble(Object raw, double fallback) {
+	private static double readDouble(@Nullable Object raw, double fallback) {
 		if (raw instanceof Number n) return n.doubleValue();
 		if (raw == null) return fallback;
 		try {

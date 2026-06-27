@@ -8,6 +8,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -58,7 +60,7 @@ public final class StepBurstEventFactory {
 		double[] referenceBeatTimesSeconds,
 		double timelineBpm,
 		Vec3d runtimeCameraPosition,
-		Vec3d runtimeCameraForward
+		@Nullable Vec3d runtimeCameraForward
 	) {
 		if (stepEvent == null || target == null || target.getBlocks().isEmpty()) {
 			return List.of();
@@ -120,7 +122,7 @@ public final class StepBurstEventFactory {
 		return params;
 	}
 
-	public static BlockPos readSingleBlockPos(Map<String, Object> params) {
+	public static @Nullable BlockPos readSingleBlockPos(@Nullable Map<String, Object> params) {
 		if (params == null || !params.containsKey("singleBlockX")) return null;
 		try {
 			int x = readInt(params.get("singleBlockX"), Integer.MIN_VALUE);
@@ -268,7 +270,7 @@ public final class StepBurstEventFactory {
 		return h;
 	}
 
-	private static double readDouble(Object raw, double fallback) {
+	private static double readDouble(@Nullable Object raw, double fallback) {
 		if (raw instanceof Number n) return n.doubleValue();
 		if (raw == null) return fallback;
 		try {
@@ -278,7 +280,7 @@ public final class StepBurstEventFactory {
 		}
 	}
 
-	private static int readInt(Object raw, int fallback) {
+	private static int readInt(@Nullable Object raw, int fallback) {
 		if (raw instanceof Number n) return n.intValue();
 		if (raw == null) return fallback;
 		try {
@@ -288,7 +290,7 @@ public final class StepBurstEventFactory {
 		}
 	}
 
-	private static boolean readBoolean(Object raw, boolean fallback) {
+	private static boolean readBoolean(@Nullable Object raw, boolean fallback) {
 		if (raw instanceof Boolean b) return b;
 		if (raw instanceof Number n) return n.intValue() != 0;
 		if (raw == null) return fallback;

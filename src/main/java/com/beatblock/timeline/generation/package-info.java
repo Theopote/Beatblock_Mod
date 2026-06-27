@@ -1,4 +1,4 @@
-@NullUnmarked
+@NullMarked
 package com.beatblock.timeline.generation;
 
-import org.jspecify.annotations.NullUnmarked;
+import org.jspecify.annotations.NullMarked;

@@ -4,6 +4,8 @@ import com.beatblock.engine.camera.CameraViewMath;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,8 +19,8 @@ public final class CameraStepModulation {
 
 	public static List<BlockPos> reorderForFrustumGating(
 		List<BlockPos> orderedBlocks,
-		Vec3d cameraPos,
-		Vec3d cameraForward,
+		@Nullable Vec3d cameraPos,
+		@Nullable Vec3d cameraForward,
 		Map<String, Object> params
 	) {
 		if (!readBoolean(params != null ? params.get("cameraFrustumGating") : null, false)
@@ -51,7 +53,7 @@ public final class CameraStepModulation {
 	public static List<StepSequencePlanner.PlannedStep> applyAdaptiveTiming(
 		List<StepSequencePlanner.PlannedStep> planned,
 		List<BlockPos> orderedBlocks,
-		Vec3d cameraPos,
+		@Nullable Vec3d cameraPos,
 		Map<String, Object> params
 	) {
 		if (!readBoolean(params != null ? params.get("cameraAdaptiveStep") : null, false)
@@ -81,7 +83,7 @@ public final class CameraStepModulation {
 		return adjusted;
 	}
 
-	private static double readDouble(Object raw, double fallback) {
+	private static double readDouble(@Nullable Object raw, double fallback) {
 		if (raw instanceof Number n) return n.doubleValue();
 		if (raw == null) return fallback;
 		try {
@@ -91,7 +93,7 @@ public final class CameraStepModulation {
 		}
 	}
 
-	private static boolean readBoolean(Object raw, boolean fallback) {
+	private static boolean readBoolean(@Nullable Object raw, boolean fallback) {
 		if (raw instanceof Boolean b) return b;
 		if (raw instanceof Number n) return n.intValue() != 0;
 		if (raw == null) return fallback;
