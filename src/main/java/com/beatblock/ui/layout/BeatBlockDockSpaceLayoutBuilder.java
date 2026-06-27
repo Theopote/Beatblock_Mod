@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
  * BeatBlock Dockspace 默认布局：
  * 底部通栏 = 时间线（音乐/摄像机/动画事件）；
  * 顶部 = 菜单栏（单独渲染）；
- * 右侧 = 事件属性面板；
+ * 右侧 = 事件属性 + 摄像机属性面板；
  * 左侧 = 工具面板；
  * 中间 = 不放置任何面板，该区域即为 Minecraft 场景可见区域；
  * 动画库面板 = 可通过菜单打开/关闭，可为浮动或停靠。
@@ -24,6 +24,7 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 	public static final String TOOL_PANEL_WINDOW        = "工具###ToolPanel";
 	public static final String MARKER_PANEL_WINDOW      = "标记与调试###MarkerPanel";
 	public static final String EVENT_PROPERTIES_WINDOW  = "事件属性###EventPropertiesPanel";
+	public static final String CAMERA_PROPERTIES_WINDOW = "摄像机属性###CameraPropertiesPanel";
 	public static final String TIMELINE_PANEL_WINDOW    = "时间线###TimelinePanel";
 	public static final String ANIMATION_LIBRARY_WINDOW = "动画库###AnimationLibraryPanel";
 	public static final String SELECTION_PROPERTIES_WINDOW = "选择属性###BeatBlockSelectionProperties";
@@ -57,16 +58,20 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 			imgui.internal.ImGui.dockBuilderSplitNode(dockLeft.get(), ImGuiDir.Up, 0.52f, dockLeftTop, dockLeftMiddle);
 			imgui.internal.ImGui.dockBuilderSplitNode(dockLeftMiddle.get(), ImGuiDir.Up, 0.55f, dockLeftMiddle, dockLeftBottom);
 
-			// 3. 右侧分割：事件属性面板（约 22%）
+			// 3. 右侧分割：属性面板（约 22%），再纵向分为事件属性 + 摄像机属性
 			ImInt dockRight = new ImInt();
 			imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Right, 0.22f, dockRight, dockMain);
+			ImInt dockRightTop = new ImInt();
+			ImInt dockRightBottom = new ImInt();
+			imgui.internal.ImGui.dockBuilderSplitNode(dockRight.get(), ImGuiDir.Up, 0.5f, dockRightTop, dockRightBottom);
 
 			// 4. 停靠窗口（中间不 dock 任何窗口，即为 Minecraft 场景区域）
 			imgui.internal.ImGui.dockBuilderDockWindow(TIMELINE_PANEL_WINDOW, dockBottom.get());
 			imgui.internal.ImGui.dockBuilderDockWindow(AUDIO_ANALYSIS_WINDOW, dockLeftTop.get());
 			imgui.internal.ImGui.dockBuilderDockWindow(TOOL_PANEL_WINDOW, dockLeftMiddle.get());
 			imgui.internal.ImGui.dockBuilderDockWindow(MARKER_PANEL_WINDOW, dockLeftBottom.get());
-			imgui.internal.ImGui.dockBuilderDockWindow(EVENT_PROPERTIES_WINDOW, dockRight.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(EVENT_PROPERTIES_WINDOW, dockRightTop.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(CAMERA_PROPERTIES_WINDOW, dockRightBottom.get());
 
 			imgui.internal.ImGui.dockBuilderFinish(dockspaceId);
 			layoutInitialized = true;

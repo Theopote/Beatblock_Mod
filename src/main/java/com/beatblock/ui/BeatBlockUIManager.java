@@ -34,6 +34,7 @@ public class BeatBlockUIManager {
 	private final ToolPanel toolPanel;
 	private final MarkerPanel markerPanel;
 	private final EventPropertiesPanel eventPropertiesPanel;
+	private final CameraPropertiesPanel cameraPropertiesPanel;
 	private final TimelinePanel timelinePanel;
 	private final AnimationLibraryPanel animationLibraryPanel;
 	private final SelectionPropertiesPanel selectionPropertiesPanel;
@@ -53,6 +54,7 @@ public class BeatBlockUIManager {
 			this::generateRhythmDropFromMenu,
 			this::resetLayoutState, this::saveCurrentLayout, this::loadSavedLayout);
 		this.eventPropertiesPanel = new EventPropertiesPanel();
+		this.cameraPropertiesPanel = new CameraPropertiesPanel();
 		this.timelinePanel = new TimelinePanel();
 		this.animationLibraryPanel = new AnimationLibraryPanel();
 		this.selectionPropertiesPanel = new SelectionPropertiesPanel();
@@ -138,6 +140,7 @@ public class BeatBlockUIManager {
 		toolPanel.render(panelVisibility.tool);
 		markerPanel.render(panelVisibility.marker);
 		eventPropertiesPanel.render(panelVisibility.eventProperties);
+		cameraPropertiesPanel.render(panelVisibility.cameraProperties);
 		timelinePanel.render(panelVisibility.timeline);
 		animationLibraryPanel.render(panelVisibility.animationLibrary);
 		selectionPropertiesPanel.render(panelVisibility.selectionProperties);

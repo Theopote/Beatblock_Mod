@@ -121,6 +121,7 @@ public class MenuBarPanel {
 					panelToggleItem("工具", panels.tool);
 					panelToggleItem("标记与调试", panels.marker);
 					panelToggleItem("事件属性", panels.eventProperties);
+					panelToggleItem("摄像机属性", panels.cameraProperties);
 					panelToggleItem("时间线", panels.timeline);
 					panelToggleItem("动画库", panels.animationLibrary);
 					panelToggleItem("选择属性", panels.selectionProperties);

@@ -12,6 +12,7 @@ public final class BeatBlockPanelVisibility {
 	public final ImBoolean tool = new ImBoolean(true);
 	public final ImBoolean marker = new ImBoolean(true);
 	public final ImBoolean eventProperties = new ImBoolean(true);
+	public final ImBoolean cameraProperties = new ImBoolean(true);
 	public final ImBoolean timeline = new ImBoolean(true);
 	public final ImBoolean animationLibrary = new ImBoolean(false);
 	public final ImBoolean selectionProperties = new ImBoolean(false);
@@ -22,6 +23,7 @@ public final class BeatBlockPanelVisibility {
 		tool.set(false);
 		marker.set(false);
 		eventProperties.set(false);
+		cameraProperties.set(false);
 		timeline.set(false);
 		animationLibrary.set(false);
 		selectionProperties.set(false);
@@ -33,6 +35,7 @@ public final class BeatBlockPanelVisibility {
 		tool.set(true);
 		marker.set(true);
 		eventProperties.set(true);
+		cameraProperties.set(true);
 		timeline.set(true);
 		animationLibrary.set(true);
 		selectionProperties.set(true);
