@@ -5,6 +5,7 @@ import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.VideoExportPanelPresenter;
 import com.beatblock.video.VideoExportPreferences;
 import com.beatblock.video.VideoExportProgress;
+import com.beatblock.video.VideoExportService;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
@@ -13,7 +14,7 @@ import imgui.type.ImInt;
 import imgui.type.ImString;
 
 /**
- * 视频导出设置弹窗：输出路径、分辨率、帧率、时间范围、FFmpeg 状态。
+ * 视频导出设置弹窗：输出路径、分辨率、帧率、时间范围、FFmpeg 状态与导出进度。
  */
 public final class VideoExportDialog {
 
@@ -41,6 +42,10 @@ public final class VideoExportDialog {
 	public void open() {
 		open = true;
 		statusMessage = "";
+		var service = presenter.activeService();
+		if (service != null) {
+			service.clearLastResult();
+		}
 		var state = presenter.dialogState();
 		outputPath.set(state.defaultOutputPath());
 		startSeconds.set(state.defaultStartSeconds());
@@ -62,9 +67,36 @@ public final class VideoExportDialog {
 		}
 
 		var state = presenter.dialogState();
+		var service = presenter.activeService();
+		boolean exporting = service != null && service.isExporting();
+
 		renderFfmpegStatus(state.ffmpegStatus());
+		renderBlockedReason(state, exporting);
 		ImGui.separator();
 
+		if (exporting) {
+			ImGui.beginDisabled();
+		}
+		renderExportSettings(state);
+		if (exporting) {
+			ImGui.endDisabled();
+		}
+
+		renderExportProgress(service, exporting);
+		renderLastResult(service, exporting);
+
+		if (!statusMessage.isBlank()) {
+			ImGui.spacing();
+			ImGui.textColored(0.95f, 0.35f, 0.35f, 1f, statusMessage);
+		}
+
+		ImGui.separator();
+		renderActionButtons(service, exporting, state.canExport());
+
+		ImGui.end();
+	}
+
+	private void renderExportSettings(VideoExportPanelPresenter.ExportDialogState state) {
 		ImGui.text(BBTexts.get("beatblock.export.output_path"));
 		ImGui.setNextItemWidth(-1);
 		ImGui.inputText("##exportOutputPath", outputPath);
@@ -99,16 +131,90 @@ public final class VideoExportDialog {
 		if (ImGui.checkbox(BBTexts.get("beatblock.export.include_audio"), includeAudio)) {
 			VideoExportPreferences.setIncludeAudio(includeAudio.get());
 		}
+	}
 
-		renderActiveProgress();
-		if (!statusMessage.isBlank()) {
-			ImGui.spacing();
-			ImGui.textWrapped(statusMessage);
+	private void renderFfmpegStatus(VideoExportPanelPresenter.FfmpegStatus status) {
+		ImGui.text(BBTexts.get("beatblock.export.ffmpeg.section"));
+		if (status.available()) {
+			ImGui.textColored(0.2f, 0.85f, 0.35f, 1f, BBTexts.get("beatblock.export.ffmpeg.ok"));
+			if (status.executablePath() != null && !status.executablePath().isBlank()) {
+				ImGui.textWrapped(BBTexts.get("beatblock.export.ffmpeg.path", status.executablePath()));
+			}
+		} else {
+			ImGui.textColored(0.95f, 0.35f, 0.35f, 1f, BBTexts.get("beatblock.export.ffmpeg.missing"));
+			ImGui.textWrapped(BBTexts.get("beatblock.export.ffmpeg.search_hint"));
+			if (status.searchSummary() != null && !status.searchSummary().isBlank()) {
+				ImGui.spacing();
+				ImGui.textWrapped(status.searchSummary());
+			}
+		}
+	}
+
+	private void renderBlockedReason(VideoExportPanelPresenter.ExportDialogState state, boolean exporting) {
+		if (exporting || state.canExport() || state.blockedReason() == null || state.blockedReason().isBlank()) {
+			return;
+		}
+		ImGui.spacing();
+		ImGui.textColored(0.95f, 0.55f, 0.25f, 1f, BBTexts.get("beatblock.export.blocked_hint"));
+		ImGui.textWrapped(state.blockedReason());
+	}
+
+	private void renderExportProgress(VideoExportService service, boolean exporting) {
+		if (service == null || !exporting) {
+			return;
+		}
+		VideoExportProgress progress = service.activeProgress();
+		if (progress == null) {
+			return;
+		}
+		ImGui.spacing();
+		ImGui.separator();
+		ImGui.text(BBTexts.get("beatblock.export.progress.section"));
+		ImGui.progressBar(progress.percent() / 100f, -1, 0, progress.message());
+		ImGui.textDisabled(BBTexts.get("beatblock.export.progress.percent", progress.percent()));
+		if (progress.totalFrames() > 0) {
+			ImGui.sameLine();
+			ImGui.textDisabled(BBTexts.get(
+				"beatblock.export.progress.frames",
+				progress.currentFrame(),
+				progress.totalFrames()
+			));
+		}
+	}
+
+	private void renderLastResult(VideoExportService service, boolean exporting) {
+		if (service == null || exporting) {
+			return;
+		}
+		VideoExportService.VideoExportResult lastResult = service.lastResult();
+		if (lastResult == null || lastResult.message() == null || lastResult.message().isBlank()) {
+			return;
+		}
+		ImGui.spacing();
+		ImGui.separator();
+		if (lastResult.success()) {
+			ImGui.textColored(0.2f, 0.85f, 0.35f, 1f, lastResult.message());
+		} else {
+			ImGui.textColored(0.95f, 0.35f, 0.35f, 1f, lastResult.message());
+		}
+	}
+
+	private void renderActionButtons(VideoExportService service, boolean exporting, boolean canExport) {
+		if (exporting) {
+			if (ImGui.button(BBTexts.get("beatblock.export.cancel_export"), 120, 0)) {
+				presenter.cancelExport();
+			}
+			ImGui.sameLine();
+			if (ImGui.button(BBTexts.get("beatblock.export.close") + "##exportVideo")) {
+				open = false;
+			}
+			return;
 		}
 
-		ImGui.separator();
-		boolean exporting = presenter.activeService() != null && presenter.activeService().isExporting();
-		if (ImGui.button(BBTexts.get("beatblock.export.start_button"), 120, 0) && !exporting) {
+		if (!canExport) {
+			ImGui.beginDisabled();
+		}
+		if (ImGui.button(BBTexts.get("beatblock.export.start_button"), 120, 0)) {
 			var result = presenter.startExport(
 				outputPath.get(),
 				resolutionIndex.get(),
@@ -118,47 +224,15 @@ public final class VideoExportDialog {
 				hideUi.get(),
 				includeAudio.get()
 			);
-			statusMessage = result.messageOrEmpty();
-			if (result.ok()) {
-				open = false;
-			}
+			statusMessage = result.ok() ? "" : result.messageOrEmpty();
+		}
+		if (!canExport) {
+			ImGui.endDisabled();
 		}
 		ImGui.sameLine();
-		if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##exportVideo")) {
-			if (exporting) {
-				presenter.cancelExport();
-			}
+		if (ImGui.button(BBTexts.get("beatblock.export.close") + "##exportVideo")) {
 			open = false;
 		}
-
-		ImGui.end();
-	}
-
-	private void renderFfmpegStatus(VideoExportPanelPresenter.FfmpegStatus status) {
-		if (status.available()) {
-			ImGui.textColored(0.2f, 0.85f, 0.35f, 1f, BBTexts.get("beatblock.export.ffmpeg.ok"));
-			if (ImGui.isItemHovered() && status.executablePath() != null) {
-				ImGui.setTooltip(status.executablePath());
-			}
-		} else {
-			ImGui.textColored(0.95f, 0.35f, 0.35f, 1f, BBTexts.get("beatblock.export.ffmpeg.missing"));
-			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(BBTexts.get("beatblock.export.ffmpeg.search_hint") + "\n" + status.searchSummary());
-			}
-		}
-	}
-
-	private void renderActiveProgress() {
-		var service = presenter.activeService();
-		if (service == null) {
-			return;
-		}
-		VideoExportProgress progress = service.activeProgress();
-		if (progress == null) {
-			return;
-		}
-		ImGui.spacing();
-		ImGui.progressBar(progress.percent() / 100f, -1, 0, progress.message());
 	}
 
 	private static String[] resolutionLabels() {
