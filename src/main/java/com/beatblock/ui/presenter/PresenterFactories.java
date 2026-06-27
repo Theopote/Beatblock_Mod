@@ -190,6 +190,10 @@ public final class PresenterFactories {
 		return new TimelineToolbarFeedbackPresenter();
 	}
 
+	public static TimelineRecordModePresenter timelineRecordModePresenter() {
+		return new TimelineRecordModePresenter();
+	}
+
 	public static AudioAnalysisPanelPresenter audioAnalysisPanelPresenter() {
 		return audioAnalysisPanelPresenter(ctx());
 	}

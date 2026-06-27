@@ -899,5 +899,13 @@
   "beatblock.wizard.done.desc": "Press Play to preview. Fine-tune in the timeline and event properties panel.",
   "beatblock.wizard.back": "Back",
   "beatblock.wizard.next": "Next",
-  "beatblock.wizard.close": "Close"
+  "beatblock.wizard.close": "Close",
+
+  "beatblock.timeline.record.section": "Record",
+  "beatblock.timeline.record.tooltip": "Record mode: press Space during playback to add a bounce event at the playhead\nCreate a StageObject first",
+  "beatblock.timeline.record.ok": "Event recorded",
+  "beatblock.timeline.record.not_playing": "Start playback first",
+  "beatblock.timeline.record.no_stage_object": "Create a StageObject first",
+  "beatblock.timeline.record.duplicate": "An event already exists at this time",
+  "beatblock.timeline.record.failed": "Recording failed"
 }

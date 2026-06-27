@@ -24,9 +24,10 @@ public final class TimelineBoxSelectHandler {
 		SelectionBox selectionBox,
 		InteractionState interactionState,
 		float mx,
-		float my
+		float my,
+		boolean additive
 	) {
-		if (selectionState != null) {
+		if (selectionState != null && !additive) {
 			selectionState.clearEvents();
 			selectionState.clearClips();
 		}

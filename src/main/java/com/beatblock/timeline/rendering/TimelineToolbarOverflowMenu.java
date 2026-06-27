@@ -13,6 +13,7 @@ final class TimelineToolbarOverflowMenu {
 	private final TimelineToolbarViewControls view;
 	private final TimelineToolbarToolsControls tools;
 	private final TimelineToolbarEditControls editControls;
+	private final TimelineToolbarRecordControls recordControls;
 	private final TimelineDemucsMappingControls demucsControls;
 
 	TimelineToolbarOverflowMenu(
@@ -21,6 +22,7 @@ final class TimelineToolbarOverflowMenu {
 		TimelineToolbarViewControls view,
 		TimelineToolbarToolsControls tools,
 		TimelineToolbarEditControls editControls,
+		TimelineToolbarRecordControls recordControls,
 		TimelineDemucsMappingControls demucsControls
 	) {
 		this.loopSpeed = loopSpeed;
@@ -28,6 +30,7 @@ final class TimelineToolbarOverflowMenu {
 		this.view = view;
 		this.tools = tools;
 		this.editControls = editControls;
+		this.recordControls = recordControls;
 		this.demucsControls = demucsControls;
 	}
 
@@ -42,6 +45,7 @@ final class TimelineToolbarOverflowMenu {
 		snapGrid.renderCompact(toolbarState);
 		view.renderCompact(editor);
 		editControls.renderCompact(editor);
+		recordControls.renderCompact(editor, toolbarState, editor.getClock().isPlaying());
 		tools.renderCompact();
 		demucsControls.render(true, null);
 

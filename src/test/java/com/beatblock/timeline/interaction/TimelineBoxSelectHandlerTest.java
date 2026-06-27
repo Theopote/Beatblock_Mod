@@ -20,7 +20,7 @@ class TimelineBoxSelectHandlerTest {
 		SelectionBox box = new SelectionBox();
 		InteractionState interaction = new InteractionState();
 
-		TimelineBoxSelectHandler.begin(selection, box, interaction, 10f, 20f);
+		TimelineBoxSelectHandler.begin(selection, box, interaction, 10f, 20f, false);
 
 		assertFalse(selection.isEventSelected("evt-a"));
 		assertFalse(selection.isClipSelected("clip-a"));

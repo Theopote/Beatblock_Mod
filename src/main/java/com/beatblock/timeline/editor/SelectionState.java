@@ -12,6 +12,7 @@ public class SelectionState {
 	private final Set<String> selectedEvents = new HashSet<>();
 	private final Set<String> selectedClips = new HashSet<>();
 	private final Set<String> selectedTracks = new HashSet<>();
+	private String rangeAnchorEventId;
 
 	public Set<String> getSelectedEvents() {
 		return Collections.unmodifiableSet(selectedEvents);
@@ -53,6 +54,14 @@ public class SelectionState {
 		selectedEvents.clear();
 	}
 
+	public String getRangeAnchorEventId() {
+		return rangeAnchorEventId;
+	}
+
+	public void setRangeAnchorEventId(String eventId) {
+		rangeAnchorEventId = eventId;
+	}
+
 	public void clearClips() {
 		selectedClips.clear();
 	}
@@ -65,6 +74,7 @@ public class SelectionState {
 		selectedEvents.clear();
 		selectedClips.clear();
 		selectedTracks.clear();
+		rangeAnchorEventId = null;
 	}
 
 	public boolean isEventSelected(String eventId) {

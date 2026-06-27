@@ -936,5 +936,13 @@
   "beatblock.wizard.done.desc": "点击播放按钮预览效果。可在时间线和事件属性面板中进一步调整。",
   "beatblock.wizard.back": "上一步",
   "beatblock.wizard.next": "下一步",
-  "beatblock.wizard.close": "完成"
+  "beatblock.wizard.close": "完成",
+
+  "beatblock.timeline.record.section": "录制",
+  "beatblock.timeline.record.tooltip": "实时录制：播放中按空格在当前播放头添加 bounce 动画事件\n需先创建 StageObject",
+  "beatblock.timeline.record.ok": "已录制事件",
+  "beatblock.timeline.record.not_playing": "请先播放时间线",
+  "beatblock.timeline.record.no_stage_object": "请先创建 StageObject",
+  "beatblock.timeline.record.duplicate": "该时间点已有事件",
+  "beatblock.timeline.record.failed": "录制失败"
 }

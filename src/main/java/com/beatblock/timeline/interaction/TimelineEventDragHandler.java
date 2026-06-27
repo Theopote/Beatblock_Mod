@@ -25,19 +25,15 @@ public final class TimelineEventDragHandler {
 		SelectionState selectionState,
 		float mx,
 		float my,
-		boolean ctrl
+		boolean ctrl,
+		boolean shift
 	) {
 		if (timeline == null || hit == null || interactionState == null) return null;
 		if (hit.getHitType() != HitType.EVENT && hit.getHitType() != HitType.CLIP) return null;
 
 		TimelineEventDragSession session = TimelineEventDragSession.begin(timeline, hit, interactionState, mx, my);
 		if (selectionState != null) {
-			if (!ctrl) selectionState.clearEvents();
-			if (hit.getEventId() != null) {
-				selectionState.selectEvent(hit.getEventId());
-			} else if (hit.getClipId() != null) {
-				selectionState.selectClip(hit.getClipId());
-			}
+			TimelineEventSelectionHandler.applyClickSelection(timeline, selectionState, hit, ctrl, shift);
 		}
 		return session;
 	}
@@ -90,10 +86,6 @@ public final class TimelineEventDragHandler {
 		float dy = my - interactionState.getMouseStartY();
 		boolean belowThreshold = dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX;
 		if (belowThreshold) {
-			if (selectionState != null) {
-				selectionState.clearEvents();
-				selectionState.selectEvent(interactionState.getActiveEventId());
-			}
 			TimelineDragCommitSupport.revertEventDrag(timeline, interactionState, session.initialTimeSeconds());
 		} else {
 			TimelineDragCommitSupport.commitEventDrag(timeline, editor, interactionState, session.initialTimeSeconds());

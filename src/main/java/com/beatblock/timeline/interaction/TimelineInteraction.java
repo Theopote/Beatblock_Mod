@@ -391,6 +391,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 
 		if (ImGui.isMouseClicked(0)) {
 			boolean ctrl = ImGui.getIO().getKeyCtrl();
+			boolean shift = ImGui.getIO().getKeyShift();
 			if (trackListState != null && TimelineRulerHitTest.isMouseOverDivider(mx, my, layout)) {
 				interactionState.setMode(InteractionMode.RESIZE_HEADER);
 				interactionState.setMouseStart(mx, my);
@@ -468,7 +469,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				}
 				if (hit.getHitType() == HitType.EVENT || hit.getHitType() == HitType.CLIP) {
 					eventDragSession = TimelineEventDragHandler.tryBeginFromHit(
-						timeline, hit, interactionState, selectionState, mx, my, ctrl);
+						timeline, hit, interactionState, selectionState, mx, my, ctrl, shift);
 					return;
 				}
 			}
@@ -484,7 +485,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			if (!layout.contentContains(mx, my)) {
 				return;
 			}
-			TimelineBoxSelectHandler.begin(selectionState, selectionBox, interactionState, mx, my);
+			TimelineBoxSelectHandler.begin(selectionState, selectionBox, interactionState, mx, my, ctrl);
 		}
 		if (interactionState.getMode() == InteractionMode.BOX_SELECT && ImGui.isMouseDown(0) && selectionBox != null) {
 			TimelineBoxSelectHandler.updateEnd(selectionBox, mx, my);

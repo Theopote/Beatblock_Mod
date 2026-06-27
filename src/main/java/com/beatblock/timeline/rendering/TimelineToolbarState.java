@@ -19,6 +19,11 @@ public final class TimelineToolbarState {
 	private double loopInSeconds = 0;
 	/** 循环终点（秒），0 表示未设置 */
 	private double loopOutSeconds = 0;
+	/** 实时录制模式：播放中按空格添加事件 */
+	private boolean recordMode = false;
+
+	public boolean isRecordMode() { return recordMode; }
+	public void setRecordMode(boolean v) { recordMode = v; }
 
 	public boolean isSnapToGrid() { return snapToGrid; }
 	public void setSnapToGrid(boolean v) { snapToGrid = v; }

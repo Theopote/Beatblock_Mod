@@ -29,7 +29,7 @@ class TimelineEventDragHandlerTest {
 
 		InteractionState interaction = new InteractionState();
 		TimelineEventDragSession session = TimelineEventDragHandler.tryBeginFromHit(
-			timeline, hit, interaction, new SelectionState(), 100f, 50f, false);
+			timeline, hit, interaction, new SelectionState(), 100f, 50f, false, false);
 
 		assertNotNull(session);
 		assertEquals(2.5, session.initialTimeSeconds(), 1e-9);
@@ -47,7 +47,7 @@ class TimelineEventDragHandlerTest {
 
 		InteractionState interaction = new InteractionState();
 		TimelineEventDragSession session = TimelineEventDragHandler.tryBeginFromHit(
-			timeline, hit, interaction, new SelectionState(), 100f, 50f, false);
+			timeline, hit, interaction, new SelectionState(), 100f, 50f, false, false);
 		event.setTimeSeconds(5.0);
 
 		TimelineEventDragHandler.finishOnMouseRelease(

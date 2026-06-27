@@ -65,6 +65,11 @@ public class TimelinePanel {
 
 			if (editor != null) {
 				toolbar.render(editor, editor.getToolbarState());
+				PresenterFactories.timelineRecordModePresenter().handleKeyboard(
+					editor,
+					editor.getToolbarState(),
+					editor.getClock().isPlaying()
+				);
 			}
 			String timeDisplay = viewState.positionDisplay();
 			ImVec2 timeSize = ImGui.calcTextSize(timeDisplay);
