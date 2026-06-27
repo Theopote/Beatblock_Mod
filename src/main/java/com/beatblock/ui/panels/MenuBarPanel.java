@@ -115,16 +115,16 @@ public class MenuBarPanel {
 				}
 				ImGui.separator();
 				if (ImGui.beginMenu(BBTexts.get("beatblock.menu.panels"))) {
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.audio_analysis"), panels.audioAnalysis);
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.tool"), panels.tool);
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.marker_debug"), panels.marker);
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.event_properties"), panels.eventProperties);
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.camera_properties"), panels.cameraProperties);
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.timeline"), panels.timeline);
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.animation_library"), panels.animationLibrary);
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.selection_properties"), panels.selectionProperties);
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.layer"), panels.layer);
-					panelToggleItem(BBTexts.get("beatblock.menu.panel.rhythm_drop"), panels.rhythmDrop);
+					panelToggleItem(BBTexts.get("beatblock.panel.audio_analysis"), panels.audioAnalysis);
+					panelToggleItem(BBTexts.get("beatblock.panel.tool"), panels.tool);
+					panelToggleItem(BBTexts.get("beatblock.panel.marker_debug"), panels.marker);
+					panelToggleItem(BBTexts.get("beatblock.panel.event_properties"), panels.eventProperties);
+					panelToggleItem(BBTexts.get("beatblock.panel.camera_properties"), panels.cameraProperties);
+					panelToggleItem(BBTexts.get("beatblock.panel.timeline"), panels.timeline);
+					panelToggleItem(BBTexts.get("beatblock.panel.animation_library"), panels.animationLibrary);
+					panelToggleItem(BBTexts.get("beatblock.panel.selection_properties"), panels.selectionProperties);
+					panelToggleItem(BBTexts.get("beatblock.panel.layer"), panels.layer);
+					panelToggleItem(BBTexts.get("beatblock.panel.rhythm_drop"), panels.rhythmDrop);
 					ImGui.endMenu();
 				}
 				ImGui.endMenu();
