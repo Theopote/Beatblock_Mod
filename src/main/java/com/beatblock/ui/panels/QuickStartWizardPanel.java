@@ -1,6 +1,7 @@
 package com.beatblock.ui.panels;
 
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.QuickStartWizardPresenter;
 import com.beatblock.ui.util.AudioFilePicker;
@@ -114,6 +115,11 @@ public final class QuickStartWizardPanel {
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
 		if (ImGui.button(BBTexts.get("beatblock.wizard.import.button") + "##wizardImport", -1f, 32f)) {
 			presenter.importMusic(musicPath.get());
+			if (presenter.viewState().step() != QuickStartWizardPresenter.Step.IMPORT) {
+				ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.toast.wizard.music_imported"));
+			} else if (!presenter.viewState().statusMessage().isBlank()) {
+				ToastNotificationSystem.showError(presenter.viewState().statusMessage());
+			}
 		}
 		ImGui.popStyleColor(3);
 
@@ -230,7 +236,12 @@ public final class QuickStartWizardPanel {
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
 		if (ImGui.button(BBTexts.get("beatblock.wizard.generate.button") + "##wizardGenerate", -1f, 32f)) {
-			presenter.generate();
+			var outcome = presenter.generate();
+			if (outcome.result().ok()) {
+				ToastNotificationSystem.showSuccess(presenter.viewState().statusMessage());
+			} else if (!presenter.viewState().statusMessage().isBlank()) {
+				ToastNotificationSystem.showError(presenter.viewState().statusMessage());
+			}
 		}
 		ImGui.popStyleColor(3);
 		if (ImGui.isItemHovered()) {

@@ -18,6 +18,7 @@ public final class BeatBlockPanelVisibility {
 	public final ImBoolean selectionProperties = new ImBoolean(false);
 	public final ImBoolean layer = new ImBoolean(false);
 	public final ImBoolean rhythmDrop = new ImBoolean(false);
+	public final ImBoolean undoHistory = new ImBoolean(false);
 
 	public void closeAll() {
 		audioAnalysis.set(false);
@@ -30,6 +31,7 @@ public final class BeatBlockPanelVisibility {
 		selectionProperties.set(false);
 		layer.set(false);
 		rhythmDrop.set(false);
+		undoHistory.set(false);
 	}
 
 	public void openAll() {
@@ -43,5 +45,6 @@ public final class BeatBlockPanelVisibility {
 		selectionProperties.set(true);
 		layer.set(true);
 		rhythmDrop.set(true);
+		undoHistory.set(true);
 	}
 }

@@ -6,6 +6,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.interaction.TimelineRecordModeHandler;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.notification.ToastNotificationSystem;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 
@@ -64,6 +65,11 @@ public final class TimelineRecordModePresenter {
 			musicPlaying
 		);
 		lastFeedback = new Feedback(localizeOutcome(outcome), outcome.success());
+		if (lastFeedback.success()) {
+			ToastNotificationSystem.showSuccess(lastFeedback.message());
+		} else {
+			ToastNotificationSystem.showError(lastFeedback.message());
+		}
 		return lastFeedback;
 	}
 

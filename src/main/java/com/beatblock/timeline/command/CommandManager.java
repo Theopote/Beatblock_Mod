@@ -3,7 +3,9 @@ package com.beatblock.timeline.command;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
 
 /**
  * 命令管理：执行、撤销、重做。
@@ -47,4 +49,23 @@ public final class CommandManager {
 	public boolean canUndo() { return !undoStack.isEmpty(); }
 	public boolean canRedo() { return !redoStack.isEmpty(); }
 	public void clear() { undoStack.clear(); redoStack.clear(); }
+
+	public int undoCount() { return undoStack.size(); }
+	public int redoCount() { return redoStack.size(); }
+
+	public List<String> undoDescriptionsNewestFirst() {
+		return describeStack(undoStack);
+	}
+
+	public List<String> redoDescriptionsNewestFirst() {
+		return describeStack(redoStack);
+	}
+
+	private static List<String> describeStack(Deque<Command> stack) {
+		List<String> out = new ArrayList<>(stack.size());
+		for (Command command : stack) {
+			out.add(CommandDescriptions.describe(command));
+		}
+		return out;
+	}
 }

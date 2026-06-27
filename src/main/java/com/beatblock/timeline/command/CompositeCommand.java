@@ -27,6 +27,10 @@ public final class CompositeCommand implements Command {
 		return new CompositeCommand(list);
 	}
 
+	public int commandCount() {
+		return commands.size();
+	}
+
 	@Override
 	public void execute() {
 		for (Command command : commands) {

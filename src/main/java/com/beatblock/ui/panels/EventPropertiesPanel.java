@@ -17,6 +17,7 @@ import com.beatblock.timeline.editing.WorldTrajectoryEventParamsEditor;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.presenter.AnimationEditorViewState;
 import com.beatblock.ui.presenter.EventPropertiesFormSnapshot;
 import com.beatblock.ui.presenter.EventPropertiesOption;
@@ -80,6 +81,7 @@ public class EventPropertiesPanel {
 	private final ImBoolean batchApplyAnimation = new ImBoolean(false);
 	private final ImBoolean batchApplyTimeOffset = new ImBoolean(false);
 	private final ImBoolean livePreviewOnApply = new ImBoolean(true);
+	private boolean pendingLivePreview;
 
 	public EventPropertiesPanel() {
 		this(PresenterFactories.eventPropertiesPresenter(), BeatBlock::getContext);
@@ -304,9 +306,15 @@ public class EventPropertiesPanel {
 		batchMessage = outcome.success()
 			? BBTexts.get("beatblock.event.batch.applied", outcome.updatedCount())
 			: outcome.errorMessage();
+		if (outcome.success()) {
+			ToastNotificationSystem.showSuccess(batchMessage);
+		} else if (batchMessage != null && !batchMessage.isBlank()) {
+			ToastNotificationSystem.showError(batchMessage);
+		}
 	}
 
 	private void renderAnimationEditor(EventPropertiesRef ref, Timeline timeline, TimelineEditor editor, int batchCount) {
+		pendingLivePreview = false;
 		Map<String, Object> params = ref.event().getParameters();
 		AnimationEditorViewState viewState = presenter.readAnimationEditorState(params);
 		List<EventPropertiesOption> actionOptions = presenter.actionOptions();
@@ -366,6 +374,8 @@ public class EventPropertiesPanel {
 			ImGui.endTabBar();
 		}
 
+		flushLivePreviewOnEdit();
+
 		if (validationError != null && !validationError.isBlank()) {
 			ImGui.spacing();
 			ImGui.textColored(1f, 0.45f, 0.45f, 1f, validationError);
@@ -417,21 +427,27 @@ public class EventPropertiesPanel {
 		ImGui.text(BBTexts.get("beatblock.event.timing"));
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText(BBTexts.get("beatblock.event.start_time") + "##eventTime", timeBuffer);
+		trackLivePreviewEdit();
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText(BBTexts.get("beatblock.event.duration") + "##eventDuration", durationBuffer);
+		trackLivePreviewEdit();
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText(BBTexts.get("beatblock.event.energy") + "##eventEnergy", energyBuffer);
+		trackLivePreviewEdit();
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText(BBTexts.get("beatblock.event.energy_threshold") + "##eventEnergyThreshold", energyThresholdBuffer);
+		trackLivePreviewEdit();
 
 		ImGui.spacing();
 		ImGui.text(BBTexts.get("beatblock.event.binding"));
 		if (ImGui.combo(BBTexts.get("beatblock.event.action_mode_combo") + "##eventActionMode", actionIndex, actionLabels)) {
 			validationError = null;
 		}
+		trackLivePreviewEdit();
 		if (ImGui.combo(BBTexts.get("beatblock.event.animation_preset") + "##eventAnimation", animationIndex, animationLabels)) {
 			validationError = null;
 		}
+		trackLivePreviewEdit();
 		String selectedAnimationId = animationOptions.get(animationIndex.get()).id();
 		renderPresetChannelPreview(selectedAnimationId);
 		ImGui.sameLine();
@@ -589,6 +605,23 @@ public class EventPropertiesPanel {
 		}
 	}
 
+	private void trackLivePreviewEdit() {
+		if (ImGui.isItemDeactivatedAfterEdit()) {
+			pendingLivePreview = true;
+		}
+	}
+
+	private void flushLivePreviewOnEdit() {
+		if (!pendingLivePreview || !livePreviewOnApply.get()) {
+			return;
+		}
+		pendingLivePreview = false;
+		try {
+			previewEventAtTime(Double.parseDouble(timeBuffer.get().trim()));
+		} catch (NumberFormatException ignored) {
+		}
+	}
+
 	private void renderRuntimeStatus(EventPropertiesRef ref) {
 		String eventId = ref != null && ref.event() != null ? ref.event().getId() : "";
 		if (eventId == null || eventId.isBlank()) return;
@@ -665,6 +698,7 @@ public class EventPropertiesPanel {
 			if (livePreviewOnApply.get()) {
 				previewEventAtTime(input.timeSeconds());
 			}
+			ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.toast.event_applied"));
 			bindBuffers(ref);
 		} catch (NumberFormatException ex) {
 			validationError = BBTexts.get("beatblock.event.invalid_number");

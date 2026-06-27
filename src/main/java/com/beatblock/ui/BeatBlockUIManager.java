@@ -3,6 +3,7 @@ package com.beatblock.ui;
 import com.beatblock.client.render.BeatBlockLassoOverlay;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.panels.*;
 import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
@@ -41,6 +42,7 @@ public class BeatBlockUIManager {
 	private final LayerPanel layerPanel;
 	private final RhythmDropPanel rhythmDropPanel;
 	private final QuickStartWizardPanel quickStartWizardPanel;
+	private final UndoHistoryPanel undoHistoryPanel;
 
 	private final BeatBlockPanelVisibility panelVisibility = new BeatBlockPanelVisibility();
 	private boolean firstLayout = true;
@@ -64,6 +66,7 @@ public class BeatBlockUIManager {
 		this.layerPanel = new LayerPanel();
 		this.rhythmDropPanel = new RhythmDropPanel();
 		this.quickStartWizardPanel = new QuickStartWizardPanel();
+		this.undoHistoryPanel = new UndoHistoryPanel();
 	}
 
 	public void openQuickStartWizard() {
@@ -155,10 +158,12 @@ public class BeatBlockUIManager {
 		selectionPropertiesPanel.render(panelVisibility.selectionProperties);
 		layerPanel.render(panelVisibility.layer);
 		rhythmDropPanel.render(panelVisibility.rhythmDrop);
+		undoHistoryPanel.render(panelVisibility.undoHistory);
 		ImGui.popStyleColor(5);
 
 		quickStartWizardPanel.render();
 		BeatBlockLassoOverlay.render();
+		ToastNotificationSystem.render();
 	}
 
 	public void resetLayoutState() {

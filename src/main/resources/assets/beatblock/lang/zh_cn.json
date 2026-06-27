@@ -16,6 +16,7 @@
   "beatblock.panel.selection_properties": "选择属性",
   "beatblock.panel.layer": "建造图层",
   "beatblock.panel.rhythm_drop": "天降方块",
+  "beatblock.panel.undo_history": "撤销历史",
 
   "beatblock.menu.file": "文件",
   "beatblock.menu.edit": "编辑",
@@ -241,8 +242,8 @@
   "beatblock.event.batch.applied": "已更新 %d 个事件",
   "beatblock.event.batch.none": "没有可批量编辑的动画事件",
   "beatblock.event.batch.no_changes": "请至少勾选一项批量修改",
-  "beatblock.event.live_preview": "应用时实时预览",
-  "beatblock.event.live_preview.tooltip": "应用后跳转到事件开始时间并驱动场景预览",
+  "beatblock.event.live_preview": "实时预览",
+  "beatblock.event.live_preview.tooltip": "编辑开始时间或应用后，跳转到事件开始时间并驱动场景预览",
   "beatblock.event.preview_animation": "预览",
   "beatblock.event.spatial.all": "同时 (ALL)",
   "beatblock.event.spatial.sequential": "顺序 (SEQUENTIAL)",
@@ -427,6 +428,9 @@
 
   "beatblock.animation_library.title": "动画库",
   "beatblock.animation_library.hint": "内置 %d 个方块动画预设。展开条目查看各维度通道与曲线；在事件属性面板中选择「动画模板」应用到时间线事件。",
+  "beatblock.animation_library.favorites": "收藏",
+  "beatblock.animation_library.favorite": "加入收藏",
+  "beatblock.animation_library.unfavorite": "取消收藏",
 
   "beatblock.timeline.not_loaded": "时间线（未加载模型）",
   "beatblock.timeline.tools": "工具",
@@ -965,5 +969,30 @@
   "beatblock.timeline.record.not_playing": "请先播放时间线",
   "beatblock.timeline.record.no_stage_object": "请先创建 StageObject",
   "beatblock.timeline.record.duplicate": "该时间点已有事件",
-  "beatblock.timeline.record.failed": "录制失败"
+  "beatblock.timeline.record.failed": "录制失败",
+
+  "beatblock.undo_history.title": "撤销 / 重做历史",
+  "beatblock.undo_history.undo_section": "可撤销 (%d)",
+  "beatblock.undo_history.redo_section": "可重做 (%d)",
+  "beatblock.undo_history.empty": "暂无命令历史",
+  "beatblock.undo_history.none": "（无）",
+  "beatblock.undo.add_animation": "添加动画事件",
+  "beatblock.undo.update_animation": "更新动画事件",
+  "beatblock.undo.move_event": "移动事件",
+  "beatblock.undo.delete_event": "删除事件",
+  "beatblock.undo.add_event": "添加事件",
+  "beatblock.undo.move_clip": "移动片段",
+  "beatblock.undo.clear_track": "清空轨道",
+  "beatblock.undo.composite": "批量操作 (%d 项)",
+  "beatblock.undo.create_layer": "创建图层",
+  "beatblock.undo.delete_layer": "删除图层",
+  "beatblock.undo.rename_layer": "重命名图层",
+  "beatblock.undo.toggle_layer": "切换图层可见性",
+  "beatblock.undo.bind_layer": "绑定图层到轨道",
+
+  "beatblock.toast.window": "通知",
+  "beatblock.toast.success_prefix": "✓",
+  "beatblock.toast.error_prefix": "✗",
+  "beatblock.toast.wizard.music_imported": "音乐已导入并分析",
+  "beatblock.toast.event_applied": "事件属性已应用"
 }

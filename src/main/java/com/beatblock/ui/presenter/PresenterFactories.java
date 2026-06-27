@@ -224,6 +224,17 @@ public final class PresenterFactories {
 		);
 	}
 
+	public static UndoHistoryPanelPresenter undoHistoryPanelPresenter() {
+		return undoHistoryPanelPresenter(ctx());
+	}
+
+	public static UndoHistoryPanelPresenter undoHistoryPanelPresenter(BeatBlockContext context) {
+		return new UndoHistoryPanelPresenter(
+			timelineEditorPresenter(context),
+			context::timelineEditor
+		);
+	}
+
 	private static Vec3d currentCameraPositionOrZero() {
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client != null && client.gameRenderer != null && client.gameRenderer.getCamera() != null) {
