@@ -57,7 +57,7 @@ public final class AppearancePulseTracker {
 		boolean vfx = firstFrame && vfxEnabled(ctx.getExtraParams());
 
 		for (BlockPos pos : instance.getTarget().getBlocks()) {
-			if (pos == null || !world.isChunkLoaded(pos)) continue;
+			if (pos == null || world.getChunkAsView(pos.getX() >> 4, pos.getZ() >> 4) == null) continue;
 			if (world.getBlockState(pos).isAir()) continue;
 			BlockPos immutable = pos.toImmutable();
 

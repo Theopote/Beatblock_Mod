@@ -2,6 +2,7 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.automap.engine.SmartAutoMapEngine;
 import com.beatblock.client.BeatBlockWorldPick;
+import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;

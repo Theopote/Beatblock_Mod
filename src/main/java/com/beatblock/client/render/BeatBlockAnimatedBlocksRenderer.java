@@ -62,7 +62,7 @@ public final class BeatBlockAnimatedBlocksRenderer {
 			Map.Entry<BlockPos, AnimatedBlock> e = entries.get(i);
 			BlockPos orig = e.getKey();
 			AnimatedBlock ab = e.getValue();
-			if (!clientWorld.isChunkLoaded(orig)) {
+			if (clientWorld.getChunkAsView(orig.getX() >> 4, orig.getZ() >> 4) == null) {
 				continue;
 			}
 			BlockState worldState = clientWorld.getBlockState(orig);
