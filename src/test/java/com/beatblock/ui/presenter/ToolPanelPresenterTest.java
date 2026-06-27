@@ -113,5 +113,134 @@ class ToolPanelPresenterTest {
 	void fillCornersFromSelectionFailsWithoutSelection() {
 		var outcome = presenter.fillCornersFromSelection();
 		assertFalse(outcome.result().ok());
+		assertEquals("没有可用的方块选区或包围盒。", outcome.result().messageOrEmpty());
+	}
+
+	@Test
+	void fillCornersFromSelectionFailsWhenManagerMissing() {
+		var missing = new ToolPanelPresenter(() -> null, () -> stageObjectSystem, () -> null, () -> null);
+		var outcome = missing.fillCornersFromSelection();
+		assertFalse(outcome.result().ok());
+		assertEquals("选择管理器不可用。", outcome.result().messageOrEmpty());
+	}
+
+	@Test
+	void setCornerFromCrosshairFailsWhenPickerMisses() {
+		var missing = new ToolPanelPresenter(
+			() -> selectionManager,
+			() -> stageObjectSystem,
+			() -> null,
+			() -> null
+		);
+		var outcome = missing.setCornerFromCrosshair(false);
+		assertFalse(outcome.result().ok());
+		assertEquals("未命中方块。", outcome.result().messageOrEmpty());
+	}
+
+	@Test
+	void clearCornersResetsStoredPositions() {
+		presenter.setCornerFromCrosshair(true);
+		presenter.setCornerFromCrosshair(false);
+		var outcome = presenter.clearCorners();
+		assertTrue(outcome.result().ok());
+		assertEquals(null, outcome.corners().posA());
+		assertEquals(null, outcome.corners().posB());
+	}
+
+	@Test
+	void createFromCuboidFailsWithoutWorldOrCorners() {
+		presenter.setCornerFromCrosshair(true);
+		presenter.setCornerFromCrosshair(false);
+
+		var noWorld = presenter.createFromCuboid(new ToolPanelPresenter.StageObjectCreateRequest(
+			"Cuboid", false, GroupSortingStrategy.ALL, 0.0));
+		assertFalse(noWorld.result().ok());
+		assertEquals("当前无世界上下文，无法读取选区。", noWorld.result().messageOrEmpty());
+
+		var noCorners = new ToolPanelPresenter(
+			() -> selectionManager, () -> stageObjectSystem, () -> null, () -> new BlockPos(0, 64, 0)
+		).createFromCuboid(new ToolPanelPresenter.StageObjectCreateRequest(
+			"Cuboid", false, GroupSortingStrategy.ALL, 0.0));
+		assertFalse(noCorners.result().ok());
+		assertEquals("请先设置 A/B 两个选区点。", noCorners.result().messageOrEmpty());
+	}
+
+	@Test
+	void createFromCuboidRejectsOversizedVolume() {
+		presenter.setCornerFromCrosshair(true);
+		BlockPos far = new BlockPos(
+			ToolPanelPresenter.MAX_STAGE_OBJECT_BLOCKS,
+			64,
+			ToolPanelPresenter.MAX_STAGE_OBJECT_BLOCKS
+		);
+		var withCorners = new ToolPanelPresenter(
+			() -> selectionManager,
+			() -> stageObjectSystem,
+			() -> null,
+			() -> far
+		);
+		withCorners.setCornerFromCrosshair(true);
+		withCorners.setCornerFromCrosshair(false);
+
+		var outcome = withCorners.createFromCuboid(new ToolPanelPresenter.StageObjectCreateRequest(
+			"Huge", false, GroupSortingStrategy.ALL, 0.0));
+
+		assertFalse(outcome.result().ok());
+		assertTrue(outcome.result().messageOrEmpty().contains("选区过大"));
+	}
+
+	@Test
+	void createFromSelectionSnapshotFailsOnEmptySelection() {
+		var outcome = presenter.createFromSelectionSnapshot(new ToolPanelPresenter.StageObjectCreateRequest(
+			"Empty", false, GroupSortingStrategy.ALL, 0.0));
+		assertFalse(outcome.result().ok());
+		assertEquals("当前没有方块选区。请先使用选择工具。", outcome.result().messageOrEmpty());
+	}
+
+	@Test
+	void removeStageObjectRejectsMissingId() {
+		assertFalse(presenter.removeStageObject("missing").ok());
+		assertFalse(presenter.removeStageObject("  ").ok());
+	}
+
+	@Test
+	void setSelectionModeUpdatesManager() {
+		presenter.setSelectionMode(SelectionMode.BRUSH);
+		assertEquals(SelectionMode.BRUSH, selectionManager.getMode());
+	}
+
+	@Test
+	void selectionToolViewStateReflectsManager() {
+		selectionManager.setMode(SelectionMode.LASSO);
+		selectionManager.commitLassoSelection(List.of(new BlockPos(3, 64, 3)), SelectionOperation.NEW);
+
+		var state = presenter.selectionToolViewState();
+		assertEquals(SelectionMode.LASSO, state.mode());
+		assertEquals(1, state.selectionCount());
+		assertEquals(new BlockPos(3, 64, 3), state.boundingMin());
+	}
+
+	@Test
+	void listStageObjectsSortsByName() {
+		selectionManager.commitLassoSelection(List.of(new BlockPos(0, 64, 0)), SelectionOperation.NEW);
+		presenter.createFromSelectionSnapshot(new ToolPanelPresenter.StageObjectCreateRequest(
+			"Zulu", false, GroupSortingStrategy.ALL, 0.0));
+		selectionManager.commitLassoSelection(List.of(new BlockPos(1, 64, 0)), SelectionOperation.NEW);
+		presenter.createFromSelectionSnapshot(new ToolPanelPresenter.StageObjectCreateRequest(
+			"Alpha", false, GroupSortingStrategy.ALL, 0.0));
+
+		var items = presenter.listStageObjects();
+		assertEquals(2, items.size());
+		assertEquals("Alpha", items.get(0).name());
+		assertEquals("Zulu", items.get(1).name());
+	}
+
+	@Test
+	void staticHelpersParseAndLabel() {
+		assertEquals(0.0, ToolPanelPresenter.parseStaggerSeconds("bad"), 1e-9);
+		assertEquals(1.5, ToolPanelPresenter.parseStaggerSeconds(" 1.5 "), 1e-9);
+		assertEquals(GroupSortingStrategy.RADIAL, ToolPanelPresenter.sortingStrategyAtIndex(1));
+		assertEquals("笔刷（球/立方，单击或涂抹）", ToolPanelPresenter.selectionModeLabel(SelectionMode.BRUSH));
+		assertEquals("(未设置)", ToolPanelPresenter.formatPos(null));
 	}
 }
