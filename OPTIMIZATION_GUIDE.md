@@ -14,14 +14,14 @@
 | P0 静态字段 @Deprecated | ✅ 已完成 | `BeatBlock` 10 个可变静态字段已标记 `forRemoval` |
 | P0 静态状态迁移 | ✅ 已完成 | 已删除 10 个 legacy 静态字段与 `fromLegacyStatics`；`getContext()` 未初始化时抛 `IllegalStateException` |
 | P1 JSpecify 依赖 | ✅ 已完成 | `build.gradle` 引入 `org.jspecify:jspecify:1.0.0` |
-| P1 空值注解（核心 API） | 🟡 进行中 | timeline/audio 约 **22** 个文件；见 [已注解文件清单](#已注解文件清单) |
+| P1 空值注解（核心 API） | 🟡 进行中 | `@NullMarked`：`runtime`、`timeline`（根）、`timeline.binding`、`timeline.command`（含 layer）、`audio`（根）；其余子包暂 `@NullUnmarked` |
 | P1 Timeline 并发模型 | ✅ 已完成 | 类文档明确线程模型；`animationCachesDirty` 改为 `volatile` |
 | P1 资源管理 | ✅ 已完成 | `AudioAnalysisOrchestrator` + `AudioConversionService`：`AutoCloseable`、非 daemon、优雅 shutdown |
 | P2 Map 强类型化 | 🟡 进行中 | `AnimationEventParams`；写入路径 + 绑定引擎 + 属性编辑器 + 图层绑定已接入 |
 | P2 长方法拆分 | ⬜ 未开始 | |
 | P2 Magic Numbers | ⬜ 未开始 | |
 | P3 文档/命名/覆盖率 | ⬜ 未开始 | |
-| CI NullAway | 🟡 已配置 | 可选：`./gradlew compileJava -PenableNullaway=true`（需下载 errorprone/nullaway） |
+| CI NullAway | 🟡 已配置 | `./gradlew compileJava -PenableNullaway=true` — **当前通过**（2026-06-27） |
 
 **测试基线**: `./gradlew test` — **758/758 通过**（2026-06-27）
 
@@ -71,7 +71,7 @@
 ### 进度
 - ✅ 依赖与 `BeatBlockContext`、timeline/audio 核心模型
 - 🟡 UI / engine / client 包待扩展
-- 🟡 NullAway：`build.gradle` 已配置，通过 `-PenableNullaway=true` 启用；当前仅 `com.beatblock.runtime` 为 `@NullMarked`
+- 🟡 NullAway：`build.gradle` 已配置；`@NullMarked` 包：`runtime`、`timeline`（根）、`timeline.binding`、`timeline.command`（含 `layer`）、`audio`（根）；`BeatBlockContext` 字段为 `@Nullable` 以支持测试用部分构建
 
 ---
 
