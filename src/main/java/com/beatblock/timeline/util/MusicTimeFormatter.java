@@ -1,5 +1,7 @@
 package com.beatblock.timeline.util;
 
+import com.beatblock.ui.i18n.BBTexts;
+
 /**
  * 音乐时间格式化工具：将秒数转换为 mm:ss 和小节:拍 格式，
  * 用于时间线 UI 标尺标签与工具栏时间显示。
@@ -45,7 +47,7 @@ public final class MusicTimeFormatter {
 		double totalBeats = Math.max(0, seconds) / spb;
 		int bar  = (int) (totalBeats / BEATS_PER_BAR) + 1;
 		int beat = ((int) totalBeats % BEATS_PER_BAR) + 1;
-		return "Bar " + bar + " Beat " + beat;
+		return BBTexts.get("beatblock.timeline.time.bar_beat", bar, beat);
 	}
 
 	/**
@@ -57,9 +59,14 @@ public final class MusicTimeFormatter {
 		String cur = formatMmSs(currentSec);
 		String dur = formatMmSs(durationSec);
 		if (bpm > 0) {
-			return cur + " / " + dur + "  |  " + formatBarBeat(currentSec, bpm);
+			return BBTexts.get(
+				"beatblock.timeline.time.position",
+				cur,
+				dur,
+				formatBarBeat(currentSec, bpm)
+			);
 		}
-		return cur + " / " + dur;
+		return BBTexts.get("beatblock.timeline.time.position_no_bpm", cur, dur);
 	}
 
 	/**

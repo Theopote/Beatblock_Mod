@@ -1,9 +1,12 @@
 package com.beatblock.timeline.util;
 
+import com.beatblock.test.WithBeatBlockContext;
+import com.beatblock.ui.i18n.BBTexts;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@WithBeatBlockContext
 class MusicTimeFormatterTest {
 
 	@Test
@@ -20,18 +23,27 @@ class MusicTimeFormatterTest {
 
 	@Test
 	void formatBarBeatAt120Bpm() {
-		assertEquals("Bar 1 Beat 1", MusicTimeFormatter.formatBarBeat(0, 120));
-		assertEquals("Bar 2 Beat 1", MusicTimeFormatter.formatBarBeat(2.0, 120));
-		assertEquals("Bar 2 Beat 2", MusicTimeFormatter.formatBarBeat(2.5, 120));
+		assertEquals(BBTexts.get("beatblock.timeline.time.bar_beat", 1, 1), MusicTimeFormatter.formatBarBeat(0, 120));
+		assertEquals(BBTexts.get("beatblock.timeline.time.bar_beat", 2, 1), MusicTimeFormatter.formatBarBeat(2.0, 120));
+		assertEquals(BBTexts.get("beatblock.timeline.time.bar_beat", 2, 2), MusicTimeFormatter.formatBarBeat(2.5, 120));
 		assertEquals("", MusicTimeFormatter.formatBarBeat(1.0, 0));
 	}
 
 	@Test
 	void formatPositionDisplayWithAndWithoutBpm() {
-		assertEquals("1:00 / 3:00  |  Bar 31 Beat 1",
-			MusicTimeFormatter.formatPositionDisplay(60, 180, 120));
-		assertEquals("1:00 / 3:00",
-			MusicTimeFormatter.formatPositionDisplay(60, 180, 0));
+		assertEquals(
+			BBTexts.get(
+				"beatblock.timeline.time.position",
+				"1:00",
+				"3:00",
+				BBTexts.get("beatblock.timeline.time.bar_beat", 31, 1)
+			),
+			MusicTimeFormatter.formatPositionDisplay(60, 180, 120)
+		);
+		assertEquals(
+			BBTexts.get("beatblock.timeline.time.position_no_bpm", "1:00", "3:00"),
+			MusicTimeFormatter.formatPositionDisplay(60, 180, 0)
+		);
 	}
 
 	@Test

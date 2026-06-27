@@ -7,6 +7,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.binding.AnimationBindingEngine;
 import com.beatblock.timeline.generation.StepSequenceBaker;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.RhythmDropPanelPresenter.GenerateRequest;
 import net.minecraft.util.math.Vec3d;
 
@@ -47,22 +48,22 @@ public final class TimelineToolbarActionsPresenter {
 	public ActionOutcome runBindingMap() {
 		Timeline current = timeline.get();
 		if (current == null) {
-			return new ActionOutcome("Binding Map skipped: timeline unavailable", false, -1);
+			return new ActionOutcome(BBTexts.get("beatblock.message.binding_map_skipped"), false, -1);
 		}
 		int count = AnimationBindingEngine.applyRules(current, TimelineTrackMeta.ROW_ANIM_BLOCK, true);
 		syncClockDuration();
-		return new ActionOutcome("Binding Map generated " + count + " events", count > 0, count);
+		return new ActionOutcome(BBTexts.get("beatblock.message.binding_map_generated", count), count > 0, count);
 	}
 
 	public ActionOutcome runAutoMap() {
 		Timeline current = timeline.get();
 		if (current == null) {
-			return new ActionOutcome("Auto Map skipped: timeline unavailable", false, -1);
+			return new ActionOutcome(BBTexts.get("beatblock.message.auto_map_skipped"), false, -1);
 		}
 		AutoMapConfig config = AutoMapConfig.createDefault();
 		int count = AutoMapGenerator.generate(current, config, true);
 		syncClockDuration();
-		return new ActionOutcome("Auto Map generated " + count + " events", count > 0, count);
+		return new ActionOutcome(BBTexts.get("beatblock.message.auto_map_generated", count), count > 0, count);
 	}
 
 	public ActionOutcome runGenerateRhythmDrops() {
@@ -70,7 +71,9 @@ public final class TimelineToolbarActionsPresenter {
 		syncClockDuration();
 		return new ActionOutcome(
 			result.messageOrEmpty().isBlank()
-				? (result.ok() ? "RhythmDrop 已生成" : "RhythmDrop 生成失败")
+				? (result.ok()
+					? BBTexts.get("beatblock.message.rhythm_drop_ok")
+					: BBTexts.get("beatblock.message.rhythm_drop_failed"))
 				: result.messageOrEmpty(),
 			result.ok(),
 			rhythmDropPresenter.viewState().selectionCount()
@@ -82,7 +85,9 @@ public final class TimelineToolbarActionsPresenter {
 		syncClockDuration();
 		return new ActionOutcome(
 			result.messageOrEmpty().isBlank()
-				? (result.ok() ? "RhythmDrop 已生成" : "RhythmDrop 生成失败")
+				? (result.ok()
+					? BBTexts.get("beatblock.message.rhythm_drop_ok")
+					: BBTexts.get("beatblock.message.rhythm_drop_failed"))
 				: result.messageOrEmpty(),
 			result.ok(),
 			rhythmDropPresenter.viewState().selectionCount()
@@ -92,7 +97,7 @@ public final class TimelineToolbarActionsPresenter {
 	public ActionOutcome runBakeStepSequences() {
 		Timeline current = timeline.get();
 		if (current == null) {
-			return new ActionOutcome("Bake STEP skipped: timeline unavailable", false, 0);
+			return new ActionOutcome(BBTexts.get("beatblock.message.bake_step_skipped"), false, 0);
 		}
 		TimelineEditor editor = timelineEditor.get();
 		Vec3d camera = cameraPosition != null ? cameraPosition.get() : Vec3d.ZERO;
@@ -104,12 +109,16 @@ public final class TimelineToolbarActionsPresenter {
 		syncClockDuration();
 		if (result.stepEventsBaked() <= 0) {
 			String detail = result.stepEventsSkipped() > 0
-				? " (" + result.stepEventsSkipped() + " STEP events skipped; check StageObject)"
-				: " (no STEP events on timeline)";
-			return new ActionOutcome("Bake STEP: nothing baked" + detail, false, 0);
+				? BBTexts.get("beatblock.message.bake_step_detail_skipped", result.stepEventsSkipped())
+				: BBTexts.get("beatblock.message.bake_step_detail_none");
+			return new ActionOutcome(BBTexts.get("beatblock.message.bake_step_nothing", detail), false, 0);
 		}
 		return new ActionOutcome(
-			"Bake STEP: " + result.stepEventsBaked() + " STEP -> " + result.burstEventsCreated() + " burst events",
+			BBTexts.get(
+				"beatblock.message.bake_step_ok",
+				result.stepEventsBaked(),
+				result.burstEventsCreated()
+			),
 			true,
 			result.burstEventsCreated()
 		);

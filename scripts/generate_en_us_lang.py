@@ -895,6 +895,25 @@ EN_OVERRIDES: dict[str, str] = {
     "beatblock.timeline.binding.apply_skipped": "%s skipped: timeline unavailable",
     "beatblock.timeline.binding.apply_generated": "%s generated %d events",
 
+    "beatblock.message.binding_map_skipped": "Binding Map skipped: timeline unavailable",
+    "beatblock.message.binding_map_generated": "Binding Map generated %d events",
+    "beatblock.message.auto_map_skipped": "Auto Map skipped: timeline unavailable",
+    "beatblock.message.auto_map_generated": "Auto Map generated %d events",
+    "beatblock.message.bake_step_skipped": "Bake STEP skipped: timeline unavailable",
+    "beatblock.message.bake_step_nothing": "Bake STEP: nothing baked%s",
+    "beatblock.message.bake_step_detail_skipped": " (%d STEP events skipped; check StageObject)",
+    "beatblock.message.bake_step_detail_none": " (no STEP events on timeline)",
+    "beatblock.message.bake_step_ok": "Bake STEP: %d STEP -> %d burst events",
+
+    "beatblock.timeline.rollback.preview": "Preview",
+    "beatblock.timeline.rollback.persistent": "Persistent",
+    "beatblock.timeline.rollback.status_preview": "Action: Preview",
+    "beatblock.timeline.rollback.status_persistent": "Action: Persistent",
+
+    "beatblock.timeline.time.bar_beat": "Bar %d Beat %d",
+    "beatblock.timeline.time.position": "%s / %s  |  %s",
+    "beatblock.timeline.time.position_no_bpm": "%s / %s",
+
     "beatblock.about.tagline": "Music-driven Minecraft block animation engine",
     "beatblock.about.description": "Import music, analyze beats and frequency bands, and choreograph block animations, camera moves, and particles on the timeline for performances that dance with the music.",
     "beatblock.about.powered_by": "Powered by Fabric and ImGui.",

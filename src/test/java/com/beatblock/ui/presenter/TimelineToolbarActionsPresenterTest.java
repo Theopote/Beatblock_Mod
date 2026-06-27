@@ -6,6 +6,7 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.binding.AnimationBindingEngine;
 import com.beatblock.timeline.binding.AnimationBindingRule;
+import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.Vec3d;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,7 @@ class TimelineToolbarActionsPresenterTest {
 		var outcome = presenter.runBindingMap();
 		assertFalse(outcome.success());
 		assertEquals(0, outcome.count());
-		assertTrue(outcome.message().contains("Binding Map"));
+		assertEquals(BBTexts.get("beatblock.message.binding_map_generated", 0), outcome.message());
 	}
 
 	@Test
@@ -66,7 +67,7 @@ class TimelineToolbarActionsPresenterTest {
 	void runAutoMapReturnsOutcomeOnEmptyTimeline() {
 		var outcome = presenter.runAutoMap();
 		assertFalse(outcome.success());
-		assertTrue(outcome.message().contains("Auto Map"));
+		assertEquals(BBTexts.get("beatblock.message.auto_map_generated", 0), outcome.message());
 	}
 
 	@Test
@@ -74,7 +75,7 @@ class TimelineToolbarActionsPresenterTest {
 		var missing = new TimelineToolbarActionsPresenter(() -> null, () -> editor, () -> Vec3d.ZERO);
 		var outcome = missing.runAutoMap();
 		assertFalse(outcome.success());
-		assertTrue(outcome.message().contains("skipped"));
+		assertEquals(BBTexts.get("beatblock.message.auto_map_skipped"), outcome.message());
 	}
 
 	@Test
@@ -82,21 +83,24 @@ class TimelineToolbarActionsPresenterTest {
 		var missing = new TimelineToolbarActionsPresenter(() -> null, () -> editor, () -> Vec3d.ZERO);
 		var outcome = missing.runBakeStepSequences();
 		assertFalse(outcome.success());
-		assertTrue(outcome.message().contains("skipped"));
+		assertEquals(BBTexts.get("beatblock.message.bake_step_skipped"), outcome.message());
 	}
 
 	@Test
 	void runBakeStepReportsNothingToBake() {
 		var outcome = presenter.runBakeStepSequences();
 		assertFalse(outcome.success());
-		assertTrue(outcome.message().contains("Bake STEP"));
+		assertEquals(
+			BBTexts.get("beatblock.message.bake_step_nothing", BBTexts.get("beatblock.message.bake_step_detail_none")),
+			outcome.message()
+		);
 	}
 
 	@Test
 	void runGenerateRhythmDropsFailsWithoutSelection() {
 		var outcome = presenter.runGenerateRhythmDrops();
 		assertFalse(outcome.success());
-		assertTrue(outcome.message().contains("落点"));
+		assertTrue(outcome.message().contains("落点") || outcome.message().contains("landing"));
 	}
 
 	@Test
@@ -104,5 +108,6 @@ class TimelineToolbarActionsPresenterTest {
 		var missing = new TimelineToolbarActionsPresenter(() -> null, () -> editor, () -> Vec3d.ZERO);
 		var outcome = missing.runBindingMap();
 		assertFalse(outcome.success());
+		assertEquals(BBTexts.get("beatblock.message.binding_map_skipped"), outcome.message());
 	}
 }

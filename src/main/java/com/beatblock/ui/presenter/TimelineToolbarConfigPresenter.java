@@ -35,7 +35,10 @@ public final class TimelineToolbarConfigPresenter {
 		"beatblock.timeline.demucs.clip_mode.sustain"
 	};
 	private static final String[] CLIP_GENERATION_MODE_VALUES = { "mixed", "trigger", "sustain" };
-	private static final String[] ACTION_ROLLBACK_LABELS = { "Preview", "Persistent" };
+	private static final String[] ACTION_ROLLBACK_LABEL_KEYS = {
+		"beatblock.timeline.rollback.preview",
+		"beatblock.timeline.rollback.persistent"
+	};
 	private static final String[] ACTION_ROLLBACK_VALUES = { "preview", "persistent" };
 	private static final String[] DEMUCS_FEATURE_KEYS = {
 		"kick", "snare", "hihat", "hihat_open", "snare_hi", "bass", "vocals", "other"
@@ -58,7 +61,7 @@ public final class TimelineToolbarConfigPresenter {
 	}
 
 	public static String[] actionRollbackLabels() {
-		return ACTION_ROLLBACK_LABELS.clone();
+		return BBTexts.labels(ACTION_ROLLBACK_LABEL_KEYS);
 	}
 
 	public static String actionRollbackValueAt(int index) {
@@ -327,7 +330,9 @@ public final class TimelineToolbarConfigPresenter {
 
 	public ActionRollbackViewState actionRollbackViewState() {
 		String mode = readActionRollbackMode();
-		String label = "persistent".equalsIgnoreCase(mode) ? "Action: Persistent" : "Action: Preview";
+		String label = "persistent".equalsIgnoreCase(mode)
+			? BBTexts.get("beatblock.timeline.rollback.status_persistent")
+			: BBTexts.get("beatblock.timeline.rollback.status_preview");
 		return new ActionRollbackViewState(mode, label);
 	}
 
