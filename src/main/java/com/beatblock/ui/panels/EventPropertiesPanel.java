@@ -4,8 +4,8 @@ import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.engine.influence.BlockInfluencePreset;
 import com.beatblock.engine.influence.BlockInfluencePresets;
-import com.beatblock.engine.influence.ChannelSpec;
 import com.beatblock.engine.influence.InfluenceDimension;
+import com.beatblock.ui.imgui.PresetChannelPreview;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
@@ -565,19 +565,7 @@ public class EventPropertiesPanel {
 	}
 
 	private void renderPresetChannelPreview(String presetId) {
-		BlockInfluencePreset preset = BlockInfluencePresets.get(presetId);
-		if (preset == null || preset.getChannels().isEmpty()) return;
-		if (!ImGui.treeNode("Preset 通道##eventPresetChannels")) return;
-		try {
-			ImGui.textDisabled(preset.getDisplayName() + " · " + preset.getDefaultDurationSeconds() + "s");
-			for (ChannelSpec channel : preset.getChannels()) {
-				if (channel == null || !channel.enabled()) continue;
-				ImGui.bulletText(String.format(Locale.ROOT, "%s / %s / %s (%.2f→%.2f)",
-					channel.dimension(), channel.path(), channel.curve(), channel.from(), channel.to()));
-			}
-		} finally {
-			ImGui.treePop();
-		}
+		PresetChannelPreview.renderCollapsible("Preset 通道##eventPresetChannels", BlockInfluencePresets.get(presetId));
 	}
 
 	private static int indexOfOption(List<EventPropertiesOption> options, String id) {
