@@ -13,5 +13,7 @@ public enum PathKind {
 	WAVE_Y,
 	SCALE_UNIFORM,
 	BLOCK_STATE,
-	VISIBLE
+	VISIBLE,
+	/** VFX 维度：动画接近结束时触发一次粒子（见 {@link com.beatblock.engine.influence.ImpactVfxTracker}）。 */
+	IMPACT_TRIGGER
 }

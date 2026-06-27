@@ -67,7 +67,9 @@ public final class BeatBlockAnimatedBlocksRenderer {
 			if (!clientWorld.isChunkLoaded(orig)) {
 				continue;
 			}
-			BlockState state = world.getBlockState(orig);
+			BlockState worldState = world.getBlockState(orig);
+			BlockState override = ab.getAppearanceOverride();
+			BlockState state = override != null ? override : worldState;
 			if (state.isAir()) {
 				continue;
 			}
@@ -106,8 +108,14 @@ public final class BeatBlockAnimatedBlocksRenderer {
 		}
 	}
 
-	/** 与世界中该格方块重合且无旋转/缩放时不再叠一层，避免深度冲突发黑。 */
+	/**
+	 * 与世界中该格方块重合且无旋转/缩放/外观覆盖时不再叠一层，避免深度冲突发黑。
+	 * 存在外观覆盖（如踩点闪烁）时必须绘制，否则即便方块完全静止，闪烁效果也无法显示。
+	 */
 	private static boolean isRedundantWithWorldBlock(BlockPos orig, AnimatedBlock ab, Vec3d anim) {
+		if (ab.getAppearanceOverride() != null) {
+			return false;
+		}
 		Vec3d rest = new Vec3d(orig.getX() + 0.5, orig.getY(), orig.getZ() + 0.5);
 		if (anim.squaredDistanceTo(rest) > REST_EPS_SQ) {
 			return false;

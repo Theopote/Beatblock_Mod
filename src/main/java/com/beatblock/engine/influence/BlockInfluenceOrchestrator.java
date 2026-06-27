@@ -1,7 +1,6 @@
 package com.beatblock.engine.influence;
 
 import com.beatblock.engine.AnimationPlayer;
-import com.beatblock.engine.BlockControlExecutor;
 import com.beatblock.engine.BuildSequencer;
 import com.beatblock.engine.EffectContext;
 import com.beatblock.engine.EngineAnimationInstance;
@@ -15,12 +14,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 统一帧编排：动画 preset 求值 + APPEARANCE 脉冲 + 建造 EXISTENCE mutation，单入口 apply。
+ * 统一帧编排：动画 preset 求值 + APPEARANCE 脉冲 + VFX 命中触发 + 建造 EXISTENCE mutation，单入口 apply。
  */
 public final class BlockInfluenceOrchestrator {
 
 	private final BlockInfluenceEvaluator evaluator = new BlockInfluenceEvaluator();
 	private final AppearancePulseTracker appearanceTracker = new AppearancePulseTracker();
+	private final ImpactVfxTracker impactVfxTracker = new ImpactVfxTracker();
 	private final Map<String, Float> lastProgressByInstance = new HashMap<>();
 
 	private InfluenceFrame lastFrame = new InfluenceFrame();
@@ -59,14 +59,9 @@ public final class BlockInfluenceOrchestrator {
 	) {
 		InfluenceFrame frame = new InfluenceFrame();
 
-		if (animationPlayer != null && world != null) {
-			for (EngineAnimationInstance instance : animationPlayer.getActiveInstances()) {
-				if (instance.isActiveAt(timelineTimeSeconds)) continue;
-				if (timelineTimeSeconds <= instance.getEndTimeSeconds()) continue;
-				appearanceTracker.revert(InfluenceInstanceKeys.key(instance), frame, world);
-			}
-		}
-
+		// 实例结束（或尚未开始而被移除）时统一清理：lastProgressByInstance 与
+		// appearanceTracker 的闪烁状态都不再需要任何世界写入——闪烁纯粹是渲染层外观覆盖，
+		// 停止设置覆盖、对应 AnimatedBlock 不再出现在下一帧即等于「自动还原」。
 		Set<String> endingKeys = new HashSet<>();
 		if (animationPlayer != null) {
 			for (EngineAnimationInstance instance : animationPlayer.getActiveInstances()) {
@@ -78,6 +73,7 @@ public final class BlockInfluenceOrchestrator {
 			for (String key : endingKeys) {
 				lastProgressByInstance.remove(key);
 				appearanceTracker.clearInstance(key);
+				impactVfxTracker.clearInstance(key);
 			}
 		}
 
@@ -123,5 +119,6 @@ public final class BlockInfluenceOrchestrator {
 		if (world != null) {
 			appearanceTracker.contribute(instanceKey, instance, preset, frame, world, t, previousT, ctx);
 		}
+		impactVfxTracker.contribute(instanceKey, instance, preset, frame, t, previousT, ctx);
 	}
 }

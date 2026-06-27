@@ -119,6 +119,24 @@ public final class BlockInfluencePresets {
 			))
 			.build());
 
+		register(BlockInfluencePreset.builder("RhythmDrop", "节奏坠落")
+			.durationSeconds(1.0f)
+			.channel(ChannelSpec.enabled(
+				InfluenceDimension.TRANSFORM_POSITION,
+				PathKind.WORLD_TRAJECTORY,
+				CurveKind.GRAVITY_REMAINING,
+				6f,
+				0f
+			))
+			.channel(ChannelSpec.enabled(
+				InfluenceDimension.VFX,
+				PathKind.IMPACT_TRIGGER,
+				CurveKind.CONST_ONE,
+				0.92f,
+				1f
+			))
+			.build());
+
 		register(BlockInfluencePreset.builder("BlockExplosion", "爆炸")
 			.durationSeconds(0.8f)
 			.channel(ChannelSpec.enabled(
