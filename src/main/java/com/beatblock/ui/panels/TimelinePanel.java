@@ -40,10 +40,10 @@ public class TimelinePanel {
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.TIMELINE_PANEL_WINDOW);
+			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.timelinePanelWindow());
 			return;
 		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.TIMELINE_PANEL_WINDOW, pOpen, WINDOW_FLAGS)) {
+		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.timelinePanelWindow(), pOpen, WINDOW_FLAGS)) {
 			return;
 		}
 		try {
@@ -90,7 +90,7 @@ public class TimelinePanel {
 				editor.renderPlayheadOverlay();
 			}
 		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.TIMELINE_PANEL_WINDOW);
+			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.timelinePanelWindow());
 		}
 	}
 }

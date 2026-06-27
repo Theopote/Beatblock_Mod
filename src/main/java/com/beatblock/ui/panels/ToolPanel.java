@@ -67,10 +67,10 @@ public class ToolPanel {
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.TOOL_PANEL_WINDOW);
+			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.toolPanelWindow());
 			return;
 		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.TOOL_PANEL_WINDOW, pOpen, WINDOW_FLAGS)) {
+		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.toolPanelWindow(), pOpen, WINDOW_FLAGS)) {
 			return;
 		}
 		try {
@@ -98,7 +98,7 @@ public class ToolPanel {
 
 			renderStageObjectCreator();
 		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.TOOL_PANEL_WINDOW);
+			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.toolPanelWindow());
 		}
 
 		if (showAutoMapSettings) {

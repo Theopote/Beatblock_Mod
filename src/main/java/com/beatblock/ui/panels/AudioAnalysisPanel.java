@@ -46,13 +46,13 @@ public final class AudioAnalysisPanel implements AudioAnalysisPanelHost {
 
     public void render(ImBoolean pOpen) {
         if (!pOpen.get()) {
-            BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.AUDIO_ANALYSIS_WINDOW);
+            BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.audioAnalysisWindow());
             return;
         }
 		ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding,
 			AudioAnalysisPanelRenderer.outerPaddingX(),
 			AudioAnalysisPanelRenderer.outerPaddingY());
-        if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.AUDIO_ANALYSIS_WINDOW, pOpen, WINDOW_FLAGS)) {
+        if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.audioAnalysisWindow(), pOpen, WINDOW_FLAGS)) {
             ImGui.popStyleVar();
             return;
         }
@@ -60,7 +60,7 @@ public final class AudioAnalysisPanel implements AudioAnalysisPanelHost {
         try {
 			AudioAnalysisPanelRenderer.renderContent(this);
         } finally {
-            BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.AUDIO_ANALYSIS_WINDOW);
+            BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.audioAnalysisWindow());
         }
     }
 

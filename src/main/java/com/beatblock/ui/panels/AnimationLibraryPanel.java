@@ -20,10 +20,10 @@ public class AnimationLibraryPanel {
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.ANIMATION_LIBRARY_WINDOW);
+			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.animationLibraryWindow());
 			return;
 		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.ANIMATION_LIBRARY_WINDOW, pOpen, WINDOW_FLAGS)) {
+		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.animationLibraryWindow(), pOpen, WINDOW_FLAGS)) {
 			return;
 		}
 		try {
@@ -42,7 +42,7 @@ public class AnimationLibraryPanel {
 			}
 			ImGui.endChild();
 		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.ANIMATION_LIBRARY_WINDOW);
+			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.animationLibraryWindow());
 		}
 	}
 

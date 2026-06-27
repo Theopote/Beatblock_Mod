@@ -1,5 +1,6 @@
 package com.beatblock.ui.layout;
 
+import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 import imgui.flag.ImGuiDir;
 import imgui.type.ImInt;
@@ -19,19 +20,58 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(BeatBlockDockSpaceLayoutBuilder.class);
 
-	/** 与各面板 window name 一致，用于 dockBuilderDockWindow */
-	public static final String AUDIO_ANALYSIS_WINDOW    = "音频解析###AudioAnalysisPanel";
-	public static final String TOOL_PANEL_WINDOW        = "工具###ToolPanel";
-	public static final String MARKER_PANEL_WINDOW      = "标记与调试###MarkerPanel";
-	public static final String EVENT_PROPERTIES_WINDOW  = "事件属性###EventPropertiesPanel";
-	public static final String CAMERA_PROPERTIES_WINDOW = "摄像机属性###CameraPropertiesPanel";
-	public static final String TIMELINE_PANEL_WINDOW    = "时间线###TimelinePanel";
-	public static final String ANIMATION_LIBRARY_WINDOW = "动画库###AnimationLibraryPanel";
-	public static final String SELECTION_PROPERTIES_WINDOW = "选择属性###BeatBlockSelectionProperties";
-	public static final String LAYER_PANEL_WINDOW = "建造图层###LayerPanel";
-	public static final String RHYTHM_DROP_PANEL_WINDOW = "天降方块###RhythmDropPanel";
+	public static final String AUDIO_ANALYSIS_PANEL_ID = "AudioAnalysisPanel";
+	public static final String TOOL_PANEL_ID = "ToolPanel";
+	public static final String MARKER_PANEL_ID = "MarkerPanel";
+	public static final String EVENT_PROPERTIES_PANEL_ID = "EventPropertiesPanel";
+	public static final String CAMERA_PROPERTIES_PANEL_ID = "CameraPropertiesPanel";
+	public static final String TIMELINE_PANEL_ID = "TimelinePanel";
+	public static final String ANIMATION_LIBRARY_PANEL_ID = "AnimationLibraryPanel";
+	public static final String SELECTION_PROPERTIES_PANEL_ID = "BeatBlockSelectionProperties";
+	public static final String LAYER_PANEL_ID = "LayerPanel";
+	public static final String RHYTHM_DROP_PANEL_ID = "RhythmDropPanel";
 
 	private static boolean layoutInitialized = false;
+
+	public static String audioAnalysisWindow() {
+		return BBTexts.windowTitle("beatblock.panel.audio_analysis", AUDIO_ANALYSIS_PANEL_ID);
+	}
+
+	public static String toolPanelWindow() {
+		return BBTexts.windowTitle("beatblock.panel.tool", TOOL_PANEL_ID);
+	}
+
+	public static String markerPanelWindow() {
+		return BBTexts.windowTitle("beatblock.panel.marker_debug", MARKER_PANEL_ID);
+	}
+
+	public static String eventPropertiesWindow() {
+		return BBTexts.windowTitle("beatblock.panel.event_properties", EVENT_PROPERTIES_PANEL_ID);
+	}
+
+	public static String cameraPropertiesWindow() {
+		return BBTexts.windowTitle("beatblock.panel.camera_properties", CAMERA_PROPERTIES_PANEL_ID);
+	}
+
+	public static String timelinePanelWindow() {
+		return BBTexts.windowTitle("beatblock.panel.timeline", TIMELINE_PANEL_ID);
+	}
+
+	public static String animationLibraryWindow() {
+		return BBTexts.windowTitle("beatblock.panel.animation_library", ANIMATION_LIBRARY_PANEL_ID);
+	}
+
+	public static String selectionPropertiesWindow() {
+		return BBTexts.windowTitle("beatblock.panel.selection_properties", SELECTION_PROPERTIES_PANEL_ID);
+	}
+
+	public static String layerPanelWindow() {
+		return BBTexts.windowTitle("beatblock.panel.layer", LAYER_PANEL_ID);
+	}
+
+	public static String rhythmDropPanelWindow() {
+		return BBTexts.windowTitle("beatblock.panel.rhythm_drop", RHYTHM_DROP_PANEL_ID);
+	}
 
 	public static void buildDefaultLayout(int dockspaceId) {
 		if (layoutInitialized) return;
@@ -67,12 +107,12 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 			imgui.internal.ImGui.dockBuilderSplitNode(dockRight.get(), ImGuiDir.Up, 0.5f, dockRightTop, dockRightBottom);
 
 			// 4. 停靠窗口（中间不 dock 任何窗口，即为 Minecraft 场景区域）
-			imgui.internal.ImGui.dockBuilderDockWindow(TIMELINE_PANEL_WINDOW, dockBottom.get());
-			imgui.internal.ImGui.dockBuilderDockWindow(AUDIO_ANALYSIS_WINDOW, dockLeftTop.get());
-			imgui.internal.ImGui.dockBuilderDockWindow(TOOL_PANEL_WINDOW, dockLeftMiddle.get());
-			imgui.internal.ImGui.dockBuilderDockWindow(MARKER_PANEL_WINDOW, dockLeftBottom.get());
-			imgui.internal.ImGui.dockBuilderDockWindow(EVENT_PROPERTIES_WINDOW, dockRightTop.get());
-			imgui.internal.ImGui.dockBuilderDockWindow(CAMERA_PROPERTIES_WINDOW, dockRightBottom.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(timelinePanelWindow(), dockBottom.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(audioAnalysisWindow(), dockLeftTop.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(toolPanelWindow(), dockLeftMiddle.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(markerPanelWindow(), dockLeftBottom.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(eventPropertiesWindow(), dockRightTop.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(cameraPropertiesWindow(), dockRightBottom.get());
 
 			imgui.internal.ImGui.dockBuilderFinish(dockspaceId);
 			layoutInitialized = true;

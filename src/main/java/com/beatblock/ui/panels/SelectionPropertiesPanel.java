@@ -69,10 +69,10 @@ public class SelectionPropertiesPanel {
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.SELECTION_PROPERTIES_WINDOW);
+			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.selectionPropertiesWindow());
 			return;
 		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.SELECTION_PROPERTIES_WINDOW, pOpen, WINDOW_FLAGS)) {
+		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.selectionPropertiesWindow(), pOpen, WINDOW_FLAGS)) {
 			return;
 		}
 		try {
@@ -252,7 +252,7 @@ public class SelectionPropertiesPanel {
 				presenter.clearMessage();
 			}
 		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.SELECTION_PROPERTIES_WINDOW);
+			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.selectionPropertiesWindow());
 		}
 	}
 }

@@ -43,17 +43,17 @@ public class MarkerPanel {
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.MARKER_PANEL_WINDOW);
+			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.markerPanelWindow());
 			return;
 		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.MARKER_PANEL_WINDOW, pOpen, WINDOW_FLAGS)) {
+		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.markerPanelWindow(), pOpen, WINDOW_FLAGS)) {
 			return;
 		}
 		try {
 			renderLastActionExecutionStatus();
 			renderMarkerManager();
 		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.MARKER_PANEL_WINDOW);
+			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.markerPanelWindow());
 		}
 	}
 

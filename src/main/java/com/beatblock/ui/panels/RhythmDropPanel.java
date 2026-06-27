@@ -44,10 +44,10 @@ public class RhythmDropPanel {
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.RHYTHM_DROP_PANEL_WINDOW);
+			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.rhythmDropPanelWindow());
 			return;
 		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.RHYTHM_DROP_PANEL_WINDOW, pOpen, WINDOW_FLAGS)) {
+		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.rhythmDropPanelWindow(), pOpen, WINDOW_FLAGS)) {
 			return;
 		}
 		try {
@@ -102,7 +102,7 @@ public class RhythmDropPanel {
 				ImGui.textWrapped(statusMessage);
 			}
 		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.RHYTHM_DROP_PANEL_WINDOW);
+			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.rhythmDropPanelWindow());
 		}
 	}
 

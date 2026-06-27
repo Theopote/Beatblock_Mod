@@ -69,10 +69,10 @@ public class CameraPropertiesPanel {
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.CAMERA_PROPERTIES_WINDOW);
+			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.cameraPropertiesWindow());
 			return;
 		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.CAMERA_PROPERTIES_WINDOW, pOpen, WINDOW_FLAGS)) {
+		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.cameraPropertiesWindow(), pOpen, WINDOW_FLAGS)) {
 			return;
 		}
 		try {
@@ -124,7 +124,7 @@ public class CameraPropertiesPanel {
 				ImGui.endDisabled();
 			}
 		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.CAMERA_PROPERTIES_WINDOW);
+			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.cameraPropertiesWindow());
 		}
 	}
 

@@ -1,6 +1,7 @@
 package com.beatblock.ui.panels;
 
 import com.beatblock.ui.BeatBlockPanelVisibility;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.MenuBarPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
@@ -54,100 +55,95 @@ public class MenuBarPanel {
 	public void render() {
 		if (!ImGui.beginMainMenuBar()) return;
 		try {
-			// 文件
-			if (ImGui.beginMenu("文件")) {
-				if (ImGui.menuItem("打开工程(.osc)", "Ctrl+Shift+O")) {
+			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.file"))) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.open_project"), "Ctrl+Shift+O")) {
 					showOpenProjectDialog = true;
 					projectDialogMessage = "";
 					openProjectPath.set("");
 				}
-				if (ImGui.menuItem("保存工程(.osc)", "Ctrl+S")) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.save_project"), "Ctrl+S")) {
 					showSaveProjectDialog = true;
 					projectDialogMessage = "";
 					saveProjectPath.set(presenter.defaultSaveProjectPath());
 				}
 				ImGui.separator();
-				if (ImGui.menuItem("导入音乐", "Ctrl+O")) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.import_music"), "Ctrl+O")) {
 					showImportDialog = true;
 					importPath.set("");
 				}
 				ImGui.separator();
-				if (ImGui.menuItem("关闭 BeatBlock", "Esc")) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.close_beatblock"), "Esc")) {
 					if (onCloseRequest != null) onCloseRequest.run();
 				}
 				ImGui.endMenu();
 			}
-			// 编辑
-			if (ImGui.beginMenu("编辑")) {
+			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.edit"))) {
 				var undoRedo = presenter.undoRedoState();
-				if (ImGui.menuItem("撤销", "Ctrl+Z", false, undoRedo.canUndo())) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.undo"), "Ctrl+Z", false, undoRedo.canUndo())) {
 					presenter.undo();
 				}
-				if (ImGui.menuItem("重做", "Ctrl+Y", false, undoRedo.canRedo())) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.redo"), "Ctrl+Y", false, undoRedo.canRedo())) {
 					presenter.redo();
 				}
 				ImGui.endMenu();
 			}
-			// 视图
-			if (ImGui.beginMenu("视图")) {
-				if (ImGui.menuItem("关闭所有面板")) {
+			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.view"))) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.close_all_panels"))) {
 					panels.closeAll();
 				}
-				if (ImGui.menuItem("打开所有面板")) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.open_all_panels"))) {
 					panels.openAll();
 				}
 				ImGui.separator();
-				if (ImGui.menuItem("重置布局")) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.reset_layout"))) {
 					onResetLayout.run();
 				}
 				if (ImGui.isItemHovered()) {
-					ImGui.setTooltip("恢复默认 Dock 分区（侧栏/底栏比例）。各面板显示开关保持当前状态。");
+					ImGui.setTooltip(BBTexts.get("beatblock.tooltip.reset_layout"));
 				}
-				if (ImGui.menuItem("保存当前布局")) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.save_layout"))) {
 					onSaveLayout.run();
 				}
 				if (ImGui.isItemHovered()) {
-					ImGui.setTooltip("将窗口停靠与尺寸写入配置文件（游戏目录下 config/beatblock/imgui.ini）。");
+					ImGui.setTooltip(BBTexts.get("beatblock.tooltip.save_layout"));
 				}
-				if (ImGui.menuItem("载入已保存布局")) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.load_layout"))) {
 					onLoadLayout.run();
 				}
 				if (ImGui.isItemHovered()) {
-					ImGui.setTooltip("从 imgui.ini 重新载入窗口与停靠（需事先「保存当前布局」或存在该文件）。");
+					ImGui.setTooltip(BBTexts.get("beatblock.tooltip.load_layout"));
 				}
 				ImGui.separator();
-				if (ImGui.beginMenu("面板")) {
-					panelToggleItem("音频解析", panels.audioAnalysis);
-					panelToggleItem("工具", panels.tool);
-					panelToggleItem("标记与调试", panels.marker);
-					panelToggleItem("事件属性", panels.eventProperties);
-					panelToggleItem("摄像机属性", panels.cameraProperties);
-					panelToggleItem("时间线", panels.timeline);
-					panelToggleItem("动画库", panels.animationLibrary);
-					panelToggleItem("选择属性", panels.selectionProperties);
-					panelToggleItem("建造图层", panels.layer);
-					panelToggleItem("天降方块", panels.rhythmDrop);
+				if (ImGui.beginMenu(BBTexts.get("beatblock.menu.panels"))) {
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.audio_analysis"), panels.audioAnalysis);
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.tool"), panels.tool);
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.marker_debug"), panels.marker);
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.event_properties"), panels.eventProperties);
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.camera_properties"), panels.cameraProperties);
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.timeline"), panels.timeline);
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.animation_library"), panels.animationLibrary);
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.selection_properties"), panels.selectionProperties);
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.layer"), panels.layer);
+					panelToggleItem(BBTexts.get("beatblock.menu.panel.rhythm_drop"), panels.rhythmDrop);
 					ImGui.endMenu();
 				}
 				ImGui.endMenu();
 			}
-			// 演出
-			if (ImGui.beginMenu("演出")) {
-				if (ImGui.menuItem("Smart Auto Map...", "自动编排")) {
+			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.show"))) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.smart_auto_map"), BBTexts.get("beatblock.menu.smart_auto_map_shortcut"))) {
 					onOpenSmartAutoMap.run();
 				}
-				if (ImGui.isItemHovered()) ImGui.setTooltip("根据音乐自动生成方块动画、镜头与粒子");
-				if (ImGui.menuItem("生成天降方块", "Ctrl+Shift+D")) {
+				if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.tooltip.smart_auto_map"));
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.generate_rhythm_drop"), "Ctrl+Shift+D")) {
 					onGenerateRhythmDrop.run();
 				}
 				if (ImGui.isItemHovered()) {
-					ImGui.setTooltip("从当前方块选区按节拍生成 RhythmDrop 事件（需先选中落点方块）");
+					ImGui.setTooltip(BBTexts.get("beatblock.tooltip.generate_rhythm_drop"));
 				}
 				ImGui.endMenu();
 			}
-			// 帮助
-			if (ImGui.beginMenu("帮助")) {
-				if (ImGui.menuItem("关于 BeatBlock")) {
+			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.help"))) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.about"))) {
 					showAboutDialog = true;
 				}
 				ImGui.endMenu();
@@ -171,18 +167,18 @@ public class MenuBarPanel {
 	private void renderImportDialog() {
 		if (!showImportDialog) return;
 		ImGui.setNextWindowSize(400, 0);
-		if (ImGui.begin("导入音乐", ImGuiWindowFlags.AlwaysAutoResize)) {
-			ImGui.text("WAV 文件路径（本地绝对路径）：");
+		if (ImGui.begin(BBTexts.get("beatblock.dialog.import_music"), ImGuiWindowFlags.AlwaysAutoResize)) {
+			ImGui.text(BBTexts.get("beatblock.dialog.wav_path"));
 			ImGui.setNextItemWidth(-1);
 			ImGui.inputText("##path", importPath);
-			if (ImGui.button("导入")) {
+			if (ImGui.button(BBTexts.get("beatblock.common.import"))) {
 				var result = presenter.importAudio(importPath.get());
 				if (result.ok()) {
 					showImportDialog = false;
 				}
 			}
 			ImGui.sameLine();
-			if (ImGui.button("取消")) {
+			if (ImGui.button(BBTexts.get("beatblock.common.cancel"))) {
 				showImportDialog = false;
 			}
 		}
@@ -192,11 +188,11 @@ public class MenuBarPanel {
 	private void renderOpenProjectDialog() {
 		if (!showOpenProjectDialog) return;
 		ImGui.setNextWindowSize(460, 0);
-		if (ImGui.begin("打开工程 (.osc)", ImGuiWindowFlags.AlwaysAutoResize)) {
-			ImGui.text("工程文件路径（.osc）：");
+		if (ImGui.begin(BBTexts.get("beatblock.dialog.open_project"), ImGuiWindowFlags.AlwaysAutoResize)) {
+			ImGui.text(BBTexts.get("beatblock.dialog.project_path"));
 			ImGui.setNextItemWidth(-1);
 			ImGui.inputText("##openOscPath", openProjectPath);
-			if (ImGui.button("打开")) {
+			if (ImGui.button(BBTexts.get("beatblock.common.open"))) {
 				var result = presenter.openProject(openProjectPath.get());
 				projectDialogMessage = result.messageOrEmpty();
 				if (result.ok()) {
@@ -204,7 +200,7 @@ public class MenuBarPanel {
 				}
 			}
 			ImGui.sameLine();
-			if (ImGui.button("取消##openOsc")) {
+			if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##openOsc")) {
 				showOpenProjectDialog = false;
 			}
 			if (!projectDialogMessage.isBlank()) {
@@ -218,11 +214,11 @@ public class MenuBarPanel {
 	private void renderSaveProjectDialog() {
 		if (!showSaveProjectDialog) return;
 		ImGui.setNextWindowSize(460, 0);
-		if (ImGui.begin("保存工程 (.osc)", ImGuiWindowFlags.AlwaysAutoResize)) {
-			ImGui.text("保存路径（.osc）：");
+		if (ImGui.begin(BBTexts.get("beatblock.dialog.save_project"), ImGuiWindowFlags.AlwaysAutoResize)) {
+			ImGui.text(BBTexts.get("beatblock.dialog.save_path"));
 			ImGui.setNextItemWidth(-1);
 			ImGui.inputText("##saveOscPath", saveProjectPath);
-			if (ImGui.button("保存")) {
+			if (ImGui.button(BBTexts.get("beatblock.common.save"))) {
 				var result = presenter.saveProject(saveProjectPath.get());
 				projectDialogMessage = result.messageOrEmpty();
 				if (result.ok()) {
@@ -230,7 +226,7 @@ public class MenuBarPanel {
 				}
 			}
 			ImGui.sameLine();
-			if (ImGui.button("取消##saveOsc")) {
+			if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##saveOsc")) {
 				showSaveProjectDialog = false;
 			}
 			if (!projectDialogMessage.isBlank()) {
@@ -244,15 +240,15 @@ public class MenuBarPanel {
 	private void renderAboutDialog() {
 		if (!showAboutDialog) return;
 		ImGui.setNextWindowSize(360, 0);
-		if (ImGui.begin("关于 BeatBlock", ImGuiWindowFlags.AlwaysAutoResize)) {
+		if (ImGui.begin(BBTexts.get("beatblock.dialog.about"), ImGuiWindowFlags.AlwaysAutoResize)) {
 			ImGui.text("BeatBlock");
-			ImGui.text("音乐驱动的 Minecraft 方块动画引擎");
+			ImGui.text(BBTexts.get("beatblock.about.tagline"));
 			ImGui.spacing();
-			ImGui.textWrapped("导入音乐、分析节拍与频段，在时间线上编排方块动画、镜头与粒子，打造随音乐起舞的视觉演出。");
+			ImGui.textWrapped(BBTexts.get("beatblock.about.description"));
 			ImGui.spacing();
-			ImGui.text("基于 Fabric 与 ImGui。");
+			ImGui.text(BBTexts.get("beatblock.about.powered_by"));
 			ImGui.spacing();
-			if (ImGui.button("确定")) {
+			if (ImGui.button(BBTexts.get("beatblock.common.ok"))) {
 				showAboutDialog = false;
 			}
 		}

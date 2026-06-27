@@ -127,10 +127,10 @@ public class EventPropertiesPanel {
 
 	public void render(ImBoolean pOpen) {
 		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.EVENT_PROPERTIES_WINDOW);
+			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.eventPropertiesWindow());
 			return;
 		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.EVENT_PROPERTIES_WINDOW, pOpen, WINDOW_FLAGS)) {
+		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.eventPropertiesWindow(), pOpen, WINDOW_FLAGS)) {
 			return;
 		}
 		try {
@@ -173,7 +173,7 @@ public class EventPropertiesPanel {
 				ImGui.endDisabled();
 			}
 		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.EVENT_PROPERTIES_WINDOW);
+			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.eventPropertiesWindow());
 		}
 	}
 
