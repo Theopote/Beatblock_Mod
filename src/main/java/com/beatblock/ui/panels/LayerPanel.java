@@ -5,6 +5,7 @@ import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.ui.icons.Icons;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.BuildLayersPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.imgui.IconButtonStyle;
@@ -73,19 +74,19 @@ public class LayerPanel {
 	}
 
 	private void renderContent() {
-		ImGui.text("建造图层");
+		ImGui.text(BBTexts.get("beatblock.layer.title"));
 		ImGui.separator();
-		ImGui.textWrapped("从选区创建图层 → 点击眼睛隐藏 → 拖入「建造还原」轨道绑定片段播放。已属于某图层的方块无法再次选入其他图层。");
+		ImGui.textWrapped(BBTexts.get("beatblock.layer.hint"));
 
 		var selMgr = BeatBlockSelectionManager.get();
 		int selCount = selMgr.getSelectionCount();
-		ImGui.textDisabled(String.format(Locale.ROOT, "当前选区：%d 个方块", selCount));
+		ImGui.textDisabled(BBTexts.get("beatblock.layer.current_selection", selCount));
 
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("图层名称##layerName", newLayerNameBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.layer.name") + "##layerName", newLayerNameBuffer);
 
 		if (selCount <= 0) ImGui.beginDisabled();
-		if (ImGui.button("从选区新建图层##layerCreate", -1f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.layer.create_from_selection") + "##layerCreate", -1f, 0f)) {
 			createLayerFromSelection();
 		}
 		if (selCount <= 0) ImGui.endDisabled();
@@ -102,14 +103,14 @@ public class LayerPanel {
 	private void renderLayerList() {
 		var manager = presenter.currentLayerManager();
 		if (manager == null) {
-			ImGui.textDisabled("动画引擎未就绪。");
+			ImGui.textDisabled(BBTexts.get("beatblock.layer.engine_not_ready"));
 			return;
 		}
 		List<BuildLayer> layers = new ArrayList<>(manager.getAll());
 		pruneNameBuffers(layers);
 
 		if (layers.isEmpty()) {
-			ImGui.textDisabled("暂无图层。");
+			ImGui.textDisabled(BBTexts.get("beatblock.layer.no_layers"));
 			return;
 		}
 
@@ -147,7 +148,7 @@ public class LayerPanel {
 		if (ImGui.beginPopupContextItem(CONTEXT_POPUP)) {
 			boolean canDelete = layer.canDelete();
 			if (!canDelete) ImGui.beginDisabled();
-			if (ImGui.menuItem("删除图层...")) {
+			if (ImGui.menuItem(BBTexts.get("beatblock.layer.delete"))) {
 				pendingDeleteLayerId = layer.getId();
 				requestDeleteConfirm = true;
 				ImGui.closeCurrentPopup();
@@ -155,7 +156,7 @@ public class LayerPanel {
 			if (!canDelete) {
 				ImGui.endDisabled();
 				if (ImGui.isItemHovered()) {
-					ImGui.setTooltip("已绑定轨道，不可删除");
+					ImGui.setTooltip(BBTexts.get("beatblock.layer.cannot_delete_bound"));
 				}
 			}
 			ImGui.endPopup();
@@ -166,7 +167,7 @@ public class LayerPanel {
 
 		if (ImGui.beginDragDropSource()) {
 			if (layer.canBindToTrack()) {
-				ImGui.text("绑定到建造还原轨道");
+				ImGui.text(BBTexts.get("beatblock.layer.drag_bind"));
 				ImGui.setDragDropPayload(DRAG_PAYLOAD_TYPE, layer.getId().getBytes(), ImGuiCond.Once);
 			} else {
 				ImGui.textDisabled(stateHint(layer));
@@ -176,14 +177,14 @@ public class LayerPanel {
 
 		if (layer.getState() == LayerVisibilityState.BOUND_TO_TRACK) {
 			ImGui.sameLine();
-			ImGui.textDisabled("[已绑定]");
+			ImGui.textDisabled(BBTexts.get("beatblock.layer.bound"));
 		}
 
 		if (selected) {
 			ImGui.indent();
-			ImGui.textDisabled(String.format(Locale.ROOT, "方块数：%d", layer.getStageObject().getBlocks().size()));
+			ImGui.textDisabled(BBTexts.get("beatblock.layer.block_count", layer.getStageObject().getBlocks().size()));
 			if (layer.getBoundClipId() != null) {
-				ImGui.textDisabled("绑定片段：" + layer.getBoundClipId());
+				ImGui.textDisabled(BBTexts.get("beatblock.layer.bound_clip", layer.getBoundClipId()));
 			}
 			ImGui.unindent();
 		}
@@ -216,11 +217,11 @@ public class LayerPanel {
 		String tooltip = null;
 		if (ImGui.isItemHovered()) {
 			if (!canToggle) {
-				tooltip = "已绑定轨道，可见性由片段播放头控制";
+				tooltip = BBTexts.get("beatblock.layer.tooltip.bound_visibility");
 			} else if (visible) {
-				tooltip = "当前可见，点击隐藏（世界方块变为空气）";
+				tooltip = BBTexts.get("beatblock.layer.tooltip.hide");
 			} else {
-				tooltip = "当前隐藏，点击显示（恢复捕获的方块）";
+				tooltip = BBTexts.get("beatblock.layer.tooltip.show");
 			}
 		}
 		return tooltip;
@@ -235,29 +236,27 @@ public class LayerPanel {
 			return;
 		}
 
-		ImGui.text(Icons.Action.WARNING + " 删除图层");
+		ImGui.text(Icons.Action.WARNING + " " + BBTexts.get("beatblock.layer.delete_title"));
 		ImGui.separator();
 
 		if (layer == null) {
-			ImGui.textWrapped("图层已不存在。");
+			ImGui.textWrapped(BBTexts.get("beatblock.layer.delete_gone"));
 		} else {
-			ImGui.textWrapped(String.format(Locale.ROOT,
-				"确定删除图层「%s」？此操作不可通过面板撤销以外的途径轻易恢复。",
-				layer.getName()));
+			ImGui.textWrapped(BBTexts.get("beatblock.layer.delete_confirm", layer.getName()));
 			if (layer.getState() == LayerVisibilityState.FREE_HIDDEN) {
 				ImGui.spacing();
-				ImGui.textWrapped("该图层当前为隐藏状态，删除前会先恢复世界中的方块。");
+				ImGui.textWrapped(BBTexts.get("beatblock.layer.delete_hidden_hint"));
 			}
 		}
 
 		ImGui.spacing();
-		if (ImGui.button("确认删除##layerDeleteOk", 120f, 0f) && layer != null) {
+		if (ImGui.button(BBTexts.get("beatblock.layer.confirm_delete") + "##layerDeleteOk", 120f, 0f) && layer != null) {
 			deleteLayer(layer);
 			pendingDeleteLayerId = null;
 			ImGui.closeCurrentPopup();
 		}
 		ImGui.sameLine();
-		if (ImGui.button("取消##layerDeleteCancel", 120f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##layerDeleteCancel", 120f, 0f)) {
 			pendingDeleteLayerId = null;
 			ImGui.closeCurrentPopup();
 		}
@@ -340,8 +339,8 @@ public class LayerPanel {
 
 	private static String stateHint(BuildLayer layer) {
 		return switch (layer.getState()) {
-			case FREE_VISIBLE -> "请先隐藏图层再拖入轨道";
-			case BOUND_TO_TRACK -> "已绑定到轨道";
+			case FREE_VISIBLE -> BBTexts.get("beatblock.layer.hide_first");
+			case BOUND_TO_TRACK -> BBTexts.get("beatblock.layer.already_bound");
 			default -> "";
 		};
 	}

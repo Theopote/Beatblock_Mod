@@ -1,6 +1,6 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.selection.BeatBlockSelectionManager;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.selection.BrushShape;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.selection.SelectionOperation;
@@ -173,25 +173,25 @@ public final class SelectionPropertiesPresenter {
 
 	public static String operationLabel(SelectionOperation op) {
 		return switch (op) {
-			case NEW -> "新建选区";
-			case ADD -> "加选";
-			case SUBTRACT -> "减选";
-			case INTERSECT -> "交集";
+			case NEW -> BBTexts.get("beatblock.selection_op.new");
+			case ADD -> BBTexts.get("beatblock.selection_op.add");
+			case SUBTRACT -> BBTexts.get("beatblock.selection_op.subtract");
+			case INTERSECT -> BBTexts.get("beatblock.selection_op.intersect");
 		};
 	}
 
 	public static String modeTitle(SelectionMode mode) {
 		return switch (mode) {
-			case OFF -> "关闭";
-			case CLICK -> "点击选择";
-			case BOX -> "框选";
-			case LINE -> "线选";
-			case BRUSH -> "笔刷";
-			case CONNECTED -> "魔棒（连通）";
-			case COLUMN -> "整列";
-			case PLANE_SLICE -> "平面切片";
-			case SELECTION_WAND -> "选区魔棒";
-			case LASSO -> "套索";
+			case OFF -> BBTexts.get("beatblock.selection_mode.off");
+			case CLICK -> BBTexts.get("beatblock.selection_mode.click");
+			case BOX -> BBTexts.get("beatblock.selection_mode.box");
+			case LINE -> BBTexts.get("beatblock.selection_mode.line");
+			case BRUSH -> BBTexts.get("beatblock.selection_mode.brush");
+			case CONNECTED -> BBTexts.get("beatblock.selection_mode.connected");
+			case COLUMN -> BBTexts.get("beatblock.selection_mode.column");
+			case PLANE_SLICE -> BBTexts.get("beatblock.selection_mode.plane_slice");
+			case SELECTION_WAND -> BBTexts.get("beatblock.selection_mode.selection_wand");
+			case LASSO -> BBTexts.get("beatblock.selection_mode.lasso");
 		};
 	}
 

@@ -11,6 +11,7 @@ import com.beatblock.timeline.camera.CameraSegmentKind;
 import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.editing.CameraEventPropertiesEditor;
 import com.beatblock.timeline.editor.SelectionState;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.EventPropertiesFormSnapshot;
@@ -76,13 +77,13 @@ public class CameraPropertiesPanel {
 			return;
 		}
 		try {
-			ImGui.text("摄像机属性");
+			ImGui.text(BBTexts.get("beatblock.camera.title"));
 			ImGui.separator();
 
 			Timeline timeline = runtime().timeline();
 			TimelineEditor editor = runtime().timelineEditor();
 			if (timeline == null || editor == null) {
-				ImGui.textDisabled("时间线未初始化。");
+				ImGui.textDisabled(BBTexts.get("beatblock.common.timeline_not_initialized"));
 				return;
 			}
 
@@ -90,7 +91,7 @@ public class CameraPropertiesPanel {
 			if (!isCameraRef(ref)) {
 				boundRefKey = null;
 				validationError = null;
-				ImGui.textWrapped("选中摄像机片段或关键帧后，可在此编辑属性。");
+				ImGui.textWrapped(BBTexts.get("beatblock.camera.select_hint"));
 				return;
 			}
 
@@ -104,7 +105,7 @@ public class CameraPropertiesPanel {
 
 			boolean trackLocked = presenter.isTrackLocked(timeline, editor, ref.track().getId());
 			if (trackLocked) {
-				ImGui.textDisabled("当前轨道已锁定，属性只读。");
+				ImGui.textDisabled(BBTexts.get("beatblock.camera.track_locked"));
 				ImGui.separator();
 				ImGui.beginDisabled();
 			}
@@ -144,24 +145,25 @@ public class CameraPropertiesPanel {
 		ImGui.sameLine();
 		ImGui.text(ref.track().getName().isBlank() ? ref.track().getId() : ref.track().getName());
 		if (ref.event() == null) {
-			ImGui.textDisabled("片段 ID");
+			ImGui.textDisabled(BBTexts.get("beatblock.camera.clip_id"));
 			ImGui.sameLine();
 			ImGui.text(ref.clip().getId());
-			ImGui.textDisabled("显示路径");
+			ImGui.textDisabled(BBTexts.get("beatblock.camera.show_path"));
 			ImGui.sameLine();
-			ImGui.text(EventPropertiesPresenter.isPathVisible(timeline, ref.clip().getId()) ? "是" : "否");
+			ImGui.text(EventPropertiesPresenter.isPathVisible(timeline, ref.clip().getId())
+				? BBTexts.get("beatblock.common.yes") : BBTexts.get("beatblock.common.no"));
 			return;
 		}
 		Map<String, Object> params = ref.event().getParameters();
 		EventType et = ref.event().getType();
-		ImGui.textDisabled("Event ID");
+		ImGui.textDisabled(BBTexts.get("beatblock.event.event_id"));
 		ImGui.sameLine();
 		ImGui.text(ref.event().getId());
-		ImGui.textDisabled("事件类型");
+		ImGui.textDisabled(BBTexts.get("beatblock.camera.event_type"));
 		ImGui.sameLine();
 		ImGui.text(et.name());
 		if (et == EventType.CAMERA_SEGMENT) {
-			ImGui.textDisabled("镜头类型");
+			ImGui.textDisabled(BBTexts.get("beatblock.camera.segment_kind"));
 			ImGui.sameLine();
 			ImGui.text(CameraSegmentKind.fromParam(params.get("kind")).name());
 		}
@@ -193,22 +195,22 @@ public class CameraPropertiesPanel {
 	}
 
 	private void renderCameraClipOnlyPanel(EventPropertiesRef ref, Timeline timeline) {
-		ImGui.text("片段起止时间（秒）");
+		ImGui.text(BBTexts.get("beatblock.camera.clip_times"));
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("开始##camClipStart", camClipStartBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.camera.start") + "##camClipStart", camClipStartBuffer);
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("结束##camClipEnd", camClipEndBuffer);
-		ImGui.checkbox("显示路径##camClipPathVis", camClipPathVisibleProxy);
+		ImGui.inputText(BBTexts.get("beatblock.camera.end") + "##camClipEnd", camClipEndBuffer);
+		ImGui.checkbox(BBTexts.get("beatblock.camera.show_path") + "##camClipPathVis", camClipPathVisibleProxy);
 		if (validationError != null && !validationError.isBlank()) {
 			ImGui.spacing();
 			ImGui.textColored(1f, 0.45f, 0.45f, 1f, validationError);
 		}
 		ImGui.spacing();
-		if (ImGui.button("应用##camClipApply", 120f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.common.apply") + "##camClipApply", 120f, 0f)) {
 			applyCameraClipOnly(ref, timeline);
 		}
 		ImGui.sameLine();
-		if (ImGui.button("重置##camClipReset", 120f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.common.reset") + "##camClipReset", 120f, 0f)) {
 			bindBuffers(ref);
 		}
 	}
@@ -216,7 +218,7 @@ public class CameraPropertiesPanel {
 	private void applyCameraClipOnly(EventPropertiesRef ref, Timeline timeline) {
 		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
-			validationError = "时间线编辑器未初始化。";
+			validationError = BBTexts.get("beatblock.common.timeline_editor_not_initialized");
 			return;
 		}
 		try {
@@ -237,11 +239,19 @@ public class CameraPropertiesPanel {
 			validationError = null;
 			bindBuffers(ref);
 		} catch (NumberFormatException ex) {
-			validationError = "时间格式不正确。";
+			validationError = BBTexts.get("beatblock.camera.invalid_time");
 		}
 	}
 
-	private static final String[] CAM_KIND_LABELS = { "路径 [PATH]", "推拉 [DOLLY]", "环绕 [ORBIT]", "升降 [CRANE]", "震动 [SHAKE]" };
+	private static String[] camKindLabels() {
+		return BBTexts.labels(
+			"beatblock.camera.kind.path",
+			"beatblock.camera.kind.dolly",
+			"beatblock.camera.kind.orbit",
+			"beatblock.camera.kind.crane",
+			"beatblock.camera.kind.shake"
+		);
+	}
 	private static final CameraSegmentKind[] CAM_KINDS = CameraSegmentKind.values();
 
 	private static int kindIndex(CameraSegmentKind kind) {
@@ -256,7 +266,7 @@ public class CameraPropertiesPanel {
 
 		ImInt kindIdx = new ImInt(kindIndex(kind));
 		ImGui.setNextItemWidth(-1f);
-		if (ImGui.combo("镜头类型##camSegKind", kindIdx, CAM_KIND_LABELS)) {
+		if (ImGui.combo(BBTexts.get("beatblock.camera.segment_kind") + "##camSegKind", kindIdx, camKindLabels())) {
 			CameraSegmentKind newKind = CAM_KINDS[kindIdx.get()];
 			if (newKind != kind) {
 				applyCameraKindChange(ref, timeline, newKind);
@@ -264,58 +274,58 @@ public class CameraPropertiesPanel {
 			}
 		}
 
-		ImGui.text("片段时长（秒）");
+		ImGui.text(BBTexts.get("beatblock.camera.segment_duration"));
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText("##camSegDurInp", camSegDurBuffer);
-		ImGui.checkbox("显示路径##camSegPathVis", camSegPathVisibleProxy);
+		ImGui.checkbox(BBTexts.get("beatblock.camera.show_path") + "##camSegPathVis", camSegPathVisibleProxy);
 
 		ImGui.separator();
 		switch (kind) {
-			case PATH -> ImGui.textDisabled("路径模式：关键帧插值，参数在关键帧事件上编辑。");
+			case PATH -> ImGui.textDisabled(BBTexts.get("beatblock.camera.path.hint"));
 			case DOLLY -> {
-				ImGui.textDisabled("推拉参数");
-				renderSegParam("起点 X", "startX");
-				renderSegParam("起点 Y", "startY");
-				renderSegParam("起点 Z", "startZ");
-				renderSegParam("终点 X", "endX");
-				renderSegParam("终点 Y", "endY");
-				renderSegParam("终点 Z", "endZ");
-				renderSegParam("基准 Yaw (°)", "baseYawDeg");
-				renderSegParam("基准 Pitch (°)", "basePitchDeg");
+				ImGui.textDisabled(BBTexts.get("beatblock.camera.dolly.params"));
+				renderSegParam(BBTexts.get("beatblock.camera.param.start_x"), "startX");
+				renderSegParam(BBTexts.get("beatblock.camera.param.start_y"), "startY");
+				renderSegParam(BBTexts.get("beatblock.camera.param.start_z"), "startZ");
+				renderSegParam(BBTexts.get("beatblock.camera.param.end_x"), "endX");
+				renderSegParam(BBTexts.get("beatblock.camera.param.end_y"), "endY");
+				renderSegParam(BBTexts.get("beatblock.camera.param.end_z"), "endZ");
+				renderSegParam(BBTexts.get("beatblock.camera.param.base_yaw"), "baseYawDeg");
+				renderSegParam(BBTexts.get("beatblock.camera.param.base_pitch"), "basePitchDeg");
 			}
 			case ORBIT -> {
-				ImGui.textDisabled("环绕参数");
-				renderSegParam("目标 X", "targetX");
-				renderSegParam("目标 Y", "targetY");
-				renderSegParam("目标 Z", "targetZ");
-				renderSegParam("半径", "radius");
-				renderSegParam("高度偏移", "height");
-				renderSegParam("起始角度 (°)", "yawStartDeg");
-				renderSegParam("终止角度 (°)", "yawEndDeg");
+				ImGui.textDisabled(BBTexts.get("beatblock.camera.orbit.params"));
+				renderSegParam(BBTexts.get("beatblock.camera.param.target_x"), "targetX");
+				renderSegParam(BBTexts.get("beatblock.camera.param.target_y"), "targetY");
+				renderSegParam(BBTexts.get("beatblock.camera.param.target_z"), "targetZ");
+				renderSegParam(BBTexts.get("beatblock.camera.param.radius"), "radius");
+				renderSegParam(BBTexts.get("beatblock.camera.param.height_offset"), "height");
+				renderSegParam(BBTexts.get("beatblock.camera.param.yaw_start"), "yawStartDeg");
+				renderSegParam(BBTexts.get("beatblock.camera.param.yaw_end"), "yawEndDeg");
 			}
 			case CRANE -> {
-				ImGui.textDisabled("升降参数");
-				renderSegParam("起点 X", "startX");
-				renderSegParam("起点 Y", "startY");
-				renderSegParam("起点 Z", "startZ");
-				renderSegParam("终点 X", "endX");
-				renderSegParam("终点 Y", "endY");
-				renderSegParam("终点 Z", "endZ");
-				renderSegParam("Yaw (°)", "yawDeg");
-				renderSegParam("Pitch (°)", "pitchDeg");
+				ImGui.textDisabled(BBTexts.get("beatblock.camera.crane.params"));
+				renderSegParam(BBTexts.get("beatblock.camera.param.start_x"), "startX");
+				renderSegParam(BBTexts.get("beatblock.camera.param.start_y"), "startY");
+				renderSegParam(BBTexts.get("beatblock.camera.param.start_z"), "startZ");
+				renderSegParam(BBTexts.get("beatblock.camera.param.end_x"), "endX");
+				renderSegParam(BBTexts.get("beatblock.camera.param.end_y"), "endY");
+				renderSegParam(BBTexts.get("beatblock.camera.param.end_z"), "endZ");
+				renderSegParam(BBTexts.get("beatblock.camera.param.yaw"), "yawDeg");
+				renderSegParam(BBTexts.get("beatblock.camera.param.pitch"), "pitchDeg");
 			}
 			case SHAKE -> {
-				ImGui.textDisabled("震动参数");
-				renderSegParam("锚点 X", "anchorX");
-				renderSegParam("锚点 Y", "anchorY");
-				renderSegParam("锚点 Z", "anchorZ");
-				renderSegParam("Yaw (°)", "yawDeg");
-				renderSegParam("Pitch (°)", "pitchDeg");
-				renderSegParam("距离", "distance");
-				renderSegParam("振幅", "amplitude");
-				renderSegParam("频率 (Hz)", "frequencyHz");
-				renderSegParam("节拍同步", "beatSync");
-				renderSegParam("每拍脉冲", "beatsPerPulse");
+				ImGui.textDisabled(BBTexts.get("beatblock.camera.shake.params"));
+				renderSegParam(BBTexts.get("beatblock.camera.param.anchor_x"), "anchorX");
+				renderSegParam(BBTexts.get("beatblock.camera.param.anchor_y"), "anchorY");
+				renderSegParam(BBTexts.get("beatblock.camera.param.anchor_z"), "anchorZ");
+				renderSegParam(BBTexts.get("beatblock.camera.param.yaw"), "yawDeg");
+				renderSegParam(BBTexts.get("beatblock.camera.param.pitch"), "pitchDeg");
+				renderSegParam(BBTexts.get("beatblock.camera.param.distance"), "distance");
+				renderSegParam(BBTexts.get("beatblock.camera.param.amplitude"), "amplitude");
+				renderSegParam(BBTexts.get("beatblock.camera.param.frequency"), "frequencyHz");
+				renderSegParam(BBTexts.get("beatblock.camera.param.beat_sync"), "beatSync");
+				renderSegParam(BBTexts.get("beatblock.camera.param.beats_per_pulse"), "beatsPerPulse");
 			}
 		}
 
@@ -326,16 +336,16 @@ public class CameraPropertiesPanel {
 		ImGui.spacing();
 
 		if (kind != CameraSegmentKind.PATH) {
-			if (ImGui.button("捕获当前视角##camSegCapture", 160f, 0f)) {
+			if (ImGui.button(BBTexts.get("beatblock.camera.capture_view") + "##camSegCapture", 160f, 0f)) {
 				captureCurrentViewToSegment(kind);
 			}
 			ImGui.sameLine();
 		}
-		if (ImGui.button("应用##camSegApply", 120f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.common.apply") + "##camSegApply", 120f, 0f)) {
 			applyCameraSegmentPanel(ref, timeline);
 		}
 		ImGui.sameLine();
-		if (ImGui.button("重置##camSegReset", 120f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.common.reset") + "##camSegReset", 120f, 0f)) {
 			bindBuffers(ref);
 		}
 	}
@@ -354,7 +364,7 @@ public class CameraPropertiesPanel {
 	private void captureCurrentViewToSegment(CameraSegmentKind kind) {
 		var captured = presenter.captureSegmentViewParams(kind);
 		if (captured.isEmpty()) {
-			validationError = "无可用相机，无法捕获。";
+			validationError = BBTexts.get("beatblock.camera.no_camera");
 			return;
 		}
 		for (Map.Entry<String, String> entry : captured.get().entrySet()) {
@@ -367,7 +377,7 @@ public class CameraPropertiesPanel {
 	private void applyCameraKindChange(EventPropertiesRef ref, Timeline timeline, CameraSegmentKind newKind) {
 		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
-			validationError = "时间线编辑器未初始化。";
+			validationError = BBTexts.get("beatblock.common.timeline_editor_not_initialized");
 			return;
 		}
 		var result = presenter.applyCameraKindChange(ref, timeline, editor.getCommandManager(), newKind);
@@ -382,7 +392,7 @@ public class CameraPropertiesPanel {
 	private void applyCameraSegmentPanel(EventPropertiesRef ref, Timeline timeline) {
 		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
-			validationError = "时间线编辑器未初始化。";
+			validationError = BBTexts.get("beatblock.common.timeline_editor_not_initialized");
 			return;
 		}
 		try {
@@ -410,7 +420,7 @@ public class CameraPropertiesPanel {
 			validationError = null;
 			bindBuffers(ref);
 		} catch (NumberFormatException ex) {
-			validationError = "时长或参数格式不正确。";
+			validationError = BBTexts.get("beatblock.camera.invalid_duration");
 		}
 	}
 
@@ -420,26 +430,26 @@ public class CameraPropertiesPanel {
 			CameraSegmentKind clipKind = seg != null
 				? CameraSegmentKind.fromParam(seg.getParameters().get("kind"))
 				: null;
-			ImGui.textDisabled("所属片段");
+			ImGui.textDisabled(BBTexts.get("beatblock.camera.belongs_to_clip"));
 			ImGui.sameLine();
 			ImGui.text(ref.clip().getId());
 			if (clipKind != null) {
-				ImGui.textDisabled("片段类型");
+				ImGui.textDisabled(BBTexts.get("beatblock.camera.clip_type"));
 				ImGui.sameLine();
 				ImGui.text(clipKind.name());
 			}
-			ImGui.textDisabled(String.format(Locale.ROOT, "片段范围: %.3fs — %.3fs",
+			ImGui.textDisabled(BBTexts.get("beatblock.camera.clip_range",
 				ref.clip().getStartTimeSeconds(), ref.clip().getEndTimeSeconds()));
 			if (clipKind != null && clipKind != CameraSegmentKind.PATH) {
 				ImGui.spacing();
-				ImGui.textColored(1f, 0.65f, 0.2f, 1f, "⚠ 当前片段类型非路径（PATH），关键帧的位姿参数不会被摄像机使用。");
+				ImGui.textColored(1f, 0.65f, 0.2f, 1f, BBTexts.get("beatblock.camera.non_path_warning"));
 			}
 			ImGui.separator();
 		}
 
-		ImGui.text("时间与位姿");
+		ImGui.text(BBTexts.get("beatblock.camera.time_pose"));
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("时间 (s)##camKfTime", timeBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.camera.time") + "##camKfTime", timeBuffer);
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText("X##camKfX", camXBuffer);
 		ImGui.setNextItemWidth(-1f);
@@ -454,7 +464,7 @@ public class CameraPropertiesPanel {
 		String[] easeOptions = { "SMOOTH", "LINEAR" };
 		int easeIdx = "LINEAR".equalsIgnoreCase(valueOf(camEaseBuffer).trim()) ? 1 : 0;
 		ImInt easeInt = new ImInt(easeIdx);
-		if (ImGui.combo("过渡方式##camKfEase", easeInt, easeOptions)) {
+		if (ImGui.combo(BBTexts.get("beatblock.camera.ease") + "##camKfEase", easeInt, easeOptions)) {
 			camEaseBuffer.set(easeOptions[easeInt.get()]);
 		}
 		if (validationError != null && !validationError.isBlank()) {
@@ -462,10 +472,10 @@ public class CameraPropertiesPanel {
 			ImGui.textColored(1f, 0.45f, 0.45f, 1f, validationError);
 		}
 		ImGui.spacing();
-		if (ImGui.button("捕获当前视角##camKfCapture", 160f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.camera.capture_view") + "##camKfCapture", 160f, 0f)) {
 			var view = presenter.currentCameraView();
 			if (view.isEmpty()) {
-				validationError = "无可用相机，无法捕获。";
+				validationError = BBTexts.get("beatblock.camera.no_camera");
 			} else {
 				EventPropertiesPresenter.CameraViewSample sample = view.get();
 				camXBuffer.set(String.format(Locale.ROOT, "%.6f", sample.x()));
@@ -477,15 +487,15 @@ public class CameraPropertiesPanel {
 			}
 		}
 		ImGui.sameLine();
-		if (ImGui.button("应用##camKfApply", 120f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.common.apply") + "##camKfApply", 120f, 0f)) {
 			applyCameraKeyframe(ref, timeline);
 		}
 		ImGui.sameLine();
-		if (ImGui.button("重置##camKfReset", 120f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.common.reset") + "##camKfReset", 120f, 0f)) {
 			bindBuffers(ref);
 		}
 		ImGui.spacing();
-		if (ImGui.button("删除关键帧##camKfDelete", 160f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.camera.delete_keyframe") + "##camKfDelete", 160f, 0f)) {
 			String id = ref.event().getId();
 			if (CameraKeyframeActions.deleteKeyframeEvent(timeline, id) && selectionState != null) {
 				selectionState.deselectEvent(id);
@@ -512,7 +522,7 @@ public class CameraPropertiesPanel {
 	private void applyCameraKeyframe(EventPropertiesRef ref, Timeline timeline) {
 		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
-			validationError = "时间线编辑器未初始化。";
+			validationError = BBTexts.get("beatblock.common.timeline_editor_not_initialized");
 			return;
 		}
 		try {
@@ -542,7 +552,7 @@ public class CameraPropertiesPanel {
 			validationError = null;
 			bindBuffers(ref);
 		} catch (NumberFormatException ex) {
-			validationError = "时间或坐标格式不正确。";
+			validationError = BBTexts.get("beatblock.camera.invalid_coords");
 		}
 	}
 

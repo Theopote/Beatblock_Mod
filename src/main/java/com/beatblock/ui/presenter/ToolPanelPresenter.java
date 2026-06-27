@@ -5,6 +5,7 @@ import com.beatblock.engine.StageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
+import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -277,22 +278,22 @@ public final class ToolPanelPresenter {
 
 	public static String selectionModeLabel(SelectionMode mode) {
 		return switch (mode) {
-			case OFF -> "关闭";
-			case CLICK -> "点击选择";
-			case BOX -> "框选（两角 + 预览）";
-			case LINE -> "线选（两端点 + 预览）";
-			case BRUSH -> "笔刷（球/立方，单击或涂抹）";
-			case CONNECTED -> "魔棒（同色六邻域）";
-			case COLUMN -> "整列（同 XZ）";
-			case PLANE_SLICE -> "平面切片";
-			case SELECTION_WAND -> "选区魔棒（盒内）";
-			case LASSO -> "套索（屏幕多边形）";
+			case OFF -> BBTexts.get("beatblock.selection_mode.off");
+			case CLICK -> BBTexts.get("beatblock.selection_mode.click");
+			case BOX -> BBTexts.get("beatblock.selection_mode.box.detail");
+			case LINE -> BBTexts.get("beatblock.selection_mode.line.detail");
+			case BRUSH -> BBTexts.get("beatblock.selection_mode.brush.detail");
+			case CONNECTED -> BBTexts.get("beatblock.selection_mode.connected.detail");
+			case COLUMN -> BBTexts.get("beatblock.selection_mode.column.detail");
+			case PLANE_SLICE -> BBTexts.get("beatblock.selection_mode.plane_slice");
+			case SELECTION_WAND -> BBTexts.get("beatblock.selection_mode.selection_wand.detail");
+			case LASSO -> BBTexts.get("beatblock.selection_mode.lasso.detail");
 		};
 	}
 
 	public static String formatPos(BlockPos pos) {
 		if (pos == null) {
-			return "(未设置)";
+			return BBTexts.get("beatblock.common.not_set");
 		}
 		return String.format(Locale.ROOT, "%d, %d, %d", pos.getX(), pos.getY(), pos.getZ());
 	}

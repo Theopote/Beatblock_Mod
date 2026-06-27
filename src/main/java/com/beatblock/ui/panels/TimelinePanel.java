@@ -2,6 +2,7 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.runtime.BeatBlockContext;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.PresenterFactories;
@@ -56,7 +57,7 @@ public class TimelinePanel {
 				musicDuration
 			);
 			if (!viewState.timelineLoaded()) {
-				ImGui.text("时间线（未加载模型）");
+				ImGui.text(BBTexts.get("beatblock.timeline.not_loaded"));
 				return;
 			}
 

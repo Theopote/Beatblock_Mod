@@ -1,5 +1,6 @@
 package com.beatblock.ui.panels;
 
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.PresenterFactories;
@@ -51,30 +52,28 @@ public class RhythmDropPanel {
 			return;
 		}
 		try {
-			ImGui.text("天降方块（RhythmDrop）");
+			ImGui.text(BBTexts.get("beatblock.rhythm_drop.title"));
 			ImGui.separator();
-			ImGui.textWrapped(
-				"选中已存在于世界中的落点方块，按节拍依次生成纯视觉下落动画（写入「方块动画」轨道）。"
-					+ "每个事件精确落在对应坐标，命中瞬间触发粒子，不改变真实方块。");
+			ImGui.textWrapped(BBTexts.get("beatblock.rhythm_drop.hint"));
 
 			RhythmDropPanelPresenter.ViewState state = presenter.viewState();
-			ImGui.textDisabled(String.format(Locale.ROOT,
-				"当前选区：%d 个落点 · 起点 %.2fs（播放头）", state.selectionCount(), state.playheadSeconds()));
-			ImGui.textDisabled("节拍：" + state.beatGridDescription());
+			ImGui.textDisabled(BBTexts.get("beatblock.rhythm_drop.selection_info",
+				state.selectionCount(), state.playheadSeconds()));
+			ImGui.textDisabled(BBTexts.get("beatblock.rhythm_drop.beats", state.beatGridDescription()));
 
-			ImGui.checkbox("从下一拍开始（否则第一落在播放头）##rhythmDropNextBeat", startAtNextBeat);
+			ImGui.checkbox(BBTexts.get("beatblock.rhythm_drop.start_next_beat") + "##rhythmDropNextBeat", startAtNextBeat);
 
 			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText("下落时长(秒)##rhythmDropDuration", fallDurationBuffer);
+			ImGui.inputText(BBTexts.get("beatblock.rhythm_drop.fall_duration") + "##rhythmDropDuration", fallDurationBuffer);
 			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText("下落高度(格)##rhythmDropHeight", fallHeightBuffer);
+			ImGui.inputText(BBTexts.get("beatblock.rhythm_drop.fall_height") + "##rhythmDropHeight", fallHeightBuffer);
 
 			List<String> targetLabels = buildTargetLabels(state.stageObjects());
 			if (targetIndex.get() >= targetLabels.size()) {
 				targetIndex.set(0);
 			}
 			ImGui.setNextItemWidth(-1f);
-			if (ImGui.beginCombo("目标 StageObject##rhythmDropTarget", targetLabels.get(targetIndex.get()))) {
+			if (ImGui.beginCombo(BBTexts.get("beatblock.rhythm_drop.target") + "##rhythmDropTarget", targetLabels.get(targetIndex.get()))) {
 				for (int i = 0; i < targetLabels.size(); i++) {
 					if (ImGui.selectable(targetLabels.get(i), targetIndex.get() == i)) {
 						targetIndex.set(i);
@@ -83,18 +82,18 @@ public class RhythmDropPanel {
 				ImGui.endCombo();
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip("自动锚点仅用于时间线引用；实际落点由每个事件的 singleBlock 参数决定。");
+				ImGui.setTooltip(BBTexts.get("beatblock.rhythm_drop.target.tooltip"));
 			}
 
 			boolean canGenerate = state.selectionCount() > 0;
 			if (!canGenerate) ImGui.beginDisabled();
-			if (ImGui.button("生成天降方块事件##rhythmDropGenerate", -1f, 0f)) {
+			if (ImGui.button(BBTexts.get("beatblock.rhythm_drop.generate") + "##rhythmDropGenerate", -1f, 0f)) {
 				var result = presenter.generateFromSelection(buildGenerateRequest(state.stageObjects()));
 				setStatusMessage(result.messageOrEmpty());
 			}
 			if (!canGenerate) ImGui.endDisabled();
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip("需先导入音乐以使用特征轨节拍；无节拍时按 Timeline BPM 固定间隔排布。");
+				ImGui.setTooltip(BBTexts.get("beatblock.rhythm_drop.generate.tooltip"));
 			}
 
 			if (statusMessage != null && !statusMessage.isBlank()
@@ -108,7 +107,7 @@ public class RhythmDropPanel {
 
 	private List<String> buildTargetLabels(List<ToolPanelPresenter.StageObjectListItem> objects) {
 		List<String> labels = new ArrayList<>();
-		labels.add("自动（rhythm_drop_anchor）");
+		labels.add(BBTexts.get("beatblock.rhythm_drop.target.auto"));
 		if (objects != null) {
 			for (var obj : objects) {
 				if (obj == null || RhythmDropGenerator.DEFAULT_ANCHOR_ID.equals(obj.id())) continue;

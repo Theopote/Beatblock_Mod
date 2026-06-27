@@ -4,6 +4,7 @@ import com.beatblock.automap.engine.AutoMapSettings;
 import com.beatblock.automap.engine.AutoMapStyle;
 import com.beatblock.automap.engine.Complexity;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.AutoMapSettingsPanelPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
@@ -16,10 +17,6 @@ import java.util.function.Consumer;
  * Smart Auto-Map 设置弹窗：风格、复杂度、镜头/粒子开关，点击 Generate 执行编排并关闭。
  */
 public final class AutoMapSettingsPanel {
-
-	private static final String WINDOW_TITLE = "Auto Map Settings";
-	private static final String[] STYLE_LABELS = { "EDM", "Cinematic", "Ambient", "Chaos", "Minimal" };
-	private static final String[] COMPLEXITY_LABELS = { "Low", "Medium", "High", "Extreme" };
 
 	private final AutoMapSettingsPanelPresenter presenter;
 	private final AutoMapSettings settings = new AutoMapSettings();
@@ -34,54 +31,69 @@ public final class AutoMapSettingsPanel {
 		this.presenter = presenter;
 	}
 
+	private static String[] styleLabels() {
+		return BBTexts.labels(
+			"beatblock.automap.style.edm",
+			"beatblock.automap.style.cinematic",
+			"beatblock.automap.style.ambient",
+			"beatblock.automap.style.chaos",
+			"beatblock.automap.style.minimal"
+		);
+	}
+
+	private static String[] complexityLabels() {
+		return BBTexts.labels(
+			"beatblock.automap.complexity.low",
+			"beatblock.automap.complexity.medium",
+			"beatblock.automap.complexity.high",
+			"beatblock.automap.complexity.extreme"
+		);
+	}
+
 	/**
 	 * 渲染弹窗。若返回 true 表示已执行生成并关闭，onResult 已被调用。
 	 */
 	public boolean render(Consumer<SmartAutoMapEngine.AutoMapResult> onResult) {
-		if (!ImGui.begin(WINDOW_TITLE, ImGuiWindowFlags.AlwaysAutoResize)) {
+		if (!ImGui.begin(BBTexts.get("beatblock.automap.title"), ImGuiWindowFlags.AlwaysAutoResize)) {
 			ImGui.end();
 			return false;
 		}
-		ImGui.text("根据音乐分析自动生成：方块动画、摄像机、粒子与节奏结构。");
+		ImGui.text(BBTexts.get("beatblock.automap.description"));
 		ImGui.spacing();
 
-		// Animation Style
-		ImGui.text("Animation Style");
-		if (ImGui.combo("##style", styleIndex, STYLE_LABELS)) {
+		ImGui.text(BBTexts.get("beatblock.automap.style"));
+		if (ImGui.combo("##style", styleIndex, styleLabels())) {
 			int i = Math.max(0, Math.min(styleIndex.get(), AutoMapStyle.values().length - 1));
 			settings.setStyle(AutoMapStyle.values()[i]);
 		}
 		ImGui.sameLine();
-		if (ImGui.isItemHovered()) ImGui.setTooltip("EDM=强节拍/爆炸感, Cinematic=慢镜头/波浪, Ambient=柔和, Chaos=密集, Minimal=稀疏");
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.automap.style.tooltip"));
 
-		// Complexity
-		ImGui.text("Complexity");
-		if (ImGui.combo("##complexity", complexityIndex, COMPLEXITY_LABELS)) {
+		ImGui.text(BBTexts.get("beatblock.automap.complexity"));
+		if (ImGui.combo("##complexity", complexityIndex, complexityLabels())) {
 			int i = Math.max(0, Math.min(complexityIndex.get(), Complexity.values().length - 1));
 			settings.setComplexity(Complexity.values()[i]);
 		}
 		ImGui.sameLine();
-		if (ImGui.isItemHovered()) ImGui.setTooltip("Low=少量事件, Extreme=最密");
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.automap.complexity.tooltip"));
 
-		// Camera / Particles
 		boolean cam = settings.isCameraEnabled();
-		if (ImGui.checkbox("Camera", cam)) settings.setCameraEnabled(!cam);
-		if (ImGui.isItemHovered()) ImGui.setTooltip("根据段落自动插入镜头关键帧");
+		if (ImGui.checkbox(BBTexts.get("beatblock.automap.camera"), cam)) settings.setCameraEnabled(!cam);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.automap.camera.tooltip"));
 		ImGui.sameLine();
 		boolean part = settings.isParticlesEnabled();
-		if (ImGui.checkbox("Particles", part)) settings.setParticlesEnabled(!part);
-		if (ImGui.isItemHovered()) ImGui.setTooltip("根据高频能量生成粒子事件");
+		if (ImGui.checkbox(BBTexts.get("beatblock.automap.particles"), part)) settings.setParticlesEnabled(!part);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.automap.particles.tooltip"));
 
 		ImGui.spacing();
 		ImGui.separator();
 		ImGui.spacing();
 
-		// Sync settings from combo (in case user changed without firing callback)
 		settings.setStyle(AutoMapStyle.values()[Math.max(0, Math.min(styleIndex.get(), AutoMapStyle.values().length - 1))]);
 		settings.setComplexity(Complexity.values()[Math.max(0, Math.min(complexityIndex.get(), Complexity.values().length - 1))]);
 
 		boolean generated = false;
-		if (ImGui.button("Generate", 120, 0)) {
+		if (ImGui.button(BBTexts.get("beatblock.automap.generate"), 120, 0)) {
 			var outcome = presenter.generate(settings);
 			if (outcome.result().ok()) {
 				if (onResult != null) {

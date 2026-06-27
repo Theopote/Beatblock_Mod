@@ -4,6 +4,7 @@ import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.MarkerPanelPresenter;
@@ -58,12 +59,12 @@ public class MarkerPanel {
 	}
 
 	private void renderLastActionExecutionStatus() {
-		ImGui.text("时间线动作（调试）");
+		ImGui.text(BBTexts.get("beatblock.marker.timeline_actions"));
 		ImGui.separator();
 
 		BeatBlockClientDriver.TimelineActionExecutionReport report = presenter.lastActionExecutionReport();
 		if (report == null) {
-			ImGui.textDisabled("暂无执行记录。");
+			ImGui.textDisabled(BBTexts.get("beatblock.marker.no_execution_record"));
 		} else {
 			long ageMs = Math.max(0L, System.currentTimeMillis() - report.timestampMs());
 			ImGui.textDisabled(String.format(Locale.ROOT,
@@ -88,17 +89,17 @@ public class MarkerPanel {
 		Timeline timeline = presenter.currentTimeline();
 
 		ImGui.spacing();
-		ImGui.text("时间线 Marker");
+		ImGui.text(BBTexts.get("beatblock.marker.timeline_markers"));
 		ImGui.separator();
 
 		if (timeline == null) {
-			ImGui.textDisabled("当前无时间线。");
+			ImGui.textDisabled(BBTexts.get("beatblock.marker.no_timeline"));
 			return;
 		}
 
 		if (timeline.getMarkers().isEmpty()) {
 			selectedMarkerId = null;
-			ImGui.textDisabled("暂无 Marker。可在工具条创建，或双击标尺空白处创建。");
+			ImGui.textDisabled(BBTexts.get("beatblock.marker.no_markers_hint"));
 			return;
 		}
 
@@ -122,64 +123,64 @@ public class MarkerPanel {
 
 		TimelineMarker marker = presenter.findMarker(timeline, selectedMarkerId);
 		if (marker == null) return;
-		ImGui.textDisabled("选中 Marker");
+		ImGui.textDisabled(BBTexts.get("beatblock.marker.selected"));
 		ImGui.setNextItemWidth(-1);
-		ImGui.inputText("名称##markerName", markerNameBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.marker.name") + "##markerName", markerNameBuffer);
 		ImGui.setNextItemWidth(-1);
-		ImGui.inputText("时间(秒)##markerTime", markerTimeBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.marker.time_seconds") + "##markerTime", markerTimeBuffer);
 		markerTypeIndex.set(MarkerPanelPresenter.clampTypeIndex(marker.getType().ordinal()));
-		if (ImGui.combo("类型##markerType", markerTypeIndex, MARKER_TYPE_LABELS)) {
+		if (ImGui.combo(BBTexts.get("beatblock.marker.type") + "##markerType", markerTypeIndex, MARKER_TYPE_LABELS)) {
 			submitMarkerEdits(timeline, selectedMarkerId);
 		}
 
-		if (ImGui.button("Jump##toolMarkerJump")) {
+		if (ImGui.button(BBTexts.get("beatblock.common.jump") + "##toolMarkerJump")) {
 			presenter.jumpToMarker(marker);
 		}
 		ImGui.sameLine();
-		if (ImGui.button("Apply##toolMarkerApply")) {
+		if (ImGui.button(BBTexts.get("beatblock.common.apply") + "##toolMarkerApply")) {
 			submitMarkerEdits(timeline, selectedMarkerId);
 		}
 		ImGui.sameLine();
-		if (ImGui.button("Delete##toolMarkerDelete")) {
+		if (ImGui.button(BBTexts.get("beatblock.common.delete") + "##toolMarkerDelete")) {
 			if (presenter.deleteMarker(timeline, selectedMarkerId).ok()) {
 				selectedMarkerId = null;
 			}
 		}
 
 		ImGui.spacing();
-		ImGui.textDisabled("循环区");
-		if (ImGui.button("Set In##toolMarkerSetIn")) {
+		ImGui.textDisabled(BBTexts.get("beatblock.marker.loop_region"));
+		if (ImGui.button(BBTexts.get("beatblock.marker.set_in") + "##toolMarkerSetIn")) {
 			presenter.setLoopInFromMarker(marker);
 		}
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("将当前 Marker 设为循环起点");
+			ImGui.setTooltip(BBTexts.get("beatblock.marker.set_in.tooltip"));
 		}
 		ImGui.sameLine();
-		if (ImGui.button("Set Out##toolMarkerSetOut")) {
+		if (ImGui.button(BBTexts.get("beatblock.marker.set_out") + "##toolMarkerSetOut")) {
 			presenter.setLoopOutFromMarker(marker);
 		}
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("将当前 Marker 设为循环终点");
+			ImGui.setTooltip(BBTexts.get("beatblock.marker.set_out.tooltip"));
 		}
 
 		MarkerPanelPresenter.MarkerNeighbors neighbors = presenter.neighborsOf(timeline, selectedMarkerId);
 
-		if (ImGui.button("Prev->This##toolMarkerLoopPrev", 0, 0)) {
+		if (ImGui.button(BBTexts.get("beatblock.marker.loop_prev") + "##toolMarkerLoopPrev", 0, 0)) {
 			presenter.applyLoopRangeBetween(neighbors.previous(), marker);
 		}
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip(neighbors.previous() != null
-				? "将上一个 Marker 到当前 Marker 设为循环区"
-				: "没有上一个 Marker");
+				? BBTexts.get("beatblock.marker.loop_prev.tooltip")
+				: BBTexts.get("beatblock.marker.loop_prev.none"));
 		}
 		ImGui.sameLine();
-		if (ImGui.button("This->Next##toolMarkerLoopNext", 0, 0)) {
+		if (ImGui.button(BBTexts.get("beatblock.marker.loop_next") + "##toolMarkerLoopNext", 0, 0)) {
 			presenter.applyLoopRangeBetween(marker, neighbors.next());
 		}
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip(neighbors.next() != null
-				? "将当前 Marker 到下一个 Marker 设为循环区"
-				: "没有下一个 Marker");
+				? BBTexts.get("beatblock.marker.loop_next.tooltip")
+				: BBTexts.get("beatblock.marker.loop_next.none"));
 		}
 	}
 

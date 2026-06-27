@@ -2,6 +2,7 @@ package com.beatblock.timeline.rendering;
 
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.Track;
+import com.beatblock.ui.i18n.BBTexts;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -217,21 +218,7 @@ public final class TrackRegistry {
 
 	/** 本地化显示名称（未知 key 直接返回原 key）。 */
 	public static String localizedName(String key) {
-		return switch (key.toLowerCase()) {
-			case "kick"         -> "底鼓";
-			case "snare"        -> "军鼓";
-			case "snare_hi"     -> "高军鼓";
-			case "hihat", "hat" -> "踩镲";
-			case "hihat_open"   -> "开镲";
-			case "bass"         -> "贝斯";
-			case "vocals"       -> "人声";
-			case "other"        -> "其他";
-			case "drums"        -> "鼓组";
-			case "low"          -> "低频";
-			case "mid"          -> "中频";
-			case "high"         -> "高频";
-			default             -> key;
-		};
+		return BBTexts.trackName(key);
 	}
 
 	private static String audioDisplayName(String key) {

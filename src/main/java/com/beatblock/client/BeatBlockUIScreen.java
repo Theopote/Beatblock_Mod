@@ -75,7 +75,7 @@ public class BeatBlockUIScreen extends Screen {
 	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
 		if (initFailed) {
 			super.render(context, mouseX, mouseY, delta);
-			context.drawCenteredTextWithShadow(textRenderer, "ImGui 初始化失败", width / 2, height / 2 - 20, 0xFF6666);
+			context.drawCenteredTextWithShadow(textRenderer, Text.translatable("gui.beatblock.imgui_init_failed"), width / 2, height / 2 - 20, 0xFF6666);
 			return;
 		}
 		if (uiManager == null) {

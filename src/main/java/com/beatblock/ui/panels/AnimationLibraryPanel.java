@@ -2,6 +2,7 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.engine.influence.BlockInfluencePreset;
 import com.beatblock.engine.influence.BlockInfluencePresets;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.imgui.PresetChannelPreview;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
@@ -28,11 +29,9 @@ public class AnimationLibraryPanel {
 		}
 		try {
 			var presets = BlockInfluencePresets.getAll();
-			ImGui.text("动画库");
+			ImGui.text(BBTexts.get("beatblock.animation_library.title"));
 			ImGui.separator();
-			ImGui.textWrapped(String.format(Locale.ROOT,
-				"内置 %d 个方块动画预设。展开条目查看各维度通道与曲线；在事件属性面板中选择「动画模板」应用到时间线事件。",
-				presets.size()));
+			ImGui.textWrapped(BBTexts.get("beatblock.animation_library.hint", presets.size()));
 
 			ImGui.spacing();
 			if (ImGui.beginChild("##AnimationLibraryList", 0, 0, false)) {

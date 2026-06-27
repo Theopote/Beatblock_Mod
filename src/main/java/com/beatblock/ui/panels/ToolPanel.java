@@ -3,6 +3,7 @@ package com.beatblock.ui.panels;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.PresenterFactories;
@@ -34,13 +35,15 @@ public class ToolPanel {
 	private final ImString stageObjectStaggerBuffer = new ImString(16);
 	private String stageObjectMessage;
 	private long stageObjectMessageTimeMs;
-	private static final String[] STAGE_GROUP_SORTING_LABELS = {
-		"顺序 (SEQUENTIAL)",
-		"径向 (RADIAL)",
-		"螺旋 (SPIRAL)",
-		"随机 (RANDOM)",
-		"同时 (ALL)"
-	};
+	private static String[] stageGroupSortingLabels() {
+		return BBTexts.labels(
+			"beatblock.tool.sorting.sequential",
+			"beatblock.tool.sorting.radial",
+			"beatblock.tool.sorting.spiral",
+			"beatblock.tool.sorting.random",
+			"beatblock.tool.sorting.all"
+		);
+	}
 	private final Runnable onSelectionToolChosen;
 
 	public ToolPanel() {
@@ -74,23 +77,23 @@ public class ToolPanel {
 			return;
 		}
 		try {
-			ImGui.text("工具");
+			ImGui.text(BBTexts.get("beatblock.tool.title"));
 			ImGui.separator();
 
 			renderBlockSelectionTools();
 
 			ImGui.spacing();
-			ImGui.textDisabled("自动化编排");
+			ImGui.textDisabled(BBTexts.get("beatblock.tool.automation"));
 			ImGui.separator();
-			if (ImGui.button("Smart Auto Map")) {
+			if (ImGui.button(BBTexts.get("beatblock.tool.smart_auto_map"))) {
 				showAutoMapSettings = true;
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip("根据已导入音乐生成时间线事件（方块动画、镜头、粒子等），与当前选区无绑定。");
+				ImGui.setTooltip(BBTexts.get("beatblock.tool.smart_auto_map.tooltip"));
 			}
 			if (lastAutoMapResult != null) {
 				ImGui.sameLine();
-				ImGui.textDisabled(String.format("上次：动 %d · 镜 %d · 粒 %d",
+				ImGui.textDisabled(BBTexts.get("beatblock.tool.last_result",
 					lastAutoMapResult.getAnimationEvents(),
 					lastAutoMapResult.getCameraEvents(),
 					lastAutoMapResult.getParticleEvents()));
@@ -108,7 +111,7 @@ public class ToolPanel {
 	}
 
 	private void renderBlockSelectionTools() {
-		ImGui.text("方块选择工具");
+		ImGui.text(BBTexts.get("beatblock.tool.block_selection"));
 		var state = presenter.selectionToolViewState();
 		ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
 		if (ImGui.beginCombo("##bselCombo", ToolPanelPresenter.selectionModeLabel(state.mode()))) {
@@ -131,13 +134,13 @@ public class ToolPanel {
 
 		// === 动态显示当前工具的属性（集成选择属性面板功能） ===
 		ImGui.spacing();
-		ImGui.textColored(0.7f, 0.9f, 1f, 1f, "工具设置:");
+		ImGui.textColored(0.7f, 0.9f, 1f, 1f, BBTexts.get("beatblock.tool.tool_settings"));
 		ImGui.separator();
 		renderToolSpecificProperties(state.mode());
 
 		// === 通用属性 ===
 		ImGui.spacing();
-		ImGui.textColored(0.7f, 0.9f, 1f, 1f, "通用设置:");
+		ImGui.textColored(0.7f, 0.9f, 1f, 1f, BBTexts.get("beatblock.tool.common_settings"));
 		ImGui.separator();
 		renderCommonSelectionProperties();
 
@@ -153,50 +156,53 @@ public class ToolPanel {
 		switch (mode) {
 			case BRUSH -> {
 				com.beatblock.selection.BrushShape shape = selMgr.getBrushShape();
-				String shapeLabel = shape == com.beatblock.selection.BrushShape.SPHERE ? "球体" : "立方体";
-				if (ImGui.beginCombo("形状##brushShape", shapeLabel)) {
-					if (ImGui.selectable("球体##sphereOpt", shape == com.beatblock.selection.BrushShape.SPHERE)) {
+				String shapeLabel = shape == com.beatblock.selection.BrushShape.SPHERE
+					? BBTexts.get("beatblock.tool.shape.sphere")
+					: BBTexts.get("beatblock.tool.shape.cube");
+				if (ImGui.beginCombo(BBTexts.get("beatblock.tool.shape") + "##brushShape", shapeLabel)) {
+					if (ImGui.selectable(BBTexts.get("beatblock.tool.shape.sphere") + "##sphereOpt", shape == com.beatblock.selection.BrushShape.SPHERE)) {
 						selMgr.setBrushShape(com.beatblock.selection.BrushShape.SPHERE);
 					}
-					if (ImGui.selectable("立方体##cubeOpt", shape == com.beatblock.selection.BrushShape.CUBE)) {
+					if (ImGui.selectable(BBTexts.get("beatblock.tool.shape.cube") + "##cubeOpt", shape == com.beatblock.selection.BrushShape.CUBE)) {
 						selMgr.setBrushShape(com.beatblock.selection.BrushShape.CUBE);
 					}
 					ImGui.endCombo();
 				}
 				int[] radius = {selMgr.getSphereBrushRadius()};
 				ImGui.setNextItemWidth(-1f);
-				if (ImGui.sliderInt("大小##brushSize", radius, 1, 32)) {
+				if (ImGui.sliderInt(BBTexts.get("beatblock.tool.size") + "##brushSize", radius, 1, 32)) {
 					selMgr.setSphereBrushRadius(radius[0]);
 				}
 			}
 			case LINE -> {
 				int[] thickness = {selMgr.getLineThicknessRadius()};
 				ImGui.setNextItemWidth(-1f);
-				if (ImGui.sliderInt("线粗细##lineThick", thickness, 0, 32)) {
+				if (ImGui.sliderInt(BBTexts.get("beatblock.tool.line_thickness") + "##lineThick", thickness, 0, 32)) {
 					selMgr.setLineThicknessRadius(thickness[0]);
 				}
 			}
 			case CONNECTED, SELECTION_WAND -> {
 				int[] spread = {selMgr.getMaxMagicWandSpreadFromSeed()};
 				ImGui.setNextItemWidth(-1f);
-				if (ImGui.sliderInt("扩散半径##wandSpread", spread, 1, 256)) {
+				if (ImGui.sliderInt(BBTexts.get("beatblock.tool.spread_radius") + "##wandSpread", spread, 1, 256)) {
 					selMgr.setMaxMagicWandSpreadFromSeed(spread[0]);
 				}
 				boolean fullState = selMgr.isConnectedMatchFullState();
-				if (ImGui.checkbox("完整状态匹配##fullState", new ImBoolean(fullState))) {
+				if (ImGui.checkbox(BBTexts.get("beatblock.tool.full_state_match") + "##fullState", new ImBoolean(fullState))) {
 					selMgr.setConnectedMatchFullState(!fullState);
 				}
 			}
 			case PLANE_SLICE -> {
 				net.minecraft.util.math.Direction override = selMgr.getPlaneSliceFaceOverride();
-				String[] faceLabels = {"自动", "+Y", "-Y", "+X", "-X", "+Z", "-Z"};
+				String[] faceLabels = BBTexts.labels(
+					"beatblock.tool.face.auto", "+Y", "-Y", "+X", "-X", "+Z", "-Z");
 				int faceIndex = override == null ? 0 :
 					switch (override) {
 						case UP -> 1; case DOWN -> 2; case EAST -> 3;
 						case WEST -> 4; case SOUTH -> 5; case NORTH -> 6;
 					};
 				ImInt faceIndexImInt = new ImInt(faceIndex);
-				if (ImGui.combo("切片朝向##planeDir", faceIndexImInt, faceLabels)) {
+				if (ImGui.combo(BBTexts.get("beatblock.tool.slice_direction") + "##planeDir", faceIndexImInt, faceLabels)) {
 					net.minecraft.util.math.Direction newDir = switch (faceIndexImInt.get()) {
 						case 1 -> net.minecraft.util.math.Direction.UP;
 						case 2 -> net.minecraft.util.math.Direction.DOWN;
@@ -209,7 +215,7 @@ public class ToolPanel {
 					selMgr.setPlaneSliceFaceOverride(newDir);
 				}
 			}
-			case OFF, CLICK, BOX, COLUMN, LASSO -> ImGui.textDisabled("（无特殊设置）");
+			case OFF, CLICK, BOX, COLUMN, LASSO -> ImGui.textDisabled(BBTexts.get("beatblock.tool.no_special_settings"));
 		}
 	}
 
@@ -219,51 +225,51 @@ public class ToolPanel {
 	private void renderCommonSelectionProperties() {
 		var selMgr = com.beatblock.selection.BeatBlockSelectionManager.get();
 
-		ImGui.text("操作:");
+		ImGui.text(BBTexts.get("beatblock.tool.operations"));
 		com.beatblock.selection.SelectionOperation op = selMgr.getOperation();
-		if (ImGui.radioButton("新建##opNew", op == com.beatblock.selection.SelectionOperation.NEW)) {
+		if (ImGui.radioButton(BBTexts.get("beatblock.tool.op.new") + "##opNew", op == com.beatblock.selection.SelectionOperation.NEW)) {
 			selMgr.setOperation(com.beatblock.selection.SelectionOperation.NEW);
 		}
 		ImGui.sameLine();
-		if (ImGui.radioButton("加选##opAdd", op == com.beatblock.selection.SelectionOperation.ADD)) {
+		if (ImGui.radioButton(BBTexts.get("beatblock.tool.op.add") + "##opAdd", op == com.beatblock.selection.SelectionOperation.ADD)) {
 			selMgr.setOperation(com.beatblock.selection.SelectionOperation.ADD);
 		}
 		ImGui.sameLine();
-		if (ImGui.radioButton("减选##opSub", op == com.beatblock.selection.SelectionOperation.SUBTRACT)) {
+		if (ImGui.radioButton(BBTexts.get("beatblock.tool.op.subtract") + "##opSub", op == com.beatblock.selection.SelectionOperation.SUBTRACT)) {
 			selMgr.setOperation(com.beatblock.selection.SelectionOperation.SUBTRACT);
 		}
 
 		int[] maxDist = {selMgr.getMaxDistanceFromCamera()};
 		ImGui.setNextItemWidth(-1f);
-		if (ImGui.sliderInt("相机距离##camDist", maxDist, 16, 512)) {
+		if (ImGui.sliderInt(BBTexts.get("beatblock.tool.camera_distance") + "##camDist", maxDist, 16, 512)) {
 			selMgr.setMaxDistanceFromCamera(maxDist[0]);
 		}
 
 		boolean includeAir = selMgr.isIncludeAir();
-		if (ImGui.checkbox("包含空气##includeAir", new ImBoolean(includeAir))) {
+		if (ImGui.checkbox(BBTexts.get("beatblock.tool.include_air") + "##includeAir", new ImBoolean(includeAir))) {
 			selMgr.setIncludeAir(!includeAir);
 		}
 
 		int selCount = selMgr.getSelectedBlocks().size();
 		if (selCount > 0) {
 			ImGui.textColored(0.4f, 1f, 0.4f, 1f,
-				String.format(java.util.Locale.ROOT, "已选: %d 个方块", selCount));
+				BBTexts.get("beatblock.common.selected_blocks", selCount));
 		}
 	}
 
 	private void renderStageObjectCreator() {
 		ImGui.spacing();
-		ImGui.textDisabled("动画场景对象（StageObject）");
+		ImGui.textDisabled(BBTexts.get("beatblock.tool.stage_object"));
 		ImGui.separator();
-		ImGui.textWrapped("选择方块后创建对象，用于时间线动画事件。");
+		ImGui.textWrapped(BBTexts.get("beatblock.tool.stage_object.hint"));
 
 		var selectionState = presenter.selectionToolViewState();
 		int selCount = selectionState.selectionCount();
 		if (selCount > 0) {
 			ImGui.textColored(0.4f, 1f, 0.4f, 1f,
-				String.format(java.util.Locale.ROOT, "✓ 已选方块：%d 个", selCount));
+				BBTexts.get("beatblock.tool.selected_count", selCount));
 		} else {
-			ImGui.textColored(1f, 0.6f, 0.2f, 1f, "⚠ 请先用上方工具选择方块");
+			ImGui.textColored(1f, 0.6f, 0.2f, 1f, BBTexts.get("beatblock.tool.select_blocks_first"));
 		}
 
 		// === 快速创建按钮（推荐） ===
@@ -274,14 +280,14 @@ public class ToolPanel {
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
 
-		if (ImGui.button("快速创建 (推荐)##quickCreate", -1f, 32f)) {
+		if (ImGui.button(BBTexts.get("beatblock.tool.quick_create") + "##quickCreate", -1f, 32f)) {
 			quickCreateFromSelection();
 		}
 
 		ImGui.popStyleColor(3);
 
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("一键创建：自动命名、使用默认参数\n适合快速开始创作");
+			ImGui.setTooltip(BBTexts.get("beatblock.tool.quick_create.tooltip"));
 		}
 
 		if (!canCreateFromSelection) ImGui.endDisabled();
@@ -289,67 +295,67 @@ public class ToolPanel {
 		// === 精确创建（快照模式） ===
 		ImGui.spacing();
 		if (!canCreateFromSelection) ImGui.beginDisabled();
-		if (ImGui.button("精确创建 (保留选区形状)##stageCreateFromSelection", -1f, 0f)) {
+		if (ImGui.button(BBTexts.get("beatblock.tool.precise_create") + "##stageCreateFromSelection", -1f, 0f)) {
 			var outcome = presenter.createFromSelectionSnapshot(buildQuickStageObjectRequest());
 			applyStageObjectMessage(outcome.result());
 		}
 		if (!canCreateFromSelection) ImGui.endDisabled();
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("保留当前选中的方块集合（不扩成矩形），适合不规则形状");
+			ImGui.setTooltip(BBTexts.get("beatblock.tool.precise_create.tooltip"));
 		}
 
 		// === 高级选项（折叠） ===
 		ImGui.spacing();
 		ImGui.setNextItemOpen(false, ImGuiCond.Once);
-		if (ImGui.collapsingHeader("高级选项 (可选)##stageAdvanced")) {
-			ImGui.textWrapped("自定义名称和参数。大部分情况使用默认即可。");
+		if (ImGui.collapsingHeader(BBTexts.get("beatblock.tool.advanced_options") + "##stageAdvanced")) {
+			ImGui.textWrapped(BBTexts.get("beatblock.tool.advanced.hint"));
 
 			ImGui.spacing();
-			ImGui.text("对象名称:");
+			ImGui.text(BBTexts.get("beatblock.tool.object_name"));
 			ImGui.setNextItemWidth(-1f);
 			ImGui.inputText("##stageObjName", stageObjectNameBuffer);
 
-			ImGui.text("包围盒角点:");
+			ImGui.text(BBTexts.get("beatblock.tool.corner_points"));
 			ToolPanelPresenter.CornerState corners = presenter.currentCorners();
 			ImGui.textDisabled("  A: " + ToolPanelPresenter.formatPos(corners.posA()));
 			ImGui.textDisabled("  B: " + ToolPanelPresenter.formatPos(corners.posB()));
 
-			if (ImGui.button("用选区包围盒填入##stageFromSel", -1f, 0f)) {
+			if (ImGui.button(BBTexts.get("beatblock.tool.fill_from_selection") + "##stageFromSel", -1f, 0f)) {
 				applyStageObjectMessage(presenter.fillCornersFromSelection().result());
 			}
 
 			ImGui.setNextItemOpen(false, ImGuiCond.Once);
-			if (ImGui.treeNode("准星拾取角点##stageManualCorner")) {
-				ImGui.textWrapped("用准星对准方块，分别指定长方体的两个对角。");
-				if (ImGui.button("准星 → A##stageObjSetA")) {
+			if (ImGui.treeNode(BBTexts.get("beatblock.tool.crosshair_corners") + "##stageManualCorner")) {
+				ImGui.textWrapped(BBTexts.get("beatblock.tool.crosshair_corners"));
+				if (ImGui.button(BBTexts.get("beatblock.tool.crosshair_to_a") + "##stageObjSetA")) {
 					applyStageObjectMessage(presenter.setCornerFromCrosshair(true).result());
 				}
 				ImGui.sameLine();
-				if (ImGui.button("准星 → B##stageObjSetB")) {
+				if (ImGui.button(BBTexts.get("beatblock.tool.crosshair_to_b") + "##stageObjSetB")) {
 					applyStageObjectMessage(presenter.setCornerFromCrosshair(false).result());
 				}
-				if (ImGui.button("清空##stageObjClearSelection")) {
+				if (ImGui.button(BBTexts.get("beatblock.tool.clear_corners") + "##stageObjClearSelection")) {
 					applyStageObjectMessage(presenter.clearCorners().result());
 				}
 				ImGui.treePop();
 			}
 
 			ImGui.spacing();
-			ImGui.checkbox("包含空气方块##stageObjIncludeAir", stageObjectIncludeAir);
+			ImGui.checkbox(BBTexts.get("beatblock.tool.include_air") + "##stageObjIncludeAir", stageObjectIncludeAir);
 
 			ImGui.spacing();
-			ImGui.text("排序策略:");
+			ImGui.text(BBTexts.get("beatblock.tool.sorting_strategy"));
 			ImGui.setNextItemWidth(-1f);
-			ImGui.combo("##stageGroupSorting", stageObjectSortingIndex, STAGE_GROUP_SORTING_LABELS);
+			ImGui.combo("##stageGroupSorting", stageObjectSortingIndex, stageGroupSortingLabels());
 
-			ImGui.text("步进延迟(秒):");
+			ImGui.text(BBTexts.get("beatblock.tool.stagger_delay"));
 			ImGui.setNextItemWidth(-1f);
 			ImGui.inputText("##stageGroupStagger", stageObjectStaggerBuffer);
 
 			ImGui.spacing();
 			boolean canCreate = corners.posA() != null && corners.posB() != null;
 			if (!canCreate) ImGui.beginDisabled();
-			if (ImGui.button("使用自定义参数创建##stageObjCreate", -1f, 0f)) {
+			if (ImGui.button(BBTexts.get("beatblock.tool.create_custom") + "##stageObjCreate", -1f, 0f)) {
 				var outcome = presenter.createFromCuboid(buildStageObjectRequest());
 				applyStageObjectMessage(outcome.result());
 			}
@@ -368,12 +374,12 @@ public class ToolPanel {
 		var objects = presenter.listStageObjects();
 		if (objects.isEmpty()) {
 			ImGui.spacing();
-			ImGui.textDisabled("暂无已注册的 StageObject。");
+			ImGui.textDisabled(BBTexts.get("beatblock.tool.no_stage_objects"));
 			return;
 		}
 
 		ImGui.spacing();
-		ImGui.text("已注册对象 (" + objects.size() + ")");
+		ImGui.text(BBTexts.get("beatblock.tool.registered_objects", objects.size()));
 		String removeId = null;
 		if (ImGui.beginChild("##StageObjectList", 0, Math.min(objects.size() * 22f + 8f, 160f), true)) {
 			for (var obj : objects) {
@@ -382,7 +388,7 @@ public class ToolPanel {
 				ImGui.sameLine();
 				ImGui.textDisabled("(" + obj.sourceType() + ")");
 				ImGui.sameLine();
-				if (ImGui.smallButton("Delete##stageObjDel_" + obj.id())) {
+				if (ImGui.smallButton(BBTexts.get("beatblock.common.delete") + "##stageObjDel_" + obj.id())) {
 					removeId = obj.id();
 				}
 			}
@@ -424,8 +430,7 @@ public class ToolPanel {
 
 		// 如果创建成功，显示提示
 		if (outcome.result().ok()) {
-			stageObjectMessage = "✓ 已创建对象: " + autoName +
-				"\n现在可以在时间线中添加事件并选择此对象";
+			stageObjectMessage = BBTexts.get("beatblock.tool.created_hint", autoName);
 			stageObjectMessageTimeMs = System.currentTimeMillis();
 		}
 	}

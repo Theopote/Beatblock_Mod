@@ -1,5 +1,7 @@
 package com.beatblock.timeline;
 
+import com.beatblock.ui.i18n.BBTexts;
+
 /**
  * Marker 类型：决定语义和默认显示颜色。
  */
@@ -35,11 +37,12 @@ public enum MarkerType {
 	}
 
 	public static String[] displayNames() {
-		MarkerType[] values = values();
-		String[] labels = new String[values.length];
-		for (int i = 0; i < values.length; i++) {
-			labels[i] = values[i].getDisplayName();
-		}
-		return labels;
+		return BBTexts.labels(
+			"beatblock.marker_type.generic",
+			"beatblock.marker_type.section",
+			"beatblock.marker_type.drop",
+			"beatblock.marker_type.camera",
+			"beatblock.marker_type.fx"
+		);
 	}
 }
