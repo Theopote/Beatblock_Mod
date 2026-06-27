@@ -14,7 +14,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
-import net.minecraft.world.BlockRenderView;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -47,8 +46,7 @@ public final class BeatBlockAnimatedBlocksRenderer {
 		if (clientWorld == null || mc.gameRenderer == null || mc.getBlockRenderManager() == null) {
 			return;
 		}
-		BlockRenderView world = clientWorld;
-		Map<BlockPos, AnimatedBlock> frame = engine.getCurrentFrameBlocks();
+        Map<BlockPos, AnimatedBlock> frame = engine.getCurrentFrameBlocks();
 		if (frame == null || frame.isEmpty()) {
 			return;
 		}
@@ -67,7 +65,7 @@ public final class BeatBlockAnimatedBlocksRenderer {
 			if (!clientWorld.isChunkLoaded(orig)) {
 				continue;
 			}
-			BlockState worldState = world.getBlockState(orig);
+			BlockState worldState = clientWorld.getBlockState(orig);
 			BlockState override = ab.getAppearanceOverride();
 			BlockState state = override != null ? override : worldState;
 			if (state.isAir()) {
@@ -103,7 +101,7 @@ public final class BeatBlockAnimatedBlocksRenderer {
 			matrices.translate(-0.5, -0.5, -0.5);
 
 			// cull=false：避免与邻近几何相交时背面被裁切发暗
-			drm.renderBlock(state, orig, world, matrices, buffer, false, parts);
+			drm.renderBlock(state, orig, clientWorld, matrices, buffer, false, parts);
 			matrices.pop();
 		}
 	}

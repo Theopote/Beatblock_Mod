@@ -40,8 +40,8 @@ public final class PresenterFactories {
 
 	public static BuildLayersPresenter buildLayersPresenter(BeatBlockContext context) {
 		return new BuildLayersPresenter(
-			() -> context.commandManager(),
-			() -> context.buildLayerManager()
+                context::commandManager,
+                context::buildLayerManager
 		);
 	}
 

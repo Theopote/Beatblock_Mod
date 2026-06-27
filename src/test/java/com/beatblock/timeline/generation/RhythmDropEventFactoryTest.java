@@ -25,7 +25,7 @@ class RhythmDropEventFactoryTest {
 
 		assertEquals(2, events.size());
 
-		TimelineAnimationEvent first = events.get(0);
+		TimelineAnimationEvent first = events.getFirst();
 		assertEquals("RhythmDrop", first.getAnimationTypeId());
 		assertEquals("anchor", first.getTargetObjectId());
 		assertEquals(1.0, first.getTimeSeconds(), 1e-9);

@@ -100,9 +100,8 @@ public final class BlockInfluenceOrchestrator {
 	) {
 		if (instance.getTarget() == null || instance.getDefinition() == null) return;
 		BlockInfluencePreset preset = instance.getDefinition().getPreset();
-		if (preset == null) return;
 
-		String instanceKey = InfluenceInstanceKeys.key(instance);
+        String instanceKey = InfluenceInstanceKeys.key(instance);
 		float t = instance.getProgress(timelineTimeSeconds);
 		float previousT = lastProgressByInstance.getOrDefault(instanceKey, 0f);
 		lastProgressByInstance.put(instanceKey, t);
