@@ -1054,5 +1054,14 @@
   "beatblock.export.error.already_running": "A video export is already in progress.",
   "beatblock.export.error.start_failed": "Unable to start video export.",
   "beatblock.export.error.ffmpeg_missing": "FFmpeg was not found. Put ffmpeg.exe in the game directory or configure ffmpeg_path.txt.",
-  "beatblock.export.error.no_timeline_duration": "Import music or set a timeline duration before exporting."
+  "beatblock.export.error.no_timeline_duration": "Import music or set a timeline duration before exporting.",
+  "beatblock.export.progress.preparing": "Preparing export...",
+  "beatblock.export.progress.rendering_frame": "Rendering frame %d/%d",
+  "beatblock.export.progress.finalizing": "Finalizing encode...",
+  "beatblock.export.success": "Video exported: %s",
+  "beatblock.export.cancelled": "Export cancelled.",
+  "beatblock.export.error.window_unavailable": "Client window unavailable; cannot export video.",
+  "beatblock.export.error.start_ffmpeg": "Unable to start ffmpeg: %s",
+  "beatblock.export.error.write_frame": "Failed to write video frame: %s",
+  "beatblock.export.error.failed": "Video export failed."
 }

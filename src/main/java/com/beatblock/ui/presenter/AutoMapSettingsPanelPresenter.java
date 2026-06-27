@@ -5,6 +5,7 @@ import com.beatblock.automap.engine.SmartAutoMapEngine;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.ui.i18n.BBTexts;
 
 import java.util.function.Supplier;
 
@@ -35,10 +36,10 @@ public final class AutoMapSettingsPanelPresenter {
 
 	public String generateBlockedReason() {
 		if (lastFeatureTimeline() == null) {
-			return "请先导入音乐以进行分析";
+			return BBTexts.get("beatblock.message.import_music_first");
 		}
 		if (timeline() == null) {
-			return "Timeline 不可用";
+			return BBTexts.get("beatblock.message.timeline_unavailable");
 		}
 		return null;
 	}

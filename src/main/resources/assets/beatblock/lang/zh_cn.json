@@ -1091,5 +1091,14 @@
   "beatblock.export.error.already_running": "已有视频导出任务在进行中。",
   "beatblock.export.error.start_failed": "无法启动视频导出。",
   "beatblock.export.error.ffmpeg_missing": "未找到 FFmpeg。请将 ffmpeg.exe 放到游戏目录，或配置 ffmpeg_path.txt。",
-  "beatblock.export.error.no_timeline_duration": "请先导入音乐或设置时间线时长后再导出。"
+  "beatblock.export.error.no_timeline_duration": "请先导入音乐或设置时间线时长后再导出。",
+  "beatblock.export.progress.preparing": "准备导出...",
+  "beatblock.export.progress.rendering_frame": "正在渲染帧 %d/%d",
+  "beatblock.export.progress.finalizing": "正在完成编码...",
+  "beatblock.export.success": "视频已导出: %s",
+  "beatblock.export.cancelled": "导出已取消。",
+  "beatblock.export.error.window_unavailable": "客户端窗口不可用，无法导出视频。",
+  "beatblock.export.error.start_ffmpeg": "无法启动 ffmpeg: %s",
+  "beatblock.export.error.write_frame": "写入视频帧失败: %s",
+  "beatblock.export.error.failed": "视频导出失败。"
 }

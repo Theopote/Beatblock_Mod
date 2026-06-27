@@ -6,6 +6,7 @@ import com.beatblock.audio.ffmpeg.FfmpegTranscodeOutcome;
 import com.beatblock.audio.ffmpeg.FfmpegVideoEncoder;
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.client.camera.TimelineCameraController;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.video.VideoExportProgress;
 import com.beatblock.video.VideoExportService;
@@ -65,12 +66,12 @@ public final class VideoExportCoordinator {
 		}
 		String ffmpeg = FfmpegService.resolveExecutable();
 		if (ffmpeg == null) {
-			failImmediately(exportSettings, exportService, "找不到 ffmpeg。请将 ffmpeg.exe 放到 Minecraft 游戏目录或其子文件夹，或在 config/beatblock/ffmpeg_path.txt 中指定路径。");
+			failImmediately(exportSettings, exportService, BBTexts.get("beatblock.export.error.ffmpeg_missing"));
 			return;
 		}
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client == null || client.getWindow() == null) {
-			failImmediately(exportSettings, exportService, "客户端窗口不可用，无法导出视频。");
+			failImmediately(exportSettings, exportService, BBTexts.get("beatblock.export.error.window_unavailable"));
 			return;
 		}
 
@@ -94,7 +95,7 @@ public final class VideoExportCoordinator {
 		this.captureWidth = target[0];
 		this.captureHeight = target[1];
 
-		updateProgress(VideoExportProgress.State.STARTING, "准备导出...", 0);
+		updateProgress(VideoExportProgress.State.STARTING, BBTexts.get("beatblock.export.progress.preparing"), 0);
 		try {
 			Path audioPath = resolveAudioPath(exportSettings);
 			this.encoder = new FfmpegVideoEncoder(
@@ -111,7 +112,7 @@ public final class VideoExportCoordinator {
 			scheduleNextFrame();
 		} catch (IOException e) {
 			cleanup();
-			failImmediately(exportSettings, exportService, "无法启动 ffmpeg: " + e.getMessage());
+			failImmediately(exportSettings, exportService, BBTexts.get("beatblock.export.error.start_ffmpeg", e.getMessage()));
 		}
 	}
 
@@ -122,7 +123,7 @@ public final class VideoExportCoordinator {
 	public void onClientTick() {
 		if (phase == Phase.IDLE || cancelRequested) {
 			if (cancelRequested && phase != Phase.IDLE) {
-				abort("导出已取消。");
+				abort(BBTexts.get("beatblock.export.cancelled"));
 			}
 		}
 	}
@@ -141,7 +142,7 @@ public final class VideoExportCoordinator {
 			nextFrameIndex++;
 			updateProgress(
 				VideoExportProgress.State.RUNNING,
-				"正在渲染帧 " + nextFrameIndex + "/" + settings.totalFrames(),
+				BBTexts.get("beatblock.export.progress.rendering_frame", nextFrameIndex, settings.totalFrames()),
 				Math.min(99, (int) Math.round((nextFrameIndex * 100.0) / settings.totalFrames()))
 			);
 			if (nextFrameIndex >= settings.totalFrames()) {
@@ -150,7 +151,7 @@ public final class VideoExportCoordinator {
 				scheduleNextFrame();
 			}
 		} catch (IOException e) {
-			abort("写入视频帧失败: " + e.getMessage());
+			abort(BBTexts.get("beatblock.export.error.write_frame", e.getMessage()));
 		}
 	}
 
@@ -164,7 +165,7 @@ public final class VideoExportCoordinator {
 
 	private void finishEncoding() {
 		phase = Phase.FINALIZING;
-		updateProgress(VideoExportProgress.State.FINALIZING, "正在完成编码...", 99);
+		updateProgress(VideoExportProgress.State.FINALIZING, BBTexts.get("beatblock.export.progress.finalizing"), 99);
 		Thread finisher = new Thread(() -> {
 			FfmpegTranscodeOutcome outcome = encoder.finishAndAwait();
 			MinecraftClient.getInstance().execute(() -> {
@@ -173,7 +174,7 @@ public final class VideoExportCoordinator {
 				} else if (outcome instanceof FfmpegTranscodeOutcome.Failure failure) {
 					abort(failure.message());
 				} else {
-					abort("视频导出失败。");
+					abort(BBTexts.get("beatblock.export.error.failed"));
 				}
 			});
 		}, "beatblock-video-export-finalize");
@@ -182,7 +183,7 @@ public final class VideoExportCoordinator {
 	}
 
 	private void completeSuccess(Path output) {
-		String message = "视频已导出: " + output.toAbsolutePath();
+		String message = BBTexts.get("beatblock.export.success", output.toAbsolutePath());
 		updateProgress(VideoExportProgress.State.SUCCEEDED, message, 100);
 		if (service != null) {
 			service.onCompleted(new VideoExportService.VideoExportResult(

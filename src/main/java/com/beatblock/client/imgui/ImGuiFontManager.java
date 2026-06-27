@@ -136,7 +136,9 @@ public final class ImGuiFontManager {
 				// 时间线轨道类型列 + 默认轨道名
 				"音频波形低频中频高频方块自动摄像机" +
 				// 时间线工具栏：焙 不在 ChineseSimplifiedCommon，缺字会显示为 ?
-				"烘焙绑定映射自动吸附节拍网格磁吸循环入点出点清除缩放适应轨道轨高重置回滚预览持久天降规则细节混合触发持续片段预设"
+				"烘焙绑定映射自动吸附节拍网格磁吸循环入点出点清除缩放适应轨道轨高重置回滚预览持久天降规则细节混合触发持续片段预设" +
+				// 视频导出面板
+				"导出视频帧率分辨率混入编码渲染就绪输出路径范围起点终点隐藏编辑器"
 			);
 			tryAddRanges(builder, a, "getGlyphRangesJapanese");
 			tryAddRanges(builder, a, "getGlyphRangesKorean");
