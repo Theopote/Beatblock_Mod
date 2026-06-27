@@ -1,13 +1,19 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.audio.MusicPlayer;
+import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -116,5 +122,128 @@ class TimelineTransportPresenterTest {
 		presenter.setLoopInAt(toolbarState, 5.0, 0.5);
 		assertEquals(5.0, toolbarState.getLoopInSeconds(), 1e-9);
 		assertTrue(toolbarState.getLoopOutSeconds() > 5.0);
+	}
+
+	@Test
+	void resolveSeekStepReturnsOneWhenBpmZero() {
+		assertEquals(1.0, TimelineTransportPresenter.resolveSeekStep(0), 1e-9);
+	}
+
+	@Test
+	void seekByAdvancesClock() {
+		editor.getClock().seek(10.0);
+		presenter.seekBy(editor, 2.5);
+		assertEquals(12.5, editor.getClock().getCurrentTimeSeconds(), 1e-9);
+	}
+
+	@Test
+	void pauseStopsClock() {
+		presenter.play(editor);
+		assertTrue(editor.getClock().isPlaying());
+		presenter.pause();
+		assertFalse(editor.getClock().isPlaying());
+	}
+
+	@Test
+	void jumpToNearbyEventBackwardUsesMarkers() {
+		timeline.addMarker(new TimelineMarker(2.0, "A"));
+		timeline.addMarker(new TimelineMarker(8.0, "B"));
+		editor.getClock().seek(5.0);
+		presenter.jumpToNearbyEvent(editor, false);
+		assertEquals(2.0, editor.getClock().getCurrentTimeSeconds(), 1e-9);
+	}
+
+	@Test
+	void collectNavigationTimesFallsBackToClipEventsWhenNoMarkers() {
+		var track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_AUTO);
+		var clip = TimelineOperations.addClip(track, 0.0, 4.0);
+		TimelineOperations.addEvent(clip, 1.5, EventType.ANIMATION, Map.of("animationType", "pulse"));
+		TimelineOperations.addEvent(clip, 3.0, EventType.ANIMATION, Map.of("animationType", "pulse"));
+
+		assertEquals(List.of(1.5, 3.0), TimelineTransportPresenter.collectNavigationTimes(timeline));
+	}
+
+	@Test
+	void jumpToNearbyEventUsesClipEventsWhenNoMarkers() {
+		var track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_AUTO);
+		var clip = TimelineOperations.addClip(track, 0.0, 4.0);
+		TimelineOperations.addEvent(clip, 1.0, EventType.ANIMATION, Map.of("animationType", "pulse"));
+		TimelineOperations.addEvent(clip, 3.0, EventType.ANIMATION, Map.of("animationType", "pulse"));
+		editor.getClock().seek(2.0);
+
+		presenter.jumpToNearbyEvent(editor, true);
+		assertEquals(3.0, editor.getClock().getCurrentTimeSeconds(), 1e-9);
+	}
+
+	@Test
+	void addMarkerAtCurrentTimeReturnsFalseWhenTimelineMissing() {
+		AtomicReference<Timeline> missingTimeline = new AtomicReference<>(timeline);
+		var missing = new TimelineTransportPresenter(
+			() -> editor,
+			missingTimeline::get,
+			() -> null,
+			() -> null,
+			null
+		);
+		missingTimeline.set(null);
+		assertFalse(missing.addMarkerAtCurrentTime(editor));
+	}
+
+	@Test
+	void setLoopOutAtEnforcesMinimumGapFromLoopIn() {
+		toolbarState.setLoopInSeconds(4.0);
+		presenter.setLoopOutAt(toolbarState, 4.0, 0.5);
+		assertTrue(toolbarState.getLoopOutSeconds() >= 4.5);
+	}
+
+	@Test
+	void clearLoopRangeClearsToolbarState() {
+		toolbarState.setLoopInSeconds(2.0);
+		toolbarState.setLoopOutSeconds(8.0);
+		presenter.clearLoopRange(toolbarState);
+		assertFalse(toolbarState.isLoop());
+	}
+
+	@Test
+	void resolveDurationPrefersTimelineDuration() {
+		timeline.setDurationSeconds(90.0);
+		assertEquals(90.0, presenter.resolveDuration(editor), 1e-9);
+	}
+
+	@Test
+	void seekToSyncsMusicPlayer() {
+		MusicPlayer music = new MusicPlayer();
+		music.setDurationSeconds(120.0);
+		var withMusic = new TimelineTransportPresenter(
+			() -> editor,
+			() -> timeline,
+			() -> music,
+			() -> null,
+			null
+		);
+		withMusic.seekTo(editor, 15.0);
+		assertEquals(15.0, music.getCurrentTimeSeconds(), 1e-9);
+	}
+
+	@Test
+	void setPlaybackSpeedSyncsClockAndMusic() {
+		MusicPlayer music = new MusicPlayer();
+		var withMusic = new TimelineTransportPresenter(
+			() -> editor,
+			() -> timeline,
+			() -> music,
+			() -> null,
+			null
+		);
+		withMusic.setPlaybackSpeed(editor, 1.5);
+		assertEquals(1.5, editor.getClock().getPlaybackSpeed(), 1e-9);
+		assertEquals(1.5, music.getPlaybackSpeed(), 1e-9);
+	}
+
+	@Test
+	void viewStateNullEditorUsesFallbackDuration() {
+		var state = presenter.viewState(null, false);
+		assertEquals(60.0, state.durationSeconds(), 1e-9);
+		assertFalse(state.hasMusic());
 	}
 }

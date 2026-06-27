@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -46,6 +47,27 @@ class MenuBarPresenterTest {
 	void importAudioRejectsEmptyPath() {
 		var result = presenter.importAudio("  ");
 		assertFalse(result.ok());
+		assertEquals("路径不能为空", result.messageOrEmpty());
+	}
+
+	@Test
+	void importAudioFailsWhenLoaderReturnsFalse() {
+		audioLoader.nextResult = false;
+		var result = presenter.importAudio("C:/music/bad.wav");
+		assertFalse(result.ok());
+		assertEquals("导入失败", result.messageOrEmpty());
+	}
+
+	@Test
+	void importAudioFailsWhenLoaderUnavailable() {
+		var missingLoader = new MenuBarPresenter(
+			new TimelineEditorPresenter(() -> editor, time -> {}),
+			() -> timeline,
+			() -> editor,
+			() -> layerManager,
+			() -> null
+		);
+		assertFalse(missingLoader.importAudio("C:/music/test.wav").ok());
 	}
 
 	@Test
@@ -59,6 +81,47 @@ class MenuBarPresenterTest {
 	@Test
 	void saveProjectRejectsEmptyPath() {
 		assertFalse(presenter.saveProject("").ok());
+		assertEquals("路径不能为空", presenter.saveProject("").messageOrEmpty());
+	}
+
+	@Test
+	void saveProjectPersistsFileAndMetadata(@TempDir Path tempDir) throws Exception {
+		Path file = tempDir.resolve("show.osc");
+		var result = presenter.saveProject(file.toString());
+		assertTrue(result.ok());
+		assertTrue(Files.exists(file));
+		assertEquals(file.toString(), presenter.defaultSaveProjectPath());
+	}
+
+	@Test
+	void openProjectRejectsEmptyPath() {
+		var result = presenter.openProject(" ");
+		assertFalse(result.ok());
+		assertEquals("路径不能为空", result.messageOrEmpty());
+	}
+
+	@Test
+	void openProjectFailsWhenTimelineMissing(@TempDir Path tempDir) throws Exception {
+		Path file = tempDir.resolve("demo.osc");
+		OscProjectStore.save(file, timeline);
+		var missingTimeline = new MenuBarPresenter(
+			new TimelineEditorPresenter(() -> editor, time -> {}),
+			() -> null,
+			() -> editor,
+			() -> layerManager,
+			() -> audioLoader
+		);
+		assertFalse(missingTimeline.openProject(file.toString()).ok());
+	}
+
+	@Test
+	void undoDelegatesToEditorPresenter() {
+		editor.getCommandManager().execute(new AddTimelineAnimationEventCommand(
+			timeline, Timeline.TRACK_ID_ANIMATION_AUTO,
+			new TimelineAnimationEvent("ev-undo", 2.0, 1.0, "pulse", "stage", 1f, Map.of())));
+		assertTrue(presenter.undoRedoState().canUndo());
+		assertTrue(presenter.undo());
+		assertFalse(presenter.undoRedoState().canUndo());
 	}
 
 	@Test

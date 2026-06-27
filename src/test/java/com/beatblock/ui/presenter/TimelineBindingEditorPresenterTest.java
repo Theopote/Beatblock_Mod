@@ -1,9 +1,11 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.timeline.binding.AnimationBindingEngine;
 import com.beatblock.timeline.binding.AnimationBindingRule;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
 import com.beatblock.timeline.TimelineAnimationActionMode;
@@ -16,6 +18,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TimelineBindingEditorPresenterTest {
@@ -83,8 +86,81 @@ class TimelineBindingEditorPresenterTest {
 		assertEquals("New Name", updated.name());
 		assertFalse(updated.enabled());
 		assertEquals("snare", updated.sourceFeatureKey());
+		assertEquals("WaveMotion", updated.animationTypeId());
+		assertEquals("obj2", updated.targetObjectId());
 		assertEquals("PLACE", updated.actionMode().name());
 		assertEquals(SpatialDispatchMode.RADIAL, updated.spatialMode());
+		assertEquals("", updated.sectionFilter());
+		assertEquals(0.5f, updated.energyThreshold(), 1e-6f);
+		assertEquals(0.75f, updated.durationSeconds(), 1e-9);
+		assertEquals(2.0f, updated.extraParams().get("waveAmplitude"));
+	}
+
+	@Test
+	void buildUpdatedRuleNormalizesSectionFilter() {
+		AnimationBindingRule original = AnimationBindingRule.builder()
+			.name("Rule")
+			.sourceFeatureKey("kick")
+			.animationTypeId("Pulse")
+			.targetObjectId("obj1")
+			.build();
+
+		var updated = TimelineBindingEditorPresenter.buildUpdatedRule(original,
+			new TimelineBindingEditorPresenter.BindingRuleEditRequest(
+				true,
+				"Rule",
+				"kick",
+				"Pulse",
+				"ANIMATE",
+				0,
+				"obj1",
+				"DROP",
+				0.2f,
+				1.0f,
+				0.4f,
+				0.0f,
+				1.0f,
+				0.0f,
+				Map.of()
+			));
+
+		assertEquals("drop", updated.sectionFilter());
+	}
+
+	@Test
+	void applyToAutoTrackGeneratesEventsFromSavedRules() {
+		timeline.addFeatureEvent("kick", new FeatureEvent(1.0, 0.8f));
+		AnimationBindingEngine.saveRules(timeline, List.of(
+			AnimationBindingRule.builder()
+				.sourceFeatureKey("kick")
+				.animationTypeId("Pulse")
+				.targetObjectId("stage-a")
+				.energyThreshold(0.2f)
+				.probability(1.0f)
+				.build()
+		));
+
+		var outcome = presenter.applyToAutoTrack();
+
+		assertTrue(outcome.success());
+		assertEquals(1, outcome.count());
+		assertEquals(1, timeline.getAutoAnimationEvents().size());
+	}
+
+	@Test
+	void removeRuleIgnoresInvalidIndex() {
+		List<AnimationBindingRule> rules = List.of(
+			AnimationBindingRule.builder().name("A").sourceFeatureKey("kick").targetObjectId("x").build()
+		);
+
+		assertSame(rules, presenter.removeRule(rules, -1));
+		assertSame(rules, presenter.removeRule(rules, 1));
+		assertEquals(0, presenter.removeRule(rules, 0).size());
+	}
+
+	@Test
+	void loadRulesReturnsEmptyWhenTimelineMissing() {
+		assertTrue(presenter.loadRules(null).isEmpty());
 	}
 
 	@Test

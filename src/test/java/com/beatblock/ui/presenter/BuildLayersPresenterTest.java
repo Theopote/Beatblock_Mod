@@ -117,4 +117,56 @@ class BuildLayersPresenterTest {
 		assertTrue(outcome.result().ok());
 		assertEquals("Updated", layerManager.get("layer-x").getName());
 	}
+
+	@Test
+	void toggleVisibilityFailsWithoutWorldContext() {
+		BlockPos pos = new BlockPos(7, 64, 0);
+		commandManager.execute(new CreateLayerCommand(layerManager, "Visible", List.of(pos)));
+		BuildLayer layer = layerManager.getAll().iterator().next();
+
+		var outcome = presenter.toggleVisibility(layer.getId());
+
+		assertFalse(outcome.result().ok());
+		assertEquals("当前无世界上下文，无法切换可见性。", outcome.result().messageOrEmpty());
+		assertEquals(LayerVisibilityState.FREE_VISIBLE, layerManager.get(layer.getId()).getState());
+	}
+
+	@Test
+	void createLayerFromSelectionRejectsFullyClaimedBlocks() {
+		BlockPos pos = new BlockPos(8, 64, 0);
+		commandManager.execute(new CreateLayerCommand(layerManager, "Existing", List.of(pos)));
+
+		var outcome = presenter.createLayerFromSelection("Another", List.of(pos));
+
+		assertFalse(outcome.result().ok());
+		assertTrue(outcome.result().messageOrEmpty().contains("均已属于其他图层"));
+	}
+
+	@Test
+	void createLayerFromSelectionSkipsAlreadyClaimedBlocks() {
+		BlockPos claimed = new BlockPos(9, 64, 0);
+		BlockPos free = new BlockPos(10, 64, 0);
+		commandManager.execute(new CreateLayerCommand(layerManager, "Existing", List.of(claimed)));
+
+		var outcome = presenter.createLayerFromSelection("Mixed", List.of(claimed, free));
+
+		assertTrue(outcome.result().ok());
+		assertTrue(layerManager.isBlockClaimed(free));
+		assertTrue(outcome.result().messageOrEmpty().contains("跳过 1 个"));
+		assertEquals(1, outcome.blocksToRemoveFromSelection().size());
+	}
+
+	@Test
+	void renameLayerFailsWhenLayerMissing() {
+		var outcome = presenter.renameLayer("missing-layer", "Name");
+		assertFalse(outcome.result().ok());
+		assertEquals("图层不存在。", outcome.result().messageOrEmpty());
+	}
+
+	@Test
+	void deleteLayerFailsWhenLayerMissing() {
+		var outcome = presenter.deleteLayer("missing-layer");
+		assertFalse(outcome.result().ok());
+		assertEquals("图层不存在。", outcome.result().messageOrEmpty());
+	}
 }
