@@ -17,10 +17,10 @@ public final class MusicStructureAnalyzer {
 	/**
 	 * 根据能量帧与总时长划分段落。
 	 */
-	public static List<MusicSection> analyze(List<EnergyFrame> energyFrames, double durationSeconds) {
-		List<MusicSection> sections = new ArrayList<>();
+	public static List<StructuralSection> analyze(List<EnergyFrame> energyFrames, double durationSeconds) {
+		List<StructuralSection> sections = new ArrayList<>();
 		if (energyFrames == null || energyFrames.isEmpty() || durationSeconds <= 0) {
-			sections.add(new MusicSection(0, durationSeconds, SectionType.VERSE));
+			sections.add(new StructuralSection(0, durationSeconds, SectionType.VERSE));
 			return sections;
 		}
 		float[] energies = new float[energyFrames.size()];
@@ -43,7 +43,7 @@ public final class MusicStructureAnalyzer {
 			float avg = averageIn(energies, times, t, segmentEnd);
 			float trend = trendIn(energies, times, t, segmentEnd);
 			SectionType type = classifySegment(avg, trend, t, durationSeconds);
-			sections.add(new MusicSection(t, segmentEnd, type));
+			sections.add(new StructuralSection(t, segmentEnd, type));
 			t = segmentEnd;
 			if (t >= durationSeconds) break;
 			idx++;
@@ -83,12 +83,12 @@ public final class MusicStructureAnalyzer {
 		return SectionType.VERSE;
 	}
 
-	private static void mergeAdjacentSameType(List<MusicSection> sections) {
+	private static void mergeAdjacentSameType(List<StructuralSection> sections) {
 		for (int i = sections.size() - 1; i > 0; i--) {
-			MusicSection cur = sections.get(i);
-			MusicSection prev = sections.get(i - 1);
+			StructuralSection cur = sections.get(i);
+			StructuralSection prev = sections.get(i - 1);
 			if (prev.getType() == cur.getType() && Math.abs(prev.getEndSeconds() - cur.getStartSeconds()) < 0.5) {
-				sections.set(i - 1, new MusicSection(prev.getStartSeconds(), cur.getEndSeconds(), prev.getType()));
+				sections.set(i - 1, new StructuralSection(prev.getStartSeconds(), cur.getEndSeconds(), prev.getType()));
 				sections.remove(i);
 			}
 		}

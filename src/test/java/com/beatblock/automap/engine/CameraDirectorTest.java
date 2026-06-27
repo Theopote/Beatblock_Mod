@@ -11,13 +11,13 @@ class CameraDirectorTest {
 
 	@Test
 	void returnsEmptyWhenDisabled() {
-		List<MusicSection> sections = List.of(new MusicSection(0, 8, SectionType.BUILD));
+		List<StructuralSection> sections = List.of(new StructuralSection(0, 8, SectionType.BUILD));
 		assertTrue(CameraDirector.generate(sections, 120f, 60, AutoMapStyle.EDM, false).isEmpty());
 	}
 
 	@Test
 	void buildSectionGeneratesZoomInEvent() {
-		List<MusicSection> sections = List.of(new MusicSection(8, 16, SectionType.BUILD));
+		List<StructuralSection> sections = List.of(new StructuralSection(8, 16, SectionType.BUILD));
 
 		List<CameraEvent> events = CameraDirector.generate(sections, 120f, 60, AutoMapStyle.EDM, true);
 
@@ -26,7 +26,7 @@ class CameraDirectorTest {
 
 	@Test
 	void dropSectionGeneratesOrbitAndShake() {
-		List<MusicSection> sections = List.of(new MusicSection(16, 24, SectionType.DROP));
+		List<StructuralSection> sections = List.of(new StructuralSection(16, 24, SectionType.DROP));
 
 		List<CameraEvent> events = CameraDirector.generate(sections, 120f, 60, AutoMapStyle.EDM, true);
 
@@ -36,9 +36,9 @@ class CameraDirectorTest {
 
 	@Test
 	void deduplicatesEventsAtSameTimestamp() {
-		List<MusicSection> sections = List.of(
-			new MusicSection(0, 4, SectionType.INTRO),
-			new MusicSection(4, 8, SectionType.VERSE)
+		List<StructuralSection> sections = List.of(
+			new StructuralSection(0, 4, SectionType.INTRO),
+			new StructuralSection(4, 8, SectionType.VERSE)
 		);
 
 		List<CameraEvent> events = CameraDirector.generate(sections, 120f, 60, AutoMapStyle.EDM, true);

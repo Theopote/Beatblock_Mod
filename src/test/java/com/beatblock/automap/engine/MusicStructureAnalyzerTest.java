@@ -12,7 +12,7 @@ class MusicStructureAnalyzerTest {
 
 	@Test
 	void emptyEnergyFramesYieldSingleVerseSection() {
-		List<MusicSection> sections = MusicStructureAnalyzer.analyze(List.of(), 60.0);
+		List<StructuralSection> sections = MusicStructureAnalyzer.analyze(List.of(), 60.0);
 
 		assertEquals(1, sections.size());
 		assertEquals(SectionType.VERSE, sections.getFirst().getType());
@@ -27,7 +27,7 @@ class MusicStructureAnalyzerTest {
 			frames.add(new EnergyFrame(i * 4.0, 0.1f));
 		}
 
-		List<MusicSection> sections = MusicStructureAnalyzer.analyze(frames, 100.0);
+		List<StructuralSection> sections = MusicStructureAnalyzer.analyze(frames, 100.0);
 
 		assertEquals(SectionType.INTRO, sections.getFirst().getType());
 		assertEquals(SectionType.OUTRO, sections.getLast().getType());
@@ -42,7 +42,7 @@ class MusicStructureAnalyzerTest {
 			new EnergyFrame(18.0, 0.85f)
 		);
 
-		List<MusicSection> sections = MusicStructureAnalyzer.analyze(frames, 24.0);
+		List<StructuralSection> sections = MusicStructureAnalyzer.analyze(frames, 24.0);
 
 		assertTrue(sections.stream().anyMatch(s -> s.getType() == SectionType.DROP));
 	}

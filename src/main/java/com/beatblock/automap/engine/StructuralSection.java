@@ -1,15 +1,17 @@
 package com.beatblock.automap.engine;
 
 /**
- * 音乐段落：起止时间与类型，用于驱动镜头与动画密度。
+ * Smart Auto Map 运行时段落：起止时间（秒）与 {@link SectionType}，用于镜头与动画密度。
+ * <p>
+ * 只读 beatmap 分析段落见 {@link com.beatblock.audio.beatmap.MusicSection}（毫秒、{@code SectionLabel}）。
  */
-public final class MusicSection {
+public final class StructuralSection {
 
 	private final double startSeconds;
 	private final double endSeconds;
 	private final SectionType type;
 
-	public MusicSection(double startSeconds, double endSeconds, SectionType type) {
+	public StructuralSection(double startSeconds, double endSeconds, SectionType type) {
 		this.startSeconds = Math.max(0, startSeconds);
 		this.endSeconds = Math.max(this.startSeconds, endSeconds);
 		this.type = type != null ? type : SectionType.VERSE;

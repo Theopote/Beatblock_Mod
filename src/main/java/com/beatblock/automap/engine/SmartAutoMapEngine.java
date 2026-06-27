@@ -41,7 +41,7 @@ public final class SmartAutoMapEngine {
 		List<EnergyFrame> energyFrames = featureTimeline.getEnergyFrames();
 
 		// 1. 音乐结构
-		List<MusicSection> sections = MusicStructureAnalyzer.analyze(energyFrames, duration);
+		List<StructuralSection> sections = MusicStructureAnalyzer.analyze(energyFrames, duration);
 		// 2. 节奏分类
 		List<RhythmEvent> rhythmEvents = RhythmClassifier.classify(beats, bands);
 		// 3. 按复杂度过滤

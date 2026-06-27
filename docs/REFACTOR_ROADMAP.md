@@ -103,6 +103,8 @@ runtimeOnly "io.github.spair:imgui-java-natives-macos:1.86.11"
 第1层（只读分析层）   audio.beatmap.Beatmap / FrequencyEvent / BeatGrid / MusicSection
                          ↓ 只能被下面这一层读取，不能被播放层直接读取
 第2层（创作层，Timeline）  Track { TimelineAnimationEvent | CameraKeyframe | GlobalEvent }
+                         ↑ Smart Auto Map 草稿生成时可读第1层，并用 automap.engine.StructuralSection
+                           （秒、SectionType，运行时从能量曲线划分）驱动镜头，不写入 beatmap
                          ↓ 唯一对外接口
 第3层（播放层）        BlockAnimationEngine.scheduleTimelineEvent(...)
                        TimelineCameraController（消费 CameraKeyframe）

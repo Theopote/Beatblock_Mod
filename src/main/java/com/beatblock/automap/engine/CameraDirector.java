@@ -12,12 +12,12 @@ public final class CameraDirector {
 	/**
 	 * 根据段落、BPM、总时长与风格生成镜头关键帧时间点及动作。
 	 */
-	public static List<CameraEvent> generate(List<MusicSection> sections, float bpm,
+	public static List<CameraEvent> generate(List<StructuralSection> sections, float bpm,
 	                                          double durationSeconds, AutoMapStyle style, boolean enabled) {
 		List<CameraEvent> out = new ArrayList<>();
 		if (!enabled || sections == null || sections.isEmpty()) return out;
 		double beatDuration = 60.0 / Math.max(1f, bpm);
-		for (MusicSection sec : sections) {
+		for (StructuralSection sec : sections) {
 			switch (sec.getType()) {
 				case INTRO -> {
 					out.add(new CameraEvent(sec.getStartSeconds(), CameraAction.HOLD));
