@@ -186,6 +186,34 @@ class EventPropertiesPresenterTest {
 	}
 
 	@Test
+	void buildFormSnapshotIncludesRhythmDropTrajectoryFields() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 4.0);
+		var event = TimelineOperations.addEvent(
+			clip,
+			1.0,
+			EventType.ANIMATION,
+			Map.of(
+				"animationType", "RhythmDrop",
+				"targetObject", "target-1",
+				"singleBlockX", 5,
+				"singleBlockY", 64,
+				"singleBlockZ", -2,
+				"meteorHeight", 8.0,
+				"impactThreshold", 0.93
+			)
+		);
+		EventPropertiesRef ref = new EventPropertiesRef(track, clip, event);
+
+		EventPropertiesFormSnapshot snapshot = presenter.buildFormSnapshot(ref, timeline);
+		assertEquals("5", snapshot.singleBlockX());
+		assertEquals("64", snapshot.singleBlockY());
+		assertEquals("-2", snapshot.singleBlockZ());
+		assertEquals("8.000", snapshot.meteorHeight());
+		assertEquals("0.930", snapshot.impactThreshold());
+	}
+
+	@Test
 	void buildFormSnapshotFormatsCameraClipOnlySelection() {
 		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
 		var clip = TimelineOperations.addClip(cam, 1.0, 5.0);

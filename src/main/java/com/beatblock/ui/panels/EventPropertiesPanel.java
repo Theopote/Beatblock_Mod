@@ -18,6 +18,7 @@ import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.editing.AnimationEventFormInput;
 import com.beatblock.timeline.editing.AnimationEventPropertiesEditor;
 import com.beatblock.timeline.editing.CameraEventPropertiesEditor;
+import com.beatblock.timeline.editing.WorldTrajectoryEventParamsEditor;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
@@ -67,6 +68,12 @@ public class EventPropertiesPanel {
 	private final ImString exitDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString placeBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString flashBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString singleBlockXBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString singleBlockYBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString singleBlockZBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString meteorHeightBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString meteorScatterBuffer = new ImString(INPUT_BUFFER_SIZE);
+	private final ImString impactThresholdBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camSegDurBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camXBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImString camYBuffer = new ImString(INPUT_BUFFER_SIZE);
@@ -313,7 +320,8 @@ public class EventPropertiesPanel {
 		if (ImGui.combo("动画模板 (Preset)##eventAnimation", animationIndex, animationLabels)) {
 			validationError = null;
 		}
-		renderPresetChannelPreview(animationOptions.get(animationIndex.get()).id());
+		String selectedAnimationId = animationOptions.get(animationIndex.get()).id();
+		renderPresetChannelPreview(selectedAnimationId);
 		boolean vfxEnabled = viewState.vfxEnabled();
 		ImBoolean vfxEnabledProxy = new ImBoolean(vfxEnabled);
 		if (ImGui.checkbox("粒子强调 (VFX)##eventVfxEnabled", vfxEnabledProxy)) {
@@ -331,6 +339,7 @@ public class EventPropertiesPanel {
 		if (ImGui.combo("目标对象##eventTarget", targetIndex, targetLabels)) {
 			validationError = null;
 		}
+		renderWorldTrajectoryParams(selectedAnimationId);
 		ImBoolean stepDispatchProxy = new ImBoolean(stepDispatch);
 		if (ImGui.checkbox("每拍推进序列 (STEP)##eventDispatchStep", stepDispatchProxy)) {
 			stepDispatch = stepDispatchProxy.get();
@@ -522,7 +531,13 @@ public class EventPropertiesPanel {
 				usePhaseAnimation,
 				vfxEnabled
 			);
-			var result = presenter.applyAnimationEvent(ref, timeline, editor.getCommandManager(), input);
+			var result = presenter.applyAnimationEvent(
+				ref,
+				timeline,
+				editor.getCommandManager(),
+				input,
+				buildTrajectoryFormInput(animationId)
+			);
 			if (result instanceof EventPropertiesPresenter.ApplyResult.Err(String message)) {
 				validationError = message;
 				return;
@@ -560,6 +575,12 @@ public class EventPropertiesPanel {
 		cameraEdgePriorityBuffer.set(snap.cameraEdgePriority());
 		placeBlockBuffer.set(snap.placeBlock());
 		flashBlockBuffer.set(snap.flashBlock());
+		singleBlockXBuffer.set(snap.singleBlockX());
+		singleBlockYBuffer.set(snap.singleBlockY());
+		singleBlockZBuffer.set(snap.singleBlockZ());
+		meteorHeightBuffer.set(snap.meteorHeight());
+		meteorScatterBuffer.set(snap.meteorScatter());
+		impactThresholdBuffer.set(snap.impactThreshold());
 		camSegDurBuffer.set(snap.camSegDuration());
 		camSegPathVisibleProxy.set(snap.camSegPathVisible());
 		for (Map.Entry<String, String> entry : snap.camSegParams().entrySet()) {
@@ -926,6 +947,53 @@ public class EventPropertiesPanel {
 		} catch (NumberFormatException ex) {
 			validationError = "时间或坐标格式不正确。";
 		}
+	}
+
+	private void renderWorldTrajectoryParams(String animationId) {
+		if (!WorldTrajectoryEventParamsEditor.supports(animationId)) {
+			return;
+		}
+		boolean rhythmDrop = WorldTrajectoryEventParamsEditor.RHYTHM_DROP_ANIMATION_ID.equalsIgnoreCase(animationId);
+		ImGui.spacing();
+		ImGui.textDisabled(rhythmDrop ? "节奏坠落 (RhythmDrop)" : "流星轨迹 (Meteor)");
+		ImGui.textWrapped(rhythmDrop
+			? "精确落点与下落高度决定视觉方块命中坐标；命中阈值控制落地粒子触发时刻（默认 0.92）。"
+			: "下落高度与横向散射控制 WORLD_TRAJECTORY 路径；可指定单方块落点。");
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputText("落点 X##eventSingleBlockX", singleBlockXBuffer);
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputText("落点 Y##eventSingleBlockY", singleBlockYBuffer);
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputText("落点 Z##eventSingleBlockZ", singleBlockZBuffer);
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip("留空则使用目标 StageObject 的方块集合；填写则仅对该坐标做动画。");
+		}
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputText("下落高度 (格)##eventMeteorHeight", meteorHeightBuffer);
+		if (rhythmDrop) {
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText("命中阈值 (0-1)##eventImpactThreshold", impactThresholdBuffer);
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip("动画进度达到该值时触发 rhythm_impact 粒子；RhythmDrop 横向散射固定为 0。");
+			}
+		} else {
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText("横向散射##eventMeteorScatter", meteorScatterBuffer);
+		}
+	}
+
+	private WorldTrajectoryEventParamsEditor.FormInput buildTrajectoryFormInput(String animationId) {
+		if (!WorldTrajectoryEventParamsEditor.supports(animationId)) {
+			return null;
+		}
+		return new WorldTrajectoryEventParamsEditor.FormInput(
+			valueOf(singleBlockXBuffer),
+			valueOf(singleBlockYBuffer),
+			valueOf(singleBlockZBuffer),
+			valueOf(meteorHeightBuffer),
+			valueOf(meteorScatterBuffer),
+			valueOf(impactThresholdBuffer)
+		);
 	}
 
 	private void renderPresetChannelPreview(String presetId) {

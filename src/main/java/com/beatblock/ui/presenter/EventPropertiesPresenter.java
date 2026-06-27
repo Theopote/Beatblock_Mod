@@ -18,6 +18,7 @@ import com.beatblock.timeline.editing.AnimationEventPropertiesEditor;
 import com.beatblock.timeline.editing.AnimationEventSnapshot;
 import com.beatblock.timeline.editing.CameraEventPropertiesEditor;
 import com.beatblock.timeline.editing.TimelineEventEditActions;
+import com.beatblock.timeline.editing.WorldTrajectoryEventParamsEditor;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.generation.DistancePacing;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
@@ -138,6 +139,16 @@ public final class EventPropertiesPresenter {
 		CommandManager commandManager,
 		AnimationEventFormInput input
 	) {
+		return applyAnimationEvent(ref, timeline, commandManager, input, null);
+	}
+
+	public ApplyResult applyAnimationEvent(
+		EventPropertiesRef ref,
+		Timeline timeline,
+		CommandManager commandManager,
+		AnimationEventFormInput input,
+		WorldTrajectoryEventParamsEditor.FormInput trajectoryInput
+	) {
 		if (commandManager == null) {
 			return new ApplyResult.Err("时间线编辑器未初始化。");
 		}
@@ -154,6 +165,24 @@ public final class EventPropertiesPresenter {
 			return new ApplyResult.Err(err.message());
 		}
 		AnimationEventSnapshot after = ((AnimationEventPropertiesEditor.Result.Ok) result).snapshot();
+		Map<String, Object> merged = new HashMap<>(after.parameters());
+		if (WorldTrajectoryEventParamsEditor.supports(input.animationId())) {
+			if (trajectoryInput != null) {
+				var trajectoryResult = WorldTrajectoryEventParamsEditor.merge(merged, input.animationId(), trajectoryInput);
+				if (trajectoryResult instanceof WorldTrajectoryEventParamsEditor.MergeResult.Err err) {
+					return new ApplyResult.Err(err.message());
+				}
+				merged = new HashMap<>(((WorldTrajectoryEventParamsEditor.MergeResult.Ok) trajectoryResult).parameters());
+			}
+		} else {
+			WorldTrajectoryEventParamsEditor.clear(merged);
+		}
+		after = new AnimationEventSnapshot(
+			after.timeSeconds(),
+			merged,
+			after.clipStartSeconds(),
+			after.clipEndSeconds()
+		);
 		AnimationEventSnapshot before = AnimationEventSnapshot.capture(ref.event(), ref.clip());
 		commitEventEdit(ref, timeline, commandManager, before, after);
 		return new ApplyResult.Ok();
@@ -423,12 +452,15 @@ public final class EventPropertiesPresenter {
 				"",
 				false,
 				Map.of(),
+				"", "", "", "", "", "",
 				"", "", "", "", "", ""
 			);
 		}
 
 		TimelineEvent event = ref.event();
 		Map<String, Object> params = event.getParameters();
+		String animationId = EventParameterReaders.stringParam(params, "animationType", "");
+		WorldTrajectoryEventParamsEditor.FormInput trajectory = WorldTrajectoryEventParamsEditor.readForm(params, animationId);
 		String placeBlock = EventParameterReaders.stringParam(
 			params, "placeBlock",
 			EventParameterReaders.stringParam(params, "placeBlockId", "minecraft:diamond_block")
@@ -499,7 +531,13 @@ public final class EventPropertiesPresenter {
 			camZ,
 			camYaw,
 			camPitch,
-			camEase
+			camEase,
+			trajectory.singleBlockX(),
+			trajectory.singleBlockY(),
+			trajectory.singleBlockZ(),
+			trajectory.meteorHeight(),
+			trajectory.meteorScatter(),
+			trajectory.impactThreshold()
 		);
 	}
 
@@ -537,6 +575,7 @@ public final class EventPropertiesPresenter {
 			"", "", false,
 			"", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 			"", false, Map.of(),
+			"", "", "", "", "", "",
 			"", "", "", "", "", ""
 		);
 	}

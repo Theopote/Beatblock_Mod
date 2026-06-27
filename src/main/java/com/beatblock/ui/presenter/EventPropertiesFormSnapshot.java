@@ -33,5 +33,11 @@ public record EventPropertiesFormSnapshot(
 	String camZ,
 	String camYaw,
 	String camPitch,
-	String camEase
+	String camEase,
+	String singleBlockX,
+	String singleBlockY,
+	String singleBlockZ,
+	String meteorHeight,
+	String meteorScatter,
+	String impactThreshold
 ) {}
