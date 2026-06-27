@@ -309,15 +309,26 @@ final class TimelineBindingEditorPopup {
 			if (ImGui.sliderFloat("Impact Burst", impactBurst, 0f, 3f, "%.2f")) changed = true;
 			extraCopy.put("impactRadius", impactRadius[0]);
 			extraCopy.put("impactBurst", impactBurst[0]);
-		} else if ("BlockDrop".equalsIgnoreCase(uiAnimation)) {
+		} else if ("Meteor".equalsIgnoreCase(uiAnimation)) {
 			float[] meteorHeight = new float[] {
-				(float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "meteorHeight", 8.0) };
+				(float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "meteorHeight", 12.0) };
 			float[] meteorScatter = new float[] {
-				(float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "meteorScatter", 2.0) };
+				(float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "meteorScatter", 2.5) };
 			if (ImGui.sliderFloat("Meteor Height", meteorHeight, 2f, 32f, "%.1f")) changed = true;
 			if (ImGui.sliderFloat("Meteor Scatter", meteorScatter, 0f, 8f, "%.1f")) changed = true;
 			extraCopy.put("meteorHeight", meteorHeight[0]);
 			extraCopy.put("meteorScatter", meteorScatter[0]);
+		} else if ("RhythmDrop".equalsIgnoreCase(uiAnimation)) {
+			float[] meteorHeight = new float[] {
+				(float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "meteorHeight", 6.0) };
+			float[] impactThreshold = new float[] {
+				(float) TimelineBindingEditorPresenter.extraParamAsDouble(extraCopy, "impactThreshold", 0.92) };
+			if (ImGui.sliderFloat("Fall Height", meteorHeight, 2f, 24f, "%.1f")) changed = true;
+			if (ImGui.sliderFloat("Impact Threshold", impactThreshold, 0.5f, 0.99f, "%.2f")) changed = true;
+			extraCopy.put("meteorHeight", meteorHeight[0]);
+			extraCopy.put("meteorScatter", 0.0);
+			extraCopy.put("impactThreshold", impactThreshold[0]);
+			extraCopy.put("impactVfxKind", "rhythm_impact");
 		}
 		return changed;
 	}

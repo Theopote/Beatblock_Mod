@@ -130,6 +130,7 @@ public final class AnimationBindingRule {
 			case "EJECT" -> "BlockJump";
 			case "FALL" -> "BlockDrop";
 			case "METEOR" -> "Meteor";
+			case "RHYTHM_DROP", "RHYTHMDROP" -> "RhythmDrop";
 			case "PULSE" -> "Pulse";
 			case "SLIDE" -> "Orbit";
 			case "SPIRAL" -> "SpiralLift";

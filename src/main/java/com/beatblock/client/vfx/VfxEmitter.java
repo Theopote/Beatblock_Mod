@@ -29,6 +29,10 @@ public final class VfxEmitter {
 		float intensity = Math.max(0.05f, trigger.intensity());
 		switch (trigger.kind()) {
 			case "appearance_flash" -> burst(world, center, ParticleTypes.CRIT, 4 + Math.round(intensity * 4));
+			case "rhythm_impact" -> {
+				burst(world, center, ParticleTypes.FIREWORK, 3 + Math.round(intensity * 3));
+				burst(world, center, ParticleTypes.CRIT, 2 + Math.round(intensity * 2));
+			}
 			case "existence_place" -> burst(world, center, ParticleTypes.HAPPY_VILLAGER, 2 + Math.round(intensity * 2));
 			case "existence_dissolve" -> burst(world, center, ParticleTypes.POOF, 3 + Math.round(intensity * 2));
 			default -> burst(world, center, ParticleTypes.END_ROD, 2);

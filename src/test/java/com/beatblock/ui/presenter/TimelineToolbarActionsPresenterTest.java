@@ -46,6 +46,13 @@ class TimelineToolbarActionsPresenterTest {
 	}
 
 	@Test
+	void runGenerateRhythmDropsFailsWithoutSelection() {
+		var outcome = presenter.runGenerateRhythmDrops();
+		assertFalse(outcome.success());
+		assertTrue(outcome.message().contains("落点"));
+	}
+
+	@Test
 	void runBindingMapFailsWhenTimelineMissing() {
 		var missing = new TimelineToolbarActionsPresenter(() -> null, () -> editor, () -> Vec3d.ZERO);
 		var outcome = missing.runBindingMap();

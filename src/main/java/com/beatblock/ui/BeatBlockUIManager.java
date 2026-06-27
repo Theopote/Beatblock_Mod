@@ -1,8 +1,10 @@
 package com.beatblock.ui;
 
 import com.beatblock.client.render.BeatBlockLassoOverlay;
+import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.panels.*;
+import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiCol;
@@ -47,8 +49,9 @@ public class BeatBlockUIManager {
 		this.markerPanel = new MarkerPanel();
 		this.audioAnalysisPanel = new AudioAnalysisPanel();
 		this.menuBarPanel = new MenuBarPanel(onCloseRequest, panelVisibility,
-			() -> toolPanel.setShowAutoMapSettings(true), this::resetLayoutState, this::saveCurrentLayout,
-			this::loadSavedLayout);
+			() -> toolPanel.setShowAutoMapSettings(true),
+			this::generateRhythmDropFromMenu,
+			this::resetLayoutState, this::saveCurrentLayout, this::loadSavedLayout);
 		this.eventPropertiesPanel = new EventPropertiesPanel();
 		this.timelinePanel = new TimelinePanel();
 		this.animationLibraryPanel = new AnimationLibraryPanel();
@@ -58,6 +61,11 @@ public class BeatBlockUIManager {
 
 	public void setOnCloseRequest(Runnable onCloseRequest) {
 		this.onCloseRequest = onCloseRequest;
+	}
+
+	private void generateRhythmDropFromMenu() {
+		var result = PresenterFactories.rhythmDropPanelPresenter().generateFromSelectionWithDefaults();
+		BeatBlockSelectionManager.get().setMessage(result.messageOrEmpty());
 	}
 
 	private void saveCurrentLayout() {

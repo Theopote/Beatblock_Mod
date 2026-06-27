@@ -77,6 +77,7 @@ public final class RhythmDropEventFactory {
 			// 直线下落，不要 WORLD_TRAJECTORY 默认的横向散射（applyWorldTrajectory 缺省 2.5）——
 			// 节奏大师式判定要求精确落在目标坐标上，不能像 Meteor 预设那样左右摆动。
 			params.put("meteorScatter", 0.0);
+			params.put("impactVfxKind", "rhythm_impact");
 
 			events.add(new TimelineAnimationEvent(
 				UUID.randomUUID().toString(),

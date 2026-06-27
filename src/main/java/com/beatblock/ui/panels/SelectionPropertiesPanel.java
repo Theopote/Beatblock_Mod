@@ -6,6 +6,7 @@ import com.beatblock.selection.SelectionOperation;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.presenter.RhythmDropPanelPresenter;
 import com.beatblock.ui.presenter.SelectionPropertiesPresenter;
 import com.beatblock.ui.presenter.SelectionPropertiesViewState;
 import imgui.ImGui;
@@ -50,13 +51,20 @@ public class SelectionPropertiesPanel {
 	};
 	private final ImBoolean selectionFillProxy = new ImBoolean(false);
 	private final SelectionPropertiesPresenter presenter;
+	private final RhythmDropPanelPresenter rhythmDropPresenter;
+	private String rhythmDropMessage;
 
 	public SelectionPropertiesPanel() {
-		this(PresenterFactories.selectionPropertiesPresenter());
+		this(PresenterFactories.selectionPropertiesPresenter(), PresenterFactories.rhythmDropPanelPresenter());
 	}
 
 	SelectionPropertiesPanel(SelectionPropertiesPresenter presenter) {
+		this(presenter, PresenterFactories.rhythmDropPanelPresenter());
+	}
+
+	SelectionPropertiesPanel(SelectionPropertiesPresenter presenter, RhythmDropPanelPresenter rhythmDropPresenter) {
 		this.presenter = presenter;
+		this.rhythmDropPresenter = rhythmDropPresenter;
 	}
 
 	public void render(ImBoolean pOpen) {
@@ -219,6 +227,23 @@ public class SelectionPropertiesPanel {
 			if (!state.lastMessage().isBlank()) {
 				ImGui.textWrapped(state.lastMessage());
 			}
+
+			ImGui.separator();
+			ImGui.textDisabled("天降方块");
+			ImGui.textWrapped("将当前选区中的方块作为落点，按播放头与节拍生成 RhythmDrop 动画事件。");
+			if (state.selectionCount() <= 0) ImGui.beginDisabled();
+			if (ImGui.button("生成天降方块##selRhythmDrop", -1f, 0f)) {
+				var result = rhythmDropPresenter.generateFromSelectionWithDefaults();
+				rhythmDropMessage = result.messageOrEmpty();
+				if (!rhythmDropMessage.isBlank()) {
+					com.beatblock.selection.BeatBlockSelectionManager.get().setMessage(rhythmDropMessage);
+				}
+			}
+			if (state.selectionCount() <= 0) ImGui.endDisabled();
+			if (rhythmDropMessage != null && !rhythmDropMessage.isBlank()) {
+				ImGui.textWrapped(rhythmDropMessage);
+			}
+
 			if (ImGui.button("清空选区##selClearAll")) {
 				presenter.clearSelection();
 			}

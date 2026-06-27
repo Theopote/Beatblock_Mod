@@ -19,6 +19,7 @@ public class MenuBarPanel {
 	private final Runnable onCloseRequest;
 	private final BeatBlockPanelVisibility panels;
 	private final Runnable onOpenSmartAutoMap;
+	private final Runnable onGenerateRhythmDrop;
 	private final Runnable onResetLayout;
 	private final Runnable onSaveLayout;
 	private final Runnable onLoadLayout;
@@ -32,17 +33,19 @@ public class MenuBarPanel {
 	private String projectDialogMessage = "";
 
 	public MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
-			Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout) {
-		this(onCloseRequest, panels, onOpenSmartAutoMap, onResetLayout, onSaveLayout, onLoadLayout,
+			Runnable onGenerateRhythmDrop, Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout) {
+		this(onCloseRequest, panels, onOpenSmartAutoMap, onGenerateRhythmDrop, onResetLayout, onSaveLayout, onLoadLayout,
 			PresenterFactories.menuBarPresenter());
 	}
 
 	MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
-			Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout, MenuBarPresenter presenter) {
+			Runnable onGenerateRhythmDrop, Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout,
+			MenuBarPresenter presenter) {
 		this.presenter = presenter;
 		this.onCloseRequest = onCloseRequest;
 		this.panels = panels != null ? panels : new BeatBlockPanelVisibility();
 		this.onOpenSmartAutoMap = onOpenSmartAutoMap != null ? onOpenSmartAutoMap : () -> {};
+		this.onGenerateRhythmDrop = onGenerateRhythmDrop != null ? onGenerateRhythmDrop : () -> {};
 		this.onResetLayout = onResetLayout != null ? onResetLayout : () -> {};
 		this.onSaveLayout = onSaveLayout != null ? onSaveLayout : () -> {};
 		this.onLoadLayout = onLoadLayout != null ? onLoadLayout : () -> {};
@@ -129,9 +132,15 @@ public class MenuBarPanel {
 			// 演出
 			if (ImGui.beginMenu("演出")) {
 				if (ImGui.menuItem("Smart Auto Map...", "自动编排")) {
-                    onOpenSmartAutoMap.run();
+					onOpenSmartAutoMap.run();
 				}
 				if (ImGui.isItemHovered()) ImGui.setTooltip("根据音乐自动生成方块动画、镜头与粒子");
+				if (ImGui.menuItem("生成天降方块", "Ctrl+Shift+D")) {
+					onGenerateRhythmDrop.run();
+				}
+				if (ImGui.isItemHovered()) {
+					ImGui.setTooltip("从当前方块选区按节拍生成 RhythmDrop 事件（需先选中落点方块）");
+				}
 				ImGui.endMenu();
 			}
 			// 帮助
