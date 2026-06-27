@@ -1,5 +1,6 @@
 package com.beatblock.ui.panels.audioanalysis;
 
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
 import imgui.ImGui;
@@ -30,18 +31,20 @@ final class AudioAnalysisToolbarControls {
 			state.toggleDetailExpanded();
 		}
 		IconButtonStyle.popBeatBlockIconButton();
-		if (ImGui.isItemHovered()) ImGui.setTooltip(state.detailExpanded() ? "折叠详情" : "展开详情");
+		if (ImGui.isItemHovered()) ImGui.setTooltip(state.detailExpanded()
+			? BBTexts.get("beatblock.audio.collapse_detail")
+			: BBTexts.get("beatblock.audio.expand_detail"));
 
 		if (host.presenter().isAnalyzerAvailable()) {
 			ImGui.sameLine();
 			ImGui.spacing();
 			ImGui.sameLine();
 			state.demucsToggle().set(host.presenter().isUseDemucs());
-			if (ImGui.checkbox("新任务默认 Demucs##demucsToggle", state.demucsToggle())) {
+			if (ImGui.checkbox(BBTexts.get("beatblock.audio.demucs_default") + "##demucsToggle", state.demucsToggle())) {
 				host.presenter().setUseDemucs(state.demucsToggle().get());
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip("只影响之后新加入或重新提交的任务\n已在队列中的任务会保留提交时锁定的模式\n关闭后使用仅 librosa 的 Basic 快速分析模式");
+				ImGui.setTooltip(BBTexts.get("beatblock.audio.demucs.tooltip"));
 			}
 		}
 
@@ -55,8 +58,8 @@ final class AudioAnalysisToolbarControls {
 		ImGui.setNextWindowSize(460f, 0f, ImGuiCond.Always);
 		if (!ImGui.beginPopup("##AddAudioPopup")) return;
 
-		ImGui.text("选择音频文件");
-		if (ImGui.button("浏览文件...##browseAudio", 120f, 0f)) {
+		ImGui.text(BBTexts.get("beatblock.audio.select_file"));
+		if (ImGui.button(BBTexts.get("beatblock.audio.browse") + "##browseAudio", 120f, 0f)) {
 			String chosenPath = host.chooseAudioFilePath();
 			if (chosenPath != null && !chosenPath.isBlank()) {
 				state.importPath().set(chosenPath);
@@ -67,7 +70,7 @@ final class AudioAnalysisToolbarControls {
 
 		ImGui.spacing();
 		if (state.importPath().get().isBlank()) {
-			ImGui.textDisabled("尚未选择文件");
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.no_file_selected"));
 		} else {
 			AudioAnalysisPanelImGui.renderCollapsedInlineValue(state, state.importPath().get(), "##importPathPreview", null);
 		}

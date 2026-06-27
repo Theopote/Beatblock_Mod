@@ -244,7 +244,7 @@
   "beatblock.event.action.build": "建造",
 
   "beatblock.camera.title": "摄像机属性",
-  "beatblock.camera.select_hint": "选中摄像机片段或关键帧后，可在此编辑属性。",
+  "beatblock.camera.track_locked": "当前轨道已锁定，属性只读。",
   "beatblock.camera.track_locked": "当前轨道已锁定，属性只读。",
   "beatblock.camera.clip_id": "片段 ID",
   "beatblock.camera.show_path": "显示路径",

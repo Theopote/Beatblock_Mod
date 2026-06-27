@@ -6,6 +6,7 @@ import com.beatblock.audio.assets.AudioAnalysisStep;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.client.imgui.ImGuiFontManager;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.ui.icons.Icons;
 import imgui.ImGui;
@@ -61,11 +62,11 @@ final class AudioAnalysisPanelImGui {
 
 	static void setTooltipWithDefaultFont() {
 		if (ImGuiFontManager.getIconButtonFont() == null) {
-			ImGui.setTooltip("选择音频文件");
+			ImGui.setTooltip(BBTexts.get("beatblock.audio.select_file"));
 			return;
 		}
 		ImGui.popFont();
-		ImGui.setTooltip("选择音频文件");
+		ImGui.setTooltip(BBTexts.get("beatblock.audio.select_file"));
 		ImGui.pushFont(ImGuiFontManager.getIconButtonFont());
 	}
 
@@ -152,7 +153,7 @@ final class AudioAnalysisPanelImGui {
 		}
 		if (expandable) {
 			ImGui.sameLine();
-			if (ImGui.smallButton((expanded ? "收起" : "展开") + rowId)) {
+			if (ImGui.smallButton((expanded ? BBTexts.get("beatblock.common.collapse") : BBTexts.get("beatblock.common.expand")) + rowId)) {
 				if (expanded) {
 					state.expandedDetailRows().remove(rowId);
 				} else {
@@ -202,33 +203,33 @@ final class AudioAnalysisPanelImGui {
 
 	static String stepLabel(AudioAnalysisStep step) {
 		return switch (step) {
-			case BPM_DETECTION -> "BPM 检测";
-			case BEAT_DETECTION -> "踩点检测";
-			case BAND_SPLIT -> "频段分离";
-			case SECTION_DETECTION -> "段落识别";
-			case STEM_SEPARATION -> "Demucs 茎分离";
-			case WRITE_BEATMAP -> "写入 Beatmap";
+			case BPM_DETECTION -> BBTexts.get("beatblock.audio.step.bpm");
+			case BEAT_DETECTION -> BBTexts.get("beatblock.audio.step.beat");
+			case BAND_SPLIT -> BBTexts.get("beatblock.audio.step.band");
+			case SECTION_DETECTION -> BBTexts.get("beatblock.audio.step.section");
+			case STEM_SEPARATION -> BBTexts.get("beatblock.audio.step.stem");
+			case WRITE_BEATMAP -> BBTexts.get("beatblock.audio.step.write");
 		};
 	}
 
 	static String stemStateLabel(Beatmap bm, String stemKey) {
-		if (bm == null || bm.meta == null || bm.meta.stems() == null) return "未生成";
+		if (bm == null || bm.meta == null || bm.meta.stems() == null) return BBTexts.get("beatblock.audio.not_generated");
 		String path = bm.meta.stems().get(stemKey);
-		return (path != null && !path.isBlank()) ? "已生成" : "未生成";
+		return (path != null && !path.isBlank()) ? BBTexts.get("beatblock.audio.generated") : BBTexts.get("beatblock.audio.not_generated");
 	}
 
 	static String analysisModeLabel(AudioAnalysisMode mode) {
 		if (mode == null) return "-";
-		return mode == AudioAnalysisMode.DEMUCS ? "Demucs" : "Basic";
+		return mode == AudioAnalysisMode.DEMUCS ? BBTexts.get("beatblock.audio.mode.demucs") : BBTexts.get("beatblock.audio.mode.basic");
 	}
 
 	static String cacheSourceLabel(String cacheSource) {
 		if (cacheSource == null || cacheSource.isBlank()) return "-";
 		return switch (cacheSource) {
-			case "beatmap-cache" -> "Beatmap 缓存";
-			case "stem-cache-reuse" -> "Stem 缓存复用";
-			case "fresh" -> "全新解析";
-			case "unknown" -> "未知";
+			case "beatmap-cache" -> BBTexts.get("beatblock.audio.cache.beatmap");
+			case "stem-cache-reuse" -> BBTexts.get("beatblock.audio.cache.stem_reuse");
+			case "fresh" -> BBTexts.get("beatblock.audio.cache.fresh");
+			case "unknown" -> BBTexts.get("beatblock.audio.cache.unknown");
 			default -> cacheSource;
 		};
 	}
@@ -236,29 +237,29 @@ final class AudioAnalysisPanelImGui {
 	static String analysisPhaseLabel(AudioAsset asset) {
 		if (asset == null) return "-";
 		AudioAnalysisPhase phase = asset.getAnalysisPhase();
-		if (phase == null) return "分析中";
+		if (phase == null) return BBTexts.get("beatblock.audio.phase.analyzing");
 		return switch (phase) {
-			case PENDING -> "待处理";
-			case QUEUED -> "等待";
-			case ENVIRONMENT -> "环境准备";
-			case STEM_SEPARATION -> "茎分离";
-			case RHYTHM -> "节拍分析";
-			case STRUCTURE -> "结构分析";
-			case WAVEFORM -> "波形生成";
-			case WRITE_RESULT -> "结果写入";
-			case COMPLETED -> "完成";
-			case FAILED -> "失败";
+			case PENDING -> BBTexts.get("beatblock.audio.phase.pending");
+			case QUEUED -> BBTexts.get("beatblock.audio.phase.queued");
+			case ENVIRONMENT -> BBTexts.get("beatblock.audio.phase.environment");
+			case STEM_SEPARATION -> BBTexts.get("beatblock.audio.phase.stem_separation");
+			case RHYTHM -> BBTexts.get("beatblock.audio.phase.rhythm");
+			case STRUCTURE -> BBTexts.get("beatblock.audio.phase.structure");
+			case WAVEFORM -> BBTexts.get("beatblock.audio.phase.waveform");
+			case WRITE_RESULT -> BBTexts.get("beatblock.audio.phase.write_result");
+			case COMPLETED -> BBTexts.get("beatblock.audio.phase.completed");
+			case FAILED -> BBTexts.get("beatblock.audio.phase.failed");
 		};
 	}
 
 	static String queueStageLabel(AudioAsset asset) {
 		if (asset == null) return "-";
 		return switch (asset.getStatus()) {
-			case QUEUED -> "等待";
+			case QUEUED -> BBTexts.get("beatblock.audio.phase.queued");
 			case ANALYZING -> analysisPhaseLabel(asset);
-			case COMPLETED -> "完成";
-			case FAILED -> "失败";
-			default -> "待处理";
+			case COMPLETED -> BBTexts.get("beatblock.audio.phase.completed");
+			case FAILED -> BBTexts.get("beatblock.audio.phase.failed");
+			default -> BBTexts.get("beatblock.audio.phase.pending");
 		};
 	}
 
@@ -297,7 +298,7 @@ final class AudioAnalysisPanelImGui {
 
 	static void renderWarningBanner() {
 		ImGui.pushStyleColor(ImGuiCol.Text, 0.94f, 0.62f, 0.16f, 1f);
-		ImGui.textWrapped(Icons.Action.WARNING + " " + "已请求 Demucs，但本次实际以 Basic 完成。通常表示 Demucs 不可用、回退执行，或命中了 Basic 缓存。");
+		ImGui.textWrapped(Icons.Action.WARNING + " " + BBTexts.get("beatblock.audio.demucs_warning"));
 		ImGui.popStyleColor();
 	}
 
@@ -318,17 +319,17 @@ final class AudioAnalysisPanelImGui {
 	static void renderStemDetailRow(AudioAnalysisPanelUiState state, AudioAnalysisPanelHost host,
 		Beatmap bm, String stemKey, String label, ImVec4 color) {
 		if (bm == null || bm.meta == null || bm.meta.stems() == null) {
-			detailRowCompact(state, label, "未生成", color);
+			detailRowCompact(state, label, BBTexts.get("beatblock.audio.not_generated"), color);
 			return;
 		}
 		String relativePath = bm.meta.stems().get(stemKey);
 		if (relativePath == null || relativePath.isBlank()) {
-			detailRowCompact(state, label, "未生成", color);
+			detailRowCompact(state, label, BBTexts.get("beatblock.audio.not_generated"), color);
 			return;
 		}
 		String path = resolveStemDisplayPath(bm, relativePath);
 		boolean fileExists = new File(path).isFile();
-		detailRowCompact(state, label, fileExists ? "已生成" : "路径存在但文件缺失", color);
+		detailRowCompact(state, label, fileExists ? BBTexts.get("beatblock.audio.generated") : BBTexts.get("beatblock.audio.path_missing"), color);
 		detailRowCompact(state, label + " 路径", path);
 		renderCopyPathAction(host, path, stemKey, label);
 	}
@@ -336,11 +337,11 @@ final class AudioAnalysisPanelImGui {
 	static void renderCopyPathAction(AudioAnalysisPanelHost host, String path, String stemKey, String label) {
 		if (path == null || path.isBlank()) return;
 		ImGui.setCursorPosX(ImGui.getCursorPosX() + 14f);
-		if (ImGui.smallButton(Icons.Action.COPY + " 复制路径##copyStemPath_" + stemKey)) {
+		if (ImGui.smallButton(Icons.Action.COPY + " " + BBTexts.get("beatblock.audio.copy_path") + "##copyStemPath_" + stemKey)) {
 			if (AudioAnalysisClipboard.copy(path)) {
-				host.uiState().setPanelHint("已复制 " + label + " 路径", false);
+				host.uiState().setPanelHint(BBTexts.get("beatblock.audio.copied_path", label), false);
 			} else {
-				host.uiState().setPanelHint("复制失败：系统剪贴板不可用", true);
+				host.uiState().setPanelHint(BBTexts.get("beatblock.audio.copy_failed"), true);
 			}
 		}
 	}
@@ -366,15 +367,15 @@ final class AudioAnalysisPanelImGui {
 		dl.addRectFilled(x0 + lowW + midW, y0, x0 + barW, y0 + barH, 0xFF27A0EF, r);
 
 		ImGui.pushStyleColor(ImGuiCol.Text, COLOR_LOW.x, COLOR_LOW.y, COLOR_LOW.z, COLOR_LOW.w);
-		ImGui.text("■ 低");
+		ImGui.text(BBTexts.get("beatblock.audio.band_low"));
 		ImGui.popStyleColor();
 		ImGui.sameLine();
 		ImGui.pushStyleColor(ImGuiCol.Text, COLOR_MID.x, COLOR_MID.y, COLOR_MID.z, COLOR_MID.w);
-		ImGui.text("■ 中");
+		ImGui.text(BBTexts.get("beatblock.audio.band_mid"));
 		ImGui.popStyleColor();
 		ImGui.sameLine();
 		ImGui.pushStyleColor(ImGuiCol.Text, COLOR_HIGH.x, COLOR_HIGH.y, COLOR_HIGH.z, COLOR_HIGH.w);
-		ImGui.text("■ 高");
+		ImGui.text(BBTexts.get("beatblock.audio.band_high"));
 		ImGui.popStyleColor();
 	}
 
