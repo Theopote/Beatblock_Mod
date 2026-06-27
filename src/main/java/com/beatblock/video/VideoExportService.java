@@ -12,6 +12,7 @@ public final class VideoExportService {
 
 	private final Consumer<Runnable> clientExecutor;
 	private @Nullable VideoExportProgress activeProgress;
+	private @Nullable VideoExportResult lastResult;
 	private @Nullable Consumer<VideoExportProgress> progressListener;
 	private @Nullable Consumer<VideoExportResult> completionListener;
 
@@ -33,6 +34,14 @@ public final class VideoExportService {
 		return activeProgress;
 	}
 
+	public @Nullable VideoExportResult lastResult() {
+		return lastResult;
+	}
+
+	public void clearLastResult() {
+		lastResult = null;
+	}
+
 	public void setProgressListener(@Nullable Consumer<VideoExportProgress> listener) {
 		this.progressListener = listener;
 	}
@@ -45,6 +54,7 @@ public final class VideoExportService {
 		if (settings == null || isExporting()) {
 			return false;
 		}
+		lastResult = null;
 		activeProgress = VideoExportProgress.starting(settings);
 		emitProgress();
 		clientExecutor.accept(() -> com.beatblock.client.export.VideoExportCoordinator.getInstance().start(settings, this));
@@ -64,6 +74,7 @@ public final class VideoExportService {
 	}
 
 	public void onCompleted(VideoExportResult result) {
+		lastResult = result;
 		activeProgress = result.progress();
 		emitProgress();
 		if (completionListener != null) {

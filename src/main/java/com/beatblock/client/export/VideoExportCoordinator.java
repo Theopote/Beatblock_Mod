@@ -171,8 +171,8 @@ public final class VideoExportCoordinator {
 			MinecraftClient.getInstance().execute(() -> {
 				if (outcome instanceof FfmpegTranscodeOutcome.Success) {
 					completeSuccess(outputPath);
-				} else if (outcome instanceof FfmpegTranscodeOutcome.Failure failure) {
-					abort(failure.message());
+				} else if (outcome instanceof FfmpegTranscodeOutcome.Failure(String message)) {
+					abort(message);
 				} else {
 					abort(BBTexts.get("beatblock.export.error.failed"));
 				}
