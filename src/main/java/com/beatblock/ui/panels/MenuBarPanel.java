@@ -126,6 +126,7 @@ public class MenuBarPanel {
 					panelToggleItem("动画库", panels.animationLibrary);
 					panelToggleItem("选择属性", panels.selectionProperties);
 					panelToggleItem("建造图层", panels.layer);
+					panelToggleItem("天降方块", panels.rhythmDrop);
 					ImGui.endMenu();
 				}
 				ImGui.endMenu();

@@ -29,6 +29,7 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 	public static final String ANIMATION_LIBRARY_WINDOW = "动画库###AnimationLibraryPanel";
 	public static final String SELECTION_PROPERTIES_WINDOW = "选择属性###BeatBlockSelectionProperties";
 	public static final String LAYER_PANEL_WINDOW = "建造图层###LayerPanel";
+	public static final String RHYTHM_DROP_PANEL_WINDOW = "天降方块###RhythmDropPanel";
 
 	private static boolean layoutInitialized = false;
 
