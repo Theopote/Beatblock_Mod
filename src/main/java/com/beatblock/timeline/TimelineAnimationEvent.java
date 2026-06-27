@@ -70,10 +70,12 @@ public final class TimelineAnimationEvent {
 		return energy;
 	}
 
+	public @NonNull AnimationEventParams toAnimationEventParams() {
+		return AnimationEventParams.fromAnimationEvent(this);
+	}
+
 	public @NonNull TimelineAnimationActionMode getActionMode() {
-		Object value = parameters.get("actionMode");
-		if (value == null) value = parameters.get("mode");
-		return TimelineAnimationActionMode.fromValue(value);
+		return toAnimationEventParams().actionMode();
 	}
 
 	public @NonNull Map<String, Object> getParameters() {
@@ -81,6 +83,6 @@ public final class TimelineAnimationEvent {
 	}
 
 	public @NonNull TimelineEventOrigin getEventOrigin() {
-		return TimelineEventOrigin.fromValue(parameters.get("eventOrigin"));
+		return toAnimationEventParams().eventOrigin();
 	}
 }

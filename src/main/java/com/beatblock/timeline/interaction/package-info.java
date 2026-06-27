@@ -1,4 +1,4 @@
 @NullMarked
-package com.beatblock.engine;
+package com.beatblock.timeline.interaction;
 
 import org.jspecify.annotations.NullMarked;

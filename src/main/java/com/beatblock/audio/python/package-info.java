@@ -1,4 +1,4 @@
 @NullMarked
-package com.beatblock.engine;
+package com.beatblock.audio.python;
 
 import org.jspecify.annotations.NullMarked;

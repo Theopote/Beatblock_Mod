@@ -1,5 +1,7 @@
 package com.beatblock.timeline;
 
+import com.beatblock.timeline.binding.AnimationBindingEngine;
+import com.beatblock.timeline.binding.AnimationBindingRule;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -43,19 +45,24 @@ public record AnimationEventParams(
 	}
 
 	public static @NonNull AnimationEventParams fromAnimationEvent(@NonNull TimelineAnimationEvent event) {
+		Map<String, Object> source = event.getParameters();
 		Map<String, Object> extensions = new HashMap<>();
-		for (Map.Entry<String, Object> entry : event.getParameters().entrySet()) {
+		for (Map.Entry<String, Object> entry : source.entrySet()) {
 			if (!isCoreParameterKey(entry.getKey())) {
 				extensions.put(entry.getKey(), entry.getValue());
 			}
 		}
+		Object modeRaw = source.get("actionMode");
+		if (modeRaw == null) {
+			modeRaw = source.get("mode");
+		}
 		return new AnimationEventParams(
-			event.getActionMode(),
+			TimelineAnimationActionMode.fromValue(modeRaw),
 			event.getAnimationTypeId(),
 			event.getTargetObjectId(),
 			event.getEnergy(),
 			event.getDurationSeconds(),
-			event.getEventOrigin(),
+			TimelineEventOrigin.fromValue(source.get("eventOrigin")),
 			extensions
 		);
 	}
@@ -95,6 +102,74 @@ public record AnimationEventParams(
 
 	public static boolean isCoreParameterKey(@Nullable String key) {
 		return key != null && CORE_PARAMETER_KEYS.contains(key);
+	}
+
+	public @NonNull AnimationEventParams withEventOrigin(@NonNull TimelineEventOrigin newOrigin) {
+		return new AnimationEventParams(
+			actionMode,
+			animationType,
+			targetObject,
+			energy,
+			durationSeconds,
+			newOrigin,
+			extensions
+		);
+	}
+
+	public @NonNull AnimationEventParams withMergedExtensions(@Nullable Map<String, Object> extra) {
+		if (extra == null || extra.isEmpty()) {
+			return this;
+		}
+		Map<String, Object> merged = new HashMap<>(extensions);
+		merged.putAll(extra);
+		return new AnimationEventParams(
+			actionMode,
+			animationType,
+			targetObject,
+			energy,
+			durationSeconds,
+			eventOrigin,
+			merged
+		);
+	}
+
+	public static @NonNull AnimationEventParams fromBindingRule(
+		@NonNull AnimationBindingRule rule,
+		float energy,
+		@NonNull TimelineEventOrigin eventOrigin
+	) {
+		Map<String, Object> extensions = new HashMap<>();
+		extensions.put("generatedBy", AnimationBindingEngine.GENERATED_BY_MARK);
+		extensions.put("bindingRuleId", rule.id());
+		extensions.put("bindingRuleName", rule.name());
+		extensions.put("sourceFeature", rule.sourceFeatureKey());
+		extensions.put("energyScale", rule.energyScale());
+		extensions.put("probability", rule.probability());
+		extensions.put("cooldownSeconds", rule.cooldownSeconds());
+		extensions.put("spatialMode", rule.spatialMode().name());
+		extensions.put("sequentialDelaySeconds", rule.sequentialDelaySeconds());
+		if (!rule.sectionFilter().isBlank()) {
+			extensions.put("sectionFilter", rule.sectionFilter());
+		}
+		return new AnimationEventParams(
+			rule.actionMode(),
+			rule.animationTypeId(),
+			rule.targetObjectId(),
+			energy,
+			rule.durationSeconds(),
+			eventOrigin,
+			extensions
+		);
+	}
+
+	public void writeCoreInto(@NonNull Map<String, Object> target) {
+		target.put("actionMode", actionMode.name());
+		target.put("mode", actionMode.name());
+		target.put("animationType", animationType);
+		target.put("targetObject", targetObject);
+		target.put("energy", energy);
+		target.put("durationSeconds", durationSeconds);
+		target.put("eventOrigin", eventOrigin.name());
 	}
 
 	public @NonNull Map<String, Object> toParameterMap() {

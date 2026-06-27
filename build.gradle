@@ -2,6 +2,7 @@ plugins {
 	id 'fabric-loom' version "${loom_version}"
 	id 'maven-publish'
 	id 'jacoco'
+	id 'net.ltgt.errorprone' version '4.1.0' apply false
 }
 
 version = project.mod_version
@@ -13,6 +14,10 @@ base {
 
 repositories {
 	mavenCentral()
+	maven {
+		name = 'Google'
+		url = 'https://maven.google.com'
+	}
 }
 
 if (findProperty('enableNullaway') == 'true') {

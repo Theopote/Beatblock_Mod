@@ -6,6 +6,7 @@ import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.FeatureTrack;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineMarker;
@@ -15,7 +16,6 @@ import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TrackRegistry;
-import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -71,10 +71,13 @@ public final class AnimationBindingEngine {
 				if (!passesProbability(rule, event)) continue;
 				if (!passesCooldown(rule, event, lastAcceptedByRule)) continue;
 
-				Map<String, Object> params = getStringObjectMap(rule);
-				params.putAll(rule.extraParams());
-
 				float energy = clamp01(event.getEnergy() * rule.energyScale());
+				Map<String, Object> params = AnimationEventParams.fromBindingRule(
+					rule,
+					energy,
+					TimelineEventOrigin.AUTO_GENERATED
+				).withMergedExtensions(rule.extraParams()).toParameterMap();
+
 				TimelineAnimationEvent generated = new TimelineAnimationEvent(
 					"",
 					event.getTimeSeconds(),
@@ -96,25 +99,6 @@ public final class AnimationBindingEngine {
 		}
 		timeline.sortAll();
 		return added;
-	}
-
-	private static @NonNull Map<String, Object> getStringObjectMap(AnimationBindingRule rule) {
-		Map<String, Object> params = new HashMap<>();
-		params.put("generatedBy", GENERATED_BY_MARK);
-		params.put("bindingRuleId", rule.id());
-		params.put("bindingRuleName", rule.name());
-		params.put("sourceFeature", rule.sourceFeatureKey());
-		// energyThreshold 不写入：绑定引擎已在生成时做过阈值过滤，
-		// 运行时 passesEnergyThreshold() 默认 0.0 直接通过，避免双重过滤。
-		params.put("energyScale", rule.energyScale());
-		params.put("probability", rule.probability());
-		params.put("cooldownSeconds", rule.cooldownSeconds());
-		params.put("actionMode", rule.actionMode().name());
-		params.put("mode", rule.actionMode().name());
-		params.put("spatialMode", rule.spatialMode().name());
-		params.put("sequentialDelaySeconds", rule.sequentialDelaySeconds());
-		if (!rule.sectionFilter().isBlank()) params.put("sectionFilter", rule.sectionFilter());
-		return params;
 	}
 
 	public static List<AnimationBindingRule> loadRules(Timeline timeline) {

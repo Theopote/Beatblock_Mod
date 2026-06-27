@@ -3,13 +3,14 @@ package com.beatblock.timeline.command.layer;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
+import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineEvent;
+import com.beatblock.timeline.TimelineEventOrigin;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -68,15 +69,20 @@ public final class BindLayerToTrackCommand implements com.beatblock.timeline.com
 		Clip clip = new Clip(createdClipId, clipStartSeconds, clipEnd);
 		track.addClip(clip);
 
-		Map<String, Object> params = new HashMap<>();
-		params.put("actionMode", TimelineAnimationActionMode.BUILD.name());
-		params.put("layerId", layer.getId());
-		params.put("buildMode", "WALL");
-		params.put("buildDissolve", "false");
-		params.put("layerBound", "true");
-		params.put("targetObject", layer.getStageObjectId());
-		params.put("durationSeconds", clipDurationSeconds);
-		params.put("energy", 1.0f);
+		Map<String, Object> params = new AnimationEventParams(
+			TimelineAnimationActionMode.BUILD,
+			"",
+			layer.getStageObjectId(),
+			1f,
+			clipDurationSeconds,
+			TimelineEventOrigin.MANUAL,
+			Map.of(
+				"layerId", layer.getId(),
+				"buildMode", "WALL",
+				"buildDissolve", "false",
+				"layerBound", "true"
+			)
+		).toParameterMap();
 
 		TimelineEvent event = new TimelineEvent(
 			createdEventId,

@@ -1,11 +1,22 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.timeline.AnimationEventParams;
+import com.beatblock.timeline.TimelineAnimationEvent;
+
 import java.util.Map;
 
 /** 从 Timeline 事件参数字典读取 typed 值（无 ImGui 依赖）。 */
 public final class EventParameterReaders {
 
 	private EventParameterReaders() {}
+
+	public static AnimationEventParams animationParams(Map<String, Object> params) {
+		return AnimationEventParams.fromParameterMap(params);
+	}
+
+	public static AnimationEventParams animationParams(TimelineAnimationEvent event) {
+		return event.toAnimationEventParams();
+	}
 
 	public static String stringParam(Map<String, Object> params, String key) {
 		return stringParam(params, key, "");

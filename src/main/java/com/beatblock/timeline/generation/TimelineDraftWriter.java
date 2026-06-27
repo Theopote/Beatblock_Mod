@@ -2,6 +2,7 @@ package com.beatblock.timeline.generation;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.runtime.BeatBlockContext;
+import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
@@ -9,9 +10,7 @@ import com.beatblock.timeline.command.AddTimelineAnimationEventCommand;
 import com.beatblock.timeline.command.ClearAnimationTrackCommand;
 import com.beatblock.timeline.command.CommandManager;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 草稿生成器统一写入路径：自动/批量事件经 {@link com.beatblock.timeline.command.CommandManager} 写入 Timeline。
@@ -76,16 +75,16 @@ public final class TimelineDraftWriter {
 
 	public static TimelineAnimationEvent withOrigin(TimelineAnimationEvent source, TimelineEventOrigin origin) {
 		if (source == null) return null;
-		Map<String, Object> params = new HashMap<>(source.getParameters());
-		params.put("eventOrigin", origin.name());
+		TimelineEventOrigin resolved = origin != null ? origin : TimelineEventOrigin.AUTO_GENERATED;
+		AnimationEventParams params = AnimationEventParams.fromAnimationEvent(source).withEventOrigin(resolved);
 		return new TimelineAnimationEvent(
 			source.getEventId(),
 			source.getTimeSeconds(),
-			source.getDurationSeconds(),
-			source.getAnimationTypeId(),
-			source.getTargetObjectId(),
-			source.getEnergy(),
-			params
+			params.durationSeconds(),
+			params.animationType(),
+			params.targetObject(),
+			params.energy(),
+			params.toParameterMap()
 		);
 	}
 

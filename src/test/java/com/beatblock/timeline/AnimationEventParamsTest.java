@@ -1,5 +1,6 @@
 package com.beatblock.timeline;
 
+import com.beatblock.timeline.binding.AnimationBindingRule;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -77,5 +78,53 @@ class AnimationEventParamsTest {
 		assertTrue(AnimationEventParams.isCoreParameterKey("actionMode"));
 		assertTrue(AnimationEventParams.isCoreParameterKey("mode"));
 		assertFalse(AnimationEventParams.isCoreParameterKey("buildMode"));
+	}
+
+	@Test
+	void fromBindingRuleIncludesBindingMetadata() {
+		AnimationBindingRule rule = AnimationBindingRule.builder()
+			.name("Kick Bounce")
+			.sourceFeatureKey("kick")
+			.animationTypeId("BlockJump")
+			.targetObjectId("stage-a")
+			.energyScale(1.2f)
+			.probability(0.8f)
+			.cooldownSeconds(0.25)
+			.durationSeconds(0.4)
+			.sectionFilter("intro")
+			.build();
+
+		AnimationEventParams params = AnimationEventParams.fromBindingRule(
+			rule,
+			0.6f,
+			TimelineEventOrigin.AUTO_GENERATED
+		);
+
+		assertEquals(TimelineAnimationActionMode.ANIMATE, params.actionMode());
+		assertEquals("BlockJump", params.animationType());
+		assertEquals(0.6f, params.energy(), 1e-6);
+		Map<String, Object> map = params.toParameterMap();
+		assertEquals("audio-binding-rule", map.get("generatedBy"));
+		assertEquals(rule.id(), map.get("bindingRuleId"));
+		assertEquals("intro", map.get("sectionFilter"));
+		assertEquals(TimelineEventOrigin.AUTO_GENERATED.name(), map.get("eventOrigin"));
+	}
+
+	@Test
+	void withMergedExtensionsOverridesAndPreservesCore() {
+		AnimationEventParams base = AnimationEventParams.fromBindingRule(
+			AnimationBindingRule.builder()
+				.sourceFeatureKey("kick")
+				.animationTypeId("pulse")
+				.targetObjectId("stage")
+				.build(),
+			1f,
+			TimelineEventOrigin.AUTO_GENERATED
+		);
+		AnimationEventParams merged = base.withMergedExtensions(Map.of("customKey", "value", "energyScale", 2f));
+		Map<String, Object> map = merged.toParameterMap();
+		assertEquals("value", map.get("customKey"));
+		assertEquals(2f, ((Number) map.get("energyScale")).floatValue(), 1e-6);
+		assertEquals("Pulse", map.get("animationType"));
 	}
 }

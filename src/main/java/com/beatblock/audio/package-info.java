@@ -1,4 +1,4 @@
 @NullMarked
-package com.beatblock.engine;
+package com.beatblock.audio;
 
 import org.jspecify.annotations.NullMarked;

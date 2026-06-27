@@ -44,4 +44,21 @@ class TimelineAnimationEventTest {
 		mutable.put("mode", "CLEAR");
 		assertEquals("BUILD", event.getParameters().get("mode"));
 	}
+
+	@Test
+	void toAnimationEventParamsUsesTypedFieldsAndParameterExtensions() {
+		var event = new TimelineAnimationEvent(
+			"ev", 2.0, 1.5, "pulse", "stage-a", 0.8f,
+			Map.of("mode", "PLACE", "buildMode", "wall", "eventOrigin", TimelineEventOrigin.MANUAL.name()));
+
+		AnimationEventParams params = event.toAnimationEventParams();
+
+		assertEquals(TimelineAnimationActionMode.PLACE, params.actionMode());
+		assertEquals("pulse", params.animationType());
+		assertEquals("stage-a", params.targetObject());
+		assertEquals(0.8f, params.energy(), 1e-6);
+		assertEquals(1.5, params.durationSeconds(), 1e-9);
+		assertEquals(TimelineEventOrigin.MANUAL, params.eventOrigin());
+		assertEquals("wall", params.extensions().get("buildMode"));
+	}
 }

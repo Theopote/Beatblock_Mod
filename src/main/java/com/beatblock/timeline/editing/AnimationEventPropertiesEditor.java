@@ -3,7 +3,9 @@ package com.beatblock.timeline.editing;
 import com.beatblock.engine.influence.BlockInfluencePreset;
 import com.beatblock.engine.influence.BlockInfluencePresets;
 import com.beatblock.engine.influence.InfluenceDimension;
+import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.TimelineAnimationActionMode;
+import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
 import com.beatblock.timeline.generation.DistancePacing;
 
@@ -67,15 +69,19 @@ public final class AnimationEventPropertiesEditor {
 		Map<String, Object> parameters = new HashMap<>(
 			existingParameters != null ? existingParameters : Map.of()
 		);
+		TimelineEventOrigin eventOrigin = TimelineEventOrigin.fromValue(parameters.get("eventOrigin"));
 		clearManagedParameters(parameters);
 
-		parameters.put("actionMode", mode.name());
-		parameters.put("mode", mode.name());
-		parameters.put("durationSeconds", input.durationSeconds());
-		parameters.put("energy", input.energy());
+		new AnimationEventParams(
+			mode,
+			input.animationId(),
+			input.targetObjectId(),
+			input.energy(),
+			input.durationSeconds(),
+			eventOrigin,
+			Map.of()
+		).writeCoreInto(parameters);
 		parameters.put("energyThreshold", input.energyThreshold());
-		parameters.put("animationType", input.animationId());
-		parameters.put("targetObject", input.targetObjectId());
 		parameters.put("dispatchModel", input.stepDispatch() ? "STEP" : "BURST");
 
 		if (input.stepDispatch()) {

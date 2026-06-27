@@ -90,9 +90,8 @@
 
 建议下一步：
 
-1. 将 `AnimationBindingEngine`、`AnimationEventPropertiesEditor` 等迁移到 `AnimationEventParams`
-2. 将 `com.beatblock.timeline`、`com.beatblock.audio` 逐包添加 `@NullMarked` 并修复 NullAway 报错
-3. 运行 `./gradlew compileJava -PenableNullaway=true` 纳入 CI（网络可达时）
+1. 将 `com.beatblock.timeline`、`com.beatblock.audio` 逐包添加 `@NullMarked` 并修复 NullAway 报错
+2. 运行 `./gradlew compileJava -PenableNullaway=true` 纳入 CI（网络可达时）
 
 ---
 

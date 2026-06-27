@@ -2,6 +2,7 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.StageObject;
+import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
@@ -459,7 +460,8 @@ public final class EventPropertiesPresenter {
 
 		TimelineEvent event = ref.event();
 		Map<String, Object> params = event.getParameters();
-		String animationId = EventParameterReaders.stringParam(params, "animationType", "");
+		AnimationEventParams core = EventParameterReaders.animationParams(params);
+		String animationId = core.animationType();
 		WorldTrajectoryEventParamsEditor.FormInput trajectory = WorldTrajectoryEventParamsEditor.readForm(params, animationId);
 		String placeBlock = EventParameterReaders.stringParam(
 			params, "placeBlock",
@@ -507,8 +509,8 @@ public final class EventPropertiesPresenter {
 			"", "",
 			false,
 			formatSeconds(event.getTimeSeconds()),
-			formatSeconds(EventParameterReaders.numericParam(params, "durationSeconds", 0.25)),
-			formatDecimal(EventParameterReaders.numericParam(params, "energy", 1.0), 3),
+			formatSeconds(params.containsKey("durationSeconds") ? core.durationSeconds() : 0.25),
+			formatDecimal(params.containsKey("energy") ? core.energy() : 1.0, 3),
 			formatDecimal(EventParameterReaders.numericParam(params, "energyThreshold", 0.15), 3),
 			formatDecimal(EventParameterReaders.numericParam(params, "sequentialDelaySeconds", 0.0), 3),
 			String.valueOf(Math.max(1, (int) Math.round(EventParameterReaders.numericParam(params, "blocksPerBeat", 1.0)))),
@@ -542,16 +544,12 @@ public final class EventPropertiesPresenter {
 	}
 
 	public AnimationEditorViewState readAnimationEditorState(Map<String, Object> params) {
+		AnimationEventParams core = EventParameterReaders.animationParams(params);
 		Map<String, Object> safeParams = params != null ? params : Map.of();
-		String actionMode = EventParameterReaders.stringParam(
-			safeParams,
-			"actionMode",
-			EventParameterReaders.stringParam(safeParams, "mode", TimelineAnimationActionMode.ANIMATE.name())
-		);
 		return new AnimationEditorViewState(
-			EventParameterReaders.stringParam(safeParams, "animationType"),
-			EventParameterReaders.stringParam(safeParams, "targetObject"),
-			actionMode,
+			core.animationType(),
+			core.targetObject(),
+			core.actionMode().name(),
 			EventParameterReaders.booleanParam(safeParams, "inheritGroupSpatial", true),
 			"STEP".equalsIgnoreCase(EventParameterReaders.stringParam(safeParams, "dispatchModel", "BURST")),
 			EventParameterReaders.booleanParam(safeParams, "cameraAdaptiveStep", false),

@@ -17,13 +17,13 @@
 | P1 空值注解（核心 API） | 🟡 进行中 | timeline/audio 约 **22** 个文件；见 [已注解文件清单](#已注解文件清单) |
 | P1 Timeline 并发模型 | ✅ 已完成 | 类文档明确线程模型；`animationCachesDirty` 改为 `volatile` |
 | P1 资源管理 | ✅ 已完成 | `AudioAnalysisOrchestrator` + `AudioConversionService`：`AutoCloseable`、非 daemon、优雅 shutdown |
-| P2 Map 强类型化 | 🟡 进行中 | `AnimationEventParams` record；`AddTimelineAnimationEventCommand` / `Timeline` 已接入 |
+| P2 Map 强类型化 | 🟡 进行中 | `AnimationEventParams`；写入路径 + 绑定引擎 + 属性编辑器 + 图层绑定已接入 |
 | P2 长方法拆分 | ⬜ 未开始 | |
 | P2 Magic Numbers | ⬜ 未开始 | |
 | P3 文档/命名/覆盖率 | ⬜ 未开始 | |
 | CI NullAway | 🟡 已配置 | 可选：`./gradlew compileJava -PenableNullaway=true`（需下载 errorprone/nullaway） |
 
-**测试基线**: `./gradlew test` — **753/753 通过**（2026-06-27）
+**测试基线**: `./gradlew test` — **758/758 通过**（2026-06-27）
 
 ### 已注解文件清单
 
@@ -99,9 +99,10 @@
 ### 方案A: 参数对象 — 🟡 已起步
 使用 record 定义强类型参数对象。
 
-- ✅ `AnimationEventParams`：`fromAnimationEvent` / `fromParameterMap` / `toParameterMap`
-- ✅ `AddTimelineAnimationEventCommand.buildParams`、`Timeline.addAnimationEventInternal`、`rebuildAnimationCache` 统一使用
-- ⬜ 其余 `Map<String,Object>`（绑定引擎、属性编辑器等）待迁移
+- ✅ `AnimationEventParams`：`fromAnimationEvent` / `fromParameterMap` / `fromBindingRule` / `toParameterMap`
+- ✅ `AddTimelineAnimationEventCommand`、`Timeline`、`AnimationBindingEngine`、`TimelineDraftWriter`、`AnimationEventPropertiesEditor`、`BindLayerToTrackCommand`
+- ✅ 读取侧：`TimelineAnimationEvent.toAnimationEventParams()`、`EventParameterReaders.animationParams()`、`EventPropertiesPresenter`
+- ⬜ 其余 ad-hoc Map 读取（如 `BeatBlockClientDriver` 扩展键）待整理
 
 ### 方案B: Sealed 接口
 适合多种参数类型的场景。
