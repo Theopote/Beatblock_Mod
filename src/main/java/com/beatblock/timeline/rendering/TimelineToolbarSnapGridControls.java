@@ -1,72 +1,67 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 
 final class TimelineToolbarSnapGridControls {
 
-	private static final String TOOLTIP_SNAP = "拖拽事件时吸附到网格";
-	private static final String TOOLTIP_BEAT_SNAP = "拖拽事件时吸附到节拍";
-	private static final String TOOLTIP_BEAT_GRID = "显示节拍网格线";
-	private static final String TOOLTIP_MAGNET = "吸附到其他事件/关键帧";
-	private static final String TOOLTIP_LOOP = "循环播放";
-
 	void renderInline(TimelineToolbarState toolbarState) {
 		if (toolbarState == null) return;
-		renderSnap(toolbarState, "Snap", false);
+		renderSnap(toolbarState, BBTexts.get("beatblock.timeline.snap"), false);
 		TimelineToolbarImGui.nextItemInGroup();
-		renderBeatSnap(toolbarState, "Beat Snap", false);
+		renderBeatSnap(toolbarState, BBTexts.get("beatblock.timeline.beat_snap"), false);
 		TimelineToolbarImGui.nextItemInGroup();
-		renderBeatGrid(toolbarState, "Beat Grid", false);
+		renderBeatGrid(toolbarState, BBTexts.get("beatblock.timeline.beat_grid"), false);
 		TimelineToolbarImGui.nextItemInGroup();
-		renderMagnet(toolbarState, "Magnet", false);
+		renderMagnet(toolbarState, BBTexts.get("beatblock.timeline.magnet"), false);
 		TimelineToolbarImGui.nextGroupOrWrap(0);
-		renderLoop(toolbarState, "Loop", false);
+		renderLoop(toolbarState, BBTexts.get("beatblock.timeline.loop"), false);
 		TimelineToolbarImGui.nextGroupOrWrap(0);
 	}
 
 	void renderCompact(TimelineToolbarState toolbarState) {
 		if (toolbarState == null) return;
 		ImGui.separator();
-		ImGui.textDisabled("Snap & Grid");
-		renderSnap(toolbarState, "Snap##tlMoreSnap", true);
-		renderBeatSnap(toolbarState, "Beat Snap##tlMoreBeatSnap", true);
-		renderBeatGrid(toolbarState, "Beat Grid##tlMoreBeatGrid", true);
-		renderMagnet(toolbarState, "Magnet##tlMoreMagnet", true);
-		renderLoop(toolbarState, "Loop##tlMoreLoop", true);
+		ImGui.textDisabled(BBTexts.get("beatblock.timeline.snap_grid"));
+		renderSnap(toolbarState, BBTexts.get("beatblock.timeline.snap") + "##tlMoreSnap", true);
+		renderBeatSnap(toolbarState, BBTexts.get("beatblock.timeline.beat_snap") + "##tlMoreBeatSnap", true);
+		renderBeatGrid(toolbarState, BBTexts.get("beatblock.timeline.beat_grid") + "##tlMoreBeatGrid", true);
+		renderMagnet(toolbarState, BBTexts.get("beatblock.timeline.magnet") + "##tlMoreMagnet", true);
+		renderLoop(toolbarState, BBTexts.get("beatblock.timeline.loop") + "##tlMoreLoop", true);
 	}
 
 	private static void renderSnap(TimelineToolbarState toolbarState, String label, boolean blockLayout) {
 		boolean snap = toolbarState.isSnapToGrid();
 		if (ImGui.checkbox(label, snap)) toolbarState.setSnapToGrid(!snap);
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_SNAP);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.snap.tooltip"));
 		if (blockLayout) return;
 	}
 
 	private static void renderBeatSnap(TimelineToolbarState toolbarState, String label, boolean blockLayout) {
 		boolean beatSnap = toolbarState.isSnapToBeat();
 		if (ImGui.checkbox(label, beatSnap)) toolbarState.setSnapToBeat(!beatSnap);
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BEAT_SNAP);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.beat_snap.tooltip"));
 		if (blockLayout) return;
 	}
 
 	private static void renderBeatGrid(TimelineToolbarState toolbarState, String label, boolean blockLayout) {
 		boolean beatGrid = toolbarState.isBeatGridVisible();
 		if (ImGui.checkbox(label, beatGrid)) toolbarState.setBeatGridVisible(!beatGrid);
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BEAT_GRID);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.beat_grid.tooltip"));
 		if (blockLayout) return;
 	}
 
 	private static void renderMagnet(TimelineToolbarState toolbarState, String label, boolean blockLayout) {
 		boolean magnet = toolbarState.isMagnetSnap();
 		if (ImGui.checkbox(label, magnet)) toolbarState.setMagnetSnap(!magnet);
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_MAGNET);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.magnet.tooltip"));
 		if (blockLayout) return;
 	}
 
 	private static void renderLoop(TimelineToolbarState toolbarState, String label, boolean blockLayout) {
 		boolean loop = toolbarState.isLoop();
 		if (ImGui.checkbox(label, loop)) toolbarState.setLoop(!loop);
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_LOOP);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.loop.tooltip"));
 		if (blockLayout) return;
 	}
 }

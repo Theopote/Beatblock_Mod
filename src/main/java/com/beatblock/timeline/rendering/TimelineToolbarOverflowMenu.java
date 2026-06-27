@@ -1,6 +1,7 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.timeline.TimelineEditor;
+import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 
 final class TimelineToolbarOverflowMenu {
@@ -28,7 +29,7 @@ final class TimelineToolbarOverflowMenu {
 	}
 
 	void renderButtonAndPopup(TimelineEditor editor, TimelineToolbarState toolbarState, double seekStep) {
-		if (ImGui.button("More##tlMore")) {
+		if (ImGui.button(BBTexts.get("beatblock.timeline.more") + "##tlMore")) {
 			ImGui.openPopup(POPUP_ID);
 		}
 		if (!ImGui.beginPopup(POPUP_ID)) return;

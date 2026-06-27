@@ -9,6 +9,7 @@ import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineClock;
 import com.beatblock.timeline.editor.TimelineViewState;
+import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,7 +93,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	public void renderRulerRow(TimelineLayout layout, TimelineViewState viewState, double bpm, TimelineToolbarState toolbarState, Timeline timeline) {
 		if (viewState == null || layout == null) return;
 		ImGui.setCursorScreenPos(layout.trackHeaderLeft + 4f, layout.rulerTop + 4f);
-		ImGui.textDisabled("时间");
+		ImGui.textDisabled(BBTexts.get("beatblock.timeline.time_label"));
 		gridRenderer.renderRuler(layout.startY, viewState, layout, bpm, toolbarState, timeline);
 		drawDivider(layout, layout.rulerTop, layout.rulerTop + layout.rulerHeight);
 		// 竖向分割线在 TimelinePanel 中自标尺顶贯通画到子窗口底，避免与滚动区重复/断层

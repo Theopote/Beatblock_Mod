@@ -5,6 +5,7 @@ import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.project.OscProjectStore;
+import com.beatblock.ui.i18n.BBTexts;
 
 import java.nio.file.Path;
 import java.util.function.Supplier;
@@ -62,14 +63,14 @@ public final class MenuBarPresenter {
 	public PresenterResult importAudio(String rawPath) {
 		String path = rawPath != null ? rawPath.trim() : "";
 		if (path.isEmpty()) {
-			return PresenterResult.failure("路径不能为空");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.path_empty"));
 		}
 		AudioLoader loader = audioLoader.get();
 		if (loader == null) {
-			return PresenterResult.failure("音频加载器不可用");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.audio_loader_unavailable"));
 		}
 		if (!loader.load(path)) {
-			return PresenterResult.failure("导入失败");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.import_failed"));
 		}
 		return PresenterResult.success("");
 	}
@@ -77,11 +78,11 @@ public final class MenuBarPresenter {
 	public PresenterResult openProject(String rawPath) {
 		String path = rawPath != null ? rawPath.trim() : "";
 		if (path.isEmpty()) {
-			return PresenterResult.failure("路径不能为空");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.path_empty"));
 		}
 		Timeline current = timeline.get();
 		if (current == null) {
-			return PresenterResult.failure("Timeline 不可用");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
 		}
 		try {
 			BuildLayerManager layers = layerManager.get();
@@ -101,27 +102,27 @@ public final class MenuBarPresenter {
 			if (layers != null) {
 				layers.applyPersistedWorldState(BuildLayerManager.currentWorld());
 			}
-			return PresenterResult.success("工程已打开");
+			return PresenterResult.success(BBTexts.get("beatblock.message.project_opened"));
 		} catch (Exception e) {
-			return PresenterResult.failure("打开失败: " + e.getMessage());
+			return PresenterResult.failure(BBTexts.get("beatblock.message.open_failed", e.getMessage()));
 		}
 	}
 
 	public PresenterResult saveProject(String rawPath) {
 		String path = rawPath != null ? rawPath.trim() : "";
 		if (path.isEmpty()) {
-			return PresenterResult.failure("路径不能为空");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.path_empty"));
 		}
 		Timeline current = timeline.get();
 		if (current == null) {
-			return PresenterResult.failure("Timeline 不可用");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
 		}
 		try {
 			OscProjectStore.save(Path.of(path), current, layerManager.get());
 			current.setMetadata("projectPath", path);
-			return PresenterResult.success("工程已保存");
+			return PresenterResult.success(BBTexts.get("beatblock.message.project_saved"));
 		} catch (Exception e) {
-			return PresenterResult.failure("保存失败: " + e.getMessage());
+			return PresenterResult.failure(BBTexts.get("beatblock.message.save_failed", e.getMessage()));
 		}
 	}
 

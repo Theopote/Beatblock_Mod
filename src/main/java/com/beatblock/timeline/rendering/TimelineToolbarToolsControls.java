@@ -1,19 +1,32 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.TimelineToolbarActionsPresenter;
 import com.beatblock.ui.presenter.TimelineToolbarFeedbackPresenter;
 import imgui.ImGui;
 
 final class TimelineToolbarToolsControls {
 
-	private static final String TOOLTIP_BINDING_MAP = "按绑定规则将音频特征批量转换为动画事件；无规则时自动创建默认规则";
-	private static final String TOOLTIP_BINDING_EDITOR = "编辑特征绑定规则：来源特征、动作、目标对象、阈值和冷却";
-	private static final String TOOLTIP_AUTO_MAP = "根据频段事件自动生成动画事件（需先导入音乐）";
-	private static final String TOOLTIP_BAKE_STEP =
-		"将 dispatchModel=STEP 的事件烘焙为 N 个带绝对时间的普通 BURST 事件（可 Undo）；需 StageObject 与参考节拍";
-	private static final String TOOLTIP_RHYTHM_DROP =
-		"从当前方块选区按节拍生成 RhythmDrop 天降事件（写入方块动画轨道）；需先选中落点方块";
+	private static String tooltipBindingMap() {
+		return BBTexts.get("beatblock.timeline.binding_map.tooltip");
+	}
+
+	private static String tooltipBindingEditor() {
+		return BBTexts.get("beatblock.timeline.binding_editor.tooltip");
+	}
+
+	private static String tooltipAutoMap() {
+		return BBTexts.get("beatblock.timeline.auto_map.tooltip");
+	}
+
+	private static String tooltipBakeStep() {
+		return BBTexts.get("beatblock.timeline.bake_step.tooltip");
+	}
+
+	private static String tooltipRhythmDrop() {
+		return BBTexts.get("beatblock.timeline.rhythm_drop.tooltip");
+	}
 
 	private final TimelineToolbarActionsPresenter actions;
 	private final TimelineToolbarFeedbackPresenter feedback;
@@ -31,30 +44,30 @@ final class TimelineToolbarToolsControls {
 
 	void renderInline() {
 		renderStageObjectWarning(true);
-		renderBindingMap("Binding Map", "");
+		renderBindingMap(BBTexts.get("beatblock.timeline.binding_map"), "");
 		TimelineToolbarImGui.nextItemInGroup();
-		renderBindingEditorOpen("Bindings...##tlBindingEditorOpen");
+		renderBindingEditorOpen(BBTexts.get("beatblock.timeline.bindings") + "##tlBindingEditorOpen");
 		bindingEditorPopup.renderIfOpen();
 		TimelineToolbarImGui.nextItemInGroup();
-		renderAutoMap("Auto Map", "");
+		renderAutoMap(BBTexts.get("beatblock.timeline.auto_map"), "");
 		TimelineToolbarImGui.nextItemInGroup();
-		renderBakeStep("烘焙 STEP##tlBakeStep", "");
+		renderBakeStep(BBTexts.get("beatblock.timeline.bake_step") + "##tlBakeStep", "");
 		TimelineToolbarImGui.nextItemInGroup();
-		renderRhythmDrop("天降##tlRhythmDrop", "");
+		renderRhythmDrop(BBTexts.get("beatblock.timeline.rhythm_drop_short") + "##tlRhythmDrop", "");
 		TimelineToolbarImGui.nextItemInGroup();
 		TimelineToolbarImGui.renderFeedback(feedback.viewToolActionFeedback());
 	}
 
 	void renderCompact() {
 		ImGui.separator();
-		ImGui.textDisabled("Tools");
-		renderBindingMap("Binding Map##tlMoreBindingMap", TOOLTIP_BINDING_MAP);
+		ImGui.textDisabled(BBTexts.get("beatblock.timeline.tools"));
+		renderBindingMap(BBTexts.get("beatblock.timeline.binding_map") + "##tlMoreBindingMap", tooltipBindingMap());
 		ImGui.sameLine();
-		renderBindingEditorOpen("Bindings...##tlMoreBindingEditorOpen");
+		renderBindingEditorOpen(BBTexts.get("beatblock.timeline.bindings") + "##tlMoreBindingEditorOpen");
 		bindingEditorPopup.renderIfOpen();
-		renderAutoMap("Auto Map##tlMoreAutoMap", TOOLTIP_AUTO_MAP);
-		renderBakeStep("烘焙 STEP##tlMoreBakeStep", TOOLTIP_BAKE_STEP);
-		renderRhythmDrop("天降方块##tlMoreRhythmDrop", TOOLTIP_RHYTHM_DROP);
+		renderAutoMap(BBTexts.get("beatblock.timeline.auto_map") + "##tlMoreAutoMap", tooltipAutoMap());
+		renderBakeStep(BBTexts.get("beatblock.timeline.bake_step") + "##tlMoreBakeStep", tooltipBakeStep());
+		renderRhythmDrop(BBTexts.get("beatblock.timeline.rhythm_drop_btn") + "##tlMoreRhythmDrop", tooltipRhythmDrop());
 		TimelineToolbarImGui.renderFeedback(feedback.viewToolActionFeedback());
 	}
 
@@ -62,9 +75,9 @@ final class TimelineToolbarToolsControls {
 		int objCount = BeatBlock.getContext().blockAnimationEngine() != null
 			? BeatBlock.getContext().blockAnimationEngine().getStageObjectSystem().size() : 0;
 		if (objCount != 0) return;
-		ImGui.textColored(0.95f, 0.65f, 0.30f, 1f, "无对象");
+		ImGui.textColored(0.95f, 0.65f, 0.30f, 1f, BBTexts.get("beatblock.timeline.no_stage_object"));
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip("请先在工具面板中创建 StageObject（选区→创建），否则 Binding Map 无法生成事件");
+			ImGui.setTooltip(BBTexts.get("beatblock.timeline.no_stage_object.tooltip"));
 		}
 		if (inlineSpacing) TimelineToolbarImGui.nextItemInGroup();
 	}
@@ -74,14 +87,14 @@ final class TimelineToolbarToolsControls {
 			var outcome = actions.runBindingMap();
 			feedback.setToolActionFeedback(outcome.message(), outcome.success());
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? TOOLTIP_BINDING_MAP : tooltipOverride);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? tooltipBindingMap() : tooltipOverride);
 	}
 
 	private void renderBindingEditorOpen(String label) {
 		if (ImGui.button(label)) {
 			ImGui.openPopup(TimelineBindingEditorPopup.POPUP_ID);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_BINDING_EDITOR);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipBindingEditor());
 	}
 
 	private void renderAutoMap(String label, String tooltipOverride) {
@@ -89,7 +102,7 @@ final class TimelineToolbarToolsControls {
 			var outcome = actions.runAutoMap();
 			feedback.setToolActionFeedback(outcome.message(), outcome.success());
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? TOOLTIP_AUTO_MAP : tooltipOverride);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? tooltipAutoMap() : tooltipOverride);
 	}
 
 	private void renderBakeStep(String label, String tooltipOverride) {
@@ -97,7 +110,7 @@ final class TimelineToolbarToolsControls {
 			var outcome = actions.runBakeStepSequences();
 			feedback.setToolActionFeedback(outcome.message(), outcome.success());
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? TOOLTIP_BAKE_STEP : tooltipOverride);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? tooltipBakeStep() : tooltipOverride);
 	}
 
 	private void renderRhythmDrop(String label, String tooltipOverride) {
@@ -105,6 +118,6 @@ final class TimelineToolbarToolsControls {
 			var outcome = actions.runGenerateRhythmDrops();
 			feedback.setToolActionFeedback(outcome.message(), outcome.success());
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? TOOLTIP_RHYTHM_DROP : tooltipOverride);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? tooltipRhythmDrop() : tooltipOverride);
 	}
 }

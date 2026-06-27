@@ -1,13 +1,12 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.timeline.TimelineEditor;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.TimelineToolbarViewPresenter;
 import imgui.ImGui;
 
 final class TimelineToolbarTrackHeightControls {
 
-	private static final String TOOLTIP_TRACK_HEIGHT = "调整音频轨（波形/低中高频）高度，便于看清节奏细节";
-	private static final String TOOLTIP_TRACK_HEIGHT_RESET = "恢复音频轨默认高度";
 	private static final float SLIDER_WIDTH = 120f;
 	private static final float SLIDER_WIDTH_COMPACT = 180f;
 
@@ -17,15 +16,15 @@ final class TimelineToolbarTrackHeightControls {
 		float[] value = new float[] { trackHeight.current() };
 
 		ImGui.setNextItemWidth(SLIDER_WIDTH);
-		if (ImGui.sliderFloat("Track H", value, trackHeight.min(), trackHeight.max(), "%.0f px")) {
+		if (ImGui.sliderFloat(BBTexts.get("beatblock.timeline.track_h"), value, trackHeight.min(), trackHeight.max(), "%.0f px")) {
 			TimelineToolbarViewPresenter.setTrackHeight(editor, value[0]);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TRACK_HEIGHT);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.track_height.tooltip"));
 		TimelineToolbarImGui.nextItemInGroup();
-		if (ImGui.button("Reset##tlTrackHReset")) {
+		if (ImGui.button(BBTexts.get("beatblock.timeline.track_height_reset") + "##tlTrackHReset")) {
 			TimelineToolbarViewPresenter.resetTrackHeight(editor);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TRACK_HEIGHT_RESET);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.track_height_reset.tooltip"));
 	}
 
 	void renderCompact(TimelineEditor editor) {
@@ -34,15 +33,15 @@ final class TimelineToolbarTrackHeightControls {
 		float[] value = new float[] { trackHeight.current() };
 
 		ImGui.separator();
-		ImGui.textDisabled("Track Height");
+		ImGui.textDisabled(BBTexts.get("beatblock.timeline.track_height"));
 		ImGui.setNextItemWidth(SLIDER_WIDTH_COMPACT);
-		if (ImGui.sliderFloat("Track H##tlMoreTrackH", value, trackHeight.min(), trackHeight.max(), "%.0f px")) {
+		if (ImGui.sliderFloat(BBTexts.get("beatblock.timeline.track_h") + "##tlMoreTrackH", value, trackHeight.min(), trackHeight.max(), "%.0f px")) {
 			TimelineToolbarViewPresenter.setTrackHeight(editor, value[0]);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TRACK_HEIGHT);
-		if (ImGui.button("Reset##tlMoreTrackHReset")) {
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.track_height.tooltip"));
+		if (ImGui.button(BBTexts.get("beatblock.timeline.track_height_reset") + "##tlMoreTrackHReset")) {
 			TimelineToolbarViewPresenter.resetTrackHeight(editor);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_TRACK_HEIGHT_RESET);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.track_height_reset.tooltip"));
 	}
 }

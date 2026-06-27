@@ -4,6 +4,7 @@ import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.ui.i18n.BBTexts;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,11 +99,11 @@ public final class MarkerPanelPresenter {
 		int typeIndex
 	) {
 		if (timeline == null || markerId == null || markerId.isBlank()) {
-			return new MarkerEditOutcome(PresenterResult.failure("无可用 Marker。"), null);
+			return new MarkerEditOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.no_marker")), null);
 		}
 		TimelineMarker marker = findMarker(timeline, markerId);
 		if (marker == null) {
-			return new MarkerEditOutcome(PresenterResult.failure("Marker 不存在。"), null);
+			return new MarkerEditOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.marker_not_found")), null);
 		}
 
 		String name = rawName != null ? rawName.trim() : "";
@@ -113,7 +114,7 @@ public final class MarkerPanelPresenter {
 			}
 		} catch (NumberFormatException ex) {
 			return new MarkerEditOutcome(
-				PresenterResult.failure("时间格式不正确。"),
+				PresenterResult.failure(BBTexts.get("beatblock.message.invalid_time_format")),
 				formSnapshotFor(marker)
 			);
 		}
@@ -129,10 +130,10 @@ public final class MarkerPanelPresenter {
 
 	public PresenterResult deleteMarker(Timeline timeline, String markerId) {
 		if (timeline == null || markerId == null || markerId.isBlank()) {
-			return PresenterResult.failure("无可用 Marker。");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.no_marker"));
 		}
 		if (!timeline.removeMarker(markerId)) {
-			return PresenterResult.failure("Marker 不存在。");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.marker_not_found"));
 		}
 		return PresenterResult.success("");
 	}

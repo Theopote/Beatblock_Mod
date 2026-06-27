@@ -2,6 +2,7 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.panels.audioanalysis.AudioAnalysisPanelHost;
@@ -69,17 +70,17 @@ public final class AudioAnalysisPanel implements AudioAnalysisPanelHost {
         if (path == null || path.isBlank()) return false;
         AudioAssetManager manager = AudioAssetManager.getInstance();
         if (!manager.isSupportedAudioPath(path)) {
-			uiState.setPanelHint("仅支持 " + manager.getSupportedAudioExtensionsLabel(), true);
+			uiState.setPanelHint(BBTexts.get("beatblock.audio.unsupported_extensions", manager.getSupportedAudioExtensionsLabel()), true);
             return false;
         }
 		AudioAsset asset = manager.addFromPath(path);
         if (asset != null) {
 			uiState.setSelectedAsset(asset);
 			manager.startAnalysis(asset);
-			uiState.setPanelHint("已添加并开始解析: " + asset.getFileName(), false);
+			uiState.setPanelHint(BBTexts.get("beatblock.audio.added_and_analyzing", asset.getFileName()), false);
             return true;
         }
-		uiState.setPanelHint("路径无效或文件不存在", true);
+		uiState.setPanelHint(BBTexts.get("beatblock.audio.path_invalid"), true);
         return false;
     }
 

@@ -5,6 +5,7 @@ import com.beatblock.audio.assets.AudioAnalysisStep;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.beatmap.Beatmap;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
 import imgui.ImGui;
@@ -26,19 +27,19 @@ final class AudioAnalysisAssetDetailControls {
 			state.setDetailExpanded(false);
 		}
 		IconButtonStyle.popBeatBlockIconButton();
-		if (ImGui.isItemHovered()) ImGui.setTooltip("折叠详情");
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.audio.collapse_detail"));
 		ImGui.sameLine();
-		if (ImGui.button("重置比例 5:5##resetDetailRatio")) {
+		if (ImGui.button(BBTexts.get("beatblock.audio.reset_ratio") + "##resetDetailRatio")) {
 			state.setDetailRatio(0.50f);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip("将左右区域恢复为默认 5:5");
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.audio.reset_ratio.tooltip"));
 		ImGui.sameLine();
-		ImGui.text("详情");
+		ImGui.text(BBTexts.get("beatblock.audio.detail"));
 		ImGui.separator();
 
 		if (asset == null) {
 			ImGui.spacing();
-			ImGui.textDisabled("点击左侧列表中的\n音频查看详情");
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.select_asset_hint"));
 			return;
 		}
 
@@ -55,43 +56,43 @@ final class AudioAnalysisAssetDetailControls {
 		AudioAnalysisPanelUiState state = host.uiState();
 		AudioAssetManager manager = AudioAssetManager.getInstance();
 		int pos = manager.getQueuePosition(asset.getId());
-		if (AudioAnalysisPanelImGui.beginDetailSection("queued_status", "队列状态", false)) {
-			AudioAnalysisPanelImGui.detailRowCompact(state, "文件名", asset.getFileName());
-			AudioAnalysisPanelImGui.detailRowCompact(state, "当前状态", "排队中");
+		if (AudioAnalysisPanelImGui.beginDetailSection("queued_status", BBTexts.get("beatblock.audio.queue_status"), false)) {
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.file_name"), asset.getFileName());
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.status_label"), BBTexts.get("beatblock.audio.queued"));
 			if (pos > 0) {
-				AudioAnalysisPanelImGui.detailRowCompact(state, "队列位次", "#" + pos, new ImVec4(0.95f, 0.78f, 0.38f, 1f));
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.queue_position"), "#" + pos, new ImVec4(0.95f, 0.78f, 0.38f, 1f));
 			}
 			AudioAnalysisPanelImGui.compactGap();
-			AudioAnalysisPanelImGui.textDisabledWrapped("当前分析器为串行执行，前序任务完成后将自动开始。你可以继续添加文件，系统会按顺序处理。");
-			AudioAnalysisPanelImGui.textDisabledWrapped("提示：左侧列表支持拖动队列项直接改顺序。");
+			AudioAnalysisPanelImGui.textDisabledWrapped(BBTexts.get("beatblock.audio.queue_hint"));
+			AudioAnalysisPanelImGui.textDisabledWrapped(BBTexts.get("beatblock.audio.queue_drag_hint"));
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
 
-		if (AudioAnalysisPanelImGui.beginDetailSection("queued_actions", "操作", true)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("queued_actions", BBTexts.get("beatblock.audio.actions"), true)) {
 			boolean canMoveUp = manager.canMoveQueueUp(asset.getId());
 			boolean canMoveDown = manager.canMoveQueueDown(asset.getId());
 			float half = (ImGui.getContentRegionAvailX() - 6f) * 0.5f;
 			if (canMoveUp) {
-				if (ImGui.button("上移优先级##detailQueueUp", half, 26f)) {
+				if (ImGui.button(BBTexts.get("beatblock.audio.move_up") + "##detailQueueUp", half, 26f)) {
 					manager.moveQueueUp(asset.getId());
 				}
 			} else {
 				ImGui.beginDisabled();
-				ImGui.button("上移优先级##detailQueueUpDisabled", half, 26f);
+				ImGui.button(BBTexts.get("beatblock.audio.move_up") + "##detailQueueUpDisabled", half, 26f);
 				ImGui.endDisabled();
 			}
 			ImGui.sameLine();
 			if (canMoveDown) {
-				if (ImGui.button("下移优先级##detailQueueDown", half, 26f)) {
+				if (ImGui.button(BBTexts.get("beatblock.audio.move_down") + "##detailQueueDown", half, 26f)) {
 					manager.moveQueueDown(asset.getId());
 				}
 			} else {
 				ImGui.beginDisabled();
-				ImGui.button("下移优先级##detailQueueDownDisabled", half, 26f);
+				ImGui.button(BBTexts.get("beatblock.audio.move_down") + "##detailQueueDownDisabled", half, 26f);
 				ImGui.endDisabled();
 			}
 			AudioAnalysisPanelImGui.compactGap();
-			if (ImGui.button("移除队列项##detailRemoveQueued", ImGui.getContentRegionAvailX(), 26f)) {
+			if (ImGui.button(BBTexts.get("beatblock.audio.remove_from_queue") + "##detailRemoveQueued", ImGui.getContentRegionAvailX(), 26f)) {
 				manager.remove(asset.getId());
 				state.clearSelectedAssetIfMatches(asset);
 			}
@@ -106,22 +107,29 @@ final class AudioAnalysisAssetDetailControls {
 			&& detailBm.meta != null
 			&& detailBm.meta.hasStemSeparation();
 
-		if (AudioAnalysisPanelImGui.beginDetailSection("completed_basic", "基本信息", false)) {
-			AudioAnalysisPanelImGui.detailRowCompact(state, "文件名", asset.getFileName());
-			AudioAnalysisPanelImGui.detailRowCompact(state, "时长", String.format("%.1f 秒", asset.getDurationSeconds()));
-			AudioAnalysisPanelImGui.detailRowCompact(state, "采样率", asset.getSampleRate() + " Hz");
+		if (AudioAnalysisPanelImGui.beginDetailSection("completed_basic", BBTexts.get("beatblock.audio.basic_info"), false)) {
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.file_name"), asset.getFileName());
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.duration"),
+				BBTexts.get("beatblock.audio.duration_seconds", asset.getDurationSeconds()));
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.sample_rate"), asset.getSampleRate() + " Hz");
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
 
-		if (AudioAnalysisPanelImGui.beginDetailSection("completed_result", "解析结果", false)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("completed_result", BBTexts.get("beatblock.audio.analysis_result"), false)) {
 			AudioAnalysisPanelImGui.detailRowCompact(state, "BPM", String.format("%.1f", asset.getBpm()), AudioAnalysisPanelImGui.COLOR_PROGRESS_FG);
-			AudioAnalysisPanelImGui.detailRowCompact(state, "拍号", "4/4");
-			AudioAnalysisPanelImGui.detailRowCompact(state, "解析模式", hasStemSeparation ? "Demucs 语义茎分离" : "传统频段分离");
-			AudioAnalysisPanelImGui.detailRowCompact(state, "请求模式", AudioAnalysisPanelImGui.analysisModeLabel(asset.getRequestedAnalysisMode()));
-			AudioAnalysisPanelImGui.detailRowCompact(state, "实际模式", AudioAnalysisPanelImGui.analysisModeLabel(asset.getResolvedAnalysisMode()));
-			AudioAnalysisPanelImGui.detailRowCompact(state, "缓存来源", AudioAnalysisPanelImGui.cacheSourceLabel(asset.getCacheSource()));
-			AudioAnalysisPanelImGui.detailRowCompact(state, "踩点数量", asset.getBeatCount() + " 个", AudioAnalysisPanelImGui.COLOR_MID);
-			AudioAnalysisPanelImGui.detailRowCompact(state, "识别段落", asset.getSectionCount() + " 段");
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.time_signature"), "4/4");
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.analysis_mode"),
+				hasStemSeparation ? BBTexts.get("beatblock.audio.demucs_mode") : BBTexts.get("beatblock.audio.basic_mode"));
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.requested_mode"),
+				AudioAnalysisPanelImGui.analysisModeLabel(asset.getRequestedAnalysisMode()));
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.resolved_mode"),
+				AudioAnalysisPanelImGui.analysisModeLabel(asset.getResolvedAnalysisMode()));
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.cache_source"),
+				AudioAnalysisPanelImGui.cacheSourceLabel(asset.getCacheSource()));
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.beat_count"),
+				BBTexts.get("beatblock.audio.beats_unit", asset.getBeatCount()), AudioAnalysisPanelImGui.COLOR_MID);
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.section_count"),
+				BBTexts.get("beatblock.audio.sections_unit", asset.getSectionCount()));
 			if (asset.getRequestedAnalysisMode() == AudioAnalysisMode.DEMUCS
 				&& asset.getResolvedAnalysisMode() == AudioAnalysisMode.BASIC) {
 				AudioAnalysisPanelImGui.compactGap();
@@ -136,58 +144,69 @@ final class AudioAnalysisAssetDetailControls {
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
 
-		if (AudioAnalysisPanelImGui.beginDetailSection("completed_distribution", hasStemSeparation ? "语义茎轨道" : "频段踩点分布", false)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("completed_distribution",
+			hasStemSeparation ? BBTexts.get("beatblock.audio.stem_tracks") : BBTexts.get("beatblock.audio.band_distribution"), false)) {
 			if (!hasStemSeparation) {
-				AudioAnalysisPanelImGui.detailRowCompact(state, "低频（鼓点）", asset.getLowCount() + " 个", AudioAnalysisPanelImGui.COLOR_LOW);
-				AudioAnalysisPanelImGui.detailRowCompact(state, "中频（旋律）", asset.getMidCount() + " 个", AudioAnalysisPanelImGui.COLOR_MID);
-				AudioAnalysisPanelImGui.detailRowCompact(state, "高频（打击）", asset.getHighCount() + " 个", AudioAnalysisPanelImGui.COLOR_HIGH);
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.low_band"),
+					BBTexts.get("beatblock.audio.beats_unit", asset.getLowCount()), AudioAnalysisPanelImGui.COLOR_LOW);
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.mid_band"),
+					BBTexts.get("beatblock.audio.beats_unit", asset.getMidCount()), AudioAnalysisPanelImGui.COLOR_MID);
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.high_band"),
+					BBTexts.get("beatblock.audio.beats_unit", asset.getHighCount()), AudioAnalysisPanelImGui.COLOR_HIGH);
 				AudioAnalysisPanelImGui.compactGap();
 				AudioAnalysisPanelImGui.renderBandBar(asset);
 			} else {
-				AudioAnalysisPanelImGui.detailRowCompact(state, "鼓组（drums）", AudioAnalysisPanelImGui.stemStateLabel(detailBm, "drums"), new ImVec4(0.87f, 0.53f, 0.25f, 1f));
-				AudioAnalysisPanelImGui.detailRowCompact(state, "贝斯（bass）", AudioAnalysisPanelImGui.stemStateLabel(detailBm, "bass"), new ImVec4(0.27f, 0.60f, 0.87f, 1f));
-				AudioAnalysisPanelImGui.detailRowCompact(state, "人声（vocals）", AudioAnalysisPanelImGui.stemStateLabel(detailBm, "vocals"), new ImVec4(0.67f, 0.38f, 0.84f, 1f));
-				AudioAnalysisPanelImGui.detailRowCompact(state, "其他（other）", AudioAnalysisPanelImGui.stemStateLabel(detailBm, "other"), new ImVec4(0.58f, 0.72f, 0.30f, 1f));
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.stem.drums"),
+					AudioAnalysisPanelImGui.stemStateLabel(detailBm, "drums"), new ImVec4(0.87f, 0.53f, 0.25f, 1f));
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.stem.bass"),
+					AudioAnalysisPanelImGui.stemStateLabel(detailBm, "bass"), new ImVec4(0.27f, 0.60f, 0.87f, 1f));
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.stem.vocals"),
+					AudioAnalysisPanelImGui.stemStateLabel(detailBm, "vocals"), new ImVec4(0.67f, 0.38f, 0.84f, 1f));
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.stem.other"),
+					AudioAnalysisPanelImGui.stemStateLabel(detailBm, "other"), new ImVec4(0.58f, 0.72f, 0.30f, 1f));
 				AudioAnalysisPanelImGui.compactGap();
-				AudioAnalysisPanelImGui.textDisabledWrapped("提示：静音/独奏请在时间线音频子轨上操作。鼓类特征轨(kick/snare/hihat)会共同影响 drums 茎。");
+				AudioAnalysisPanelImGui.textDisabledWrapped(BBTexts.get("beatblock.audio.stem_mute_hint"));
 			}
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
 
-		if (AudioAnalysisPanelImGui.beginDetailSection("completed_demucs", "Demucs 拆分结果", false)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("completed_demucs", BBTexts.get("beatblock.audio.demucs_section"), false)) {
 			if (hasStemSeparation) {
-				AudioAnalysisPanelImGui.detailRowCompact(state, "状态", "已生成", new ImVec4(0.36f, 0.79f, 0.65f, 1f));
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.status"),
+					BBTexts.get("beatblock.audio.generated"), new ImVec4(0.36f, 0.79f, 0.65f, 1f));
 				String separationMode = detailBm.meta.separationMode();
-				AudioAnalysisPanelImGui.detailRowCompact(state, "分离模式", separationMode != null && !separationMode.isBlank() ? separationMode : "demucs",
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.separation_mode"),
+					separationMode != null && !separationMode.isBlank() ? separationMode : "demucs",
 					new ImVec4(0.22f, 0.78f, 0.82f, 1f));
-				AudioAnalysisPanelImGui.renderStemDetailRow(state, host, detailBm, "drums", "鼓组（drums）", new ImVec4(0.87f, 0.53f, 0.25f, 1f));
-				AudioAnalysisPanelImGui.renderStemDetailRow(state, host, detailBm, "bass", "贝斯（bass）", new ImVec4(0.27f, 0.60f, 0.87f, 1f));
-				AudioAnalysisPanelImGui.renderStemDetailRow(state, host, detailBm, "vocals", "人声（vocals）", new ImVec4(0.67f, 0.38f, 0.84f, 1f));
-				AudioAnalysisPanelImGui.renderStemDetailRow(state, host, detailBm, "other", "其他（other）", new ImVec4(0.58f, 0.72f, 0.30f, 1f));
+				AudioAnalysisPanelImGui.renderStemDetailRow(state, host, detailBm, "drums", BBTexts.get("beatblock.audio.stem.drums"), new ImVec4(0.87f, 0.53f, 0.25f, 1f));
+				AudioAnalysisPanelImGui.renderStemDetailRow(state, host, detailBm, "bass", BBTexts.get("beatblock.audio.stem.bass"), new ImVec4(0.27f, 0.60f, 0.87f, 1f));
+				AudioAnalysisPanelImGui.renderStemDetailRow(state, host, detailBm, "vocals", BBTexts.get("beatblock.audio.stem.vocals"), new ImVec4(0.67f, 0.38f, 0.84f, 1f));
+				AudioAnalysisPanelImGui.renderStemDetailRow(state, host, detailBm, "other", BBTexts.get("beatblock.audio.stem.other"), new ImVec4(0.58f, 0.72f, 0.30f, 1f));
 			} else {
-				AudioAnalysisPanelImGui.detailRowCompact(state, "状态", "未生成（当前为基础分析 Basic）", new ImVec4(0.94f, 0.62f, 0.16f, 1f));
+				AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.status"),
+					BBTexts.get("beatblock.audio.not_generated_basic"), new ImVec4(0.94f, 0.62f, 0.16f, 1f));
 				AudioAnalysisPanelImGui.compactGap();
-				AudioAnalysisPanelImGui.textDisabledWrapped("当前结果来自基础分析缓存或 Demucs 回退模式，因此没有 drums/bass/vocals/other 的拆分文件。若需查看拆分结果，请确保 Demucs 依赖可用后重新解析。");
+				AudioAnalysisPanelImGui.textDisabledWrapped(BBTexts.get("beatblock.audio.demucs_fallback_detail"));
 			}
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
 
-		if (AudioAnalysisPanelImGui.beginDetailSection("completed_actions", "操作", true)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("completed_actions", BBTexts.get("beatblock.audio.actions"), true)) {
 			float actionW = (ImGui.getContentRegionAvailX() - 6f) * 0.5f;
-			if (ImGui.button("清缓存并用 Demucs 重解析##detailReanalyzeDemucs", actionW, 26f)) {
+			if (ImGui.button(BBTexts.get("beatblock.audio.reanalyze_demucs") + "##detailReanalyzeDemucs", actionW, 26f)) {
 				String result = AudioAssetManager.getInstance().clearCacheAndReanalyze(asset, AudioAnalysisMode.DEMUCS);
 				state.setPanelHint(result, result.contains("未初始化") || result.contains("无效"));
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip("删除该音频对应的 beatmap 和 stem 缓存后，以 Demucs 模式重新分析");
+				ImGui.setTooltip(BBTexts.get("beatblock.audio.reanalyze_demucs.tooltip"));
 			}
 			ImGui.sameLine();
-			if (ImGui.button("清缓存并用 Basic 重解析##detailReanalyzeBasic", actionW, 26f)) {
+			if (ImGui.button(BBTexts.get("beatblock.audio.reanalyze_basic") + "##detailReanalyzeBasic", actionW, 26f)) {
 				String result = AudioAssetManager.getInstance().clearCacheAndReanalyze(asset, AudioAnalysisMode.BASIC);
 				state.setPanelHint(result, result.contains("未初始化") || result.contains("无效"));
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip("删除该音频对应的 beatmap 和 stem 缓存后，以 Basic 模式重新分析");
+				ImGui.setTooltip(BBTexts.get("beatblock.audio.reanalyze_basic.tooltip"));
 			}
 
 			AudioAnalysisPanelImGui.compactGap();
@@ -195,16 +214,16 @@ final class AudioAnalysisAssetDetailControls {
 				? AudioAnalysisMode.BASIC
 				: AudioAnalysisMode.DEMUCS;
 			String compareLabel = compareMode == AudioAnalysisMode.DEMUCS
-				? "用 Demucs 做对比##detailCompareDemucs"
-				: "用 Basic 做对比##detailCompareBasic";
+				? BBTexts.get("beatblock.audio.compare_demucs") + "##detailCompareDemucs"
+				: BBTexts.get("beatblock.audio.compare_basic") + "##detailCompareBasic";
 			if (ImGui.button(compareLabel, ImGui.getContentRegionAvailX(), 24f)) {
 				String result = AudioAssetManager.getInstance().clearCacheAndReanalyze(asset, compareMode);
 				state.setPanelHint(result, result.contains("未初始化") || result.contains("无效"));
 			}
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip(compareMode == AudioAnalysisMode.DEMUCS
-					? "清缓存后用 Demucs 重跑，方便和当前结果对比"
-					: "清缓存后用 Basic 重跑，方便和当前结果对比");
+					? BBTexts.get("beatblock.audio.compare_demucs.tooltip")
+					: BBTexts.get("beatblock.audio.compare_basic.tooltip"));
 			}
 
 			AudioAnalysisPanelImGui.compactGap();
@@ -212,7 +231,7 @@ final class AudioAnalysisAssetDetailControls {
 			ImGui.pushStyleColor(ImGuiCol.Button, 0.28f, 0.26f, 0.45f, 1f);
 			ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.35f, 0.33f, 0.55f, 1f);
 			ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.45f, 0.43f, 0.65f, 1f);
-			ImGui.button(Icons.MENU + "  拖动到时间线##dragBtn", btnW, 28f);
+			ImGui.button(Icons.MENU + "  " + BBTexts.get("beatblock.audio.drag_timeline_btn") + "##dragBtn", btnW, 28f);
 			ImGui.popStyleColor(3);
 
 			if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
@@ -223,8 +242,8 @@ final class AudioAnalysisAssetDetailControls {
 					ImGuiCond.Once
 				);
 				ImGui.text(Icons.MUSIC_NOTE + " " + asset.getFileName());
-				ImGui.textDisabled(String.format("%.1f BPM · %d 踩点",
-					asset.getBpm(), asset.getBeatCount()));
+				ImGui.textDisabled(String.format("%.1f BPM · %s",
+					asset.getBpm(), BBTexts.get("beatblock.audio.beats_short", asset.getBeatCount())));
 				ImGui.endDragDropSource();
 			}
 			AudioAnalysisPanelImGui.endDetailSection();
@@ -235,7 +254,7 @@ final class AudioAnalysisAssetDetailControls {
 		float progress = AudioAnalysisPanelImGui.computeProgress(asset);
 		String statusText = asset.getProcessingStatusText();
 
-		if (AudioAnalysisPanelImGui.beginDetailSection("analyzing_progress", "解析进度", false)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("analyzing_progress", BBTexts.get("beatblock.audio.analyzing_progress"), false)) {
 			ImGui.pushStyleColor(ImGuiCol.PlotHistogram,
 				AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.x,
 				AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.y,
@@ -257,9 +276,9 @@ final class AudioAnalysisAssetDetailControls {
 					AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.y,
 					AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.z,
 					AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.w);
-				ImGui.textWrapped("正在处理：" + statusText);
+				ImGui.textWrapped(BBTexts.get("beatblock.audio.processing", statusText));
 				ImGui.popStyleColor();
-				ImGui.textDisabled("当前阶段：" + AudioAnalysisPanelImGui.analysisPhaseLabel(asset));
+				ImGui.textDisabled(BBTexts.get("beatblock.audio.current_phase", AudioAnalysisPanelImGui.analysisPhaseLabel(asset)));
 			}
 
 			if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
@@ -273,7 +292,7 @@ final class AudioAnalysisAssetDetailControls {
 			return;
 		}
 
-		if (AudioAnalysisPanelImGui.beginDetailSection("analyzing_steps", "步骤明细", false)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("analyzing_steps", BBTexts.get("beatblock.audio.steps_detail"), false)) {
 			for (AudioAnalysisStep step : AudioAnalysisStep.values()) {
 				boolean done = asset.getFinishedSteps().contains(step);
 				boolean active = AudioAnalysisPanelImGui.isActiveStep(asset, step);
@@ -303,15 +322,16 @@ final class AudioAnalysisAssetDetailControls {
 	}
 
 	private static void renderDetailPending(AudioAnalysisPanelUiState state, AudioAsset asset) {
-		if (AudioAnalysisPanelImGui.beginDetailSection("pending_basic", "基本信息", false)) {
-			AudioAnalysisPanelImGui.detailRowCompact(state, "文件名", asset.getFileName());
-			AudioAnalysisPanelImGui.detailRowCompact(state, "时长", String.format("%.1f 秒", asset.getDurationSeconds()));
+		if (AudioAnalysisPanelImGui.beginDetailSection("pending_basic", BBTexts.get("beatblock.audio.basic_info"), false)) {
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.file_name"), asset.getFileName());
+			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.duration"),
+				BBTexts.get("beatblock.audio.duration_seconds", asset.getDurationSeconds()));
 			AudioAnalysisPanelImGui.compactGap();
-			ImGui.textDisabled("尚未解析，点击“开始解析”即可提交任务。");
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.pending_hint"));
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
-		if (AudioAnalysisPanelImGui.beginDetailSection("pending_actions", "操作", true)) {
-			if (ImGui.button("开始解析##detailAnalyze", ImGui.getContentRegionAvailX(), 26f)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("pending_actions", BBTexts.get("beatblock.audio.actions"), true)) {
+			if (ImGui.button(BBTexts.get("beatblock.audio.start_analyze") + "##detailAnalyze", ImGui.getContentRegionAvailX(), 26f)) {
 				AudioAssetManager.getInstance().startAnalysis(asset);
 			}
 			AudioAnalysisPanelImGui.endDetailSection();
@@ -319,29 +339,29 @@ final class AudioAnalysisAssetDetailControls {
 	}
 
 	private static void renderDetailFailed(AudioAnalysisPanelUiState state, AudioAsset asset) {
-		if (AudioAnalysisPanelImGui.beginDetailSection("failed_error", "错误信息", false)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("failed_error", BBTexts.get("beatblock.audio.error_section"), false)) {
 			ImGui.pushStyleColor(ImGuiCol.Text, 0.87f, 0.30f, 0.30f, 1f);
 			ImGui.textWrapped(asset.getErrorMessage() != null
 				? asset.getErrorMessage()
-				: "未知错误");
+				: BBTexts.get("beatblock.audio.unknown_error"));
 			ImGui.popStyleColor();
 			if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
 				AudioAnalysisPanelImGui.compactGap();
 				AudioAnalysisPanelImGui.textDisabledWrapped(asset.getInfoMessage());
 			}
 			AudioAnalysisPanelImGui.compactGap();
-			ImGui.textDisabled("支持格式：MP3 · WAV · OGG · FLAC");
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.supported_formats"));
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
-		if (AudioAnalysisPanelImGui.beginDetailSection("failed_actions", "操作", true)) {
-			if (ImGui.button("一键转换为 MP3##detailConvert", ImGui.getContentRegionAvailX(), 26f)) {
+		if (AudioAnalysisPanelImGui.beginDetailSection("failed_actions", BBTexts.get("beatblock.audio.actions"), true)) {
+			if (ImGui.button(BBTexts.get("beatblock.audio.convert_mp3_one_click") + "##detailConvert", ImGui.getContentRegionAvailX(), 26f)) {
 				boolean accepted = AudioAssetManager.getInstance().requestConvertToMp3(asset);
 				if (!accepted) {
-					asset.setErrorMessage("已记录转换请求。当前版本暂未接入自动转换器，请先手动转为 MP3/WAV 后重试。");
+					asset.setErrorMessage(BBTexts.get("beatblock.audio.convert_not_implemented"));
 				}
 			}
 			AudioAnalysisPanelImGui.compactGap();
-			if (ImGui.button("重试##detailRetry", ImGui.getContentRegionAvailX(), 26f)) {
+			if (ImGui.button(BBTexts.get("beatblock.audio.retry") + "##detailRetry", ImGui.getContentRegionAvailX(), 26f)) {
 				AudioAssetManager.getInstance().startAnalysis(asset, asset.getRequestedAnalysisMode());
 			}
 			AudioAnalysisPanelImGui.endDetailSection();

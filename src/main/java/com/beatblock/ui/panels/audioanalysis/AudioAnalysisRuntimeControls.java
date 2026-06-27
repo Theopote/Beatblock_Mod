@@ -2,6 +2,7 @@ package com.beatblock.ui.panels.audioanalysis;
 
 import com.beatblock.audio.IAudioAnalyzer;
 import com.beatblock.audio.python.PythonEnvironmentDiagnostics;
+import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 import imgui.ImVec4;
 import imgui.flag.ImGuiCol;
@@ -23,12 +24,12 @@ final class AudioAnalysisRuntimeControls {
 		if (analyzer != null) {
 			String backendLabel = analyzer.backendId();
 			if (!analyzer.isAvailable()) {
-				backendLabel += "（不可用）";
+				backendLabel += BBTexts.get("beatblock.audio.runtime.backend_unavailable");
 			}
-			ImGui.textDisabled("分析后端 · " + backendLabel);
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.runtime.backend", backendLabel));
 			if (host.presenter().activeAnalysisCount() > 0) {
 				ImGui.sameLine();
-				ImGui.textDisabled("· 进行中 " + host.presenter().activeAnalysisCount());
+				ImGui.textDisabled(BBTexts.get("beatblock.audio.runtime.in_progress", host.presenter().activeAnalysisCount()));
 			}
 		}
 
@@ -37,7 +38,7 @@ final class AudioAnalysisRuntimeControls {
 
 	private static void renderRuntimeHealth(String pythonSummary, PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot) {
 		if (snapshot == null) {
-			ImGui.textDisabled("环境：检测中");
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.runtime.checking"));
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip(pythonSummary);
 			}
@@ -67,9 +68,9 @@ final class AudioAnalysisRuntimeControls {
 		int issueCount = countRuntimeIssues(snapshot);
 		String pythonLabel = concisePythonLabel(snapshot.python());
 		if (issueCount == 0) {
-			return "环境正常 · " + pythonLabel;
+			return BBTexts.get("beatblock.audio.runtime.ok", pythonLabel);
 		}
-		return "环境异常 " + issueCount + " 项 · " + pythonLabel + " · " + firstRuntimeIssue(snapshot);
+		return BBTexts.get("beatblock.audio.runtime.issues", issueCount, pythonLabel, firstRuntimeIssue(snapshot));
 	}
 
 	private static int countRuntimeIssues(PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot) {
@@ -94,7 +95,7 @@ final class AudioAnalysisRuntimeControls {
 				return labels[i] + " " + conciseHealthDetail(items[i]);
 			}
 		}
-		return "详情见提示";
+		return BBTexts.get("beatblock.audio.runtime.see_tooltip");
 	}
 
 	private static String summaryState(PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot) {
@@ -131,19 +132,19 @@ final class AudioAnalysisRuntimeControls {
 
 	private static String concisePythonLabel(PythonEnvironmentDiagnostics.HealthItem item) {
 		if (item == null || item.detail() == null || item.detail().isBlank()) {
-			return "Python 未知";
+			return BBTexts.get("beatblock.audio.runtime.python_unknown");
 		}
 		String detail = item.detail().trim();
 		int versionIndex = detail.toLowerCase().indexOf("python");
 		if (versionIndex >= 0) {
 			return detail.substring(versionIndex);
 		}
-		return "Python 已检测";
+		return BBTexts.get("beatblock.audio.runtime.python_detected");
 	}
 
 	private static String conciseHealthDetail(PythonEnvironmentDiagnostics.HealthItem item) {
 		if (item == null || item.detail() == null || item.detail().isBlank()) {
-			return "不可用";
+			return BBTexts.get("beatblock.audio.runtime.unavailable");
 		}
 		String detail = item.detail().trim();
 		if (detail.length() <= 28) {
@@ -156,6 +157,8 @@ final class AudioAnalysisRuntimeControls {
 		tooltip.append('\n')
 			.append(label)
 			.append(": ")
-			.append(item != null && item.detail() != null && !item.detail().isBlank() ? item.detail() : "未知");
+			.append(item != null && item.detail() != null && !item.detail().isBlank()
+				? item.detail()
+				: BBTexts.get("beatblock.audio.runtime.unknown"));
 	}
 }

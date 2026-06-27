@@ -1,6 +1,7 @@
 package com.beatblock.ui.panels.audioanalysis;
 
 import com.beatblock.client.imgui.ImGuiRenderer;
+import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -39,8 +40,8 @@ final class AudioAnalysisDropZoneControls {
 		float textH = ImGui.getTextLineHeightWithSpacing() * 2f;
 		ImGui.setCursorPosY(Math.max(6f, (zoneH - textH) * 0.5f - (hasHint ? 4f : 0f)));
 
-		AudioAnalysisPanelImGui.centerText("拖入音频文件 / 点击 + 选择");
-		AudioAnalysisPanelImGui.centerText("MP3 · WAV · OGG · FLAC");
+		AudioAnalysisPanelImGui.centerText(BBTexts.get("beatblock.audio.drop_zone_hint"));
+		AudioAnalysisPanelImGui.centerText(BBTexts.get("beatblock.audio.drop_zone_formats"));
 
 		if (hasHint) {
 			ImGui.spacing();

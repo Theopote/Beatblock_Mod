@@ -121,20 +121,20 @@ public final class ToolPanelPresenter {
 	public CornerUpdateOutcome fillCornersFromSelection() {
 		BeatBlockSelectionManager mgr = selectionManager.get();
 		if (mgr == null) {
-			return new CornerUpdateOutcome(PresenterResult.failure("选择管理器不可用。"), currentCorners());
+			return new CornerUpdateOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.selection_manager_unavailable")), currentCorners());
 		}
 		BlockPos smin = mgr.getBoundingMin();
 		BlockPos smax = mgr.getBoundingMax();
 		if (smin == null || smax == null || mgr.getSelectionCount() <= 0) {
 			return new CornerUpdateOutcome(
-				PresenterResult.failure("没有可用的方块选区或包围盒。"),
+				PresenterResult.failure(BBTexts.get("beatblock.message.no_selection_bounds")),
 				currentCorners()
 			);
 		}
 		selectionPosA = smin.toImmutable();
 		selectionPosB = smax.toImmutable();
 		return new CornerUpdateOutcome(
-			PresenterResult.success("已从方块选区外接包围盒填入 A、B。"),
+			PresenterResult.success(BBTexts.get("beatblock.message.corners_filled")),
 			currentCorners()
 		);
 	}
@@ -143,7 +143,7 @@ public final class ToolPanelPresenter {
 		BlockPos picked = crosshairPicker != null ? crosshairPicker.pickBlock() : null;
 		if (picked == null) {
 			return new CornerUpdateOutcome(
-				PresenterResult.failure("未命中方块。"),
+				PresenterResult.failure(BBTexts.get("beatblock.message.no_block_hit")),
 				currentCorners()
 			);
 		}
@@ -153,7 +153,7 @@ public final class ToolPanelPresenter {
 			selectionPosB = picked.toImmutable();
 		}
 		return new CornerUpdateOutcome(
-			PresenterResult.success(cornerA ? "已设置 A。" : "已设置 B。"),
+			PresenterResult.success(cornerA ? BBTexts.get("beatblock.message.corner_a_set") : BBTexts.get("beatblock.message.corner_b_set")),
 			currentCorners()
 		);
 	}
@@ -161,33 +161,33 @@ public final class ToolPanelPresenter {
 	public CornerUpdateOutcome clearCorners() {
 		selectionPosA = null;
 		selectionPosB = null;
-		return new CornerUpdateOutcome(PresenterResult.success("已清空 A/B。"), currentCorners());
+		return new CornerUpdateOutcome(PresenterResult.success(BBTexts.get("beatblock.message.corners_cleared")), currentCorners());
 	}
 
 	public CreateStageObjectOutcome createFromCuboid(StageObjectCreateRequest request) {
 		StageObjectSystem system = stageObjectSystem.get();
 		if (system == null) {
-			return new CreateStageObjectOutcome(PresenterResult.failure("动画引擎未初始化，无法创建对象。"), null);
+			return new CreateStageObjectOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.engine_not_initialized")), null);
 		}
 		World currentWorld = world.get();
 		if (currentWorld == null) {
-			return new CreateStageObjectOutcome(PresenterResult.failure("当前无世界上下文，无法读取选区。"), null);
+			return new CreateStageObjectOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.no_world_context")), null);
 		}
 		if (selectionPosA == null || selectionPosB == null) {
-			return new CreateStageObjectOutcome(PresenterResult.failure("请先设置 A/B 两个选区点。"), null);
+			return new CreateStageObjectOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.set_corners_first")), null);
 		}
 
 		long volume = estimateSelectionVolume(selectionPosA, selectionPosB);
 		if (volume > MAX_STAGE_OBJECT_BLOCKS) {
-			return new CreateStageObjectOutcome(PresenterResult.failure(String.format(Locale.ROOT,
-				"选区过大（%d blocks），上限为 %d。", volume, MAX_STAGE_OBJECT_BLOCKS)), null);
+			return new CreateStageObjectOutcome(PresenterResult.failure(
+				BBTexts.get("beatblock.message.selection_too_large", volume, MAX_STAGE_OBJECT_BLOCKS)), null);
 		}
 
 		List<BlockPos> blocks = collectCuboidBlocks(currentWorld, selectionPosA, selectionPosB, request.includeAir());
 		if (blocks.isEmpty()) {
 			String message = request.includeAir()
-				? "选区为空，未创建对象。"
-				: "选区内没有非空气方块，未创建对象。";
+				? BBTexts.get("beatblock.message.empty_selection")
+				: BBTexts.get("beatblock.message.no_solid_blocks");
 			return new CreateStageObjectOutcome(PresenterResult.failure(message), null);
 		}
 
@@ -207,7 +207,7 @@ public final class ToolPanelPresenter {
 		);
 		system.register(obj);
 		return new CreateStageObjectOutcome(
-			PresenterResult.success(String.format(Locale.ROOT, "已创建 StageObject: %s (%d blocks)", id, blocks.size())),
+			PresenterResult.success(BBTexts.get("beatblock.message.stage_object_created", id, blocks.size())),
 			id
 		);
 	}
@@ -216,19 +216,19 @@ public final class ToolPanelPresenter {
 		StageObjectSystem system = stageObjectSystem.get();
 		BeatBlockSelectionManager mgr = selectionManager.get();
 		if (system == null) {
-			return new CreateStageObjectOutcome(PresenterResult.failure("动画引擎未初始化，无法创建对象。"), null);
+			return new CreateStageObjectOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.engine_not_initialized")), null);
 		}
 		if (mgr == null) {
-			return new CreateStageObjectOutcome(PresenterResult.failure("选择管理器不可用。"), null);
+			return new CreateStageObjectOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.selection_manager_unavailable")), null);
 		}
 
 		List<BlockPos> blocks = new ArrayList<>(mgr.getSelectedBlocks());
 		if (blocks.isEmpty()) {
-			return new CreateStageObjectOutcome(PresenterResult.failure("当前没有方块选区。请先使用选择工具。"), null);
+			return new CreateStageObjectOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.no_block_selection")), null);
 		}
 		if (blocks.size() > MAX_STAGE_OBJECT_BLOCKS) {
-			return new CreateStageObjectOutcome(PresenterResult.failure(String.format(Locale.ROOT,
-				"选区过大（%d blocks），上限为 %d。", blocks.size(), MAX_STAGE_OBJECT_BLOCKS)), null);
+			return new CreateStageObjectOutcome(PresenterResult.failure(
+				BBTexts.get("beatblock.message.selection_too_large", blocks.size(), MAX_STAGE_OBJECT_BLOCKS)), null);
 		}
 
 		String name = normalizeName(request.name());
@@ -242,7 +242,7 @@ public final class ToolPanelPresenter {
 		);
 		system.register(obj);
 		return new CreateStageObjectOutcome(
-			PresenterResult.success(String.format(Locale.ROOT, "已创建快照 StageObject: %s (%d blocks)", id, blocks.size())),
+			PresenterResult.success(BBTexts.get("beatblock.message.snapshot_created", id, blocks.size())),
 			id
 		);
 	}
@@ -250,12 +250,12 @@ public final class ToolPanelPresenter {
 	public PresenterResult removeStageObject(String id) {
 		StageObjectSystem system = stageObjectSystem.get();
 		if (system == null || id == null || id.isBlank()) {
-			return PresenterResult.failure("无法删除对象。");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.delete_object_failed"));
 		}
 		if (!system.remove(id)) {
-			return PresenterResult.failure("对象不存在：" + id);
+			return PresenterResult.failure(BBTexts.get("beatblock.message.object_not_found", id));
 		}
-		return PresenterResult.success("已删除 StageObject: " + id);
+		return PresenterResult.success(BBTexts.get("beatblock.message.object_deleted", id));
 	}
 
 	public List<StageObjectListItem> listStageObjects() {

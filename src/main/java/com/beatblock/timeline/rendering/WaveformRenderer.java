@@ -3,6 +3,7 @@ package com.beatblock.timeline.rendering;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.WaveformData;
 import com.beatblock.timeline.editor.TimelineViewState;
+import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 
 import java.util.List;
@@ -149,7 +150,7 @@ public final class WaveformRenderer {
 			cachedWaveform = null;
 			cachedWaveformSampleCount = -1;
 			cachedCount = 0;
-			ImGui.textDisabled("~~~~ 波形（导入音乐后生成）~~~~");
+			ImGui.textDisabled(BBTexts.get("beatblock.timeline.waveform_placeholder"));
 		}
 		ImGui.setCursorPosY(rowY + rowHeight);
 	}

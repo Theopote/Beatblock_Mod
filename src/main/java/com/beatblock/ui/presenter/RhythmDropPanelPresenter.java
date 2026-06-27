@@ -8,6 +8,7 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.generation.RhythmDropGenerator;
 import com.beatblock.timeline.generation.RhythmDropEventFactory;
+import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
@@ -72,15 +73,15 @@ public final class RhythmDropPanelPresenter {
 	public PresenterResult generateFromSelection(GenerateRequest request) {
 		BeatBlockSelectionManager sel = selectionManager.get();
 		if (sel == null || sel.getSelectionCount() <= 0) {
-			return PresenterResult.failure("请先选中至少一个落点方块");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.select_landing_blocks"));
 		}
 		Timeline tl = timeline.get();
 		StageObjectSystem objects = stageObjectSystem.get();
 		if (tl == null) {
-			return PresenterResult.failure("时间线不可用");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
 		}
 		if (objects == null) {
-			return PresenterResult.failure("动画引擎未就绪");
+			return PresenterResult.failure(BBTexts.get("beatblock.message.engine_not_ready"));
 		}
 
 		GenerateRequest req = request != null ? request : defaultRequest();

@@ -76,13 +76,13 @@ final class AudioAnalysisToolbarControls {
 		}
 
 		ImGui.spacing();
-		ImGui.textDisabled("支持 MP3 · WAV · OGG · FLAC");
-		ImGui.textDisabled("提示：选择文件后会自动开始解析");
+		ImGui.textDisabled(BBTexts.get("beatblock.audio.supported_formats"));
+		ImGui.textDisabled(BBTexts.get("beatblock.audio.auto_start_hint"));
 		ImGui.spacing();
 
-		boolean add = ImGui.button("手动添加并解析##add", 150f, 0f);
+		boolean add = ImGui.button(BBTexts.get("beatblock.audio.add_and_analyze") + "##add", 150f, 0f);
 		ImGui.sameLine();
-		boolean cancel = ImGui.button("取消##cancel");
+		boolean cancel = ImGui.button(BBTexts.get("beatblock.common.cancel") + "##cancel");
 
 		if (add) {
 			String path = state.importPath().get().trim();

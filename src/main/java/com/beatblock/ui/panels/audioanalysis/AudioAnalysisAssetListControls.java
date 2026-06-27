@@ -5,6 +5,7 @@ import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.audio.beatmap.Beatmap;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.icons.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -23,7 +24,7 @@ final class AudioAnalysisAssetListControls {
 	static void renderAssetList(AudioAnalysisPanelHost host, List<AudioAsset> assets) {
 		if (assets.isEmpty()) {
 			ImGui.spacing();
-			AudioAnalysisPanelImGui.centerText("尚未添加音频文件");
+			AudioAnalysisPanelImGui.centerText(BBTexts.get("beatblock.audio.no_assets"));
 			return;
 		}
 
@@ -113,11 +114,11 @@ final class AudioAnalysisAssetListControls {
 
 	private static void renderPendingContent(AudioAnalysisPanelHost host, AudioAsset asset) {
 		AudioAnalysisPanelUiState state = host.uiState();
-		if (ImGui.button("解析##" + asset.getId())) {
+		if (ImGui.button(BBTexts.get("beatblock.audio.analyze") + "##" + asset.getId())) {
 			AudioAssetManager.getInstance().startAnalysis(asset);
 		}
 		ImGui.sameLine();
-		if (ImGui.button("移除##" + asset.getId())) {
+		if (ImGui.button(BBTexts.get("beatblock.audio.remove") + "##" + asset.getId())) {
 			AudioAssetManager.getInstance().remove(asset.getId());
 			state.clearSelectedAssetIfMatches(asset);
 		}
@@ -150,9 +151,9 @@ final class AudioAnalysisAssetListControls {
 				AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.y,
 				AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.z,
 				AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.w);
-			ImGui.textWrapped("正在处理：" + statusText);
+			ImGui.textWrapped(BBTexts.get("beatblock.audio.processing", statusText));
 			ImGui.popStyleColor();
-			ImGui.textDisabled("阶段：" + AudioAnalysisPanelImGui.analysisPhaseLabel(asset));
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.phase_short", AudioAnalysisPanelImGui.analysisPhaseLabel(asset)));
 		}
 
 		if (asset.getInfoMessage() != null && !asset.getInfoMessage().isBlank()) {
@@ -198,9 +199,9 @@ final class AudioAnalysisAssetListControls {
 		int pos = manager.getQueuePosition(asset.getId());
 		ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.78f, 0.38f, 1f);
 		if (pos > 0) {
-			ImGui.text("排队中 #" + pos);
+			ImGui.text(BBTexts.get("beatblock.audio.queued_position", pos));
 		} else {
-			ImGui.text("排队中");
+			ImGui.text(BBTexts.get("beatblock.audio.queued"));
 		}
 		ImGui.popStyleColor();
 		ImGui.sameLine();
@@ -208,7 +209,7 @@ final class AudioAnalysisAssetListControls {
 
 		if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
 			ImGui.setDragDropPayload("BB_AUDIO_QUEUE_ID", asset.getId().getBytes(), ImGuiCond.Once);
-			ImGui.text("调整队列顺序: " + asset.getFileName());
+			ImGui.text(BBTexts.get("beatblock.audio.queue_reorder", asset.getFileName()));
 			ImGui.endDragDropSource();
 		}
 
@@ -224,30 +225,30 @@ final class AudioAnalysisAssetListControls {
 		}
 
 		ImGui.spacing();
-		ImGui.textDisabled("当前任务将按顺序自动开始解析");
-		ImGui.textDisabled("可拖动队列项到此处以调整优先级");
+		ImGui.textDisabled(BBTexts.get("beatblock.audio.queue_auto_start"));
+		ImGui.textDisabled(BBTexts.get("beatblock.audio.queue_drag_reorder"));
 
 		ImGui.spacing();
 		boolean canMoveUp = manager.canMoveQueueUp(asset.getId());
 		boolean canMoveDown = manager.canMoveQueueDown(asset.getId());
 
 		if (canMoveUp) {
-			if (ImGui.button("上移##queue_up_" + asset.getId())) {
+			if (ImGui.button(BBTexts.get("beatblock.audio.move_up") + "##queue_up_" + asset.getId())) {
 				manager.moveQueueUp(asset.getId());
 			}
 		} else {
-			ImGui.textDisabled("上移");
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.move_up"));
 		}
 		ImGui.sameLine();
 		if (canMoveDown) {
-			if (ImGui.button("下移##queue_down_" + asset.getId())) {
+			if (ImGui.button(BBTexts.get("beatblock.audio.move_down") + "##queue_down_" + asset.getId())) {
 				manager.moveQueueDown(asset.getId());
 			}
 		} else {
-			ImGui.textDisabled("下移");
+			ImGui.textDisabled(BBTexts.get("beatblock.audio.move_down"));
 		}
 		ImGui.sameLine();
-		if (ImGui.button("移除##remove_queue_" + asset.getId())) {
+		if (ImGui.button(BBTexts.get("beatblock.audio.remove") + "##remove_queue_" + asset.getId())) {
 			manager.remove(asset.getId());
 			state.clearSelectedAssetIfMatches(asset);
 		}
@@ -269,7 +270,7 @@ final class AudioAnalysisAssetListControls {
 			AudioAnalysisPanelImGui.COLOR_MID.y,
 			AudioAnalysisPanelImGui.COLOR_MID.z,
 			AudioAnalysisPanelImGui.COLOR_MID.w);
-		ImGui.text(asset.getBeatCount() + " 踩点");
+		ImGui.text(BBTexts.get("beatblock.audio.beats_short", asset.getBeatCount()));
 		ImGui.popStyleColor();
 
 		ImGui.sameLine();
@@ -281,12 +282,12 @@ final class AudioAnalysisAssetListControls {
 			ImGui.sameLine();
 			ImGui.pushStyleColor(ImGuiCol.Text, 0.22f, 0.78f, 0.82f, 1f);
 			int stemCount = bm.meta.stems() != null ? bm.meta.stems().size() : 4;
-			ImGui.text(stemCount + "茎");
+			ImGui.text(BBTexts.get("beatblock.audio.stems_short", stemCount));
 			ImGui.popStyleColor();
 		}
 
 		ImGui.spacing();
-		ImGui.textDisabled(Icons.MENU + " 拖动到时间线音频轨道");
+		ImGui.textDisabled(Icons.MENU + " " + BBTexts.get("beatblock.audio.drag_timeline"));
 
 		if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
 			AudioAssetManager.getInstance().setCurrentDragAsset(asset);
@@ -296,8 +297,8 @@ final class AudioAnalysisAssetListControls {
 				ImGuiCond.Once
 			);
 			ImGui.text(Icons.MUSIC_NOTE + " " + asset.getFileName());
-			ImGui.textDisabled(String.format("%.1f BPM · %d 踩点",
-				asset.getBpm(), asset.getBeatCount()));
+			ImGui.textDisabled(String.format("%.1f BPM · %s",
+				asset.getBpm(), BBTexts.get("beatblock.audio.beats_short", asset.getBeatCount())));
 			ImGui.endDragDropSource();
 		}
 	}
@@ -307,23 +308,23 @@ final class AudioAnalysisAssetListControls {
 		ImGui.pushStyleColor(ImGuiCol.Text, 0.87f, 0.30f, 0.30f, 1f);
 		String msg = asset.getErrorMessage() != null
 			? asset.getErrorMessage()
-			: "解析失败，请检查文件格式";
+			: BBTexts.get("beatblock.audio.analyze_failed");
 		ImGui.textWrapped(msg);
 		ImGui.popStyleColor();
 
 		ImGui.spacing();
-		if (ImGui.button("重试##retry_" + asset.getId())) {
+		if (ImGui.button(BBTexts.get("beatblock.audio.retry") + "##retry_" + asset.getId())) {
 			AudioAssetManager.getInstance().startAnalysis(asset, asset.getRequestedAnalysisMode());
 		}
 		ImGui.sameLine();
-		if (ImGui.button("转换为MP3##convert_" + asset.getId())) {
+		if (ImGui.button(BBTexts.get("beatblock.audio.convert_mp3") + "##convert_" + asset.getId())) {
 			boolean accepted = AudioAssetManager.getInstance().requestConvertToMp3(asset);
 			if (!accepted) {
-				asset.setErrorMessage("已记录转换请求。当前版本暂未接入自动转换器，请先手动转为 MP3/WAV 后重试。");
+				asset.setErrorMessage(BBTexts.get("beatblock.audio.convert_not_implemented"));
 			}
 		}
 		ImGui.sameLine();
-		if (ImGui.button("移除##remove_failed_" + asset.getId())) {
+		if (ImGui.button(BBTexts.get("beatblock.audio.remove") + "##remove_failed_" + asset.getId())) {
 			AudioAssetManager.getInstance().remove(asset.getId());
 			state.clearSelectedAssetIfMatches(asset);
 		}
@@ -331,7 +332,7 @@ final class AudioAnalysisAssetListControls {
 
 	static void renderFooter(AudioAnalysisPanelHost host, List<AudioAsset> assets) {
 		AudioAnalysisPanelUiState state = host.uiState();
-		float clearDoneWidth = ImGui.calcTextSize("清除已完成").x + 8f;
+		float clearDoneWidth = ImGui.calcTextSize(BBTexts.get("beatblock.audio.clear_completed")).x + 8f;
 		state.prunePanelHint();
 
 		AudioAsset runningAsset = null;
@@ -345,7 +346,7 @@ final class AudioAnalysisAssetListControls {
 			}
 		}
 
-		if (ImGui.button("清除已完成##clearDone", clearDoneWidth, AudioAnalysisPanelImGui.FOOTER_BUTTON_HEIGHT)) {
+		if (ImGui.button(BBTexts.get("beatblock.audio.clear_completed") + "##clearDone", clearDoneWidth, AudioAnalysisPanelImGui.FOOTER_BUTTON_HEIGHT)) {
 			assets.stream()
 				.filter(a -> a.getStatus() == AudioAssetStatus.COMPLETED)
 				.map(AudioAsset::getId)
@@ -353,7 +354,7 @@ final class AudioAnalysisAssetListControls {
 				.forEach(id -> AudioAssetManager.getInstance().remove(id));
 			state.clearSelectedAssetIfCompleted();
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip("从列表中移除所有已解析完成的项目（不删除 beatmap 文件）");
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.audio.clear_completed.tooltip"));
 
 		if (state.hasPanelHint()) {
 			ImGui.sameLine();
@@ -370,16 +371,16 @@ final class AudioAnalysisAssetListControls {
 			ImGui.sameLine();
 			ImGui.pushStyleColor(ImGuiCol.Text, 0.65f, 0.74f, 0.92f, 1f);
 			String running = runningAsset != null
-				? ("执行中: " + runningAsset.getFileName())
-				: "执行中: 无";
-			String queueText = "队列: " + queuedCount;
+				? BBTexts.get("beatblock.audio.running", runningAsset.getFileName())
+				: BBTexts.get("beatblock.audio.running_none");
+			String queueText = BBTexts.get("beatblock.audio.queue_count", queuedCount);
 			ImGui.text(running + " · " + queueText);
 			ImGui.popStyleColor();
 		}
 
 		long doneCount = assets.stream()
 			.filter(a -> a.getStatus() == AudioAssetStatus.COMPLETED).count();
-		String countText = String.format("%d / %d 已完成", doneCount, assets.size());
+		String countText = BBTexts.get("beatblock.audio.completed_ratio", doneCount, assets.size());
 		float textW = ImGui.calcTextSize(countText).x;
 		ImGui.sameLine(ImGui.getContentRegionAvailX() - textW + ImGui.getCursorPosX());
 		ImGui.textDisabled(countText);

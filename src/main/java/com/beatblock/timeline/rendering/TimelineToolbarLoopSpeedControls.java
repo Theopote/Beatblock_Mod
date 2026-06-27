@@ -1,17 +1,13 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.timeline.TimelineEditor;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.TimelineToolbarViewPresenter;
 import com.beatblock.ui.presenter.TimelineTransportPresenter;
 import imgui.ImGui;
 import imgui.type.ImInt;
 
 final class TimelineToolbarLoopSpeedControls {
-
-	private static final String TOOLTIP_LOOP_IN = "将当前时间设为循环起点；也可 Alt+左键点击标尺";
-	private static final String TOOLTIP_LOOP_OUT = "将当前时间设为循环终点；也可 Alt+右键点击标尺";
-	private static final String TOOLTIP_LOOP_CLEAR = "清除循环区间（保留 Loop 开关）";
-	private static final String TOOLTIP_SPEED = "播放速度";
 
 	private final TimelineTransportPresenter transport;
 	private final ImInt speedComboIndex;
@@ -35,16 +31,16 @@ final class TimelineToolbarLoopSpeedControls {
 	) {
 		renderLoopButtons(toolbarState, now, seekStep, "", "", "");
 		TimelineToolbarImGui.nextItemInGroup();
-		renderSpeed(editor, "Speed", "");
+		renderSpeed(editor, BBTexts.get("beatblock.timeline.speed"), "");
 		TimelineToolbarImGui.nextItemInGroup();
 		actionRollback.renderInline();
 	}
 
 	void renderCompact(TimelineEditor editor, TimelineToolbarState toolbarState, double seekStep, double now) {
-		ImGui.textDisabled("Loop & Speed");
+		ImGui.textDisabled(BBTexts.get("beatblock.timeline.loop_speed"));
 		renderLoopButtons(toolbarState, now, seekStep, "##tlMoreIn", "##tlMoreOut", "##tlMoreClr");
 		ImGui.sameLine();
-		renderSpeed(editor, "Speed##tlMoreSpeed", TOOLTIP_SPEED);
+		renderSpeed(editor, BBTexts.get("beatblock.timeline.speed") + "##tlMoreSpeed", BBTexts.get("beatblock.timeline.speed.tooltip"));
 		actionRollback.renderCompact();
 	}
 
@@ -56,24 +52,24 @@ final class TimelineToolbarLoopSpeedControls {
 		String outSuffix,
 		String clrSuffix
 	) {
-		if (ImGui.button("In" + inSuffix)) {
+		if (ImGui.button(BBTexts.get("beatblock.timeline.loop_in") + inSuffix)) {
 			transport.setLoopInAt(toolbarState, now, seekStep);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_LOOP_IN);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.loop_in.tooltip"));
 		if (inSuffix.isEmpty()) TimelineToolbarImGui.nextItemInGroup();
 		else ImGui.sameLine();
 
-		if (ImGui.button("Out" + outSuffix)) {
+		if (ImGui.button(BBTexts.get("beatblock.timeline.loop_out") + outSuffix)) {
 			transport.setLoopOutAt(toolbarState, now, seekStep);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_LOOP_OUT);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.loop_out.tooltip"));
 		if (inSuffix.isEmpty()) TimelineToolbarImGui.nextItemInGroup();
 		else ImGui.sameLine();
 
-		if (ImGui.button("Clr" + clrSuffix)) {
+		if (ImGui.button(BBTexts.get("beatblock.timeline.loop_clear") + clrSuffix)) {
 			transport.clearLoopRange(toolbarState);
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(TOOLTIP_LOOP_CLEAR);
+		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.loop_clear.tooltip"));
 	}
 
 	private void renderSpeed(TimelineEditor editor, String label, String tooltipOverride) {
@@ -83,6 +79,8 @@ final class TimelineToolbarLoopSpeedControls {
 		if (ImGui.combo(label, speedComboIndex, speedLabels)) {
 			TimelineToolbarViewPresenter.applySpeedPreset(editor, transport, speedComboIndex.get());
 		}
-		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltipOverride.isEmpty() ? TOOLTIP_SPEED : tooltipOverride);
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(tooltipOverride.isEmpty() ? BBTexts.get("beatblock.timeline.speed.tooltip") : tooltipOverride);
+		}
 	}
 }
