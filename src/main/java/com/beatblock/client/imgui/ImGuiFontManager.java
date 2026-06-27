@@ -134,7 +134,9 @@ public final class ImGuiFontManager {
 				// 音频解析面板：详情区折叠/展开（按钮 Tooltip）
 				"展开详情面板折叠详情展开详情" +
 				// 时间线轨道类型列 + 默认轨道名
-				"音频波形低频中频高频方块自动摄像机"
+				"音频波形低频中频高频方块自动摄像机" +
+				// 时间线工具栏：焙 不在 ChineseSimplifiedCommon，缺字会显示为 ?
+				"烘焙绑定映射自动吸附节拍网格磁吸循环入点出点清除缩放适应轨道轨高重置回滚预览持久天降规则细节混合触发持续片段预设"
 			);
 			tryAddRanges(builder, a, "getGlyphRangesJapanese");
 			tryAddRanges(builder, a, "getGlyphRangesKorean");
