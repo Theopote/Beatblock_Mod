@@ -13,6 +13,8 @@ import com.beatblock.timeline.rendering.TrackRegistry;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import com.beatblock.timeline.rendering.TimelineUiStateStore;
 import imgui.ImGui;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,7 +60,7 @@ public final class TimelineEditor {
 		return cachedDividerContentBottomScreenY;
 	}
 
-	public TimelineEditor(Timeline timeline, IAudioPlayer audioPlayer) {
+	public TimelineEditor(@NonNull Timeline timeline, @Nullable IAudioPlayer audioPlayer) {
 		this.timeline = timeline;
 		this.audioPlayer = audioPlayer;
 		this.musicPlayer = audioPlayer instanceof MusicPlayer mp ? mp : null;
@@ -75,39 +77,39 @@ public final class TimelineEditor {
 	}
 
 	/** 无音频源时使用（可独立运行和测试）。 */
-	public TimelineEditor(Timeline timeline) {
+	public TimelineEditor(@NonNull Timeline timeline) {
 		this(timeline, null);
 	}
 
-	public Timeline getTimeline() {
+	public @NonNull Timeline getTimeline() {
 		return timeline;
 	}
 
-	public TimelineEditorState getEditorState() {
+	public @NonNull TimelineEditorState getEditorState() {
 		return state;
 	}
 
-	public TimelineClock getClock() {
+	public @NonNull TimelineClock getClock() {
 		return state.getClock();
 	}
 
-	public TimelineViewState getViewState() {
+	public @NonNull TimelineViewState getViewState() {
 		return state.getViewState();
 	}
 
-	public SelectionState getSelectionState() {
+	public @NonNull SelectionState getSelectionState() {
 		return state.getSelectionState();
 	}
 
-	public InteractionState getInteractionState() {
+	public @NonNull InteractionState getInteractionState() {
 		return state.getInteractionState();
 	}
 
-	public SelectionBox getSelectionBox() {
+	public @NonNull SelectionBox getSelectionBox() {
 		return state.getSelectionBox();
 	}
 
-	public CommandManager getCommandManager() {
+	public @NonNull CommandManager getCommandManager() {
 		return commandManager;
 	}
 
@@ -116,15 +118,15 @@ public final class TimelineEditor {
 		commandManager.clear();
 	}
 
-	public TimelineToolbarState getToolbarState() {
+	public @NonNull TimelineToolbarState getToolbarState() {
 		return toolbarState;
 	}
 
-	public IAudioPlayer getAudioPlayer() {
+	public @Nullable IAudioPlayer getAudioPlayer() {
 		return audioPlayer;
 	}
 
-	public TimelineTrackListState getTrackListState() {
+	public @NonNull TimelineTrackListState getTrackListState() {
 		return trackListState;
 	}
 

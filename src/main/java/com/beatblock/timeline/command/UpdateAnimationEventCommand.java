@@ -6,6 +6,9 @@ import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.editing.AnimationEventSnapshot;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 /**
  * 更新时间线事件属性、片段时间与相关元数据；支持 Undo/Redo。
  */
@@ -20,23 +23,23 @@ public final class UpdateAnimationEventCommand implements MergeableCommand {
 	private final long mergeAnchorMs;
 
 	public UpdateAnimationEventCommand(
-		Timeline timeline,
-		String trackId,
-		String clipId,
-		String eventId,
-		AnimationEventSnapshot before,
-		AnimationEventSnapshot after
+		@NonNull Timeline timeline,
+		@NonNull String trackId,
+		@NonNull String clipId,
+		@NonNull String eventId,
+		@NonNull AnimationEventSnapshot before,
+		@NonNull AnimationEventSnapshot after
 	) {
 		this(timeline, trackId, clipId, eventId, before, after, System.currentTimeMillis());
 	}
 
 	UpdateAnimationEventCommand(
-		Timeline timeline,
-		String trackId,
-		String clipId,
-		String eventId,
-		AnimationEventSnapshot before,
-		AnimationEventSnapshot after,
+		@NonNull Timeline timeline,
+		@NonNull String trackId,
+		@NonNull String clipId,
+		@NonNull String eventId,
+		@NonNull AnimationEventSnapshot before,
+		@NonNull AnimationEventSnapshot after,
 		long mergeAnchorMs
 	) {
 		this.timeline = timeline;
@@ -65,7 +68,7 @@ public final class UpdateAnimationEventCommand implements MergeableCommand {
 	}
 
 	@Override
-	public Command mergeWith(Command other) {
+	public @NonNull Command mergeWith(@NonNull Command other) {
 		UpdateAnimationEventCommand cmd = (UpdateAnimationEventCommand) other;
 		return new UpdateAnimationEventCommand(
 			timeline, trackId, clipId, eventId, before, cmd.after, mergeAnchorMs);
@@ -81,7 +84,7 @@ public final class UpdateAnimationEventCommand implements MergeableCommand {
 		apply(before);
 	}
 
-	private void apply(AnimationEventSnapshot snapshot) {
+	private void apply(@Nullable AnimationEventSnapshot snapshot) {
 		if (timeline == null || snapshot == null) return;
 		Track track = timeline.getTrack(trackId);
 		if (track == null) return;

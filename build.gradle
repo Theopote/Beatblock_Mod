@@ -78,6 +78,7 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.withType(Test).configureEach {
 	useJUnitPlatform()
+	systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
 }
 
 tasks.register('verifyBundledDependencies') {

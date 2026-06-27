@@ -3,6 +3,8 @@ package com.beatblock.timeline.command;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.editing.ClipDragStateSnapshot;
 
+import org.jspecify.annotations.NonNull;
+
 /**
  * 片段拖动 / 缩放：execute 应用 after 快照，undo 恢复 before 快照。
  */
@@ -13,14 +15,18 @@ public final class ApplyClipDragCommand implements MergeableCommand {
 	private final ClipDragStateSnapshot after;
 	private final long mergeAnchorMs;
 
-	public ApplyClipDragCommand(Timeline timeline, ClipDragStateSnapshot before, ClipDragStateSnapshot after) {
+	public ApplyClipDragCommand(
+		@NonNull Timeline timeline,
+		@NonNull ClipDragStateSnapshot before,
+		@NonNull ClipDragStateSnapshot after
+	) {
 		this(timeline, before, after, System.currentTimeMillis());
 	}
 
 	ApplyClipDragCommand(
-		Timeline timeline,
-		ClipDragStateSnapshot before,
-		ClipDragStateSnapshot after,
+		@NonNull Timeline timeline,
+		@NonNull ClipDragStateSnapshot before,
+		@NonNull ClipDragStateSnapshot after,
 		long mergeAnchorMs
 	) {
 		this.timeline = timeline;
@@ -43,7 +49,7 @@ public final class ApplyClipDragCommand implements MergeableCommand {
 	}
 
 	@Override
-	public Command mergeWith(Command other) {
+	public @NonNull Command mergeWith(@NonNull Command other) {
 		ApplyClipDragCommand cmd = (ApplyClipDragCommand) other;
 		return new ApplyClipDragCommand(timeline, before, cmd.after, mergeAnchorMs);
 	}

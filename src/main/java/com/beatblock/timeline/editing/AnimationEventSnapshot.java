@@ -5,6 +5,9 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.camera.CameraPathMetadata;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,11 +40,16 @@ public record AnimationEventSnapshot(
 		this(timeSeconds, parameters, clipStartSeconds, clipEndSeconds, Map.of(), Map.of(), 0.0);
 	}
 
-	public static AnimationEventSnapshot capture(TimelineEvent event, Clip clip) {
+	public static @NonNull AnimationEventSnapshot capture(@Nullable TimelineEvent event, @NonNull Clip clip) {
 		return capture(event, clip, null, null);
 	}
 
-	public static AnimationEventSnapshot capture(TimelineEvent event, Clip clip, Timeline timeline, String clipId) {
+	public static @NonNull AnimationEventSnapshot capture(
+		@Nullable TimelineEvent event,
+		@NonNull Clip clip,
+		@Nullable Timeline timeline,
+		@Nullable String clipId
+	) {
 		Map<String, Double> eventTimes = new HashMap<>();
 		for (TimelineEvent clipEvent : clip.getEvents()) {
 			eventTimes.put(clipEvent.getId(), clipEvent.getTimeSeconds());
@@ -65,7 +73,11 @@ public record AnimationEventSnapshot(
 		);
 	}
 
-	public static AnimationEventSnapshot captureClipOnly(Clip clip, Timeline timeline, String clipId) {
+	public static @NonNull AnimationEventSnapshot captureClipOnly(
+		@NonNull Clip clip,
+		@Nullable Timeline timeline,
+		@Nullable String clipId
+	) {
 		TimelineEvent head = clip.getEvents().isEmpty() ? null : clip.getEvents().get(0);
 		if (head == null) {
 			return new AnimationEventSnapshot(
@@ -79,7 +91,7 @@ public record AnimationEventSnapshot(
 		return capture(head, clip, timeline, clipId);
 	}
 
-	public void applyTo(TimelineEvent event, Clip clip, Timeline timeline) {
+	public void applyTo(@Nullable TimelineEvent event, @NonNull Clip clip, @Nullable Timeline timeline) {
 		if (!parameters.isEmpty() && event != null) {
 			for (String key : new ArrayList<>(event.getParameters().keySet())) {
 				event.removeParameter(key);
@@ -110,7 +122,7 @@ public record AnimationEventSnapshot(
 		}
 	}
 
-	public void applyTo(TimelineEvent event, Clip clip) {
+	public void applyTo(@Nullable TimelineEvent event, @NonNull Clip clip) {
 		applyTo(event, clip, null);
 	}
 

@@ -4,6 +4,8 @@ import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 
+import org.jspecify.annotations.NonNull;
+
 /**
  * 移动事件时间：execute 设为 newTime，undo 恢复 oldTime。
  */
@@ -19,15 +21,22 @@ public final class MoveEventCommand implements MergeableCommand {
 	private final double newTimeSeconds;
 	private final long mergeAnchorMs;
 
-	public MoveEventCommand(Timeline timeline, String trackId, String clipId, String eventId, double oldTimeSeconds, double newTimeSeconds) {
+	public MoveEventCommand(
+		@NonNull Timeline timeline,
+		@NonNull String trackId,
+		@NonNull String clipId,
+		@NonNull String eventId,
+		double oldTimeSeconds,
+		double newTimeSeconds
+	) {
 		this(timeline, trackId, clipId, eventId, oldTimeSeconds, newTimeSeconds, System.currentTimeMillis());
 	}
 
 	MoveEventCommand(
-		Timeline timeline,
-		String trackId,
-		String clipId,
-		String eventId,
+		@NonNull Timeline timeline,
+		@NonNull String trackId,
+		@NonNull String clipId,
+		@NonNull String eventId,
 		double oldTimeSeconds,
 		double newTimeSeconds,
 		long mergeAnchorMs
@@ -61,7 +70,7 @@ public final class MoveEventCommand implements MergeableCommand {
 	}
 
 	@Override
-	public Command mergeWith(Command other) {
+	public @NonNull Command mergeWith(@NonNull Command other) {
 		MoveEventCommand cmd = (MoveEventCommand) other;
 		return new MoveEventCommand(
 			timeline, trackId, clipId, eventId, oldTimeSeconds, cmd.newTimeSeconds, mergeAnchorMs);

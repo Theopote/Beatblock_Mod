@@ -5,6 +5,8 @@ import com.beatblock.audio.playback.JavaSoundMixerSupport;
 import com.beatblock.audio.playback.OpenAlMusicBackend;
 import com.beatblock.audio.playback.StreamMusicBackend;
 import com.beatblock.timeline.IAudioPlayer;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -192,7 +194,7 @@ public class MusicPlayer implements IAudioPlayer {
 		this.playbackSpeed = Math.max(0.25, Math.min(4.0, playbackSpeed));
 	}
 
-	public boolean loadAudio(String path) {
+	public boolean loadAudio(@Nullable String path) {
 		closeAudioClip();
 		loadedAudioPath = null;
 		lastLoadError = null;
@@ -249,11 +251,11 @@ public class MusicPlayer implements IAudioPlayer {
 		}
 	}
 
-	public String getLoadedAudioPath() {
+	public @Nullable String getLoadedAudioPath() {
 		return loadedAudioPath;
 	}
 
-	public String getLastLoadError() {
+	public @Nullable String getLastLoadError() {
 		return lastLoadError;
 	}
 

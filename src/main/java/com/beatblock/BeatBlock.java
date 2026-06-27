@@ -15,6 +15,7 @@ import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.audio.analysis.AudioAnalysisEngine;
 import com.beatblock.runtime.BeatBlockContext;
 import net.fabricmc.api.ModInitializer;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,41 +29,23 @@ public class BeatBlock implements ModInitializer {
 		return net.minecraft.util.Identifier.of(MOD_ID, path);
 	}
 
-	/** @deprecated 使用 {@link #getContext()}{@code .audioLoader()} */
-	@Deprecated(forRemoval = true)
-	public static AudioLoader audioLoader;
-	/** @deprecated 使用 {@link #getContext()}{@code .musicPlayer()} */
-	@Deprecated(forRemoval = true)
-	public static MusicPlayer musicPlayer;
-	/** @deprecated 使用 {@link #getContext()}{@code .stageManager()} */
-	@Deprecated(forRemoval = true)
-	public static StageManager stageManager;
-	/** @deprecated 使用 {@link #getContext()}{@code .timeline()} */
-	@Deprecated(forRemoval = true)
-	public static Timeline timeline;
-	/** @deprecated 使用 {@link #getContext()}{@code .timelineEditor()} */
-	@Deprecated(forRemoval = true)
-	public static TimelineEditor timelineEditor;
-	/** @deprecated 使用 {@link #getContext()}{@code .blockAnimationEngine()} */
-	@Deprecated(forRemoval = true)
-	public static BlockAnimationEngine blockAnimationEngine;
-	/** @deprecated 使用 {@link #getContext()}{@code .audioAnalysisEngine()} */
-	@Deprecated(forRemoval = true)
-	public static AudioAnalysisEngine audioAnalysisEngine;
-	/** @deprecated 使用 {@link #getContext()}{@code .externalAudioAnalyzer()} */
-	@Deprecated(forRemoval = true)
-	public static AudioAnalysisService externalAudioAnalyzer;
-	/** @deprecated 使用 {@link #getContext()}{@code .audioConversionService()} */
-	@Deprecated(forRemoval = true)
-	public static AudioConversionService audioConversionService;
-	/** @deprecated 使用 {@link #getContext()}{@code .stemMixer()} */
-	@Deprecated(forRemoval = true)
-	public static StemMixer stemMixer;
-
 	private static BeatBlockContext context;
 
-	public static BeatBlockContext getContext() {
-		return context != null ? context : BeatBlockContext.fromLegacyStatics();
+	/** 仅供单元测试安装 Context；生产代码在 {@link #onInitialize()} 中初始化。 */
+	public static void installContext(@NonNull BeatBlockContext ctx) {
+		context = ctx;
+	}
+
+	/** 仅供单元测试清理 Context。 */
+	public static void resetContext() {
+		context = null;
+	}
+
+	public static @NonNull BeatBlockContext getContext() {
+		if (context == null) {
+			throw new IllegalStateException("BeatBlock mod has not been initialized yet");
+		}
+		return context;
 	}
 
 	public static IAudioPlayer getActiveAudioPlayer() {
@@ -78,27 +61,27 @@ public class BeatBlock implements ModInitializer {
 	}
 
 	private static void initializeMod() {
-		audioLoader = new AudioLoader();
-		musicPlayer = new MusicPlayer();
-		stemMixer = new StemMixer();
-		stageManager = new StageManager();
-		timeline = Timeline.createDefault();
-		timelineEditor = new TimelineEditor(timeline, musicPlayer);
-		blockAnimationEngine = new BlockAnimationEngine();
-		audioAnalysisEngine = new AudioAnalysisEngine();
-		externalAudioAnalyzer = new AudioAnalysisService();
-		audioConversionService = new AudioConversionService();
+		AudioLoader loader = new AudioLoader();
+		MusicPlayer player = new MusicPlayer();
+		StemMixer mixer = new StemMixer();
+		StageManager stage = new StageManager();
+		Timeline timelineModel = Timeline.createDefault();
+		TimelineEditor editor = new TimelineEditor(timelineModel, player);
+		BlockAnimationEngine animationEngine = new BlockAnimationEngine();
+		AudioAnalysisEngine analysisEngine = new AudioAnalysisEngine();
+		AudioAnalysisService analyzer = new AudioAnalysisService();
+		AudioConversionService conversionService = new AudioConversionService();
 		context = new BeatBlockContext(
-			audioLoader,
-			musicPlayer,
-			stemMixer,
-			stageManager,
-			timeline,
-			timelineEditor,
-			blockAnimationEngine,
-			audioAnalysisEngine,
-			externalAudioAnalyzer,
-			audioConversionService
+			loader,
+			player,
+			mixer,
+			stage,
+			timelineModel,
+			editor,
+			animationEngine,
+			analysisEngine,
+			analyzer,
+			conversionService
 		);
 	}
 
@@ -109,7 +92,7 @@ public class BeatBlock implements ModInitializer {
 			asset.setAnalysisProgressPercent(3);
 			asset.setProcessingStatusText("FFmpeg 转换中（目标格式：MP3）");
 			asset.setErrorMessage(null);
-			audioConversionService.convertToMp3Async(
+			getContext().audioConversionService().convertToMp3Async(
 				asset.getPath(),
 				(message, percent) -> {
 					asset.setStatus(com.beatblock.audio.assets.AudioAssetStatus.ANALYZING);

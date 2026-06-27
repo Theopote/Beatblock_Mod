@@ -7,6 +7,9 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -31,12 +34,12 @@ public record ClipDragStateSnapshot(
 		featureTracksByKey = featureTracksByKey != null ? copyFeatureTracks(featureTracksByKey) : Map.of();
 	}
 
-	public static ClipDragStateSnapshot capture(
-		Timeline timeline,
-		String primaryTrackId,
-		String primaryClipId,
-		Map<String, Double> eventTimesById,
-		Map<String, List<double[]>> featureSnapshot
+	public static @NonNull ClipDragStateSnapshot capture(
+		@Nullable Timeline timeline,
+		@Nullable String primaryTrackId,
+		@Nullable String primaryClipId,
+		@Nullable Map<String, Double> eventTimesById,
+		@Nullable Map<String, List<double[]>> featureSnapshot
 	) {
 		Map<String, ClipBounds> clips = new LinkedHashMap<>();
 		Track primaryTrack = timeline != null ? timeline.getTrack(primaryTrackId) : null;
@@ -72,7 +75,7 @@ public record ClipDragStateSnapshot(
 		);
 	}
 
-	public ClipDragStateSnapshot captureCurrent(Timeline timeline) {
+	public @NonNull ClipDragStateSnapshot captureCurrent(@Nullable Timeline timeline) {
 		if (timeline == null) return this;
 		Map<String, ClipBounds> clips = new LinkedHashMap<>();
 		for (ClipBounds bounds : clipsByKey.values()) {
@@ -107,7 +110,7 @@ public record ClipDragStateSnapshot(
 		return new ClipDragStateSnapshot(clips, eventTimes, features, timeline.getDurationSeconds());
 	}
 
-	public void applyTo(Timeline timeline) {
+	public void applyTo(@Nullable Timeline timeline) {
 		if (timeline == null) return;
 		for (ClipBounds bounds : clipsByKey.values()) {
 			Track track = timeline.getTrack(bounds.trackId());
@@ -137,7 +140,7 @@ public record ClipDragStateSnapshot(
 		markAnimationTracksDirty(timeline);
 	}
 
-	public static String clipKey(String trackId, String clipId) {
+	public static @NonNull String clipKey(@NonNull String trackId, @NonNull String clipId) {
 		return trackId + "|" + clipId;
 	}
 

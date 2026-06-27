@@ -1,5 +1,8 @@
 package com.beatblock.timeline;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -8,11 +11,13 @@ import java.util.UUID;
  */
 public final class TimelineOperations {
 
+	private TimelineOperations() {}
+
 	private static String nextId() {
 		return UUID.randomUUID().toString().replace("-", "").substring(0, 12);
 	}
 
-	public static Track addTrack(Timeline timeline, String name, TrackType type) {
+	public static @Nullable Track addTrack(@Nullable Timeline timeline, @Nullable String name, @Nullable TrackType type) {
 		if (timeline == null) return null;
 		String id = nextId();
 		Track track = new Track(id, name != null ? name : type.name(), type);
@@ -20,17 +25,22 @@ public final class TimelineOperations {
 		return track;
 	}
 
-	public static boolean removeTrack(Timeline timeline, String trackId) {
+	public static boolean removeTrack(@Nullable Timeline timeline, @Nullable String trackId) {
 		return timeline != null && timeline.removeTrack(trackId);
 	}
 
-	public static Clip addClip(Timeline timeline, String trackId, double startTimeSeconds, double endTimeSeconds) {
+	public static @Nullable Clip addClip(
+		@Nullable Timeline timeline,
+		@Nullable String trackId,
+		double startTimeSeconds,
+		double endTimeSeconds
+	) {
 		if (timeline == null || trackId == null) return null;
 		Track track = timeline.getTrack(trackId);
 		return track != null ? addClip(track, startTimeSeconds, endTimeSeconds) : null;
 	}
 
-	public static Clip addClip(Track track, double startTimeSeconds, double endTimeSeconds) {
+	public static @Nullable Clip addClip(@Nullable Track track, double startTimeSeconds, double endTimeSeconds) {
 		if (track == null) return null;
 		String id = nextId();
 		Clip clip = new Clip(id, startTimeSeconds, endTimeSeconds);
@@ -38,13 +48,13 @@ public final class TimelineOperations {
 		return clip;
 	}
 
-	public static boolean removeClip(Timeline timeline, String trackId, String clipId) {
+	public static boolean removeClip(@Nullable Timeline timeline, @Nullable String trackId, @Nullable String clipId) {
 		if (timeline == null) return false;
 		Track track = timeline.getTrack(trackId);
 		return track != null && track.removeClip(clipId);
 	}
 
-	public static boolean moveClip(Clip clip, double newStartTimeSeconds) {
+	public static boolean moveClip(@Nullable Clip clip, double newStartTimeSeconds) {
 		if (clip == null) return false;
 		double dur = clip.getDurationSeconds();
 		clip.setStartTimeSeconds(newStartTimeSeconds);
@@ -52,7 +62,12 @@ public final class TimelineOperations {
 		return true;
 	}
 
-	public static TimelineEvent addEvent(Clip clip, double timeSeconds, EventType type, Map<String, Object> parameters) {
+	public static @Nullable TimelineEvent addEvent(
+		@Nullable Clip clip,
+		double timeSeconds,
+		@Nullable EventType type,
+		@Nullable Map<String, Object> parameters
+	) {
 		if (clip == null) return null;
 		String id = nextId();
 		TimelineEvent event = new TimelineEvent(id, timeSeconds, type, parameters);
@@ -60,7 +75,14 @@ public final class TimelineOperations {
 		return event;
 	}
 
-	public static TimelineEvent addEvent(Timeline timeline, String trackId, String clipId, double timeSeconds, EventType type, Map<String, Object> parameters) {
+	public static @Nullable TimelineEvent addEvent(
+		@Nullable Timeline timeline,
+		@Nullable String trackId,
+		@Nullable String clipId,
+		double timeSeconds,
+		@Nullable EventType type,
+		@Nullable Map<String, Object> parameters
+	) {
 		if (timeline == null || trackId == null || clipId == null) return null;
 		Track track = timeline.getTrack(trackId);
 		if (track == null) return null;
@@ -68,11 +90,11 @@ public final class TimelineOperations {
 		return clip != null ? addEvent(clip, timeSeconds, type, parameters) : null;
 	}
 
-	public static boolean removeEvent(Clip clip, String eventId) {
+	public static boolean removeEvent(@Nullable Clip clip, @Nullable String eventId) {
 		return clip != null && clip.removeEvent(eventId);
 	}
 
-	public static boolean moveEvent(TimelineEvent event, double newTimeSeconds) {
+	public static boolean moveEvent(@Nullable TimelineEvent event, double newTimeSeconds) {
 		if (event == null) return false;
 		event.setTimeSeconds(newTimeSeconds);
 		return true;

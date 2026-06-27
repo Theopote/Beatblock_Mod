@@ -5,6 +5,8 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
 
+import org.jspecify.annotations.NonNull;
+
 /**
  * 删除事件：execute 从 Clip 移除事件，undo 加回。
  */
@@ -16,7 +18,12 @@ public final class DeleteEventCommand implements Command {
 	private final TimelineEvent event;
 	private boolean done;
 
-	public DeleteEventCommand(Timeline timeline, String trackId, String clipId, TimelineEvent event) {
+	public DeleteEventCommand(
+		@NonNull Timeline timeline,
+		@NonNull String trackId,
+		@NonNull String clipId,
+		@NonNull TimelineEvent event
+	) {
 		this.timeline = timeline;
 		this.trackId = trackId;
 		this.clipId = clipId;

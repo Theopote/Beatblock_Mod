@@ -1,5 +1,8 @@
 package com.beatblock.timeline;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import java.util.UUID;
 
 /**
@@ -12,26 +15,26 @@ public final class TimelineMarker {
 	private final String name;
 	private final MarkerType type;
 
-	public TimelineMarker(double timeSeconds, String name) {
+	public TimelineMarker(double timeSeconds, @Nullable String name) {
 		this(UUID.randomUUID().toString(), timeSeconds, name, MarkerType.GENERIC);
 	}
 
-	public TimelineMarker(String id, double timeSeconds, String name) {
+	public TimelineMarker(@Nullable String id, double timeSeconds, @Nullable String name) {
 		this(id, timeSeconds, name, MarkerType.GENERIC);
 	}
 
-	public TimelineMarker(double timeSeconds, String name, MarkerType type) {
+	public TimelineMarker(double timeSeconds, @Nullable String name, @Nullable MarkerType type) {
 		this(UUID.randomUUID().toString(), timeSeconds, name, type);
 	}
 
-	public TimelineMarker(String id, double timeSeconds, String name, MarkerType type) {
+	public TimelineMarker(@Nullable String id, double timeSeconds, @Nullable String name, @Nullable MarkerType type) {
 		this.id = id != null && !id.isBlank() ? id : UUID.randomUUID().toString();
 		this.timeSeconds = Math.max(0, timeSeconds);
 		this.name = name != null ? name : "";
 		this.type = type != null ? type : MarkerType.GENERIC;
 	}
 
-	public String getId() {
+	public @NonNull String getId() {
 		return id;
 	}
 
@@ -39,11 +42,11 @@ public final class TimelineMarker {
 		return timeSeconds;
 	}
 
-	public String getName() {
+	public @NonNull String getName() {
 		return name;
 	}
 
-	public MarkerType getType() {
+	public @NonNull MarkerType getType() {
 		return type;
 	}
 }

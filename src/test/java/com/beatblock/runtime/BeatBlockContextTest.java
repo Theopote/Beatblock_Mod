@@ -1,5 +1,6 @@
 package com.beatblock.runtime;
 
+import com.beatblock.BeatBlock;
 import com.beatblock.audio.MusicPlayer;
 import com.beatblock.audio.StemMixer;
 import com.beatblock.timeline.Timeline;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class BeatBlockContextTest {
 
@@ -40,6 +42,12 @@ class BeatBlockContextTest {
 			.build();
 
 		assertSame(musicPlayer, context.activeAudioPlayer());
+	}
+
+	@Test
+	void getContextThrowsWhenModNotInitialized() {
+		BeatBlock.resetContext();
+		assertThrows(IllegalStateException.class, BeatBlock::getContext);
 	}
 
 	@Test

@@ -7,9 +7,9 @@ import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 
-import java.util.ArrayList;
+import org.jspecify.annotations.NonNull;
+
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,7 +24,11 @@ public final class AddTimelineAnimationEventCommand implements Command {
 	private String eventId;
 	private boolean done;
 
-	public AddTimelineAnimationEventCommand(Timeline timeline, String trackId, TimelineAnimationEvent animationEvent) {
+	public AddTimelineAnimationEventCommand(
+		@NonNull Timeline timeline,
+		@NonNull String trackId,
+		@NonNull TimelineAnimationEvent animationEvent
+	) {
 		this.timeline = timeline;
 		this.trackId = trackId;
 		this.animationEvent = animationEvent;

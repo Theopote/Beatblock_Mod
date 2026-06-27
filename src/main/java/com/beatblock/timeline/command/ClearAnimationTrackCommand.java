@@ -8,6 +8,8 @@ import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 
+import org.jspecify.annotations.NonNull;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +27,7 @@ public final class ClearAnimationTrackCommand implements Command {
 	private final List<Snapshot> snapshots = new ArrayList<>();
 	private boolean done;
 
-	public ClearAnimationTrackCommand(Timeline timeline, String trackId) {
+	public ClearAnimationTrackCommand(@NonNull Timeline timeline, @NonNull String trackId) {
 		this.timeline = timeline;
 		this.trackId = trackId;
 	}

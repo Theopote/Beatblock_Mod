@@ -2,7 +2,6 @@ package com.beatblock.runtime;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import com.beatblock.BeatBlock;
 import com.beatblock.audio.AudioAnalysisService;
 import com.beatblock.audio.AudioConversionService;
 import com.beatblock.audio.AudioLoader;
@@ -18,8 +17,8 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.command.CommandManager;
 
 /**
- * 运行时核心服务容器：构造器注入入口，替代散落的 {@link BeatBlock} 静态字段访问。
- * 生产环境在 {@link BeatBlock#onInitialize()} 中构建；测试可通过 {@link Builder} 注入 mock。
+ * 运行时核心服务容器：构造器注入入口，替代原 {@link com.beatblock.BeatBlock} 静态字段访问。
+ * 生产环境在 {@link com.beatblock.BeatBlock#onInitialize()} 中构建；测试可通过 {@link Builder} 注入 mock。
  */
 public final class BeatBlockContext {
 
@@ -60,22 +59,6 @@ public final class BeatBlockContext {
 
 	public static Builder builder() {
 		return new Builder();
-	}
-
-	/** 从 legacy 静态字段快照构建，供测试或未显式 bind 时使用。 */
-	public static BeatBlockContext fromLegacyStatics() {
-		return new BeatBlockContext(
-			BeatBlock.audioLoader,
-			BeatBlock.musicPlayer,
-			BeatBlock.stemMixer,
-			BeatBlock.stageManager,
-			BeatBlock.timeline,
-			BeatBlock.timelineEditor,
-			BeatBlock.blockAnimationEngine,
-			BeatBlock.audioAnalysisEngine,
-			BeatBlock.externalAudioAnalyzer,
-			BeatBlock.audioConversionService
-		);
 	}
 
 	public @NonNull AudioLoader audioLoader() {

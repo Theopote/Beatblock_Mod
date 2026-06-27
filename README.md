@@ -339,6 +339,8 @@ beatblock/
 |------|------|
 | [docs/architecture.md](docs/architecture.md) | 三层架构、概念 ↔ 代码映射、三种演出参数 |
 | [docs/REFACTOR_ROADMAP.md](docs/REFACTOR_ROADMAP.md) | 重构阶段、进度快照、验收标准 |
+| [OPTIMIZATION_GUIDE.md](OPTIMIZATION_GUIDE.md) | 代码优化清单与 **完成进度**（P0/P1/P2） |
+| [REVIEW_SUMMARY.md](REVIEW_SUMMARY.md) | 2026-06 代码审查结论与路线图 |
 | [docs/step-phase-animation-and-cleanup.md](docs/step-phase-animation-and-cleanup.md) | STEP 三段式动画与参数 |
 | [docs/block-influence-dimensions.md](docs/block-influence-dimensions.md) | 方块影响维度统一抽象 |
 

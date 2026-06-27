@@ -1,5 +1,8 @@
 package com.beatblock.timeline.command;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,11 +14,11 @@ public final class CompositeCommand implements Command {
 
 	private final List<Command> commands;
 
-	public CompositeCommand(List<Command> commands) {
+	public CompositeCommand(@Nullable List<Command> commands) {
 		this.commands = commands != null ? List.copyOf(commands) : List.of();
 	}
 
-	public static CompositeCommand of(Command... commands) {
+	public static @NonNull CompositeCommand of(@Nullable Command... commands) {
 		if (commands == null || commands.length == 0) {
 			return new CompositeCommand(List.of());
 		}

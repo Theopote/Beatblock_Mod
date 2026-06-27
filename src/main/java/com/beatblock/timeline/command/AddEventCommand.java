@@ -5,6 +5,9 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 /**
  * 添加事件：execute 在指定轨道的 Clip 中插入事件，undo 移除。
  */
@@ -16,7 +19,12 @@ public final class AddEventCommand implements Command {
 	private final TimelineEvent event;
 	private boolean done;
 
-	public AddEventCommand(Timeline timeline, String trackId, String clipId, TimelineEvent event) {
+	public AddEventCommand(
+		@NonNull Timeline timeline,
+		@NonNull String trackId,
+		@NonNull String clipId,
+		@NonNull TimelineEvent event
+	) {
 		this.timeline = timeline;
 		this.trackId = trackId;
 		this.clipId = clipId;

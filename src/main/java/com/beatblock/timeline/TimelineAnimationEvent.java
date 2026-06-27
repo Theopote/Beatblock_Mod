@@ -1,5 +1,8 @@
 package com.beatblock.timeline;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import java.util.Collections;
 import java.util.Map;
 
@@ -21,9 +24,15 @@ public final class TimelineAnimationEvent {
 	private final float energy;
 	private final Map<String, Object> parameters;
 
-	public TimelineAnimationEvent(String eventId, double timeSeconds, double durationSeconds,
-	                             String animationTypeId, String targetObjectId,
-	                             float energy, Map<String, Object> parameters) {
+	public TimelineAnimationEvent(
+		@Nullable String eventId,
+		double timeSeconds,
+		double durationSeconds,
+		@Nullable String animationTypeId,
+		@Nullable String targetObjectId,
+		float energy,
+		@Nullable Map<String, Object> parameters
+	) {
 		this.eventId = eventId != null ? eventId : "";
 		this.timeSeconds = timeSeconds;
 		this.durationSeconds = Math.max(0.01, durationSeconds);
@@ -33,7 +42,7 @@ public final class TimelineAnimationEvent {
 		this.parameters = parameters != null ? Map.copyOf(parameters) : Collections.emptyMap();
 	}
 
-	public String getEventId() {
+	public @NonNull String getEventId() {
 		return eventId;
 	}
 
@@ -49,11 +58,11 @@ public final class TimelineAnimationEvent {
 		return timeSeconds + durationSeconds;
 	}
 
-	public String getAnimationTypeId() {
+	public @NonNull String getAnimationTypeId() {
 		return animationTypeId;
 	}
 
-	public String getTargetObjectId() {
+	public @NonNull String getTargetObjectId() {
 		return targetObjectId;
 	}
 
@@ -61,17 +70,17 @@ public final class TimelineAnimationEvent {
 		return energy;
 	}
 
-	public TimelineAnimationActionMode getActionMode() {
+	public @NonNull TimelineAnimationActionMode getActionMode() {
 		Object value = parameters.get("actionMode");
 		if (value == null) value = parameters.get("mode");
 		return TimelineAnimationActionMode.fromValue(value);
 	}
 
-	public Map<String, Object> getParameters() {
+	public @NonNull Map<String, Object> getParameters() {
 		return parameters;
 	}
 
-	public TimelineEventOrigin getEventOrigin() {
+	public @NonNull TimelineEventOrigin getEventOrigin() {
 		return TimelineEventOrigin.fromValue(parameters.get("eventOrigin"));
 	}
 }
