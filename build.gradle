@@ -198,6 +198,13 @@ tasks.register('spotbugsMain', JavaExec) {
 
 check.dependsOn spotbugsMain
 
+tasks.register('compileNullaway') {
+	group = 'verification'
+	description = 'Compile main sources with NullAway (OnlyNullMarked + JSpecifyMode)'
+	dependsOn compileJava
+	onlyIf { findProperty('enableNullaway') == 'true' }
+}
+
 java {
 	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
 	// if it is present.

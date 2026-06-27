@@ -35,7 +35,7 @@ public final class AudioConversionService implements AutoCloseable {
 
 	private void convertToMp3(
 		Path inputAudio,
-		ProgressCallback onProgress,
+		@Nullable ProgressCallback onProgress,
 		Consumer<Path> onComplete,
 		Consumer<String> onError
 	) {
@@ -43,7 +43,7 @@ public final class AudioConversionService implements AutoCloseable {
 		var outcome = FfmpegService.transcodeToMp3(
 			inputAudio,
 			fallbackDir,
-			onProgress != null ? onProgress::accept : null
+			onProgress != null ? onProgress::accept : (message, percent) -> {}
 		);
 
 		if (outcome instanceof FfmpegTranscodeOutcome.AlreadyMp3 already) {

@@ -35,11 +35,11 @@ public class MusicPlayer implements IAudioPlayer {
 	private volatile double currentTimeSeconds;
 	private volatile double durationSeconds;
 	private volatile double playbackSpeed = 1.0;
-	private Clip audioClip;
+	private @Nullable Clip audioClip;
 	private final StreamMusicBackend streamBackend = new StreamMusicBackend();
 	private final OpenAlMusicBackend openAlBackend;
-	private String loadedAudioPath;
-	private String lastLoadError;
+	private @Nullable String loadedAudioPath;
+	private @Nullable String lastLoadError;
 	private volatile boolean muted;
 	private volatile boolean recoveringOpenAl;
 
@@ -48,6 +48,9 @@ public class MusicPlayer implements IAudioPlayer {
 		this.currentTimeSeconds = 0;
 		this.durationSeconds = 0;
 		this.muted = false;
+		this.audioClip = null;
+		this.loadedAudioPath = null;
+		this.lastLoadError = null;
 		this.openAlBackend = new OpenAlMusicBackend(LOGGER, this::recoverOpenAlBackend);
 	}
 
@@ -367,6 +370,10 @@ public class MusicPlayer implements IAudioPlayer {
 	}
 
 	private boolean ensureOpenAlBackendReady() {
+		if (loadedAudioPath == null) {
+			lastLoadError = "未加载音频文件";
+			return false;
+		}
 		StringBuilder error = new StringBuilder();
 		boolean ready = openAlBackend.ensureReady(loadedAudioPath, error);
 		if (!error.isEmpty()) {
@@ -441,7 +448,7 @@ public class MusicPlayer implements IAudioPlayer {
 			}
 		}
 		lastLoadError = "ffmpeg 已解码，但加载 PCM 失败 (all formats rejected): "
-			+ lastFailure.getMessage();
+			+ (lastFailure != null ? lastFailure.getMessage() : "unknown");
 		return false;
 	}
 
@@ -489,6 +496,10 @@ public class MusicPlayer implements IAudioPlayer {
 	}
 
 	private boolean startStreamPlayback() {
+		if (loadedAudioPath == null) {
+			lastLoadError = "未加载音频文件";
+			return false;
+		}
 		StringBuilder error = new StringBuilder();
 		boolean started = streamBackend.startPlayback(LOGGER, loadedAudioPath, error);
 		if (!started && !error.isEmpty()) {

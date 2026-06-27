@@ -3,6 +3,8 @@ package com.beatblock.audio.assets;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.beatmap.Beatmap;
 
+import org.jspecify.annotations.Nullable;
+
 import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.UUID;
@@ -13,7 +15,7 @@ import java.util.UUID;
 public final class AudioAsset {
 
 	private final String id;
-	private Path path;
+	private @Nullable Path path;
 	private String fileName;
 
 	private double durationSeconds;
@@ -29,28 +31,28 @@ public final class AudioAsset {
 	private AudioAssetStatus status = AudioAssetStatus.PENDING;
 	private long queueTicket = -1L;
 	private int analysisProgressPercent;
-	private String processingStatusText;
+	private @Nullable String processingStatusText;
 	private AudioAnalysisPhase analysisPhase = AudioAnalysisPhase.PENDING;
 	private final EnumSet<AudioAnalysisStep> finishedSteps = EnumSet.noneOf(AudioAnalysisStep.class);
-	private String errorMessage;
-	private String infoMessage;
+	private @Nullable String errorMessage;
+	private @Nullable String infoMessage;
 	private AudioAnalysisMode requestedAnalysisMode = AudioAnalysisMode.BASIC;
-	private AudioAnalysisMode resolvedAnalysisMode;
+	private @Nullable AudioAnalysisMode resolvedAnalysisMode;
 	private String cacheSource = "";
 
-	private AudioFeatureTimeline featureTimeline;
-	private Beatmap beatmap;
+	private @Nullable AudioFeatureTimeline featureTimeline;
+	private @Nullable Beatmap beatmap;
 
-	public AudioAsset(Path path) {
+	public AudioAsset(@Nullable Path path) {
 		this.id = UUID.randomUUID().toString();
 		this.path = path;
         this.fileName = path != null ? path.getFileName().toString() : "";
 	}
 
 	public String getId() { return id; }
-	public Path getPath() { return path; }
+	public @Nullable Path getPath() { return path; }
 	public String getFileName() { return fileName; }
-	public void setPath(Path path) {
+	public void setPath(@Nullable Path path) {
 		this.path = path;
         this.fileName = path != null ? path.getFileName().toString() : "";
 	}
@@ -89,8 +91,8 @@ public final class AudioAsset {
 		this.analysisProgressPercent = Math.max(0, Math.min(100, analysisProgressPercent));
 	}
 
-	public String getProcessingStatusText() { return processingStatusText; }
-	public void setProcessingStatusText(String processingStatusText) { this.processingStatusText = processingStatusText; }
+	public @Nullable String getProcessingStatusText() { return processingStatusText; }
+	public void setProcessingStatusText(@Nullable String processingStatusText) { this.processingStatusText = processingStatusText; }
 
 	public AudioAnalysisPhase getAnalysisPhase() { return analysisPhase; }
 	public void setAnalysisPhase(AudioAnalysisPhase analysisPhase) {
@@ -102,26 +104,26 @@ public final class AudioAsset {
 		if (step != null) finishedSteps.add(step);
 	}
 
-	public String getErrorMessage() { return errorMessage; }
-	public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+	public @Nullable String getErrorMessage() { return errorMessage; }
+	public void setErrorMessage(@Nullable String errorMessage) { this.errorMessage = errorMessage; }
 
-	public String getInfoMessage() { return infoMessage; }
-	public void setInfoMessage(String infoMessage) { this.infoMessage = infoMessage; }
+	public @Nullable String getInfoMessage() { return infoMessage; }
+	public void setInfoMessage(@Nullable String infoMessage) { this.infoMessage = infoMessage; }
 
 	public AudioAnalysisMode getRequestedAnalysisMode() { return requestedAnalysisMode; }
 	public void setRequestedAnalysisMode(AudioAnalysisMode requestedAnalysisMode) {
 		this.requestedAnalysisMode = requestedAnalysisMode != null ? requestedAnalysisMode : AudioAnalysisMode.BASIC;
 	}
 
-	public AudioAnalysisMode getResolvedAnalysisMode() { return resolvedAnalysisMode; }
-	public void setResolvedAnalysisMode(AudioAnalysisMode resolvedAnalysisMode) { this.resolvedAnalysisMode = resolvedAnalysisMode; }
+	public @Nullable AudioAnalysisMode getResolvedAnalysisMode() { return resolvedAnalysisMode; }
+	public void setResolvedAnalysisMode(@Nullable AudioAnalysisMode resolvedAnalysisMode) { this.resolvedAnalysisMode = resolvedAnalysisMode; }
 
 	public String getCacheSource() { return cacheSource; }
 	public void setCacheSource(String cacheSource) { this.cacheSource = cacheSource != null ? cacheSource : ""; }
 
-	public AudioFeatureTimeline getFeatureTimeline() { return featureTimeline; }
-	public void setFeatureTimeline(AudioFeatureTimeline featureTimeline) { this.featureTimeline = featureTimeline; }
+	public @Nullable AudioFeatureTimeline getFeatureTimeline() { return featureTimeline; }
+	public void setFeatureTimeline(@Nullable AudioFeatureTimeline featureTimeline) { this.featureTimeline = featureTimeline; }
 
-	public Beatmap getBeatmap() { return beatmap; }
-	public void setBeatmap(Beatmap beatmap) { this.beatmap = beatmap; }
+	public @Nullable Beatmap getBeatmap() { return beatmap; }
+	public void setBeatmap(@Nullable Beatmap beatmap) { this.beatmap = beatmap; }
 }

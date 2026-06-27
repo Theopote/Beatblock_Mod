@@ -20,7 +20,8 @@ public final class TimelineOperations {
 	public static @Nullable Track addTrack(@Nullable Timeline timeline, @Nullable String name, @Nullable TrackType type) {
 		if (timeline == null) return null;
 		String id = nextId();
-		Track track = new Track(id, name != null ? name : type.name(), type);
+		TrackType resolvedType = type != null ? type : TrackType.ANIMATION;
+		Track track = new Track(id, name != null ? name : resolvedType.name(), resolvedType);
 		timeline.addTrack(track);
 		return track;
 	}

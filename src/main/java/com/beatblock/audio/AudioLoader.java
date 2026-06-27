@@ -20,7 +20,7 @@ public class AudioLoader {
 	private static final Logger LOGGER = LoggerFactory.getLogger(AudioLoader.class);
 
 	private final Supplier<BeatBlockContext> contextSource;
-	private String loadedPath;
+	private @Nullable String loadedPath;
 
 	public AudioLoader() {
 		this(BeatBlock::getContext);
@@ -113,7 +113,7 @@ public class AudioLoader {
 	/**
 	 * 卸载资源（仅清除加载标记，不清空 Timeline）。
 	 */
-	public void unload(String pathOrId) {
+	public void unload(@Nullable String pathOrId) {
 		if (pathOrId != null && pathOrId.equals(loadedPath)) {
 			loadedPath = null;
 		}

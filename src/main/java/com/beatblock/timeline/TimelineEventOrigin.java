@@ -1,5 +1,7 @@
 package com.beatblock.timeline;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * 第 2 层事件来源：手动编辑 vs 自动生成草稿。
  */
@@ -7,7 +9,7 @@ public enum TimelineEventOrigin {
 	MANUAL,
 	AUTO_GENERATED;
 
-	public static TimelineEventOrigin fromValue(Object raw) {
+	public static TimelineEventOrigin fromValue(@Nullable Object raw) {
 		if (raw == null) return MANUAL;
 		String s = String.valueOf(raw).trim();
 		if (s.isEmpty()) return MANUAL;

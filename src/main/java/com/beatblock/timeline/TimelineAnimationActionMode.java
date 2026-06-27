@@ -1,5 +1,7 @@
 package com.beatblock.timeline;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Locale;
 
 /**
@@ -11,7 +13,7 @@ public enum TimelineAnimationActionMode {
 	CLEAR,
 	BUILD;
 
-	public static TimelineAnimationActionMode fromValue(Object value) {
+	public static TimelineAnimationActionMode fromValue(@Nullable Object value) {
 		if (value == null) return ANIMATE;
 		try {
 			return TimelineAnimationActionMode.valueOf(String.valueOf(value).trim().toUpperCase(Locale.ROOT));

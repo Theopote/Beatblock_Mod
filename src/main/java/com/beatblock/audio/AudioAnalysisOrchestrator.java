@@ -56,7 +56,10 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		@Nullable Runnable onStarted
 	) {
 		AnalysisCancelControl control = new AnalysisCancelControl();
-		String normalizedTaskId = normalizeTaskId(taskId);
+		@Nullable String normalizedTaskId = normalizeTaskId(taskId);
+		AnalysisProgressCallback progressCallback = onProgress != null ? onProgress : (step, pct) -> {};
+		Consumer<Beatmap> completeCallback = onComplete != null ? onComplete : beatmap -> {};
+		Consumer<String> errorCallback = onError != null ? onError : error -> {};
 
 		Future<?> delegate = executor.submit(() -> {
 			try {
@@ -66,9 +69,9 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 				analyzer.analyze(
 					audioPath,
 					options,
-					onProgress,
-					onComplete,
-					onError,
+					progressCallback,
+					completeCallback,
+					errorCallback,
 					onSummary,
 					control
 				);
@@ -134,7 +137,7 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		shutdown();
 	}
 
-	private static String normalizeTaskId(String taskId) {
+	private static @Nullable String normalizeTaskId(@Nullable String taskId) {
 		if (taskId == null || taskId.isBlank()) {
 			return null;
 		}

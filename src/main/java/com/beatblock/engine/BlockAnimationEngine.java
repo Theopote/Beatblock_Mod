@@ -13,6 +13,7 @@ import java.util.Objects;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,7 +91,7 @@ public final class BlockAnimationEngine {
 	 * 例如 {@code com.beatblock.client.BeatBlockAuthoritativeWorldMutator}。
 	 */
 	@Deprecated
-	public void tick(double timelineTimeSeconds, World world) {
+	public void tick(double timelineTimeSeconds, @Nullable World world) {
 		tick(timelineTimeSeconds, world, WorldMutationSink.direct(blockControlExecutor, world));
 	}
 
@@ -422,7 +423,7 @@ public final class BlockAnimationEngine {
 		return h;
 	}
 
-	private static double readDouble(Object raw, double fallback) {
+	private static double readDouble(@Nullable Object raw, double fallback) {
 		if (raw instanceof Number n) return n.doubleValue();
 		if (raw == null) return fallback;
 		try {
@@ -432,7 +433,7 @@ public final class BlockAnimationEngine {
 		}
 	}
 
-	private static boolean readBoolean(Object raw, boolean fallback) {
+	private static boolean readBoolean(@Nullable Object raw, boolean fallback) {
 		if (raw instanceof Boolean b) return b;
 		if (raw instanceof Number n) return n.intValue() != 0;
 		if (raw == null) return fallback;

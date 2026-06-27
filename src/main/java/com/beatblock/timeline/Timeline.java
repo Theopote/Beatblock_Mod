@@ -304,7 +304,7 @@ public class Timeline {
 		return Collections.unmodifiableList(result);
 	}
 
-	public void markAnimationEventsDirty(String trackId) {
+	public void markAnimationEventsDirty(@Nullable String trackId) {
 		animationCachesDirty = true;
 	}
 
@@ -388,7 +388,7 @@ public class Timeline {
 		// 便捷 getter 已按时间排序返回；若需对 Clip 内 events 原地排序可扩展 Clip.sortEvents()
 	}
 
-	private AudioTrackData getAudioTrackData() {
+	private @Nullable AudioTrackData getAudioTrackData() {
 		Track t = getTrack(TRACK_ID_AUDIO);
 		return t != null ? t.getAudioData() : null;
 	}

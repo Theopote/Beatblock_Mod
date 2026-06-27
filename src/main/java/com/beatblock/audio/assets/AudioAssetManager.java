@@ -11,6 +11,8 @@ import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.jspecify.annotations.Nullable;
+
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,8 +44,8 @@ public final class AudioAssetManager {
 
 	private final List<AudioAsset> assets = new CopyOnWriteArrayList<>();
 	private final Map<String, Future<?>> analysisTasks = new ConcurrentHashMap<>();
-	private AudioAsset currentDragAsset;
-	private ConversionRequestHandler conversionRequestHandler;
+	private @Nullable AudioAsset currentDragAsset;
+	private @Nullable ConversionRequestHandler conversionRequestHandler;
 	private long nextQueueTicket = 1L;
 	private Supplier<BeatBlockContext> contextSource = BeatBlock::getContext;
 	private static final String[] SUPPORTED_AUDIO_EXTENSIONS = {"mp3", "wav", "ogg", "flac"};
@@ -72,15 +74,15 @@ public final class AudioAssetManager {
 	}
 
 	/** 当前正在作为拖拽源的资产（由 UI 设置，仅在一次拖拽操作期间有效）。 */
-	public AudioAsset getCurrentDragAsset() {
+	public @Nullable AudioAsset getCurrentDragAsset() {
 		return currentDragAsset;
 	}
 
-	public void setCurrentDragAsset(AudioAsset asset) {
+	public void setCurrentDragAsset(@Nullable AudioAsset asset) {
 		this.currentDragAsset = asset;
 	}
 
-	public AudioAsset findById(String id) {
+	public @Nullable AudioAsset findById(@Nullable String id) {
 		if (id == null || id.isBlank()) return null;
 		for (AudioAsset asset : assets) {
 			if (id.equals(asset.getId())) return asset;
@@ -88,7 +90,7 @@ public final class AudioAssetManager {
 		return null;
 	}
 
-	public void setConversionRequestHandler(ConversionRequestHandler conversionRequestHandler) {
+	public void setConversionRequestHandler(@Nullable ConversionRequestHandler conversionRequestHandler) {
 		this.conversionRequestHandler = conversionRequestHandler;
 	}
 
@@ -102,7 +104,7 @@ public final class AudioAssetManager {
 		return true;
 	}
 
-	public AudioAsset addFromPath(String pathStr) {
+	public @Nullable AudioAsset addFromPath(@Nullable String pathStr) {
 		if (pathStr == null || pathStr.isEmpty()) return null;
 		Path path = normalizeAudioPath(pathStr);
 		if (path == null) {
@@ -131,7 +133,7 @@ public final class AudioAssetManager {
 		return "MP3/WAV/OGG/FLAC";
 	}
 
-	private Path normalizeAudioPath(String raw) {
+	private @Nullable Path normalizeAudioPath(@Nullable String raw) {
 		if (raw == null) return null;
 		String v = raw.trim();
 		if (v.isEmpty()) return null;

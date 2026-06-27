@@ -1,5 +1,6 @@
 package com.beatblock.audio;
 
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +25,7 @@ public final class WavDecoder {
 	/**
 	 * 从文件路径加载 WAV，返回解码后的音频；失败返回 null。
 	 */
-	public static DecodedAudio loadFromPath(String path) {
+	public static @Nullable DecodedAudio loadFromPath(@Nullable String path) {
 		if (path == null || path.isEmpty()) return null;
 		Path p = Paths.get(path);
 		if (!Files.isRegularFile(p)) {
@@ -42,7 +43,7 @@ public final class WavDecoder {
 	/**
 	 * 从 InputStream 加载 WAV（例如资源流），返回解码后的音频；失败返回 null。
 	 */
-	public static DecodedAudio loadFromStream(InputStream in) {
+	public static @Nullable DecodedAudio loadFromStream(@Nullable InputStream in) {
 		if (in == null) return null;
 		try (AudioInputStream ais = AudioSystem.getAudioInputStream(in)) {
 			return decodeToMonoFloat(ais);
@@ -52,7 +53,7 @@ public final class WavDecoder {
 		}
 	}
 
-	private static DecodedAudio decodeToMonoFloat(AudioInputStream ais) throws IOException {
+	private static @Nullable DecodedAudio decodeToMonoFloat(AudioInputStream ais) throws IOException {
 		AudioFormat fmt = ais.getFormat();
 		int sampleRate = (int) fmt.getSampleRate();
 		int channels = fmt.getChannels();

@@ -22,28 +22,28 @@ import com.beatblock.timeline.command.CommandManager;
  */
 public final class BeatBlockContext {
 
-	private final AudioLoader audioLoader;
-	private final MusicPlayer musicPlayer;
-	private final StemMixer stemMixer;
-	private final StageManager stageManager;
-	private final Timeline timeline;
-	private final TimelineEditor timelineEditor;
-	private final BlockAnimationEngine blockAnimationEngine;
-	private final AudioAnalysisEngine audioAnalysisEngine;
-	private final AudioAnalysisService externalAudioAnalyzer;
-	private final AudioConversionService audioConversionService;
+	private final @Nullable AudioLoader audioLoader;
+	private final @Nullable MusicPlayer musicPlayer;
+	private final @Nullable StemMixer stemMixer;
+	private final @Nullable StageManager stageManager;
+	private final @Nullable Timeline timeline;
+	private final @Nullable TimelineEditor timelineEditor;
+	private final @Nullable BlockAnimationEngine blockAnimationEngine;
+	private final @Nullable AudioAnalysisEngine audioAnalysisEngine;
+	private final @Nullable AudioAnalysisService externalAudioAnalyzer;
+	private final @Nullable AudioConversionService audioConversionService;
 
 	public BeatBlockContext(
-		AudioLoader audioLoader,
-		MusicPlayer musicPlayer,
-		StemMixer stemMixer,
-		StageManager stageManager,
-		Timeline timeline,
-		TimelineEditor timelineEditor,
-		BlockAnimationEngine blockAnimationEngine,
-		AudioAnalysisEngine audioAnalysisEngine,
-		AudioAnalysisService externalAudioAnalyzer,
-		AudioConversionService audioConversionService
+		@Nullable AudioLoader audioLoader,
+		@Nullable MusicPlayer musicPlayer,
+		@Nullable StemMixer stemMixer,
+		@Nullable StageManager stageManager,
+		@Nullable Timeline timeline,
+		@Nullable TimelineEditor timelineEditor,
+		@Nullable BlockAnimationEngine blockAnimationEngine,
+		@Nullable AudioAnalysisEngine audioAnalysisEngine,
+		@Nullable AudioAnalysisService externalAudioAnalyzer,
+		@Nullable AudioConversionService audioConversionService
 	) {
 		this.audioLoader = audioLoader;
 		this.musicPlayer = musicPlayer;
@@ -61,47 +61,47 @@ public final class BeatBlockContext {
 		return new Builder();
 	}
 
-	public @NonNull AudioLoader audioLoader() {
+	public @Nullable AudioLoader audioLoader() {
 		return audioLoader;
 	}
 
-	public @NonNull MusicPlayer musicPlayer() {
+	public @Nullable MusicPlayer musicPlayer() {
 		return musicPlayer;
 	}
 
-	public @NonNull StemMixer stemMixer() {
+	public @Nullable StemMixer stemMixer() {
 		return stemMixer;
 	}
 
-	public @NonNull StageManager stageManager() {
+	public @Nullable StageManager stageManager() {
 		return stageManager;
 	}
 
-	public @NonNull Timeline timeline() {
+	public @Nullable Timeline timeline() {
 		return timeline;
 	}
 
-	public @NonNull TimelineEditor timelineEditor() {
+	public @Nullable TimelineEditor timelineEditor() {
 		return timelineEditor;
 	}
 
-	public @NonNull BlockAnimationEngine blockAnimationEngine() {
+	public @Nullable BlockAnimationEngine blockAnimationEngine() {
 		return blockAnimationEngine;
 	}
 
-	public @NonNull AudioAnalysisEngine audioAnalysisEngine() {
+	public @Nullable AudioAnalysisEngine audioAnalysisEngine() {
 		return audioAnalysisEngine;
 	}
 
-	public @NonNull AudioAnalysisService externalAudioAnalyzer() {
+	public @Nullable AudioAnalysisService externalAudioAnalyzer() {
 		return externalAudioAnalyzer;
 	}
 
-	public @NonNull AudioConversionService audioConversionService() {
+	public @Nullable AudioConversionService audioConversionService() {
 		return audioConversionService;
 	}
 
-	public @NonNull IAudioPlayer activeAudioPlayer() {
+	public @Nullable IAudioPlayer activeAudioPlayer() {
 		if (stemMixer != null && stemMixer.hasStems()) {
 			return stemMixer;
 		}
@@ -117,16 +117,16 @@ public final class BeatBlockContext {
 	}
 
 	public static final class Builder {
-		private AudioLoader audioLoader;
-		private MusicPlayer musicPlayer;
-		private StemMixer stemMixer;
-		private StageManager stageManager;
-		private Timeline timeline;
-		private TimelineEditor timelineEditor;
-		private BlockAnimationEngine blockAnimationEngine;
-		private AudioAnalysisEngine audioAnalysisEngine;
-		private AudioAnalysisService externalAudioAnalyzer;
-		private AudioConversionService audioConversionService;
+		private @Nullable AudioLoader audioLoader;
+		private @Nullable MusicPlayer musicPlayer;
+		private @Nullable StemMixer stemMixer;
+		private @Nullable StageManager stageManager;
+		private @Nullable Timeline timeline;
+		private @Nullable TimelineEditor timelineEditor;
+		private @Nullable BlockAnimationEngine blockAnimationEngine;
+		private @Nullable AudioAnalysisEngine audioAnalysisEngine;
+		private @Nullable AudioAnalysisService externalAudioAnalyzer;
+		private @Nullable AudioConversionService audioConversionService;
 
 		public Builder audioLoader(AudioLoader audioLoader) {
 			this.audioLoader = audioLoader;

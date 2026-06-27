@@ -2,6 +2,8 @@ package com.beatblock.timeline.binding;
 
 import com.beatblock.timeline.TimelineAnimationActionMode;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -93,7 +95,7 @@ public final class AnimationBindingRule {
 		return out;
 	}
 
-	public static AnimationBindingRule fromMap(Map<String, Object> raw) {
+	public static @Nullable AnimationBindingRule fromMap(@Nullable Map<String, Object> raw) {
 		if (raw == null) return null;
 		Builder b = builder();
 		b.id(stringValue(raw.get("id"), ""));
@@ -122,7 +124,7 @@ public final class AnimationBindingRule {
 		return b.build();
 	}
 
-	private static String normalizeAnimationTypeId(String raw) {
+	private static String normalizeAnimationTypeId(@Nullable String raw) {
 		String v = safe(raw, "Pulse").trim();
 		if (v.isEmpty()) return "Pulse";
 		String u = v.toUpperCase(Locale.ROOT);
@@ -145,19 +147,19 @@ public final class AnimationBindingRule {
 		return Math.max(0f, Math.min(1f, value));
 	}
 
-	private static String safe(String value, String fallback) {
+	private static String safe(@Nullable String value, String fallback) {
 		if (value == null) return fallback;
 		String trimmed = value.trim();
 		return trimmed.isEmpty() ? fallback : trimmed;
 	}
 
-	private static String stringValue(Object value, String fallback) {
+	private static String stringValue(@Nullable Object value, String fallback) {
 		if (value == null) return fallback;
 		String s = String.valueOf(value).trim();
 		return s.isEmpty() ? fallback : s;
 	}
 
-	private static boolean booleanValue(Object value, boolean fallback) {
+	private static boolean booleanValue(@Nullable Object value, boolean fallback) {
 		if (value instanceof Boolean b) return b;
 		if (value instanceof Number n) return n.intValue() != 0;
 		if (value == null) return fallback;
@@ -167,7 +169,7 @@ public final class AnimationBindingRule {
 		return fallback;
 	}
 
-	private static double numberValue(Object value, double fallback) {
+	private static double numberValue(@Nullable Object value, double fallback) {
 		if (value instanceof Number n) return n.doubleValue();
 		if (value == null) return fallback;
 		try {
@@ -182,13 +184,13 @@ public final class AnimationBindingRule {
 	}
 
 	public static final class Builder {
-		private String id;
-		private String name;
+		private @Nullable String id;
+		private @Nullable String name;
 		private boolean enabled = true;
-		private String sourceFeatureKey;
+		private @Nullable String sourceFeatureKey;
 		private String animationTypeId = "Pulse";
 		private TimelineAnimationActionMode actionMode = TimelineAnimationActionMode.ANIMATE;
-		private String targetObjectId;
+		private @Nullable String targetObjectId;
 		private float energyThreshold = 0.2f;
 		private float energyScale = 1.0f;
 		private double durationSeconds = 0.4;
@@ -199,13 +201,13 @@ public final class AnimationBindingRule {
 		private String sectionFilter = "";
 		private Map<String, Object> extraParams = Map.of();
 
-		public Builder id(String value) { this.id = value; return this; }
-		public Builder name(String value) { this.name = value; return this; }
+		public Builder id(@Nullable String value) { this.id = value; return this; }
+		public Builder name(@Nullable String value) { this.name = value; return this; }
 		public Builder enabled(boolean value) { this.enabled = value; return this; }
-		public Builder sourceFeatureKey(String value) { this.sourceFeatureKey = value; return this; }
-		public Builder animationTypeId(String value) { this.animationTypeId = value; return this; }
-		public Builder actionMode(TimelineAnimationActionMode value) { this.actionMode = value; return this; }
-		public Builder targetObjectId(String value) { this.targetObjectId = value; return this; }
+		public Builder sourceFeatureKey(@Nullable String value) { this.sourceFeatureKey = value; return this; }
+		public Builder animationTypeId(@Nullable String value) { this.animationTypeId = value; return this; }
+		public Builder actionMode(@Nullable TimelineAnimationActionMode value) { this.actionMode = value; return this; }
+		public Builder targetObjectId(@Nullable String value) { this.targetObjectId = value; return this; }
 		public Builder energyThreshold(float value) { this.energyThreshold = value; return this; }
 		public Builder energyScale(float value) { this.energyScale = value; return this; }
 		public Builder durationSeconds(double value) { this.durationSeconds = value; return this; }

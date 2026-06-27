@@ -4,6 +4,7 @@ import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.audio.beatmap.BeatEvent;
 import com.beatblock.audio.beatmap.MusicSection;
 import com.beatblock.timeline.*;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,8 +28,8 @@ public final class AudioAnalysisEngine {
 	private final EnergyAnalyzer energyAnalyzer = new EnergyAnalyzer();
 	private final BeatDetector beatDetector = new BeatDetector();
 
-	private AudioBuffer lastBuffer;
-	private AudioFeatureTimeline lastFeatureTimeline;
+	private @Nullable AudioBuffer lastBuffer;
+	private @Nullable AudioFeatureTimeline lastFeatureTimeline;
 
 	/**
 	 * 会话级缓存：key = "绝对路径:mtime(ms)"，避免同一文件在一个 JVM 生命周期内重复解码分析。
@@ -39,7 +40,7 @@ public final class AudioAnalysisEngine {
 	 * 从文件路径加载并完整分析，得到 AudioFeatureTimeline；失败返回 null。
 	 * 命中会话缓存时直接返回缓存结果，无需重新解码。
 	 */
-	public AudioFeatureTimeline analyze(Path path) {
+	public @Nullable AudioFeatureTimeline analyze(@Nullable Path path) {
 		if (path == null) return null;
 		String cacheKey = buildFeatureCacheKey(path);
 		if (cacheKey != null) {
@@ -61,7 +62,10 @@ public final class AudioAnalysisEngine {
 	/**
 	 * 构建缓存 key（绝对路径 + ":" + mtime毫秒）。文件不存在或IO异常时返回 null。
 	 */
-	private String buildFeatureCacheKey(Path path) {
+	private @Nullable String buildFeatureCacheKey(@Nullable Path path) {
+		if (path == null) {
+			return null;
+		}
 		try {
 			Path abs = path.toAbsolutePath().normalize();
 			long mtime = Files.getLastModifiedTime(abs).toMillis();
@@ -74,7 +78,7 @@ public final class AudioAnalysisEngine {
 	/**
 	 * 从已有 AudioBuffer 做完整分析（波形、FFT 频段、能量、节拍、BPM、BeatGrid）。
 	 */
-	public AudioFeatureTimeline analyzeBuffer(AudioBuffer buffer) {
+	public @Nullable AudioFeatureTimeline analyzeBuffer(@Nullable AudioBuffer buffer) {
 		if (buffer == null || buffer.getLength() < FFTAnalyzer.FFT_SIZE) {
 			lastBuffer = null;
 			lastFeatureTimeline = null;
@@ -284,16 +288,16 @@ public final class AudioAnalysisEngine {
 		};
 	}
 
-	public AudioFeatureTimeline getLastFeatureTimeline() {
+	public @Nullable AudioFeatureTimeline getLastFeatureTimeline() {
 		return lastFeatureTimeline;
 	}
 
 	/** 绑定最近特征时间线（测试或从外部缓存回放）。 */
-	public void bindLastFeatureTimeline(AudioFeatureTimeline timeline) {
+	public void bindLastFeatureTimeline(@Nullable AudioFeatureTimeline timeline) {
 		this.lastFeatureTimeline = timeline;
 	}
 
-	public AudioBuffer getLastBuffer() {
+	public @Nullable AudioBuffer getLastBuffer() {
 		return lastBuffer;
 	}
 }

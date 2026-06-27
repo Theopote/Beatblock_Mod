@@ -34,14 +34,14 @@ public final class TimelineEditor {
 	private final TimelineRenderer renderer;
 	private final TimelineInteraction interactionSystem;
 	private final CommandManager commandManager;
-	private final MusicPlayer musicPlayer;
+	private final @Nullable MusicPlayer musicPlayer;
 	private final TimelineToolbarState toolbarState = new TimelineToolbarState();
 	private final TimelineTrackListState trackListState = new TimelineTrackListState();
 	private final TimelineUiStateStore uiStateStore = new TimelineUiStateStore();
 	private final TimelineLayout frameLayout = new TimelineLayout();
 	private boolean frameLayoutPrepared;
 	private boolean trackAreaContextAttached;
-	private final IAudioPlayer audioPlayer;
+	private final @Nullable IAudioPlayer audioPlayer;
 
 	/** 供 TimelinePanel 绘制贯通竖线：屏幕 X、标尺顶 Y、轨道内容区底 Y（每帧由 render 更新） */
 	private float cachedDividerScreenX;

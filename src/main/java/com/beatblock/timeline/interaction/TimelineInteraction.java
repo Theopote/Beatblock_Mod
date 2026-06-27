@@ -6,6 +6,7 @@ import com.beatblock.timeline.camera.CameraPathMetadata;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.IAudioPlayer;
 import com.beatblock.timeline.Timeline;
+import org.jspecify.annotations.Nullable;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
@@ -33,9 +34,9 @@ import static com.beatblock.timeline.interaction.TimelineInteractiveTrackSlots.b
  */
 public final class TimelineInteraction implements TimelineInteractionPopupHost {
 
-	private IAudioPlayer audioPlayer;
-	private MusicPlayer musicPlayer;
-	private TimelineEditor timelineEditor;
+	private @Nullable IAudioPlayer audioPlayer;
+	private @Nullable MusicPlayer musicPlayer;
+	private @Nullable TimelineEditor timelineEditor;
 	private final List<TimelineInteractionClipboard.ClipboardEvent> clipboardEvents = new ArrayList<>();
 	private final TimelineInteractionPopupState popupState = new TimelineInteractionPopupState();
 
@@ -46,15 +47,15 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 
 	private TimelineCameraClipResizeHandler.Session cameraResizeSession;
 
-	public void setAudioPlayer(IAudioPlayer audioPlayer) {
+	public void setAudioPlayer(@Nullable IAudioPlayer audioPlayer) {
 		this.audioPlayer = audioPlayer;
 	}
 
-	public void setMusicPlayer(MusicPlayer musicPlayer) {
+	public void setMusicPlayer(@Nullable MusicPlayer musicPlayer) {
 		this.musicPlayer = musicPlayer;
 	}
 
-	public void bindTimelineEditor(TimelineEditor timelineEditor) {
+	public void bindTimelineEditor(@Nullable TimelineEditor timelineEditor) {
 		this.timelineEditor = timelineEditor;
 	}
 
