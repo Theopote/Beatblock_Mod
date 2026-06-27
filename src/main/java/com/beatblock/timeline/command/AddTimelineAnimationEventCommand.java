@@ -9,6 +9,7 @@ import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 
@@ -20,8 +21,8 @@ public final class AddTimelineAnimationEventCommand implements Command {
 	private final Timeline timeline;
 	private final String trackId;
 	private final TimelineAnimationEvent animationEvent;
-	private String clipId;
-	private String eventId;
+	private @Nullable String clipId;
+	private @Nullable String eventId;
 	private boolean done;
 
 	public AddTimelineAnimationEventCommand(

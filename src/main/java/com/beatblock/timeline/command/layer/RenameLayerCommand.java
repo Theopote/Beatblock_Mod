@@ -3,13 +3,15 @@ package com.beatblock.timeline.command.layer;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 
+import org.jspecify.annotations.Nullable;
+
 /** 重命名图层（名称不可与其他图层重复）。 */
 public final class RenameLayerCommand implements com.beatblock.timeline.command.Command {
 
 	private final BuildLayerManager manager;
 	private final String layerId;
 	private final String newName;
-	private String previousName;
+	private @Nullable String previousName;
 
 	public RenameLayerCommand(BuildLayerManager manager, String layerId, String newName) {
 		this.manager = manager;

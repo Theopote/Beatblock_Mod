@@ -11,6 +11,8 @@ import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,10 +29,10 @@ public final class BindLayerToTrackCommand implements com.beatblock.timeline.com
 	private final double clipStartSeconds;
 	private final double clipDurationSeconds;
 
-	private String createdClipId;
-	private String createdEventId;
-	private String previousBoundClipId;
-	private LayerVisibilityState previousState;
+	private @Nullable String createdClipId;
+	private @Nullable String createdEventId;
+	private @Nullable String previousBoundClipId;
+	private @Nullable LayerVisibilityState previousState;
 
 	public BindLayerToTrackCommand(
 		Timeline timeline,
@@ -119,7 +121,7 @@ public final class BindLayerToTrackCommand implements com.beatblock.timeline.com
 		createdEventId = null;
 	}
 
-	public String getCreatedClipId() {
+	public @Nullable String getCreatedClipId() {
 		return createdClipId;
 	}
 }

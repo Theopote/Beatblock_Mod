@@ -3,6 +3,8 @@ package com.beatblock.timeline.command.layer;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
+import org.jspecify.annotations.Nullable;
+
 import net.minecraft.world.World;
 
 /** 切换图层 FREE_VISIBLE ↔ FREE_HIDDEN。 */
@@ -10,7 +12,7 @@ public final class ToggleLayerVisibilityCommand implements com.beatblock.timelin
 
 	private final BuildLayerManager manager;
 	private final String layerId;
-	private LayerVisibilityState previousState;
+	private @Nullable LayerVisibilityState previousState;
 
 	public ToggleLayerVisibilityCommand(BuildLayerManager manager, String layerId) {
 		this.manager = manager;

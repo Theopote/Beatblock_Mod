@@ -3,6 +3,8 @@ package com.beatblock.timeline.command.layer;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
+import org.jspecify.annotations.Nullable;
+
 import net.minecraft.world.World;
 
 /**
@@ -19,8 +21,8 @@ public final class DeleteLayerCommand implements com.beatblock.timeline.command.
 
 	private final BuildLayerManager manager;
 	private final String layerId;
-	private BuildLayer snapshot;
-	private LayerVisibilityState previousState;
+	private @Nullable BuildLayer snapshot;
+	private @Nullable LayerVisibilityState previousState;
 
 	public DeleteLayerCommand(BuildLayerManager manager, String layerId) {
 		this.manager = manager;
