@@ -59,8 +59,8 @@ public final class RhythmDropPanelPresenter {
 		Timeline tl = timeline.get();
 		double[] beats = tl != null ? ReferenceBeatResolver.resolveBeatTimesSeconds(tl) : new double[0];
 		String beatDesc = beats.length > 0
-			? ReferenceBeatResolver.describePrimaryRhythmKey(tl) + "（" + beats.length + " 拍）"
-			: "无特征轨节拍，将按 BPM 固定间隔";
+			? BBTexts.get("beatblock.message.beats_info", ReferenceBeatResolver.describePrimaryRhythmKey(tl), beats.length)
+			: BBTexts.get("beatblock.message.no_feature_beats");
 		return new ViewState(
 			count,
 			playhead,

@@ -863,6 +863,38 @@ EN_OVERRIDES: dict[str, str] = {
     "beatblock.event.badge.frustum_gating": "Frustum Gating: ON\nPauses STEP progression when target group is outside camera view.",
     "beatblock.event.badge.edge_priority": "Edge Priority: %.0f%%\nPrioritizes silhouette blocks early in progression.",
 
+    "beatblock.common.brand": "BeatBlock",
+    "beatblock.common.coord_x": "X",
+    "beatblock.common.coord_y": "Y",
+    "beatblock.common.coord_z": "Z",
+    "beatblock.common.blocks_count": "%d blocks",
+
+    "beatblock.tool.corner_a": "  A: %s",
+    "beatblock.tool.corner_b": "  B: %s",
+    "beatblock.tool.stage_object_entry": "%s  [%s]  %d blocks",
+    "beatblock.tool.source_type": "(%s)",
+
+    "beatblock.marker.execution_summary": "%s | %s | mutations=%d | %dms ago",
+    "beatblock.marker.detail": "detail: %s",
+    "beatblock.marker.target": "target: %s",
+    "beatblock.marker.event_id": "event: %s",
+
+    "beatblock.event.runtime_status": "Runtime: %s | %s | mutations=%d | %dms ago",
+    "beatblock.event.runtime_detail": "detail: %s",
+
+    "beatblock.camera.ease.smooth": "SMOOTH",
+    "beatblock.camera.ease.linear": "LINEAR",
+
+    "beatblock.audio.splitter.tooltip": "Drag to resize left/right panels",
+    "beatblock.audio.expand_detail.tooltip": "Expand detail panel",
+    "beatblock.audio.splitter_ratio": "%.0f : %.0f",
+
+    "beatblock.timeline.binding.template_no_rules": "Template %s produced no rules",
+    "beatblock.timeline.binding.template_replaced": "Template %s replaced all rules: %d",
+    "beatblock.timeline.binding.template_appended": "Template %s appended: +%d, skipped %d",
+    "beatblock.timeline.binding.apply_skipped": "%s skipped: timeline unavailable",
+    "beatblock.timeline.binding.apply_generated": "%s generated %d events",
+
     "beatblock.about.tagline": "Music-driven Minecraft block animation engine",
     "beatblock.about.description": "Import music, analyze beats and frequency bands, and choreograph block animations, camera moves, and particles on the timeline for performances that dance with the music.",
     "beatblock.about.powered_by": "Powered by Fabric and ImGui.",

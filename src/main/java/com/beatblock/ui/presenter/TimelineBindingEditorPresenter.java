@@ -208,17 +208,18 @@ public final class TimelineBindingEditorPresenter {
 
 	public TemplateOutcome replaceWithTemplate(Timeline current, List<AnimationBindingRule> rules, int templateIndex) {
 		if (current == null) {
-			return new TemplateOutcome("Timeline unavailable", false, rules);
+			return new TemplateOutcome(BBTexts.get("beatblock.message.timeline_unavailable"), false, rules);
 		}
 		int idx = clampTemplateIndex(templateIndex);
 		List<AnimationBindingRule> templated = new ArrayList<>(
 			AnimationBindingEngine.createTemplateRules(current, TEMPLATE_VALUES[idx]));
 		if (templated.isEmpty()) {
-			return new TemplateOutcome("Template " + templateLabelAt(idx) + " produced no rules", false, rules);
+			return new TemplateOutcome(
+				BBTexts.get("beatblock.timeline.binding.template_no_rules", templateLabelAt(idx)), false, rules);
 		}
 		AnimationBindingEngine.saveRules(current, templated);
 		return new TemplateOutcome(
-			"Template " + templateLabelAt(idx) + " replaced all rules: " + templated.size(),
+			BBTexts.get("beatblock.timeline.binding.template_replaced", templateLabelAt(idx), templated.size()),
 			true,
 			templated
 		);
@@ -226,18 +227,20 @@ public final class TimelineBindingEditorPresenter {
 
 	public TemplateOutcome appendTemplate(Timeline current, List<AnimationBindingRule> rules, int templateIndex) {
 		if (current == null) {
-			return new TemplateOutcome("Timeline unavailable", false, rules);
+			return new TemplateOutcome(BBTexts.get("beatblock.message.timeline_unavailable"), false, rules);
 		}
 		int idx = clampTemplateIndex(templateIndex);
 		List<AnimationBindingRule> templated = new ArrayList<>(
 			AnimationBindingEngine.createTemplateRules(current, TEMPLATE_VALUES[idx]));
 		if (templated.isEmpty()) {
-			return new TemplateOutcome("Template " + templateLabelAt(idx) + " produced no rules", false, rules);
+			return new TemplateOutcome(
+				BBTexts.get("beatblock.timeline.binding.template_no_rules", templateLabelAt(idx)), false, rules);
 		}
 		TemplateMergeResult merge = mergeTemplateRules(rules, templated);
 		AnimationBindingEngine.saveRules(current, merge.merged());
 		return new TemplateOutcome(
-			"Template " + templateLabelAt(idx) + " appended: +" + merge.added() + ", skipped " + merge.skipped(),
+			BBTexts.get("beatblock.timeline.binding.template_appended",
+				templateLabelAt(idx), merge.added(), merge.skipped()),
 			merge.added() > 0,
 			merge.merged()
 		);
@@ -261,11 +264,11 @@ public final class TimelineBindingEditorPresenter {
 	}
 
 	public ApplyTrackOutcome applyToBlockTrack() {
-		return applyRulesToTrack(TimelineTrackMeta.ROW_ANIM_BLOCK, "Apply To Block Track");
+		return applyRulesToTrack(TimelineTrackMeta.ROW_ANIM_BLOCK, BBTexts.get("beatblock.timeline.binding.apply_block"));
 	}
 
 	public ApplyTrackOutcome applyToAutoTrack() {
-		return applyRulesToTrack(TimelineTrackMeta.ROW_ANIM_AUTO, "Apply To Auto Track");
+		return applyRulesToTrack(TimelineTrackMeta.ROW_ANIM_AUTO, BBTexts.get("beatblock.timeline.binding.apply_auto"));
 	}
 
 	public static AnimationBindingRule buildUpdatedRule(AnimationBindingRule rule, BindingRuleEditRequest request) {
@@ -385,14 +388,15 @@ public final class TimelineBindingEditorPresenter {
 	private ApplyTrackOutcome applyRulesToTrack(int trackRowIndex, String labelPrefix) {
 		Timeline current = timeline.get();
 		if (current == null) {
-			return new ApplyTrackOutcome(labelPrefix + " skipped: timeline unavailable", false, -1);
+			return new ApplyTrackOutcome(BBTexts.get("beatblock.timeline.binding.apply_skipped", labelPrefix), false, -1);
 		}
 		int count = AnimationBindingEngine.applyRules(current, trackRowIndex, false);
 		TimelineEditor editor = timelineEditor.get();
 		if (editor != null) {
 			editor.syncClockDuration();
 		}
-		return new ApplyTrackOutcome(labelPrefix + " generated " + count + " events", count > 0, count);
+		return new ApplyTrackOutcome(
+			BBTexts.get("beatblock.timeline.binding.apply_generated", labelPrefix, count), count > 0, count);
 	}
 
 	private AnimationBindingRule buildAddedRule(

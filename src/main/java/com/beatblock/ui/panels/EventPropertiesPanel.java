@@ -423,14 +423,13 @@ public class EventPropertiesPanel {
 		if (report == null) return;
 
 		long ageMs = Math.max(0L, System.currentTimeMillis() - report.timestampMs());
-		ImGui.textDisabled(String.format(Locale.ROOT,
-			"Runtime: %s | %s | mutations=%d | %dms ago",
+		ImGui.textDisabled(BBTexts.get("beatblock.event.runtime_status",
 			report.actionMode().name(),
 			report.status(),
 			report.mutationCount(),
 			ageMs));
 		if (report.detail() != null && !report.detail().isBlank()) {
-			ImGui.textDisabled("detail: " + report.detail());
+			ImGui.textDisabled(BBTexts.get("beatblock.event.runtime_detail", report.detail()));
 		}
 	}
 

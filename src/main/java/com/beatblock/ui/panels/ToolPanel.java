@@ -317,8 +317,8 @@ public class ToolPanel {
 
 			ImGui.text(BBTexts.get("beatblock.tool.corner_points"));
 			ToolPanelPresenter.CornerState corners = presenter.currentCorners();
-			ImGui.textDisabled("  A: " + ToolPanelPresenter.formatPos(corners.posA()));
-			ImGui.textDisabled("  B: " + ToolPanelPresenter.formatPos(corners.posB()));
+			ImGui.textDisabled(BBTexts.get("beatblock.tool.corner_a", ToolPanelPresenter.formatPos(corners.posA())));
+			ImGui.textDisabled(BBTexts.get("beatblock.tool.corner_b", ToolPanelPresenter.formatPos(corners.posB())));
 
 			if (ImGui.button(BBTexts.get("beatblock.tool.fill_from_selection") + "##stageFromSel", -1f, 0f)) {
 				applyStageObjectMessage(presenter.fillCornersFromSelection().result());
@@ -383,10 +383,10 @@ public class ToolPanel {
 		String removeId = null;
 		if (ImGui.beginChild("##StageObjectList", 0, Math.min(objects.size() * 22f + 8f, 160f), true)) {
 			for (var obj : objects) {
-				String label = obj.name() + "  [" + obj.id() + "]  " + obj.blockCount() + " blocks";
+				String label = BBTexts.get("beatblock.tool.stage_object_entry", obj.name(), obj.id(), obj.blockCount());
 				ImGui.text(label);
 				ImGui.sameLine();
-				ImGui.textDisabled("(" + obj.sourceType() + ")");
+				ImGui.textDisabled(BBTexts.get("beatblock.tool.source_type", obj.sourceType()));
 				ImGui.sameLine();
 				if (ImGui.smallButton(BBTexts.get("beatblock.common.delete") + "##stageObjDel_" + obj.id())) {
 					removeId = obj.id();

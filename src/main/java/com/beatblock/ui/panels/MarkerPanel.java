@@ -16,8 +16,6 @@ import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 
-import java.util.Locale;
-
 /**
  * 标记与调试面板：时间线 Marker 的列表、编辑、跳转、循环区设置；以及时间线动作执行状态调试信息。
  * 从 ToolPanel 拆分而来，独占左侧下方停靠槽。
@@ -67,20 +65,19 @@ public class MarkerPanel {
 			ImGui.textDisabled(BBTexts.get("beatblock.marker.no_execution_record"));
 		} else {
 			long ageMs = Math.max(0L, System.currentTimeMillis() - report.timestampMs());
-			ImGui.textDisabled(String.format(Locale.ROOT,
-				"%s | %s | mutations=%d | %dms ago",
+			ImGui.textDisabled(BBTexts.get("beatblock.marker.execution_summary",
 				report.actionMode().name(),
 				report.status(),
 				report.mutationCount(),
 				ageMs));
 			if (report.detail() != null && !report.detail().isBlank()) {
-				ImGui.textWrapped("detail: " + report.detail());
+				ImGui.textWrapped(BBTexts.get("beatblock.marker.detail", report.detail()));
 			}
 			if (report.targetObjectId() != null && !report.targetObjectId().isBlank()) {
-				ImGui.textDisabled("target: " + report.targetObjectId());
+				ImGui.textDisabled(BBTexts.get("beatblock.marker.target", report.targetObjectId()));
 			}
 			if (report.eventId() != null && !report.eventId().isBlank()) {
-				ImGui.textDisabled("event: " + report.eventId());
+				ImGui.textDisabled(BBTexts.get("beatblock.marker.event_id", report.eventId()));
 			}
 		}
 	}

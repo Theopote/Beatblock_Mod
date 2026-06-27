@@ -2,6 +2,7 @@ package com.beatblock.ui.panels.audioanalysis;
 
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
 import imgui.ImGui;
@@ -69,7 +70,7 @@ public final class AudioAnalysisPanelRenderer {
 				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip("左右拖动调整比例");
+				ImGui.setTooltip(BBTexts.get("beatblock.audio.splitter.tooltip"));
 			}
 			if (ImGui.isItemActive()) {
 				float deltaRatio = ImGui.getIO().getMouseDeltaX() / Math.max(1f, totalW);
@@ -79,7 +80,7 @@ public final class AudioAnalysisPanelRenderer {
 					uiState.detailRatio() - deltaRatio, minRatio, maxRatio));
 				float listPercent = (1f - uiState.detailRatio()) * 100f;
 				float detailPercent = uiState.detailRatio() * 100f;
-				ImGui.setTooltip(String.format("%.0f : %.0f", listPercent, detailPercent));
+				ImGui.setTooltip(BBTexts.get("beatblock.audio.splitter_ratio", listPercent, detailPercent));
 			}
 
 			ImGui.sameLine(0f, 0f);
@@ -98,7 +99,7 @@ public final class AudioAnalysisPanelRenderer {
 				uiState.setDetailExpanded(true);
 			}
 			IconButtonStyle.popBeatBlockIconButton();
-			if (ImGui.isItemHovered()) ImGui.setTooltip("展开详情面板");
+			if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.audio.expand_detail.tooltip"));
 		}
 
 		ImGui.separator();

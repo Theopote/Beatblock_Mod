@@ -245,7 +245,6 @@
 
   "beatblock.camera.title": "摄像机属性",
   "beatblock.camera.track_locked": "当前轨道已锁定，属性只读。",
-  "beatblock.camera.track_locked": "当前轨道已锁定，属性只读。",
   "beatblock.camera.clip_id": "片段 ID",
   "beatblock.camera.show_path": "显示路径",
   "beatblock.camera.event_type": "事件类型",
@@ -845,5 +844,37 @@
   "beatblock.event.badge.dispatch_burst": "Dispatch: BURST\nTriggers the group animation immediately at event time.",
   "beatblock.event.badge.inherit_spatial": "Inherit group spatial: ON\nspatialMode/sequentialDelaySeconds are resolved from target group when not overridden.",
   "beatblock.event.badge.frustum_gating": "Frustum Gating: ON\nPauses STEP progression when target group is outside camera view.",
-  "beatblock.event.badge.edge_priority": "Edge Priority: %.0f%%\nPrioritizes silhouette blocks early in progression."
+  "beatblock.event.badge.edge_priority": "Edge Priority: %.0f%%\nPrioritizes silhouette blocks early in progression.",
+
+  "beatblock.common.brand": "BeatBlock",
+  "beatblock.common.coord_x": "X",
+  "beatblock.common.coord_y": "Y",
+  "beatblock.common.coord_z": "Z",
+  "beatblock.common.blocks_count": "%d 个方块",
+
+  "beatblock.tool.corner_a": "  A: %s",
+  "beatblock.tool.corner_b": "  B: %s",
+  "beatblock.tool.stage_object_entry": "%s  [%s]  %d 个方块",
+  "beatblock.tool.source_type": "(%s)",
+
+  "beatblock.marker.execution_summary": "%s | %s | mutations=%d | %dms ago",
+  "beatblock.marker.detail": "detail: %s",
+  "beatblock.marker.target": "target: %s",
+  "beatblock.marker.event_id": "event: %s",
+
+  "beatblock.event.runtime_status": "Runtime: %s | %s | mutations=%d | %dms ago",
+  "beatblock.event.runtime_detail": "detail: %s",
+
+  "beatblock.camera.ease.smooth": "SMOOTH",
+  "beatblock.camera.ease.linear": "LINEAR",
+
+  "beatblock.audio.splitter.tooltip": "左右拖动调整比例",
+  "beatblock.audio.expand_detail.tooltip": "展开详情面板",
+  "beatblock.audio.splitter_ratio": "%.0f : %.0f",
+
+  "beatblock.timeline.binding.template_no_rules": "Template %s produced no rules",
+  "beatblock.timeline.binding.template_replaced": "Template %s replaced all rules: %d",
+  "beatblock.timeline.binding.template_appended": "Template %s appended: +%d, skipped %d",
+  "beatblock.timeline.binding.apply_skipped": "%s skipped: timeline unavailable",
+  "beatblock.timeline.binding.apply_generated": "%s generated %d events"
 }

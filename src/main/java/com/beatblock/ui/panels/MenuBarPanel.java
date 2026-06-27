@@ -241,7 +241,7 @@ public class MenuBarPanel {
 		if (!showAboutDialog) return;
 		ImGui.setNextWindowSize(360, 0);
 		if (ImGui.begin(BBTexts.get("beatblock.dialog.about"), ImGuiWindowFlags.AlwaysAutoResize)) {
-			ImGui.text("BeatBlock");
+			ImGui.text(BBTexts.get("beatblock.common.brand"));
 			ImGui.text(BBTexts.get("beatblock.about.tagline"));
 			ImGui.spacing();
 			ImGui.textWrapped(BBTexts.get("beatblock.about.description"));

@@ -141,7 +141,7 @@ public class CameraPropertiesPanel {
 	}
 
 	private void renderEventSummary(EventPropertiesRef ref, Timeline timeline) {
-		ImGui.textDisabled("Track");
+		ImGui.textDisabled(BBTexts.get("beatblock.event.track"));
 		ImGui.sameLine();
 		ImGui.text(ref.track().getName().isBlank() ? ref.track().getId() : ref.track().getName());
 		if (ref.event() == null) {
@@ -451,21 +451,22 @@ public class CameraPropertiesPanel {
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText(BBTexts.get("beatblock.camera.time") + "##camKfTime", timeBuffer);
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("X##camKfX", camXBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.common.coord_x") + "##camKfX", camXBuffer);
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("Y##camKfY", camYBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.common.coord_y") + "##camKfY", camYBuffer);
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("Z##camKfZ", camZBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.common.coord_z") + "##camKfZ", camZBuffer);
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("Yaw (°)##camKfYaw", camYawBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.camera.param.yaw") + "##camKfYaw", camYawBuffer);
 		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText("Pitch (°)##camKfPitch", camPitchBuffer);
+		ImGui.inputText(BBTexts.get("beatblock.camera.param.pitch") + "##camKfPitch", camPitchBuffer);
 		ImGui.setNextItemWidth(-1f);
-		String[] easeOptions = { "SMOOTH", "LINEAR" };
+		String[] easeOptions = { BBTexts.get("beatblock.camera.ease.smooth"), BBTexts.get("beatblock.camera.ease.linear") };
+		String[] easeValues = { "SMOOTH", "LINEAR" };
 		int easeIdx = "LINEAR".equalsIgnoreCase(valueOf(camEaseBuffer).trim()) ? 1 : 0;
 		ImInt easeInt = new ImInt(easeIdx);
 		if (ImGui.combo(BBTexts.get("beatblock.camera.ease") + "##camKfEase", easeInt, easeOptions)) {
-			camEaseBuffer.set(easeOptions[easeInt.get()]);
+			camEaseBuffer.set(easeValues[easeInt.get()]);
 		}
 		if (validationError != null && !validationError.isBlank()) {
 			ImGui.spacing();
