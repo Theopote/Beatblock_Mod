@@ -401,12 +401,23 @@ public class Timeline {
 			for (TimelineEvent e : c.getEvents()) {
 				if (e.getType() != EventType.ANIMATION) continue;
 				Map<String, Object> p = e.getParameters();
-				Object durObj = p.get("durationSeconds");
-				double dur = durObj instanceof Number ? ((Number) durObj).doubleValue() : Math.max(0.01, c.getEndTimeSeconds() - c.getStartTimeSeconds());
-				String animId = (String) p.getOrDefault("animationType", "bounce");
-				String target = (String) p.getOrDefault("targetObject", "");
-				float energy = p.get("energy") instanceof Number ? ((Number) p.get("energy")).floatValue() : 1f;
-				out.add(new TimelineAnimationEvent(e.getId(), e.getTimeSeconds(), dur, animId, target, energy, new HashMap<>(p)));
+				AnimationEventParams parsed = AnimationEventParams.fromParameterMap(p);
+				double dur = p.containsKey("durationSeconds")
+					? parsed.durationSeconds()
+					: Math.max(0.01, c.getEndTimeSeconds() - c.getStartTimeSeconds());
+				String animId = parsed.animationType();
+				if (animId.isEmpty()) {
+					animId = "bounce";
+				}
+				out.add(new TimelineAnimationEvent(
+					e.getId(),
+					e.getTimeSeconds(),
+					dur,
+					animId,
+					parsed.targetObject(),
+					parsed.energy(),
+					parsed.toParameterMap()
+				));
 			}
 		out.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
 	}
@@ -417,17 +428,7 @@ public class Timeline {
 		if (t == null) return;
 		Clip clip = TimelineOperations.addClip(t, e.getTimeSeconds(), e.getEndTimeSeconds());
 		if (clip == null) return;
-		Map<String, Object> params = new HashMap<>();
-		params.put("actionMode", e.getActionMode().name());
-		params.put("mode", e.getActionMode().name());
-		params.put("animationType", e.getAnimationTypeId());
-		params.put("targetObject", e.getTargetObjectId());
-		params.put("energy", e.getEnergy());
-		params.put("durationSeconds", e.getDurationSeconds());
-		params.putAll(e.getParameters());
-		if (!params.containsKey("eventOrigin")) {
-			params.put("eventOrigin", TimelineEventOrigin.MANUAL.name());
-		}
+		Map<String, Object> params = AnimationEventParams.fromAnimationEvent(e).toParameterMap();
 		TimelineOperations.addEvent(clip, e.getTimeSeconds(), EventType.ANIMATION, params);
 		markAnimationEventsDirty(trackId);
 	}

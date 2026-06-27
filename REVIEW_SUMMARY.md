@@ -86,14 +86,14 @@
 
 ## ✅ 结论与下一步
 
-**P0 已全部完成；P1 仅剩注解扩展与 NullAway 全量启用。**
+**P0 已全部完成；P1 仅剩注解扩展与 NullAway 全量启用；P2 动画参数 record 已落地。**
 
-建议下一步（P2 起步）：
+建议下一步：
 
-1. 为 `AddTimelineAnimationEventCommand.buildParams` 引入 `AnimationEventParams` record
+1. 将 `AnimationBindingEngine`、`AnimationEventPropertiesEditor` 等迁移到 `AnimationEventParams`
 2. 将 `com.beatblock.timeline`、`com.beatblock.audio` 逐包添加 `@NullMarked` 并修复 NullAway 报错
 3. 运行 `./gradlew compileJava -PenableNullaway=true` 纳入 CI（网络可达时）
 
 ---
 
-**下次审查建议**: P2 第一项（动画参数 record）合并后
+**下次审查建议**: P2 其余 Map 迁移或 NullAway 扩展后

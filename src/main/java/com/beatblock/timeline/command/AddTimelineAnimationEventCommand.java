@@ -1,5 +1,6 @@
 package com.beatblock.timeline.command;
 
+import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
@@ -9,7 +10,6 @@ import com.beatblock.timeline.Track;
 
 import org.jspecify.annotations.NonNull;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -41,7 +41,7 @@ public final class AddTimelineAnimationEventCommand implements Command {
 		if (track == null) return;
 		Clip clip = TimelineOperations.addClip(track, animationEvent.getTimeSeconds(), animationEvent.getEndTimeSeconds());
 		if (clip == null) return;
-		Map<String, Object> params = buildParams(animationEvent);
+		Map<String, Object> params = AnimationEventParams.fromAnimationEvent(animationEvent).toParameterMap();
 		var event = TimelineOperations.addEvent(clip, animationEvent.getTimeSeconds(), EventType.ANIMATION, params);
 		if (event == null) return;
 		clipId = clip.getId();
@@ -67,15 +67,6 @@ public final class AddTimelineAnimationEventCommand implements Command {
 	}
 
 	static Map<String, Object> buildParams(TimelineAnimationEvent event) {
-		Map<String, Object> params = new HashMap<>();
-		params.put("actionMode", event.getActionMode().name());
-		params.put("mode", event.getActionMode().name());
-		params.put("animationType", event.getAnimationTypeId());
-		params.put("targetObject", event.getTargetObjectId());
-		params.put("energy", event.getEnergy());
-		params.put("durationSeconds", event.getDurationSeconds());
-		params.put("eventOrigin", event.getEventOrigin().name());
-		params.putAll(event.getParameters());
-		return params;
+		return AnimationEventParams.fromAnimationEvent(event).toParameterMap();
 	}
 }

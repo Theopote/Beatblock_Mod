@@ -17,13 +17,13 @@
 | P1 空值注解（核心 API） | 🟡 进行中 | timeline/audio 约 **22** 个文件；见 [已注解文件清单](#已注解文件清单) |
 | P1 Timeline 并发模型 | ✅ 已完成 | 类文档明确线程模型；`animationCachesDirty` 改为 `volatile` |
 | P1 资源管理 | ✅ 已完成 | `AudioAnalysisOrchestrator` + `AudioConversionService`：`AutoCloseable`、非 daemon、优雅 shutdown |
-| P2 Map 强类型化 | ⬜ 未开始 | |
+| P2 Map 强类型化 | 🟡 进行中 | `AnimationEventParams` record；`AddTimelineAnimationEventCommand` / `Timeline` 已接入 |
 | P2 长方法拆分 | ⬜ 未开始 | |
 | P2 Magic Numbers | ⬜ 未开始 | |
 | P3 文档/命名/覆盖率 | ⬜ 未开始 | |
 | CI NullAway | 🟡 已配置 | 可选：`./gradlew compileJava -PenableNullaway=true`（需下载 errorprone/nullaway） |
 
-**测试基线**: `./gradlew test` — **749/749 通过**（2026-06-27）
+**测试基线**: `./gradlew test` — **753/753 通过**（2026-06-27）
 
 ### 已注解文件清单
 
@@ -31,7 +31,7 @@
 - `BeatBlockContext`（`package-info.java` 标记 `@NullMarked`）
 
 **timeline**
-- `Track`, `Clip`, `TimelineEvent`, `Timeline`, `TimelineMarker`, `TimelineAnimationEvent`
+- `Track`, `Clip`, `TimelineEvent`, `Timeline`, `TimelineMarker`, `TimelineAnimationEvent`, `AnimationEventParams`
 - `TimelineEditor`, `TimelineOperations`
 - `command/*`（`CommandManager`, `MergeableCommand`, 全部 Command 实现）
 - `editing/AnimationEventSnapshot`, `editing/ClipDragStateSnapshot`
@@ -96,13 +96,17 @@
 
 ## 5. 替换 Map<String, Object>
 
-### 方案A: 参数对象
+### 方案A: 参数对象 — 🟡 已起步
 使用 record 定义强类型参数对象。
+
+- ✅ `AnimationEventParams`：`fromAnimationEvent` / `fromParameterMap` / `toParameterMap`
+- ✅ `AddTimelineAnimationEventCommand.buildParams`、`Timeline.addAnimationEventInternal`、`rebuildAnimationCache` 统一使用
+- ⬜ 其余 `Map<String,Object>`（绑定引擎、属性编辑器等）待迁移
 
 ### 方案B: Sealed 接口
 适合多种参数类型的场景。
 
-**状态**: ⬜ 未开始（P2）
+**状态**: 🟡 进行中（P2）
 
 ---
 
@@ -176,7 +180,8 @@
 - [ ] 全量启用 NullAway（当前：`-PenableNullaway=true` 可选，仅 `runtime` 包 `@NullMarked`）
 
 ### 第4-6周 (P2)
-- [ ] 替换 `Map<String,Object>`
+- [x] 动画事件参数 `AnimationEventParams` record（首步）
+- [ ] 其余 `Map<String,Object>` 迁移
 - [ ] 重构长方法
 - [ ] 提取常量
 
