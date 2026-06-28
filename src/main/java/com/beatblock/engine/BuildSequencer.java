@@ -3,7 +3,11 @@ package com.beatblock.engine;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.selection.BlockStateLookup;
+import com.beatblock.timeline.ReferenceBeatResolver;
+import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.generation.PacingRequest;
+import com.beatblock.timeline.generation.PacingStrategy;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -21,15 +25,26 @@ import java.util.function.Predicate;
  * 每帧由 BeatBlockClientDriver 驱动 tick，随时间推进逐块出现。
  * <p>
  * 绑定图层的 BUILD 反向事件使用 {@link BuildLayer#getCapturedStates()} 逐块还原。
+ * <p>
+ * <strong>节拍对齐：</strong> 方块揭示/消失时间卡在真实节拍点上（通过 {@link PacingStrategy}），
+ * 而不是线性插值，确保"踩着节奏"的核心卖点。需要 {@link Timeline} 注入才能启用节拍对齐；
+ * 若未注入则回退到线性插值（兼容测试和无时间线场景）。
  */
 public final class BuildSequencer {
 
 	private final StageObjectSystem stageObjectSystem;
 	private final BuildLayerManager buildLayerManager;
+	private Timeline timeline;  // 可选：用于节拍对齐
 
 	public BuildSequencer(StageObjectSystem stageObjectSystem, BuildLayerManager buildLayerManager) {
 		this.stageObjectSystem = stageObjectSystem;
 		this.buildLayerManager = buildLayerManager;
+		this.timeline = null;
+	}
+
+	/** 注入 Timeline 以启用节拍对齐（卡真实节拍点），否则回退到线性插值。 */
+	public void setTimeline(Timeline timeline) {
+		this.timeline = timeline;
 	}
 
 	/**
@@ -43,11 +58,14 @@ public final class BuildSequencer {
 		private final double startTime;
 		private final double endTime;
 		private final boolean dissolve;
+		/** 每个方块各自的揭示时间戳（卡节拍），null 时回退到线性插值 */
+		private final List<Double> blockTimestamps;
 		private int placedCount;
 
 		BuildInstance(String eventId, List<BlockPos> orderedBlocks, BlockState targetState,
 		              Map<BlockPos, BlockState> perBlockTargetStates,
-		              double startTime, double endTime, boolean dissolve) {
+		              double startTime, double endTime, boolean dissolve,
+		              List<Double> blockTimestamps) {
 			this.eventId = eventId;
 			this.orderedBlocks = orderedBlocks;
 			this.targetState = targetState;
@@ -55,6 +73,7 @@ public final class BuildSequencer {
 			this.startTime = startTime;
 			this.endTime = endTime;
 			this.dissolve = dissolve;
+			this.blockTimestamps = blockTimestamps != null ? List.copyOf(blockTimestamps) : null;
 			this.placedCount = 0;
 		}
 
@@ -62,6 +81,7 @@ public final class BuildSequencer {
 		public boolean isFinished() { return placedCount >= orderedBlocks.size(); }
 		public int getPlacedCount() { return placedCount; }
 		public int getTotalBlocks() { return orderedBlocks.size(); }
+		List<Double> getBlockTimestamps() { return blockTimestamps; }
 
 		BlockState resolveTargetState(BlockPos pos) {
 			if (perBlockTargetStates != null && pos != null) {
@@ -109,8 +129,13 @@ public final class BuildSequencer {
 
 		double startTime = event.getTimeSeconds();
 		double endTime = startTime + Math.max(0.05, event.getDurationSeconds());
+
+		// 使用 PacingStrategy 预计算每个方块的揭示时间戳（卡节拍）
+		List<Double> blockTimestamps = computeBlockTimestamps(ordered.size(), startTime, endTime);
+
 		BuildInstance instance = new BuildInstance(
-			event.getEventId(), ordered, toState, perBlockTargets, startTime, endTime, dissolve || layerReveal);
+			event.getEventId(), ordered, toState, perBlockTargets, startTime, endTime, dissolve || layerReveal,
+			blockTimestamps);
 		activeInstances.add(instance);
 		return instance;
 	}
@@ -191,6 +216,21 @@ public final class BuildSequencer {
 		if (instance != null) activeInstances.add(instance);
 	}
 
+	/**
+	 * 单元测试构造器：直接创建 BuildInstance 而不依赖 Timeline。
+	 */
+	BuildInstance createInstanceForTest(
+		String eventId,
+		List<BlockPos> orderedBlocks,
+		BlockState targetState,
+		Map<BlockPos, BlockState> perBlockTargets,
+		double startTime,
+		double endTime,
+		boolean dissolve
+	) {
+		return new BuildInstance(eventId, orderedBlocks, targetState, perBlockTargets, startTime, endTime, dissolve, null);
+	}
+
 	private static String readLayerId(Map<String, Object> params) {
 		if (params == null) return null;
 		Object raw = params.get("layerId");
@@ -199,7 +239,54 @@ public final class BuildSequencer {
 		return id.isEmpty() ? null : id;
 	}
 
+	/**
+	 * 使用 {@link PacingStrategy#beatGrid()} 预计算每个方块的揭示时间戳。
+	 * 方块将卡在真实节拍点上出现，而不是线性插值。
+	 */
+	private List<Double> computeBlockTimestamps(int blockCount, double startTime, double endTime) {
+		if (blockCount <= 0 || timeline == null) return null;
+
+		double[] beats = ReferenceBeatResolver.resolveBeatTimesSeconds(timeline);
+		double bpm = timeline.getBpm() > 0 ? timeline.getBpm() : 120.0;
+
+		PacingRequest request = new PacingRequest(
+			blockCount,
+			startTime,
+			true,  // startImmediately: 第一个方块在 startTime 出现
+			beats,
+			bpm,
+			60.0 / bpm
+		);
+
+		List<Double> timestamps = PacingStrategy.beatGrid().computeTimestamps(request);
+
+		// 确保所有时间戳都在 [startTime, endTime] 范围内
+		if (!timestamps.isEmpty()) {
+			List<Double> clamped = new ArrayList<>(timestamps.size());
+			for (double t : timestamps) {
+				clamped.add(Math.min(endTime, Math.max(startTime, t)));
+			}
+			return clamped;
+		}
+
+		return null;  // 回退到线性插值
+	}
+
 	private static int computeTargetCount(BuildInstance inst, double currentTime) {
+		// 优先使用预计算的节拍时间戳
+		if (inst.blockTimestamps != null && !inst.blockTimestamps.isEmpty()) {
+			int count = 0;
+			for (double timestamp : inst.blockTimestamps) {
+				if (currentTime >= timestamp - 1e-6) {
+					count++;
+				} else {
+					break;
+				}
+			}
+			return count;
+		}
+
+		// 回退到线性插值（兼容没有 Timeline 的测试场景）
 		return BlockBuildOrder.computeTargetBlockCount(
 			inst.orderedBlocks.size(),
 			inst.startTime,

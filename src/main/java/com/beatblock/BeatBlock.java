@@ -72,6 +72,10 @@ public class BeatBlock implements ModInitializer {
 		Timeline timelineModel = Timeline.createDefault();
 		TimelineEditor editor = new TimelineEditor(timelineModel, player);
 		BlockAnimationEngine animationEngine = new BlockAnimationEngine();
+
+		// 注入 Timeline 以启用 BuildSequencer 的节拍对齐（让方块揭示真正卡在节拍点上）
+		animationEngine.getBuildSequencer().setTimeline(timelineModel);
+
 		AudioAnalysisEngine analysisEngine = new AudioAnalysisEngine();
 		AudioAnalysisService analyzer = new AudioAnalysisService();
 		AudioConversionService conversionService = new AudioConversionService();

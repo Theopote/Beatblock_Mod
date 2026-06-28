@@ -103,7 +103,7 @@ class BuildSequencerTest {
 		BlockState air = Blocks.AIR.getDefaultState();
 		BlockState placed = Blocks.STONE.getDefaultState();
 
-		sequencer.enqueueBuildInstance(new BuildSequencer.BuildInstance(
+		sequencer.enqueueBuildInstance(sequencer.createInstanceForTest(
 			"ev1", List.of(p0, p1), placed, null, 10.0, 12.0, false));
 
 		Map<BlockPos, BlockState> world = new HashMap<>();
@@ -158,7 +158,7 @@ class BuildSequencerTest {
 	void advancesPlacedCountEvenWhenChunksNotLoaded() {
 		BlockPos p0 = new BlockPos(0, 64, 0);
 		BlockPos p1 = new BlockPos(1, 64, 0);
-		BuildSequencer.BuildInstance instance = new BuildSequencer.BuildInstance(
+		BuildSequencer.BuildInstance instance = sequencer.createInstanceForTest(
 			"ev1", List.of(p0, p1), Blocks.STONE.getDefaultState(), null, 10.0, 12.0, false);
 		sequencer.enqueueBuildInstance(instance);
 
