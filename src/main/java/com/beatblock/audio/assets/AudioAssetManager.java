@@ -523,26 +523,45 @@ public final class AudioAssetManager {
 
 	private String normalizeErrorMessage(Path audioPath, String raw) {
 		String safe = raw == null ? BBTexts.get("beatblock.audio.error.unknown") : raw.trim();
-		String lower = safe.toLowerCase();
-		String ext = "";
-		if (audioPath != null && audioPath.getFileName() != null) {
-			String name = audioPath.getFileName().toString();
-			int idx = name.lastIndexOf('.');
-			if (idx >= 0 && idx < name.length() - 1) {
-				ext = name.substring(idx + 1).toLowerCase();
-			}
-		}
-
-		if ("wma".equals(ext)
-			|| lower.contains("wma")
-			|| lower.contains("format")
-			|| lower.contains("unsupported")
-			|| lower.contains("could not")
-			|| lower.contains("can't")
-			|| lower.contains("cannot load audio")) {
+		if (looksLikeUnsupportedAudioFormat(audioPath, safe)) {
 			return BBTexts.get("beatblock.audio.error.unsupported_format");
 		}
 		return safe;
+	}
+
+	/**
+	 * 判断是否为「音频格式/解码」类错误。避免把 Python traceback.format_exc 等误判为格式问题。
+	 */
+	static boolean looksLikeUnsupportedAudioFormat(Path audioPath, String raw) {
+		if (raw == null || raw.isBlank()) return false;
+		String lower = raw.toLowerCase(Locale.ROOT);
+		String ext = extensionOf(audioPath);
+		if ("wma".equals(ext) || "aac".equals(ext) || "m4a".equals(ext) || lower.contains(".wma")) {
+			return true;
+		}
+		if (lower.contains("unsupported audio")
+			|| lower.contains("unsupported format")
+			|| lower.contains("format not supported")
+			|| lower.contains("unknown format")
+			|| lower.contains("invalid format")
+			|| lower.contains("cannot load audio")
+			|| lower.contains("can't load audio")
+			|| lower.contains("could not load audio")
+			|| lower.contains("failed to load audio")
+			|| lower.contains("no backend")
+			|| lower.contains("audioread")) {
+			return true;
+		}
+		// librosa/soundfile 常见 MP3 解码失败（缺 ffmpeg）
+		return lower.contains("ffmpeg") && (lower.contains("not found") || lower.contains("找不到"));
+	}
+
+	private static String extensionOf(Path audioPath) {
+		if (audioPath == null || audioPath.getFileName() == null) return "";
+		String name = audioPath.getFileName().toString();
+		int idx = name.lastIndexOf('.');
+		if (idx < 0 || idx >= name.length() - 1) return "";
+		return name.substring(idx + 1).toLowerCase(Locale.ROOT);
 	}
 
 	@FunctionalInterface

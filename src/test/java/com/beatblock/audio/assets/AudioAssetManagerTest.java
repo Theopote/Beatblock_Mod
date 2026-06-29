@@ -64,4 +64,23 @@ class AudioAssetManagerTest {
 			"unexpected status: " + asset.getStatus()
 		);
 	}
+
+	@Test
+	void looksLikeUnsupportedAudioFormatDoesNotMatchPythonTraceback() {
+		String traceback = """
+			ERROR 分析异常：Traceback (most recent call last):
+			  File "analyze.py", line 822, in main
+			    print(f"ERROR 分析异常：{traceback.format_exc()}", flush=True)
+			ModuleNotFoundError: No module named 'librosa'
+			""";
+		assertEquals(false, AudioAssetManager.looksLikeUnsupportedAudioFormat(Path.of("song.mp3"), traceback));
+	}
+
+	@Test
+	void looksLikeUnsupportedAudioFormatMatchesDecodeFailure() {
+		assertTrue(AudioAssetManager.looksLikeUnsupportedAudioFormat(
+			Path.of("song.mp3"),
+			"could not load audio file: invalid format"
+		));
+	}
 }

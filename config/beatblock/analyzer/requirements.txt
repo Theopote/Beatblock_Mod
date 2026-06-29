@@ -1,22 +1,4 @@
-# BeatBlock audio analyzer — basic analysis mode (required)
-# Used by analyze.py without --demucs: BPM, beats, sections, energy curves.
-#
-# Install (after first game launch, scripts are in config/beatblock/analyzer/):
-#   pip install -r config/beatblock/analyzer/requirements.txt
-#
-# Or from repo source:
-#   pip install -r src/main/resources/beatblock/analyzer/requirements.txt
-#
-# Verify:
-#   python -c "import librosa, soundfile, numpy, scipy; print('ok')"
-#
-# Python 3.10–3.12 recommended. The mod may auto-run pip install when analysis starts.
-
 librosa>=0.10.1,<0.11
 soundfile>=0.12.1,<0.13
 numpy>=1.26,<2.0
 scipy>=1.11,<1.13
-
-# Optional Demucs stem separation (--demucs / panel toggle):
-#   pip install -r requirements-demucs.txt
-# See requirements-demucs.txt — pulls demucs + torch (~2GB+). Not required for basic analysis.
