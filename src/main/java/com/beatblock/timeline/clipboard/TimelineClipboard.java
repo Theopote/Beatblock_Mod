@@ -74,15 +74,15 @@ public final class TimelineClipboard {
         double timeOffset = targetTimeSeconds - referenceTimeSeconds;
 
         for (TimelineAnimationEvent original : copiedEvents) {
-            TimelineAnimationEvent copy = TimelineAnimationEvent.builder()
-                .targetObjectId(original.getTargetObjectId())
-                .animationTypeId(original.getAnimationTypeId())
-                .timeSeconds(original.getTimeSeconds() + timeOffset)
-                .durationSeconds(original.getDurationSeconds())
-                .energy(original.getEnergy())
-                .actionMode(original.getActionMode())
-                .parameters(new java.util.HashMap<>(original.getParameters()))
-                .build();
+            TimelineAnimationEvent copy = new TimelineAnimationEvent(
+                "",
+                original.getTimeSeconds() + timeOffset,
+                original.getDurationSeconds(),
+                original.getAnimationTypeId(),
+                original.getTargetObjectId(),
+                original.getEnergy(),
+                new java.util.HashMap<>(original.getParameters())
+            );
             pasted.add(copy);
         }
 
