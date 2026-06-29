@@ -1,7 +1,6 @@
 package com.beatblock.timeline.clipboard;
 
 import com.beatblock.timeline.TimelineAnimationEvent;
-import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;

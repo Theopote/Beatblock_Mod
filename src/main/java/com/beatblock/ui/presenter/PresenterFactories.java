@@ -224,6 +224,10 @@ public final class PresenterFactories {
 		);
 	}
 
+	public static EnvironmentSetupPresenter environmentSetupPresenter() {
+		return new EnvironmentSetupPresenter(new com.beatblock.audio.python.PythonEnvironmentDiagnostics());
+	}
+
 	public static VideoExportPanelPresenter videoExportPanelPresenter() {
 		return videoExportPanelPresenter(ctx());
 	}

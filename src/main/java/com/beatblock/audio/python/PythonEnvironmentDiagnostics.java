@@ -71,6 +71,18 @@ public final class PythonEnvironmentDiagnostics {
 	}
 
 	public String resolvePythonExe(Path configDir) {
+		Path venvPython = PythonVirtualEnvironment.venvPythonExecutable(configDir);
+		if (venvPython != null) {
+			String venvExe = venvPython.toAbsolutePath().toString();
+			if (isUsablePythonForAnalyzer(venvExe)) {
+				return venvExe;
+			}
+		}
+		return resolveBasePythonExe(configDir);
+	}
+
+	/** 解析系统 Python（不含 venv），用于首次创建虚拟环境。 */
+	public String resolveBasePythonExe(Path configDir) {
 		Path custom = configDir.resolve("python_path.txt");
 		if (Files.exists(custom)) {
 			try {
@@ -369,7 +381,60 @@ public final class PythonEnvironmentDiagnostics {
 
 	public Path configDirOrNull() {
 		Path scriptPath = AnalyzerInstaller.getScriptPath();
-		return scriptPath != null ? scriptPath.getParent() : null;
+		return scriptPath != null ? scriptPath.getParent().getParent() : null;
+	}
+
+	/**
+	 * 首次环境设置：创建 venv 并安装分析依赖。
+	 *
+	 * @return 成功返回 null，失败返回错误信息
+	 */
+	public String setupAnalyzerEnvironment(
+		Path beatblockConfigDir,
+		boolean installDemucs,
+		AnalysisCancelControl control,
+		AnalysisProgressCallback onProgress
+	) {
+		if (beatblockConfigDir == null) {
+			return "无法定位 config/beatblock 目录";
+		}
+		try {
+			onProgress.onProgress("ENV_VENV", 0);
+			String basePython = resolveBasePythonExe(beatblockConfigDir);
+			if (basePython == null) {
+				return """
+					找不到 Python 3.10–3.12。
+					请从 python.org 安装 Python，或在 config/beatblock/python_path.txt 中指定 python.exe 完整路径。""";
+			}
+
+			String pythonExe;
+			if (PythonVirtualEnvironment.isReady(beatblockConfigDir, this)) {
+				pythonExe = PythonVirtualEnvironment.venvPythonExecutable(beatblockConfigDir)
+					.toAbsolutePath().toString();
+			} else {
+				pythonExe = PythonVirtualEnvironment.ensureCreated(beatblockConfigDir, basePython);
+				probeCache.clear();
+			}
+			onProgress.onProgress("ENV_VENV", 100);
+
+			Path requirementsPath = beatblockConfigDir.resolve("analyzer").resolve("requirements.txt");
+			onProgress.onProgress("DEPENDENCY_INSTALL", 0);
+			String dependencyError = ensurePythonDependencies(
+				pythonExe, requirementsPath, control, onProgress, installDemucs);
+			if (dependencyError != null) {
+				return dependencyError;
+			}
+			onProgress.onProgress("DEPENDENCY_INSTALL", 100);
+			probeCache.clear();
+			return null;
+		} catch (IOException e) {
+			if (control.isCancelled()) return "安装被取消";
+			return "环境设置失败：" + e.getMessage();
+		}
+	}
+
+	public Path beatblockConfigDirOrNull() {
+		return configDirOrNull();
 	}
 
 	private HealthItem moduleHealth(String[] parts, int index, String label) {

@@ -46,6 +46,7 @@ public class BeatBlockUIManager {
 	private final LayerPanel layerPanel;
 	private final RhythmDropPanel rhythmDropPanel;
 	private final QuickStartWizardPanel quickStartWizardPanel;
+	private final EnvironmentSetupPanel environmentSetupPanel;
 	private final UndoHistoryPanel undoHistoryPanel;
 	private final EventLibraryPanel eventLibraryPanel;
 	private final PerformanceMonitorPanel performanceMonitorPanel;
@@ -65,7 +66,8 @@ public class BeatBlockUIManager {
 			() -> toolPanel.setShowAutoMapSettings(true),
 			this::generateRhythmDropFromMenu,
 			this::resetLayoutState, this::saveCurrentLayout, this::loadSavedLayout,
-			this::openQuickStartWizard, this::openVideoExportDialog);
+			this::openQuickStartWizard, this::openVideoExportDialog,
+			this::openEnvironmentSetup);
 		this.eventPropertiesPanel = new EventPropertiesPanel();
 		this.cameraPropertiesPanel = new CameraPropertiesPanel();
 		this.timelinePanel = new TimelinePanel();
@@ -74,6 +76,7 @@ public class BeatBlockUIManager {
 		this.layerPanel = new LayerPanel();
 		this.rhythmDropPanel = new RhythmDropPanel();
 		this.quickStartWizardPanel = new QuickStartWizardPanel();
+		this.environmentSetupPanel = new EnvironmentSetupPanel();
 		this.undoHistoryPanel = new UndoHistoryPanel();
 		this.eventLibraryPanel = new EventLibraryPanel();
 		this.performanceMonitorPanel = new PerformanceMonitorPanel();
@@ -83,6 +86,10 @@ public class BeatBlockUIManager {
 
 	public void openQuickStartWizard() {
 		quickStartWizardPanel.open();
+	}
+
+	public void openEnvironmentSetup() {
+		environmentSetupPanel.open();
 	}
 
 	public void openVideoExportDialog() {
@@ -184,6 +191,7 @@ public class BeatBlockUIManager {
 		UiPreferences.popPanelThemeColors();
 
 		quickStartWizardPanel.render();
+		environmentSetupPanel.render();
 		videoExportDialog.render();
 		BeatBlockLassoOverlay.render();
 		ToastNotificationSystem.render();

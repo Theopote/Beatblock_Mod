@@ -25,6 +25,7 @@ public class MenuBarPanel {
 	private final Runnable onSaveLayout;
 	private final Runnable onLoadLayout;
 	private final Runnable onOpenQuickStartWizard;
+	private final Runnable onOpenEnvironmentSetup;
 	private final Runnable onOpenVideoExport;
 	private boolean showImportDialog;
 	private boolean showOpenProjectDialog;
@@ -37,14 +38,15 @@ public class MenuBarPanel {
 
 	public MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
 			Runnable onGenerateRhythmDrop, Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout,
-			Runnable onOpenQuickStartWizard, Runnable onOpenVideoExport) {
+			Runnable onOpenQuickStartWizard, Runnable onOpenVideoExport, Runnable onOpenEnvironmentSetup) {
 		this(onCloseRequest, panels, onOpenSmartAutoMap, onGenerateRhythmDrop, onResetLayout, onSaveLayout, onLoadLayout,
-			onOpenQuickStartWizard, onOpenVideoExport, PresenterFactories.menuBarPresenter());
+			onOpenQuickStartWizard, onOpenVideoExport, onOpenEnvironmentSetup, PresenterFactories.menuBarPresenter());
 	}
 
 	MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
 			Runnable onGenerateRhythmDrop, Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout,
-			Runnable onOpenQuickStartWizard, Runnable onOpenVideoExport, MenuBarPresenter presenter) {
+			Runnable onOpenQuickStartWizard, Runnable onOpenVideoExport, Runnable onOpenEnvironmentSetup,
+			MenuBarPresenter presenter) {
 		this.presenter = presenter;
 		this.onCloseRequest = onCloseRequest;
 		this.panels = panels != null ? panels : new BeatBlockPanelVisibility();
@@ -54,6 +56,7 @@ public class MenuBarPanel {
 		this.onSaveLayout = onSaveLayout != null ? onSaveLayout : () -> {};
 		this.onLoadLayout = onLoadLayout != null ? onLoadLayout : () -> {};
 		this.onOpenQuickStartWizard = onOpenQuickStartWizard != null ? onOpenQuickStartWizard : () -> {};
+		this.onOpenEnvironmentSetup = onOpenEnvironmentSetup != null ? onOpenEnvironmentSetup : () -> {};
 		this.onOpenVideoExport = onOpenVideoExport != null ? onOpenVideoExport : () -> {};
 	}
 
@@ -155,6 +158,12 @@ public class MenuBarPanel {
 				ImGui.endMenu();
 			}
 			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.help"))) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.environment_setup"))) {
+					onOpenEnvironmentSetup.run();
+				}
+				if (ImGui.isItemHovered()) {
+					ImGui.setTooltip(BBTexts.get("beatblock.tooltip.environment_setup"));
+				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.quick_start_wizard"))) {
 					onOpenQuickStartWizard.run();
 				}
