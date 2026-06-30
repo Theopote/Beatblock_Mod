@@ -274,37 +274,14 @@ public final class TimelineEditor {
 
 	/**
 	 * 固定区域：只绘制时间刻度（标尺）行，并占位，不随滚动条滚动。在 TimelinePanel 中先调用此方法，再 BeginChild。
+	 *
+	 * @param activePlaybackPlayer 当前实际驱动播放的音频源（分轨时为 {@link com.beatblock.audio.StemMixer}）；
+	 *                             为 null 时回退到构造时注入的 audioPlayer
 	 */
-	public void renderRulerOnly() {
+	public void renderRulerOnly(@Nullable IAudioPlayer activePlaybackPlayer) {
 		if (timeline == null) return;
 		state.syncClockDuration();
-		if (audioPlayer != null && audioPlayer.isPlaying()) {
-			boolean segmentedHandled = syncClockFromSegmentedAudioPlayback();
-			if (!segmentedHandled) {
-				double t = audioPlayer.getCurrentTimeSeconds();
-				double dur = timeline.getDurationSeconds();
-				if (toolbarState.isLoop()) {
-					double loopIn = Math.max(0, toolbarState.getLoopInSeconds());
-					double loopOut = toolbarState.hasLoopRange() ? toolbarState.getLoopOutSeconds() : dur;
-					if (loopOut <= loopIn) loopOut = dur;
-					if (loopOut > 0) {
-						if (t >= loopOut) {
-							audioPlayer.setCurrentTimeSeconds(loopIn);
-							state.getClock().seek(loopIn);
-						} else if (t < loopIn) {
-							audioPlayer.setCurrentTimeSeconds(loopIn);
-							state.getClock().seek(loopIn);
-						} else {
-							state.getClock().setCurrentTimeSeconds(t);
-						}
-					} else {
-						state.getClock().setCurrentTimeSeconds(t);
-					}
-				} else {
-					state.getClock().setCurrentTimeSeconds(t);
-				}
-			}
-		}
+		syncClockDuringPlayback(activePlaybackPlayer);
 		TimelineLayout layout = requireFrameLayout();
 		cachedDividerScreenX = layout.contentLeft;
 		cachedDividerTopScreenY = layout.rulerTop;
@@ -314,6 +291,39 @@ public final class TimelineEditor {
 			viewState.fitToDuration(duration, layout.contentWidth);
 		}
 		renderer.renderRulerRow(layout, viewState, timeline.getBpm(), toolbarState, timeline);
+	}
+
+	private void syncClockDuringPlayback(@Nullable IAudioPlayer activePlaybackPlayer) {
+		IAudioPlayer playback = activePlaybackPlayer != null ? activePlaybackPlayer : audioPlayer;
+		if (playback == null || !playback.isPlaying()) {
+			return;
+		}
+		boolean segmentedHandled = playback == musicPlayer && syncClockFromSegmentedAudioPlayback();
+		if (segmentedHandled) {
+			return;
+		}
+		double t = playback.getCurrentTimeSeconds();
+		double dur = timeline.getDurationSeconds();
+		if (toolbarState.isLoop()) {
+			double loopIn = Math.max(0, toolbarState.getLoopInSeconds());
+			double loopOut = toolbarState.hasLoopRange() ? toolbarState.getLoopOutSeconds() : dur;
+			if (loopOut <= loopIn) loopOut = dur;
+			if (loopOut > 0) {
+				if (t >= loopOut) {
+					playback.setCurrentTimeSeconds(loopIn);
+					state.getClock().seek(loopIn);
+				} else if (t < loopIn) {
+					playback.setCurrentTimeSeconds(loopIn);
+					state.getClock().seek(loopIn);
+				} else {
+					state.getClock().setCurrentTimeSeconds(t);
+				}
+			} else {
+				state.getClock().setCurrentTimeSeconds(t);
+			}
+		} else {
+			state.getClock().setCurrentTimeSeconds(t);
+		}
 	}
 
 	private boolean syncClockFromSegmentedAudioPlayback() {
