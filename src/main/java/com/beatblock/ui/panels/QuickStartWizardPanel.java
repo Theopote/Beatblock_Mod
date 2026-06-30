@@ -20,6 +20,8 @@ import imgui.type.ImString;
 public final class QuickStartWizardPanel {
 
 	private static final int PATH_CAPACITY = 512;
+	private static final float WINDOW_WIDTH = 520f;
+	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 
 	private final QuickStartWizardPresenter presenter;
 	private final Runnable onPlayPreview;
@@ -73,15 +75,17 @@ public final class QuickStartWizardPanel {
 			return;
 		}
 
-		ImGui.setNextWindowSize(520, 0, ImGuiCond.FirstUseEver);
+		ImGui.setNextWindowSize(WINDOW_WIDTH, 0, ImGuiCond.Always);
 		ImGui.setNextWindowPos(ImGui.getIO().getDisplaySizeX() * 0.5f, ImGui.getIO().getDisplaySizeY() * 0.35f,
 			ImGuiCond.FirstUseEver, 0.5f, 0.35f);
 
-		if (!ImGui.begin(BBTexts.get("beatblock.wizard.title"), windowOpen,
-			ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize)) {
+		if (!ImGui.begin(BBTexts.get("beatblock.wizard.title"), windowOpen, WINDOW_FLAGS)) {
 			ImGui.end();
 			return;
 		}
+
+		float contentWidth = WINDOW_WIDTH - ImGui.getStyle().getWindowPaddingX() * 2f;
+		ImGui.pushItemWidth(contentWidth);
 
 		try {
 			if (!windowOpen.get()) {
@@ -105,6 +109,7 @@ public final class QuickStartWizardPanel {
 				ImGui.textWrapped(presenter.viewState().statusMessage());
 			}
 		} finally {
+			ImGui.popItemWidth();
 			ImGui.end();
 		}
 	}
@@ -123,14 +128,16 @@ public final class QuickStartWizardPanel {
 			case GENERATE, DONE -> 3;
 		};
 		for (int i = 0; i < labels.length; i++) {
-			if (i > 0) ImGui.sameLine();
-			if (i < currentIndex) {
-				ImGui.textColored(0.4f, 1f, 0.4f, 1f, "✓ " + labels[i]);
-			} else if (i == currentIndex) {
-				ImGui.textColored(0.4f, 0.8f, 1f, 1f, "▶ " + labels[i]);
-			} else {
-				ImGui.textDisabled("○ " + labels[i]);
+			if (i > 0) {
+				ImGui.sameLine(0f, ImGui.getStyle().getItemInnerSpacingX());
 			}
+			String prefix = i < currentIndex ? "✓ " : i == currentIndex ? "▶ " : "○ ";
+			float[] color = i < currentIndex
+				? new float[]{0.4f, 1f, 0.4f, 1f}
+				: i == currentIndex
+					? new float[]{0.4f, 0.8f, 1f, 1f}
+					: new float[]{0.55f, 0.55f, 0.55f, 1f};
+			ImGui.textColored(color[0], color[1], color[2], color[3], prefix + labels[i]);
 		}
 	}
 
