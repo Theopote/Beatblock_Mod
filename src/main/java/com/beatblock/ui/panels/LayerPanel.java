@@ -10,17 +10,18 @@ import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.BuildLayersPresenter;
 import com.beatblock.ui.imgui.IconButtonStyle;
+import com.beatblock.ui.imgui.ImGuiModifierKeys;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiDragDropFlags;
 import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
-import imgui.type.ImFloat;
 import imgui.type.ImString;
 
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 建造图层面板：列出 BuildLayer，支持重命名、可见性、分组、合并、颜色标记与拖入时间线。
@@ -36,6 +38,7 @@ import java.util.Set;
 public class LayerPanel {
 
 	public static final String DRAG_PAYLOAD_TYPE = "BB_BUILD_LAYER_ID";
+	public static final String REORDER_DRAG_PAYLOAD_TYPE = "BB_BUILD_LAYER_REORDER";
 	private static final String CONTEXT_POPUP = "##LayerRowContext";
 	private static final String DELETE_CONFIRM_POPUP = "##LayerDeleteConfirm";
 	private static final String COLOR_POPUP = "##LayerColorPopup";
@@ -47,13 +50,16 @@ public class LayerPanel {
 	private final ImString groupNameBuffer = new ImString("group", 64);
 	private final Map<String, ImString> nameEditBuffers = new HashMap<>();
 	private final Map<String, String> nameCommitted = new HashMap<>();
-	private final Map<String, ImFloat[]> colorEditBuffers = new HashMap<>();
+	private final float[] activeColorRgb = new float[3];
 
+	private List<String> displayOrder = List.of();
 	private String renamingLayerId;
 	private String renamingGroupId;
 	private String colorTargetLayerId;
 	private String colorTargetGroupId;
 	private String pendingDeleteLayerId;
+	private boolean requestDeleteConfirmPopup;
+	private boolean requestColorPopup;
 	private String statusMessage = "";
 	private final BuildLayersPresenter presenter;
 
@@ -150,6 +156,7 @@ public class LayerPanel {
 		}
 		List<BuildLayer> layers = new ArrayList<>(manager.getAll());
 		pruneNameBuffers(layers, manager);
+		displayOrder = presenter.buildDisplayOrder();
 
 		if (layers.isEmpty()) {
 			ImGui.textDisabled(BBTexts.get("beatblock.layer.no_layers"));
@@ -218,6 +225,18 @@ public class LayerPanel {
 		}
 
 		boolean selected = presenter.isLayerSelected(layer.getId());
+		int iconCount = 4 + (layer.canBindToTrack() ? 1 : 0);
+		float iconSpacing = ImGui.getStyle().getItemSpacingX();
+		float reservedIcons = iconCount * (ICON_BTN + iconSpacing);
+
+		IconButtonStyle.pushBeatBlockIconButton();
+		ImGui.button(Icons.Action.DRAG_HANDLE + "##layerReorder_" + layer.getId(), ICON_BTN, ICON_BTN);
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.layer.reorder_tooltip"));
+		}
+		renderLayerReorderDragSource(layer);
+		IconButtonStyle.popBeatBlockIconButton();
+		ImGui.sameLine();
 
 		renderColorButton(layer.getColorArgb(), layer.getId(), null);
 		ImGui.sameLine();
@@ -228,18 +247,29 @@ public class LayerPanel {
 		if (visTooltip != null) {
 			ImGui.setTooltip(visTooltip);
 		}
-
 		ImGui.sameLine();
-		float nameWidth = Math.max(80f, ImGui.getContentRegionAvail().x - ICON_BTN - 8f);
+
+		float nameWidth = Math.max(80f, ImGui.getContentRegionAvail().x - reservedIcons - 8f);
 		renderLayerName(layer, manager, nameWidth, selected);
 		ImGui.sameLine();
+
+		if (layer.canBindToTrack()) {
+			IconButtonStyle.pushBeatBlockIconButton();
+			ImGui.button(Icons.Action.LINK + "##layerBindDrag_" + layer.getId(), ICON_BTN, ICON_BTN);
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip(BBTexts.get("beatblock.layer.drag_bind"));
+			}
+			renderTimelineBindDragSource(layer);
+			IconButtonStyle.popBeatBlockIconButton();
+			ImGui.sameLine();
+		}
 
 		IconButtonStyle.pushBeatBlockIconButton();
 		boolean canDelete = layer.canDelete();
 		if (!canDelete) ImGui.beginDisabled();
 		if (ImGui.button(Icons.Action.REMOVE + "##layerDelete_" + layer.getId(), ICON_BTN, ICON_BTN)) {
 			pendingDeleteLayerId = layer.getId();
-			ImGui.openPopup(DELETE_CONFIRM_POPUP);
+			requestDeleteConfirmPopup = true;
 		}
 		if (!canDelete) {
 			ImGui.endDisabled();
@@ -250,7 +280,6 @@ public class LayerPanel {
 		IconButtonStyle.popBeatBlockIconButton();
 
 		renderLayerContextMenu(layer);
-		renderLayerDragSource(layer);
 
 		if (layer.getState() == LayerVisibilityState.BOUND_TO_TRACK) {
 			ImGui.sameLine();
@@ -297,8 +326,14 @@ public class LayerPanel {
 			LayerColorUtils.pushTextColor(layer.getColorArgb());
 		}
 		if (ImGui.selectable(layer.getName() + "##layerRow", selected, 0, nameWidth, ICON_BTN)) {
-			presenter.selectLayer(layer.getId(), ImGui.getIO().getKeyCtrl());
+			presenter.selectLayer(
+				layer.getId(),
+				ImGuiModifierKeys.ctrl(),
+				ImGuiModifierKeys.shift(),
+				displayOrder
+			);
 		}
+		renderLayerReorderDropTarget(layer.getId());
 		if (layer.getColorArgb() != 0) {
 			LayerColorUtils.popTextColor(layer.getColorArgb());
 		}
@@ -315,9 +350,7 @@ public class LayerPanel {
 		ImGui.pushStyleColor(ImGuiCol.Button, rgb[0], rgb[1], rgb[2], 1f);
 		ImGui.pushStyleColor(ImGuiCol.ButtonHovered, rgb[0] * 1.1f, rgb[1] * 1.1f, rgb[2] * 1.1f, 1f);
 		if (ImGui.button("##layerColor", ICON_BTN, ICON_BTN)) {
-			colorTargetLayerId = layerId;
-			colorTargetGroupId = groupId;
-			ImGui.openPopup(COLOR_POPUP);
+			openColorPicker(layerId, groupId, colorArgb);
 		}
 		ImGui.popStyleColor(2);
 		if (ImGui.isItemHovered()) {
@@ -325,39 +358,38 @@ public class LayerPanel {
 		}
 	}
 
+	private void openColorPicker(String layerId, String groupId, int colorArgb) {
+		colorTargetLayerId = layerId;
+		colorTargetGroupId = groupId;
+		float[] rgb = LayerColorUtils.toFloatRgb(colorArgb);
+		activeColorRgb[0] = rgb[0];
+		activeColorRgb[1] = rgb[1];
+		activeColorRgb[2] = rgb[2];
+		requestColorPopup = true;
+	}
+
 	private void renderColorPopup() {
-		if (!ImGui.beginPopup(COLOR_POPUP)) {
+		if (requestColorPopup) {
+			ImGui.openPopup(COLOR_POPUP);
+			requestColorPopup = false;
+		}
+		ImGui.setNextWindowSize(320f, 0f, ImGuiCond.Appearing);
+		if (!ImGui.beginPopupModal(COLOR_POPUP)) {
 			return;
 		}
-		String key = colorTargetLayerId != null ? "layer:" + colorTargetLayerId
-			: colorTargetGroupId != null ? "group:" + colorTargetGroupId : null;
-		if (key == null) {
-			ImGui.endPopup();
-			return;
-		}
-		ImFloat[] color = colorEditBuffers.computeIfAbsent(key, ignored -> {
-			int argb = 0;
-			if (colorTargetLayerId != null) {
-				BuildLayer layer = presenter.findLayer(colorTargetLayerId);
-				if (layer != null) argb = layer.getColorArgb();
-			} else if (colorTargetGroupId != null) {
-				BuildLayerGroup group = presenter.findGroup(colorTargetGroupId);
-				if (group != null) argb = group.getColorArgb();
-			}
-			float[] rgb = LayerColorUtils.toFloatRgb(argb);
-			return new ImFloat[]{new ImFloat(rgb[0]), new ImFloat(rgb[1]), new ImFloat(rgb[2])};
-		});
-		float[] rgb = new float[]{color[0].get(), color[1].get(), color[2].get()};
-		if (ImGui.colorEdit3(BBTexts.get("beatblock.layer.color_label") + "##layerColorEdit", rgb)) {
-			color[0].set(rgb[0]);
-			color[1].set(rgb[1]);
-			color[2].set(rgb[2]);
-			int argb = LayerColorUtils.fromFloatRgb(rgb[0], rgb[1], rgb[2]);
+		if (ImGui.colorEdit3(BBTexts.get("beatblock.layer.color_label") + "##layerColorEdit", activeColorRgb)) {
+			int argb = LayerColorUtils.fromFloatRgb(activeColorRgb[0], activeColorRgb[1], activeColorRgb[2]);
 			if (colorTargetLayerId != null) {
 				statusMessage = presenter.setLayerColor(colorTargetLayerId, argb).messageOrEmpty();
 			} else if (colorTargetGroupId != null) {
 				statusMessage = presenter.setGroupColor(colorTargetGroupId, argb).messageOrEmpty();
 			}
+		}
+		ImGui.spacing();
+		if (ImGui.button(BBTexts.get("beatblock.common.close") + "##layerColorClose", 120f, 0f)) {
+			colorTargetLayerId = null;
+			colorTargetGroupId = null;
+			ImGui.closeCurrentPopup();
 		}
 		ImGui.endPopup();
 	}
@@ -373,7 +405,7 @@ public class LayerPanel {
 		if (!canDelete) ImGui.beginDisabled();
 		if (ImGui.menuItem(BBTexts.get("beatblock.layer.delete"))) {
 			pendingDeleteLayerId = layer.getId();
-			ImGui.openPopup(DELETE_CONFIRM_POPUP);
+			requestDeleteConfirmPopup = true;
 		}
 		if (!canDelete) {
 			ImGui.endDisabled();
@@ -384,17 +416,47 @@ public class LayerPanel {
 		ImGui.endPopup();
 	}
 
-	private void renderLayerDragSource(BuildLayer layer) {
-		if (!ImGui.beginDragDropSource()) {
+	private void renderLayerReorderDragSource(BuildLayer layer) {
+		if (!ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
 			return;
 		}
-		if (layer.canBindToTrack()) {
-			ImGui.text(BBTexts.get("beatblock.layer.drag_bind"));
-			ImGui.setDragDropPayload(DRAG_PAYLOAD_TYPE, layer.getId().getBytes(), ImGuiCond.Once);
-		} else {
-			ImGui.textDisabled(stateHint(layer));
-		}
+		ImGui.text(BBTexts.get("beatblock.layer.reorder_drag", layer.getName()));
+		ImGui.setDragDropPayload(REORDER_DRAG_PAYLOAD_TYPE, layer.getId().getBytes(StandardCharsets.UTF_8), ImGuiCond.Once);
 		ImGui.endDragDropSource();
+	}
+
+	private void renderLayerReorderDropTarget(String layerId) {
+		if (!ImGui.beginDragDropTarget()) {
+			return;
+		}
+		byte[] raw = ImGui.acceptDragDropPayload(REORDER_DRAG_PAYLOAD_TYPE);
+		if (raw != null) {
+			String movingId = decodePayload(raw);
+			if (!movingId.isBlank() && !movingId.equals(layerId)) {
+				statusMessage = presenter.reorderLayerBefore(movingId, layerId).messageOrEmpty();
+			}
+		}
+		ImGui.endDragDropTarget();
+	}
+
+	private void renderTimelineBindDragSource(BuildLayer layer) {
+		if (!ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
+			return;
+		}
+		ImGui.text(BBTexts.get("beatblock.layer.drag_bind"));
+		ImGui.setDragDropPayload(DRAG_PAYLOAD_TYPE, layer.getId().getBytes(StandardCharsets.UTF_8), ImGuiCond.Once);
+		ImGui.endDragDropSource();
+	}
+
+	private static String decodePayload(byte[] raw) {
+		if (raw == null || raw.length == 0) {
+			return "";
+		}
+		int end = raw.length;
+		while (end > 0 && raw[end - 1] == 0) {
+			end--;
+		}
+		return new String(raw, 0, end, StandardCharsets.UTF_8);
 	}
 
 	private String renderVisibilityIconButton(BuildLayer layer) {
@@ -433,11 +495,17 @@ public class LayerPanel {
 	}
 
 	private void renderDeleteConfirmPopup() {
-		if (pendingDeleteLayerId == null) return;
+		if (requestDeleteConfirmPopup && pendingDeleteLayerId != null) {
+			ImGui.openPopup(DELETE_CONFIRM_POPUP);
+			requestDeleteConfirmPopup = false;
+		}
+		if (pendingDeleteLayerId == null) {
+			return;
+		}
 		BuildLayer layer = presenter.findLayer(pendingDeleteLayerId);
 
-		ImGui.setNextWindowSize(360f, 0f);
-		if (!ImGui.beginPopupModal(DELETE_CONFIRM_POPUP, ImGuiWindowFlags.AlwaysAutoResize)) {
+		ImGui.setNextWindowSize(360f, 0f, ImGuiCond.Appearing);
+		if (!ImGui.beginPopupModal(DELETE_CONFIRM_POPUP)) {
 			return;
 		}
 
@@ -538,7 +606,6 @@ public class LayerPanel {
 		if (outcome.result().ok()) {
 			nameEditBuffers.remove(layer.getId());
 			nameCommitted.remove(layer.getId());
-			colorEditBuffers.remove("layer:" + layer.getId());
 		}
 	}
 
@@ -554,11 +621,4 @@ public class LayerPanel {
 		nameCommitted.keySet().removeIf(id -> !alive.contains(id) && !id.startsWith("group:"));
 	}
 
-	private static String stateHint(BuildLayer layer) {
-		return switch (layer.getState()) {
-			case FREE_VISIBLE -> BBTexts.get("beatblock.layer.hide_first");
-			case BOUND_TO_TRACK -> BBTexts.get("beatblock.layer.already_bound");
-			default -> "";
-		};
-	}
 }

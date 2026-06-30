@@ -67,6 +67,9 @@ public final class CommandDescriptions {
 		if (command instanceof com.beatblock.timeline.command.layer.RenameGroupCommand) {
 			return BBTexts.get("beatblock.undo.rename_group");
 		}
+		if (command instanceof com.beatblock.timeline.command.layer.ReorderLayerCommand) {
+			return BBTexts.get("beatblock.undo.reorder_layer");
+		}
 		return command.getClass().getSimpleName();
 	}
 }

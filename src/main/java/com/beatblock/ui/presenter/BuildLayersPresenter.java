@@ -9,6 +9,7 @@ import com.beatblock.timeline.command.layer.CreateLayerCommand;
 import com.beatblock.timeline.command.layer.DeleteLayerCommand;
 import com.beatblock.timeline.command.layer.GroupLayersCommand;
 import com.beatblock.timeline.command.layer.MergeLayersCommand;
+import com.beatblock.timeline.command.layer.ReorderLayerCommand;
 import com.beatblock.timeline.command.layer.RenameGroupCommand;
 import com.beatblock.timeline.command.layer.RenameLayerCommand;
 import com.beatblock.timeline.command.layer.SetGroupColorCommand;
@@ -47,6 +48,7 @@ public final class BuildLayersPresenter {
 	private final Supplier<CommandManager> commandManager;
 	private final Supplier<BuildLayerManager> layerManager;
 	private final LinkedHashSet<String> selectedLayerIds = new LinkedHashSet<>();
+	private String selectionAnchorLayerId;
 
 	public BuildLayersPresenter(
 		Supplier<CommandManager> commandManager,
@@ -64,22 +66,69 @@ public final class BuildLayersPresenter {
 		return layerId != null && selectedLayerIds.contains(layerId);
 	}
 
-	public void selectLayer(String layerId, boolean addToSelection) {
+	public void selectLayer(String layerId, boolean ctrl, boolean shift, List<String> displayOrder) {
 		if (layerId == null || layerId.isBlank()) {
 			return;
 		}
-		if (!addToSelection) {
+		if (shift && selectionAnchorLayerId != null && displayOrder != null && !displayOrder.isEmpty()) {
+			int anchorIndex = displayOrder.indexOf(selectionAnchorLayerId);
+			int targetIndex = displayOrder.indexOf(layerId);
+			if (anchorIndex >= 0 && targetIndex >= 0) {
+				if (!ctrl) {
+					selectedLayerIds.clear();
+				}
+				int from = Math.min(anchorIndex, targetIndex);
+				int to = Math.max(anchorIndex, targetIndex);
+				for (int i = from; i <= to; i++) {
+					selectedLayerIds.add(displayOrder.get(i));
+				}
+				return;
+			}
+		}
+		if (!ctrl && !shift) {
 			selectedLayerIds.clear();
 		}
-		if (addToSelection && selectedLayerIds.contains(layerId)) {
+		if (ctrl && selectedLayerIds.contains(layerId)) {
 			selectedLayerIds.remove(layerId);
 		} else {
 			selectedLayerIds.add(layerId);
 		}
+		selectionAnchorLayerId = layerId;
 	}
 
 	public void clearSelection() {
 		selectedLayerIds.clear();
+		selectionAnchorLayerId = null;
+	}
+
+	public PresenterResult reorderLayerBefore(String movingLayerId, String targetLayerId) {
+		CommandManager commands = commandManager.get();
+		BuildLayerManager manager = layerManager.get();
+		if (commands == null || manager == null) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.editor_unavailable"));
+		}
+		if (movingLayerId == null || targetLayerId == null || movingLayerId.equals(targetLayerId)) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.layer_reorder_invalid"));
+		}
+		commands.execute(new ReorderLayerCommand(manager, movingLayerId, targetLayerId));
+		return PresenterResult.success("");
+	}
+
+	public List<String> buildDisplayOrder() {
+		BuildLayerManager manager = layerManager.get();
+		if (manager == null) {
+			return List.of();
+		}
+		List<String> order = new ArrayList<>();
+		for (BuildLayerGroup group : manager.getAllGroups()) {
+			for (BuildLayer layer : manager.getLayersInGroup(group.getId())) {
+				order.add(layer.getId());
+			}
+		}
+		for (BuildLayer layer : manager.getUngroupedLayers()) {
+			order.add(layer.getId());
+		}
+		return order;
 	}
 
 	public RenameOutcome renameLayer(String layerId, String rawName) {

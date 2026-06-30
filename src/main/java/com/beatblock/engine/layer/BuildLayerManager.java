@@ -70,6 +70,58 @@ public final class BuildLayerManager {
 		return result;
 	}
 
+	public List<String> getLayerOrderIds() {
+		return new ArrayList<>(layers.keySet());
+	}
+
+	public void setLayerOrder(List<String> order) {
+		if (order == null || order.isEmpty()) {
+			return;
+		}
+		LinkedHashMap<String, BuildLayer> reordered = new LinkedHashMap<>();
+		for (String id : order) {
+			BuildLayer layer = layers.get(id);
+			if (layer != null) {
+				reordered.put(id, layer);
+			}
+		}
+		for (Map.Entry<String, BuildLayer> entry : layers.entrySet()) {
+			reordered.putIfAbsent(entry.getKey(), entry.getValue());
+		}
+		layers.clear();
+		layers.putAll(reordered);
+	}
+
+	/**
+	 * 将 movingId 移到 targetId 之前；仅允许同一分组（含未分组）内排序。
+	 */
+	public boolean moveLayerBefore(String movingId, String targetId) {
+		if (movingId == null || targetId == null || movingId.equals(targetId)) {
+			return false;
+		}
+		BuildLayer moving = layers.get(movingId);
+		BuildLayer target = layers.get(targetId);
+		if (moving == null || target == null) {
+			return false;
+		}
+		if (!java.util.Objects.equals(moving.getGroupId(), target.getGroupId())) {
+			return false;
+		}
+		List<String> ids = new ArrayList<>(layers.keySet());
+		if (!ids.remove(movingId)) {
+			return false;
+		}
+		int targetIndex = ids.indexOf(targetId);
+		if (targetIndex < 0) {
+			ids.add(movingId);
+			setLayerOrder(ids);
+			return false;
+		}
+		ids.add(targetIndex, movingId);
+		setLayerOrder(ids);
+		return true;
+	}
+
 	public BuildLayer get(String id) {
 		return id != null ? layers.get(id) : null;
 	}

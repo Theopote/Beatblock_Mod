@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -169,5 +170,55 @@ class BuildLayersPresenterTest {
 		var outcome = presenter.deleteLayer("missing-layer");
 		assertFalse(outcome.result().ok());
 		assertEquals(BBTexts.get("beatblock.message.layer_not_found"), outcome.result().messageOrEmpty());
+	}
+
+	@Test
+	void selectLayerShiftSelectsRange() {
+		BlockPos a = new BlockPos(11, 64, 0);
+		BlockPos b = new BlockPos(12, 64, 0);
+		BlockPos c = new BlockPos(13, 64, 0);
+		commandManager.execute(new CreateLayerCommand(layerManager, "A", List.of(a)));
+		commandManager.execute(new CreateLayerCommand(layerManager, "B", List.of(b)));
+		commandManager.execute(new CreateLayerCommand(layerManager, "C", List.of(c)));
+		List<String> order = presenter.buildDisplayOrder();
+		assertEquals(3, order.size());
+
+		presenter.selectLayer(order.get(0), false, false, order);
+		presenter.selectLayer(order.get(2), false, true, order);
+
+		assertEquals(Set.of(order.get(0), order.get(1), order.get(2)), presenter.selectedLayerIds());
+	}
+
+	@Test
+	void selectLayerCtrlTogglesSelection() {
+		BlockPos a = new BlockPos(14, 64, 0);
+		BlockPos b = new BlockPos(15, 64, 0);
+		commandManager.execute(new CreateLayerCommand(layerManager, "One", List.of(a)));
+		commandManager.execute(new CreateLayerCommand(layerManager, "Two", List.of(b)));
+		List<String> order = presenter.buildDisplayOrder();
+
+		presenter.selectLayer(order.get(0), false, false, order);
+		presenter.selectLayer(order.get(1), true, false, order);
+		assertEquals(Set.of(order.get(0), order.get(1)), presenter.selectedLayerIds());
+
+		presenter.selectLayer(order.get(0), true, false, order);
+		assertEquals(Set.of(order.get(1)), presenter.selectedLayerIds());
+	}
+
+	@Test
+	void reorderLayerBeforeMovesLayer() {
+		BlockPos a = new BlockPos(16, 64, 0);
+		BlockPos b = new BlockPos(17, 64, 0);
+		commandManager.execute(new CreateLayerCommand(layerManager, "First", List.of(a)));
+		commandManager.execute(new CreateLayerCommand(layerManager, "Second", List.of(b)));
+		List<String> order = presenter.buildDisplayOrder();
+		assertEquals(2, order.size());
+
+		var result = presenter.reorderLayerBefore(order.get(1), order.get(0));
+		assertTrue(result.ok());
+
+		List<String> reordered = presenter.buildDisplayOrder();
+		assertEquals(order.get(1), reordered.get(0));
+		assertEquals(order.get(0), reordered.get(1));
 	}
 }
