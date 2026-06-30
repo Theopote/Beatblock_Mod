@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import com.beatblock.timeline.editing.ClipDragStateSnapshot;
 import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.rendering.*;
@@ -296,11 +297,32 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			}
 		}
 
-		if (ImGui.isMouseClicked(1) && layout.contentContains(mx, my)) {
-			popupState.contextTimeSeconds = viewState.screenToTime(Math.max(0, Math.min(mx - layout.contentLeft, layout.contentWidth)));
-			HitResult hit = TimelineContentHitTest.hitContentAtMouse(timeline, viewState, layout, mx, my);
-			popupState.contextTrackId = hit.getTrackId();
-			popupState.contextClipId = hit.getClipId();
+		if (ImGui.isMouseClicked(1)) {
+			boolean inContent = layout.contentContains(mx, my);
+			boolean inTrackHeader = mx >= layout.trackHeaderLeft && mx < layout.contentLeft
+				&& my >= layout.contentTop && my <= layout.contentTop + layout.contentHeight;
+			if (!inContent && !inTrackHeader) {
+				// not timeline track area
+			} else {
+			popupState.contextTimeSeconds = inContent
+				? viewState.screenToTime(Math.max(0, Math.min(mx - layout.contentLeft, layout.contentWidth)))
+				: popupState.contextTimeSeconds;
+			HitResult hit = inContent
+				? TimelineContentHitTest.hitContentAtMouse(timeline, viewState, layout, mx, my)
+				: HitResult.empty();
+			if (!inContent && inTrackHeader) {
+				int headerRow = layout.findRowAtScreenY(my);
+				if (TimelineTrackMeta.isBuildLayerSubRow(headerRow)) {
+					popupState.contextTrackId = BuildLayerTrackSupport.trackIdForRow(timeline, headerRow);
+					popupState.contextClipId = null;
+				} else {
+					popupState.contextTrackId = null;
+					popupState.contextClipId = null;
+				}
+			} else {
+				popupState.contextTrackId = hit.getTrackId();
+				popupState.contextClipId = hit.getClipId();
+			}
 			BeatBlockClient.LOGGER.info("[TimelineInteraction.handleMouse] Right-click detected: popupState.contextTrackId={}, popupState.contextClipId={}, hitTrackId={}, hitClipId={}, hitEventId={}", popupState.contextTrackId, popupState.contextClipId, hit.getTrackId(), hit.getClipId(), hit.getEventId());
 			if (Timeline.TRACK_ID_CAMERA.equals(hit.getTrackId())) {
 				if (hit.getClipId() != null) {
@@ -331,6 +353,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				}
 			}
 			ImGui.openPopup(POPUP_EVENT_CONTEXT);
+			}
 		}
 
 		if (ImGui.isMouseDown(0) && interactionState.getMode() != InteractionMode.NONE) {

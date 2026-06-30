@@ -1,6 +1,9 @@
 package com.beatblock.timeline.command.layer;
 
+import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.Track;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+@WithBeatBlockContext
 class BuildLayerTrackCommandsTest {
 
 	private Timeline timeline;
@@ -66,5 +70,16 @@ class BuildLayerTrackCommandsTest {
 		overflow.execute();
 		assertEquals(BuildLayerTrackSupport.MAX_TRACKS, BuildLayerTrackSupport.listTracks(timeline).size());
 		assertNull(overflow.getCreatedTrackId());
+	}
+
+	@Test
+	void displayNameResolvesStoredI18nKey() {
+		Track track = new Track(
+			BuildLayerTrackSupport.DEFAULT_FIRST_TRACK_ID,
+			"beatblock.track.default.build_layer_numbered",
+			com.beatblock.timeline.TrackType.BUILD_LAYER
+		);
+		String name = BuildLayerTrackSupport.displayNameFor(track, 0);
+		assertEquals(BBTexts.get("beatblock.track.default.build_layer_numbered", 1), name);
 	}
 }

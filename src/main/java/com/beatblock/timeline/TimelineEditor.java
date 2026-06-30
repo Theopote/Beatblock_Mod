@@ -6,6 +6,7 @@ import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.CutTimelineEventsCommand;
 import com.beatblock.timeline.command.PasteTimelineEventsCommand;
 import com.beatblock.timeline.editor.*;
+import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import com.beatblock.timeline.interaction.TimelineInteraction;
 import com.beatblock.timeline.interaction.TimelineInteractionClipboard;
 import com.beatblock.timeline.interaction.TimelineInteractionDeleteSupport;
@@ -442,6 +443,7 @@ public final class TimelineEditor {
 			trackListState,
 			layout
 		);
+		syncBuildLayerTrackNamesFromUi();
 		uiStateStore.syncAndFlush(timeline, trackListState);
 	}
 
@@ -462,6 +464,21 @@ public final class TimelineEditor {
 			layout.rulerTop,
 			layout.rulerTop + layout.rulerHeight
 		);
+	}
+
+	/**
+	 * 将轨道头自定义名称写回建造图层 Track，供 .osc 持久化。
+	 */
+	private void syncBuildLayerTrackNamesFromUi() {
+		if (timeline == null) return;
+		var tracks = BuildLayerTrackSupport.listTracks(timeline);
+		for (int i = 0; i < tracks.size(); i++) {
+			int row = BuildLayerTrackSupport.rowForSlot(i);
+			String custom = trackListState.getCustomNameOrNull(row);
+			if (custom != null) {
+				tracks.get(i).setName(custom);
+			}
+		}
 	}
 
 	/**
