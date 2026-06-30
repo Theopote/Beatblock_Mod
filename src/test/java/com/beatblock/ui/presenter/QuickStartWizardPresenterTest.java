@@ -150,7 +150,11 @@ class QuickStartWizardPresenterTest {
 			16.0,
 			List.of(new DetectedBeat(1.0, 0.8f), new DetectedBeat(2.0, 0.7f)),
 			List.of(new EnergyFrame(0.0, 0.2f), new EnergyFrame(8.0, 0.9f)),
-			List.of(new FrequencyBands(1.0, 0.8f, 0.1f, 0.1f)),
+			List.of(
+				new FrequencyBands(0.0, 0.2f, 0.1f, 0.1f),
+				new FrequencyBands(1.0, 0.8f, 0.1f, 0.1f),
+				new FrequencyBands(2.0, 0.2f, 0.1f, 0.1f)
+			),
 			new com.beatblock.audio.analysis.WaveformExtractor.WaveformFrame[0],
 			120f,
 			null
