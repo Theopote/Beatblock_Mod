@@ -7,6 +7,7 @@ import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.video.VideoExportPreferences;
+import com.beatblock.video.VideoExportPresets;
 import com.beatblock.video.VideoExportService;
 import com.beatblock.video.VideoExportSettings;
 import net.fabricmc.loader.api.FabricLoader;
@@ -76,6 +77,7 @@ public final class VideoExportPanelPresenter {
 
 	public PresenterResult startExport(
 		String rawOutputPath,
+		int platformPresetIndex,
 		int resolutionPresetIndex,
 		int fpsPresetIndex,
 		double startSeconds,
@@ -96,29 +98,41 @@ public final class VideoExportPanelPresenter {
 			return PresenterResult.failure(BBTexts.get("beatblock.export.error.invalid_range"));
 		}
 
-		int presetIndex = Math.max(0, Math.min(resolutionPresetIndex, RESOLUTION_PRESETS.length - 1));
-		int fpsIndex = Math.max(0, Math.min(fpsPresetIndex, FPS_PRESETS.length - 1));
-		int[] resolution = RESOLUTION_PRESETS[presetIndex];
-		int fps = FPS_PRESETS[fpsIndex];
-
-		VideoExportPreferences.setResolutionPresetIndex(presetIndex);
-		VideoExportPreferences.setFpsPresetIndex(fpsIndex);
-		VideoExportPreferences.setIncludeAudio(includeAudio);
+		VideoExportPresets.PresetType preset = VideoExportPresets.presetAtIndex(platformPresetIndex);
 		Path outputPath = Path.of(output);
 		Path parent = outputPath.getParent();
 		if (parent != null) {
 			VideoExportPreferences.setLastOutputDirectory(parent.toString());
 		}
+		VideoExportPreferences.setPlatformPresetIndex(platformPresetIndex);
+		VideoExportPreferences.setIncludeAudio(includeAudio);
 
-		VideoExportSettings settings = new VideoExportSettings(
-			outputPath,
-			resolution[0],
-			resolution[1],
-			fps,
-			startSeconds,
-			endSeconds,
-			includeAudio
-		);
+		VideoExportSettings settings;
+		if (preset == VideoExportPresets.PresetType.CUSTOM) {
+			int presetIndex = Math.max(0, Math.min(resolutionPresetIndex, RESOLUTION_PRESETS.length - 1));
+			int fpsIdx = Math.max(0, Math.min(fpsPresetIndex, FPS_PRESETS.length - 1));
+			int[] resolution = RESOLUTION_PRESETS[presetIndex];
+			int fps = FPS_PRESETS[fpsIdx];
+			VideoExportPreferences.setResolutionPresetIndex(presetIndex);
+			VideoExportPreferences.setFpsPresetIndex(fpsIdx);
+			settings = new VideoExportSettings(
+				outputPath,
+				resolution[0],
+				resolution[1],
+				fps,
+				startSeconds,
+				endSeconds,
+				includeAudio
+			);
+		} else {
+			settings = VideoExportPresets.fromPreset(
+				preset,
+				outputPath,
+				startSeconds,
+				endSeconds,
+				includeAudio
+			);
+		}
 
 		VideoExportService service = exportService.get();
 		if (service == null) {

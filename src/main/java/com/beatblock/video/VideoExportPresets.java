@@ -79,7 +79,48 @@ public final class VideoExportPresets {
     }
 
     /**
-     * 获取所有可用预设。
+     * 下拉框顺序：全部平台预设 + 自定义。
+     */
+    public static PresetType[] comboPresets() {
+        List<PresetType> presets = new ArrayList<>(getAllPresets());
+        presets.add(PresetType.CUSTOM);
+        return presets.toArray(PresetType[]::new);
+    }
+
+    /**
+     * 预设对应的 i18n 标签键（{@code beatblock.export.preset.<name>}）。
+     */
+    public static String labelKey(PresetType preset) {
+        return "beatblock.export.preset." + preset.name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * 预设对应的 i18n 描述键。
+     */
+    public static String descriptionKey(PresetType preset) {
+        return labelKey(preset) + ".desc";
+    }
+
+    public static int indexOf(PresetType preset) {
+        PresetType[] all = comboPresets();
+        for (int i = 0; i < all.length; i++) {
+            if (all[i] == preset) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    public static PresetType presetAtIndex(int index) {
+        PresetType[] all = comboPresets();
+        if (index < 0 || index >= all.length) {
+            return getRecommended();
+        }
+        return all[index];
+    }
+
+    /**
+     * 获取所有可用预设（不含自定义）。
      */
     public static List<PresetType> getAllPresets() {
         List<PresetType> presets = new ArrayList<>();

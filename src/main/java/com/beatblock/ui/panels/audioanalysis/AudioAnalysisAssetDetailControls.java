@@ -117,6 +117,10 @@ final class AudioAnalysisAssetDetailControls {
 
 		if (AudioAnalysisPanelImGui.beginDetailSection("completed_result", BBTexts.get("beatblock.audio.analysis_result"), false)) {
 			AudioAnalysisPanelImGui.detailRowCompact(state, "BPM", String.format("%.1f", asset.getBpm()), AudioAnalysisPanelImGui.COLOR_PROGRESS_FG);
+			if (detailBm != null && detailBm.meta != null && detailBm.meta.bpmConfidence() < 0.5) {
+				AudioAnalysisPanelImGui.compactGap();
+				AudioAnalysisPanelImGui.renderWarningBanner("beatblock.audio.bpm_low_confidence");
+			}
 			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.time_signature"), "4/4");
 			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.analysis_mode"),
 				hasStemSeparation ? BBTexts.get("beatblock.audio.demucs_mode") : BBTexts.get("beatblock.audio.basic_mode"));

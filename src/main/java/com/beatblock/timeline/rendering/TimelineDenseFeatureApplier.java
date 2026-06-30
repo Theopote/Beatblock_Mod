@@ -166,8 +166,11 @@ public final class TimelineDenseFeatureApplier {
 
 		double startOffset = TimelineAudioFeatureFillSupport.readClipOffset(timeline, expectedAudioKey);
 		double prevDuration = timeline.getDurationSeconds();
+		Map<String, TimelineAudioFeatureFillSupport.SavedFeatureTrack> savedFeatureEvents =
+			TimelineAudioFeatureFillSupport.saveFeatureEvents(timeline);
 		context.audioAnalysisEngine().fillTimelineFromFeature(timeline, feature, asset.getSampleRate());
 		TimelineAudioFeatureFillSupport.shiftFeatureEventsByOffset(timeline, startOffset);
+		TimelineAudioFeatureFillSupport.restoreFeatureEvents(timeline, savedFeatureEvents);
 		timeline.setDurationSeconds(prevDuration);
 		if (asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
 			timeline.setMetadata("bpm", asset.getBeatmap().meta.bpm());

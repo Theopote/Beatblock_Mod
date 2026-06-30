@@ -4,6 +4,7 @@ import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.VideoExportPanelPresenter;
 import com.beatblock.video.VideoExportPreferences;
+import com.beatblock.video.VideoExportPresets;
 import com.beatblock.video.VideoExportProgress;
 import com.beatblock.video.VideoExportService;
 import imgui.ImGui;
@@ -22,6 +23,7 @@ public final class VideoExportDialog {
 
 	private final VideoExportPanelPresenter presenter;
 	private final ImString outputPath = new ImString(PATH_CAPACITY);
+	private final ImInt platformPresetIndex = new ImInt(VideoExportPreferences.platformPresetIndex());
 	private final ImInt resolutionIndex = new ImInt(VideoExportPreferences.resolutionPresetIndex());
 	private final ImInt fpsIndex = new ImInt(VideoExportPreferences.fpsPresetIndex());
 	private final ImDouble startSeconds = new ImDouble(0.0);
@@ -49,6 +51,7 @@ public final class VideoExportDialog {
 		outputPath.set(state.defaultOutputPath());
 		startSeconds.set(state.defaultStartSeconds());
 		endSeconds.set(state.defaultEndSeconds());
+		platformPresetIndex.set(VideoExportPreferences.platformPresetIndex());
 		resolutionIndex.set(VideoExportPreferences.resolutionPresetIndex());
 		fpsIndex.set(VideoExportPreferences.fpsPresetIndex());
 		includeAudio.set(VideoExportPreferences.includeAudio());
@@ -99,16 +102,44 @@ public final class VideoExportDialog {
 		ImGui.setNextItemWidth(-1);
 		ImGui.inputText("##exportOutputPath", outputPath);
 
-		ImGui.text(BBTexts.get("beatblock.export.resolution"));
+		ImGui.text(BBTexts.get("beatblock.export.preset.section"));
 		ImGui.setNextItemWidth(-1);
-		if (ImGui.combo("##exportResolution", resolutionIndex, resolutionLabels())) {
-			VideoExportPreferences.setResolutionPresetIndex(resolutionIndex.get());
+		if (ImGui.combo("##exportPlatformPreset", platformPresetIndex, platformPresetLabels())) {
+			VideoExportPreferences.setPlatformPresetIndex(platformPresetIndex.get());
 		}
 
-		ImGui.text(BBTexts.get("beatblock.export.fps"));
-		ImGui.setNextItemWidth(-1);
-		if (ImGui.combo("##exportFps", fpsIndex, fpsLabels())) {
-			VideoExportPreferences.setFpsPresetIndex(fpsIndex.get());
+		VideoExportPresets.PresetType selected = VideoExportPresets.presetAtIndex(platformPresetIndex.get());
+		ImGui.textDisabled(BBTexts.get(VideoExportPresets.descriptionKey(selected)));
+
+		boolean custom = selected == VideoExportPresets.PresetType.CUSTOM;
+		if (custom) {
+			ImGui.text(BBTexts.get("beatblock.export.resolution"));
+			ImGui.setNextItemWidth(-1);
+			if (ImGui.combo("##exportResolution", resolutionIndex, resolutionLabels())) {
+				VideoExportPreferences.setResolutionPresetIndex(resolutionIndex.get());
+			}
+
+			ImGui.text(BBTexts.get("beatblock.export.fps"));
+			ImGui.setNextItemWidth(-1);
+			if (ImGui.combo("##exportFps", fpsIndex, fpsLabels())) {
+				VideoExportPreferences.setFpsPresetIndex(fpsIndex.get());
+			}
+		} else {
+			ImGui.textDisabled(BBTexts.get(
+				"beatblock.export.preset.resolution_fps",
+				selected.getWidth(),
+				selected.getHeight(),
+				selected.getFps()
+			));
+		}
+
+		double exportDuration = Math.max(0.0, endSeconds.get() - startSeconds.get());
+		int width = custom ? resolutionWidth() : selected.getWidth();
+		int height = custom ? resolutionHeight() : selected.getHeight();
+		int fps = custom ? fpsValue() : selected.getFps();
+		if (exportDuration > 0.0 && width > 0 && height > 0 && fps > 0) {
+			double estimateMb = VideoExportPresets.estimateFileSize(width, height, fps, exportDuration);
+			ImGui.textDisabled(BBTexts.get("beatblock.export.estimate_size", estimateMb));
 		}
 
 		ImGui.text(BBTexts.get("beatblock.export.time_range"));
@@ -126,6 +157,24 @@ public final class VideoExportDialog {
 		if (ImGui.checkbox(BBTexts.get("beatblock.export.include_audio"), includeAudio)) {
 			VideoExportPreferences.setIncludeAudio(includeAudio.get());
 		}
+	}
+
+	private int resolutionWidth() {
+		int[][] presets = VideoExportPanelPresenter.resolutionPresets();
+		int idx = Math.max(0, Math.min(resolutionIndex.get(), presets.length - 1));
+		return presets[idx][0];
+	}
+
+	private int resolutionHeight() {
+		int[][] presets = VideoExportPanelPresenter.resolutionPresets();
+		int idx = Math.max(0, Math.min(resolutionIndex.get(), presets.length - 1));
+		return presets[idx][1];
+	}
+
+	private int fpsValue() {
+		int[] presets = VideoExportPanelPresenter.fpsPresets();
+		int idx = Math.max(0, Math.min(fpsIndex.get(), presets.length - 1));
+		return presets[idx];
 	}
 
 	private void renderFfmpegStatus(VideoExportPanelPresenter.FfmpegStatus status) {
@@ -212,6 +261,7 @@ public final class VideoExportDialog {
 		if (ImGui.button(BBTexts.get("beatblock.export.start_button"), 120, 0)) {
 			var result = presenter.startExport(
 				outputPath.get(),
+				platformPresetIndex.get(),
 				resolutionIndex.get(),
 				fpsIndex.get(),
 				startSeconds.get(),
@@ -227,6 +277,15 @@ public final class VideoExportDialog {
 		if (ImGui.button(BBTexts.get("beatblock.export.close") + "##exportVideo")) {
 			open = false;
 		}
+	}
+
+	private static String[] platformPresetLabels() {
+		VideoExportPresets.PresetType[] presets = VideoExportPresets.comboPresets();
+		String[] labels = new String[presets.length];
+		for (int i = 0; i < presets.length; i++) {
+			labels[i] = BBTexts.get(VideoExportPresets.labelKey(presets[i]));
+		}
+		return labels;
 	}
 
 	private static String[] resolutionLabels() {

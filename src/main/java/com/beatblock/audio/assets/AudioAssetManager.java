@@ -205,6 +205,16 @@ public final class AudioAssetManager {
 		AudioAnalysisService service = externalAnalyzer();
 		if (service == null) return BBTexts.get("beatblock.audio.analyzer_uninitialized");
 
+		String assetId = asset.getId();
+		service.cancelAnalysis(assetId);
+		analysisTasks.remove(assetId);
+		if (asset.getStatus() == AudioAssetStatus.QUEUED || asset.getStatus() == AudioAssetStatus.ANALYZING) {
+			asset.setStatus(AudioAssetStatus.PENDING);
+			asset.setQueueTicket(-1L);
+			asset.setAnalysisPhase(AudioAnalysisPhase.PENDING);
+			asset.setProcessingStatusText(null);
+		}
+
 		AudioAnalysisMode resolvedMode = mode != null ? mode : AudioAnalysisMode.BASIC;
 		int removed = service.clearAllAnalysisCacheForAudio(asset.getPath());
 		startAnalysis(asset, resolvedMode);

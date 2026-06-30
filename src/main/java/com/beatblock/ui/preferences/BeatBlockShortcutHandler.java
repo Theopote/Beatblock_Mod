@@ -28,6 +28,9 @@ public final class BeatBlockShortcutHandler {
 			if (isPressed(BeatBlockShortcutId.COPY)) {
 				editor.copySelectedEvents();
 			}
+			if (isPressed(BeatBlockShortcutId.CUT)) {
+				editor.cutSelectedEvents();
+			}
 			if (isPressed(BeatBlockShortcutId.PASTE)) {
 				editor.pasteClipboardAtPlayhead();
 			}
@@ -81,6 +84,7 @@ public final class BeatBlockShortcutHandler {
 				case "Z" -> ImGuiKey.Z;
 				case "Y" -> ImGuiKey.Y;
 				case "C" -> ImGuiKey.C;
+				case "X" -> ImGuiKey.X;
 				case "V" -> ImGuiKey.V;
 				case "DELETE", "DEL" -> ImGuiKey.Delete;
 				default -> -1;

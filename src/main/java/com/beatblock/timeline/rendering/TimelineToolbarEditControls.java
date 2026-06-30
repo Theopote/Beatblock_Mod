@@ -23,6 +23,15 @@ final class TimelineToolbarEditControls {
 
 		TimelineToolbarImGui.nextItemInGroup();
 
+		if (!hasSelection) ImGui.beginDisabled();
+		if (ImGui.button(BBTexts.get("beatblock.common.cut") + "##tlCut")) {
+			editor.cutSelectedEvents();
+		}
+		if (!hasSelection) ImGui.endDisabled();
+		if (ImGui.isItemHovered()) ImGui.setTooltip("Ctrl+X");
+
+		TimelineToolbarImGui.nextItemInGroup();
+
 		if (!hasClipboard) ImGui.beginDisabled();
 		if (ImGui.button(BBTexts.get("beatblock.common.paste") + "##tlPaste")) {
 			editor.pasteClipboardAtPlayhead();

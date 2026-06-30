@@ -2,8 +2,11 @@ package com.beatblock.timeline;
 
 import com.beatblock.audio.MusicPlayer;
 import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.timeline.command.CutTimelineEventsCommand;
+import com.beatblock.timeline.command.PasteTimelineEventsCommand;
 import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.interaction.TimelineInteraction;
+import com.beatblock.timeline.interaction.TimelineInteractionClipboard;
 import com.beatblock.timeline.interaction.TimelineInteractionDeleteSupport;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineRenderer;
@@ -444,12 +447,29 @@ public final class TimelineEditor {
 	}
 
 	public void pasteClipboardAtPlayhead() {
-		interactionSystem.pasteClipboardEvents(
+		pasteClipboardAt(state.getClock().getCurrentTimeSeconds());
+	}
+
+	public void pasteClipboardAt(double anchorTimeSeconds) {
+		var request = new TimelineInteractionClipboard.PasteRequest(
 			timeline,
 			state.getSelectionState(),
-			state.getClock().getCurrentTimeSeconds(),
+			interactionSystem.clipboardEvents(),
+			anchorTimeSeconds,
+			interactionSystem.contextTrackIdForClipboard(),
+			interactionSystem.contextClipIdForClipboard(),
 			trackListState
 		);
+		commandManager.execute(new PasteTimelineEventsCommand(request));
+	}
+
+	public void cutSelectedEvents() {
+		commandManager.execute(new CutTimelineEventsCommand(
+			timeline,
+			state.getSelectionState(),
+			trackListState,
+			interactionSystem.clipboardEvents()
+		));
 	}
 
 	public void deleteSelectedEntries() {

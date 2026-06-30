@@ -20,6 +20,7 @@ public final class VideoExportPreferences {
 
 	private static int resolutionPresetIndex = 1;
 	private static int fpsPresetIndex = 1;
+	private static int platformPresetIndex = VideoExportPresets.indexOf(VideoExportPresets.getRecommended());
 	private static boolean includeAudio = true;
 	private static String lastOutputDirectory = "";
 	private static boolean loaded;
@@ -45,6 +46,17 @@ public final class VideoExportPreferences {
 	public static void setFpsPresetIndex(int index) {
 		ensureLoaded();
 		fpsPresetIndex = Math.max(0, index);
+		save();
+	}
+
+	public static int platformPresetIndex() {
+		ensureLoaded();
+		return platformPresetIndex;
+	}
+
+	public static void setPlatformPresetIndex(int index) {
+		ensureLoaded();
+		platformPresetIndex = Math.max(0, index);
 		save();
 	}
 
@@ -92,6 +104,9 @@ public final class VideoExportPreferences {
 			if (root.has("fpsPresetIndex")) {
 				fpsPresetIndex = root.get("fpsPresetIndex").getAsInt();
 			}
+			if (root.has("platformPresetIndex")) {
+				platformPresetIndex = root.get("platformPresetIndex").getAsInt();
+			}
 			if (root.has("includeAudio")) {
 				includeAudio = root.get("includeAudio").getAsBoolean();
 			}
@@ -110,6 +125,7 @@ public final class VideoExportPreferences {
 			JsonObject root = new JsonObject();
 			root.addProperty("resolutionPresetIndex", resolutionPresetIndex);
 			root.addProperty("fpsPresetIndex", fpsPresetIndex);
+			root.addProperty("platformPresetIndex", platformPresetIndex);
 			root.addProperty("includeAudio", includeAudio);
 			root.addProperty("lastOutputDirectory", lastOutputDirectory);
 			Files.writeString(path, GSON.toJson(root), StandardCharsets.UTF_8);

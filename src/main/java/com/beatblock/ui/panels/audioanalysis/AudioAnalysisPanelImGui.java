@@ -298,8 +298,12 @@ final class AudioAnalysisPanelImGui {
 	}
 
 	static void renderWarningBanner() {
+		renderWarningBanner("beatblock.audio.demucs_warning");
+	}
+
+	static void renderWarningBanner(String messageKey) {
 		ImGui.pushStyleColor(ImGuiCol.Text, 0.94f, 0.62f, 0.16f, 1f);
-		ImGui.textWrapped(Icons.Action.WARNING + " " + BBTexts.get("beatblock.audio.demucs_warning"));
+		ImGui.textWrapped(Icons.Action.WARNING + " " + BBTexts.get(messageKey));
 		ImGui.popStyleColor();
 	}
 

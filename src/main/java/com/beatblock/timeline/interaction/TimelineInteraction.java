@@ -200,6 +200,9 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.C)) {
 			copySelectedEvents(timeline, selectionState);
 		}
+		if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.X)) {
+			cutSelectedEvents(timeline, selectionState, trackListState);
+		}
 		if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.V)) {
 			double anchor = popupState.contextTimeSeconds;
 			if (layout.contentContains(mx, my)) {
@@ -692,18 +695,36 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		TimelineInteractionClipboard.copy(clipboardEvents, timeline, selectionState);
 	}
 
+	public String contextTrackIdForClipboard() {
+		return popupState.contextTrackId;
+	}
+
+	public String contextClipIdForClipboard() {
+		return popupState.contextClipId;
+	}
+
 	@Override
 	public void pasteClipboardEvents(Timeline timeline, SelectionState selectionState, double anchorTimeSeconds,
 			TimelineTrackListState trackListState) {
+		if (timelineEditor != null) {
+			timelineEditor.pasteClipboardAt(anchorTimeSeconds);
+			return;
+		}
 		TimelineInteractionClipboard.paste(new TimelineInteractionClipboard.PasteRequest(
-				timeline,
+			timeline,
 			selectionState,
 			clipboardEvents,
-				anchorTimeSeconds,
+			anchorTimeSeconds,
 			popupState.contextTrackId,
 			popupState.contextClipId,
 			trackListState
 		));
+	}
+
+	public void cutSelectedEvents(Timeline timeline, SelectionState selectionState, TimelineTrackListState trackListState) {
+		if (timelineEditor != null) {
+			timelineEditor.cutSelectedEvents();
+		}
 	}
 
 	@Override

@@ -5,8 +5,21 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VideoExportPresetsTest {
+
+	@Test
+	void indexOfReturnsRecommendedPresetIndex() {
+		assertEquals(0, VideoExportPresets.indexOf(VideoExportPresets.getRecommended()));
+	}
+
+	@Test
+	void comboPresetsEndsWithCustom() {
+		VideoExportPresets.PresetType[] presets = VideoExportPresets.comboPresets();
+		assertTrue(presets.length > 1);
+		assertEquals(VideoExportPresets.PresetType.CUSTOM, presets[presets.length - 1]);
+	}
 
 	@Test
 	void fromPresetUsesEndTimeSecondsNotFrameCount() {
