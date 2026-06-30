@@ -28,14 +28,43 @@ public final class BuildLayerPersistence {
 		return arr;
 	}
 
-	public static void loadInto(BuildLayerManager manager, JsonArray arr) {
+	public static JsonArray groupsToJson(BuildLayerManager manager) {
+		JsonArray arr = new JsonArray();
+		if (manager == null) {
+			return arr;
+		}
+		for (BuildLayerGroup group : manager.getAllGroups()) {
+			JsonObject root = new JsonObject();
+			root.addProperty("id", group.getId());
+			root.addProperty("name", group.getName());
+			if (group.getColorArgb() != 0) {
+				root.addProperty("colorArgb", group.getColorArgb());
+			}
+			arr.add(root);
+		}
+		return arr;
+	}
+
+	public static void loadInto(BuildLayerManager manager, JsonArray arr, JsonArray groupsArr) {
 		if (manager == null) return;
 		manager.clear();
+		if (groupsArr != null) {
+			for (int i = 0; i < groupsArr.size(); i++) {
+				BuildLayerGroup group = groupFromJson(groupsArr.get(i).getAsJsonObject());
+				if (group != null) {
+					manager.registerGroup(group);
+				}
+			}
+		}
 		if (arr == null) return;
 		for (int i = 0; i < arr.size(); i++) {
 			BuildLayer layer = layerFromJson(arr.get(i).getAsJsonObject());
 			if (layer != null) manager.registerRestored(layer);
 		}
+	}
+
+	public static void loadInto(BuildLayerManager manager, JsonArray arr) {
+		loadInto(manager, arr, null);
 	}
 
 	private static JsonObject layerToJson(BuildLayer layer) {
@@ -45,6 +74,12 @@ public final class BuildLayerPersistence {
 		root.addProperty("state", layer.getState().name());
 		if (layer.getBoundClipId() != null) {
 			root.addProperty("boundClipId", layer.getBoundClipId());
+		}
+		if (layer.getGroupId() != null) {
+			root.addProperty("groupId", layer.getGroupId());
+		}
+		if (layer.getColorArgb() != 0) {
+			root.addProperty("colorArgb", layer.getColorArgb());
 		}
 		StageObject stage = layer.getStageObject();
 		root.addProperty("stageObjectId", stage.getId());
@@ -81,6 +116,9 @@ public final class BuildLayerPersistence {
 		}
 		String boundClipId = root.has("boundClipId") && !root.get("boundClipId").isJsonNull()
 			? root.get("boundClipId").getAsString() : null;
+		String groupId = root.has("groupId") && !root.get("groupId").isJsonNull()
+			? root.get("groupId").getAsString() : null;
+		int colorArgb = root.has("colorArgb") ? root.get("colorArgb").getAsInt() : 0;
 
 		List<BlockPos> blocks = new ArrayList<>();
 		if (root.has("blocks")) {
@@ -107,7 +145,20 @@ public final class BuildLayerPersistence {
 			}
 		}
 
-		return new BuildLayer(id, name, stageObject, state, captured, boundClipId);
+		BuildLayer layer = new BuildLayer(id, name, stageObject, state, captured, boundClipId);
+		layer.setGroupId(groupId);
+		layer.setColorArgb(colorArgb);
+		return layer;
+	}
+
+	private static BuildLayerGroup groupFromJson(JsonObject root) {
+		if (root == null || !root.has("id")) {
+			return null;
+		}
+		String id = root.get("id").getAsString();
+		String name = root.has("name") ? root.get("name").getAsString() : id;
+		int colorArgb = root.has("colorArgb") ? root.get("colorArgb").getAsInt() : 0;
+		return new BuildLayerGroup(id, name, colorArgb);
 	}
 
 	private static JsonObject posToJson(BlockPos pos) {

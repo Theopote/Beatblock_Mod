@@ -51,6 +51,22 @@ public final class CommandDescriptions {
 		if (command instanceof com.beatblock.timeline.command.layer.BindLayerToTrackCommand) {
 			return BBTexts.get("beatblock.undo.bind_layer");
 		}
+		if (command instanceof com.beatblock.timeline.command.layer.GroupLayersCommand) {
+			return BBTexts.get("beatblock.undo.group_layers");
+		}
+		if (command instanceof com.beatblock.timeline.command.layer.UngroupLayersCommand) {
+			return BBTexts.get("beatblock.undo.ungroup_layers");
+		}
+		if (command instanceof com.beatblock.timeline.command.layer.MergeLayersCommand) {
+			return BBTexts.get("beatblock.undo.merge_layers");
+		}
+		if (command instanceof com.beatblock.timeline.command.layer.SetLayerColorCommand
+			|| command instanceof com.beatblock.timeline.command.layer.SetGroupColorCommand) {
+			return BBTexts.get("beatblock.undo.set_layer_color");
+		}
+		if (command instanceof com.beatblock.timeline.command.layer.RenameGroupCommand) {
+			return BBTexts.get("beatblock.undo.rename_group");
+		}
 		return command.getClass().getSimpleName();
 	}
 }

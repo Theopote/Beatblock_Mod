@@ -71,6 +71,7 @@ public final class OscProjectStore {
 		root.add("markers", markers);
 		if (layerManager != null) {
 			root.add("buildLayers", BuildLayerPersistence.toJson(layerManager));
+			root.add("buildLayerGroups", BuildLayerPersistence.groupsToJson(layerManager));
 		}
 		root.add("animationTracks", TimelineAnimationPersistence.toJson(timeline));
 
@@ -110,7 +111,10 @@ public final class OscProjectStore {
 		String audioPath = getString(root, "audioPath", "");
 		List<TimelineMarker> markers = parseMarkers(root);
 		if (layerManager != null && root.has("buildLayers") && root.get("buildLayers").isJsonArray()) {
-			BuildLayerPersistence.loadInto(layerManager, root.getAsJsonArray("buildLayers"));
+			JsonArray groupsArr = root.has("buildLayerGroups") && root.get("buildLayerGroups").isJsonArray()
+				? root.getAsJsonArray("buildLayerGroups")
+				: null;
+			BuildLayerPersistence.loadInto(layerManager, root.getAsJsonArray("buildLayers"), groupsArr);
 		}
 		if (timeline != null) {
 			JsonArray animationTracks = root.has("animationTracks") && root.get("animationTracks").isJsonArray()

@@ -19,6 +19,8 @@ public final class BuildLayer {
 	private LayerVisibilityState state;
 	private final Map<BlockPos, BlockState> capturedStates;
 	private String boundClipId;
+	private String groupId;
+	private int colorArgb;
 
 	public BuildLayer(
 		String id,
@@ -34,6 +36,22 @@ public final class BuildLayer {
 		this.state = state != null ? state : LayerVisibilityState.FREE_VISIBLE;
 		this.capturedStates = capturedStates != null ? new LinkedHashMap<>(capturedStates) : new LinkedHashMap<>();
 		this.boundClipId = boundClipId;
+	}
+
+	public String getGroupId() {
+		return groupId;
+	}
+
+	public void setGroupId(String groupId) {
+		this.groupId = groupId != null && !groupId.isBlank() ? groupId : null;
+	}
+
+	public int getColorArgb() {
+		return colorArgb;
+	}
+
+	public void setColorArgb(int colorArgb) {
+		this.colorArgb = Math.max(0, colorArgb);
 	}
 
 	public String getId() { return id; }

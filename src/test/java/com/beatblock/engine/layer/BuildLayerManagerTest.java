@@ -92,6 +92,13 @@ class BuildLayerManagerTest {
 	}
 
 	@Test
+	void createFromSelectionCreatesHiddenLayer() {
+		BlockPos first = new BlockPos(10, 64, 0);
+		BuildLayer layer = manager.createFromSelection("Tower", List.of(first));
+		assertEquals(LayerVisibilityState.FREE_HIDDEN, layer.getState());
+	}
+
+	@Test
 	void createFromSelectionAssignsUniqueNamesForDuplicates() {
 		BlockPos first = new BlockPos(10, 64, 0);
 		BlockPos second = new BlockPos(11, 64, 0);

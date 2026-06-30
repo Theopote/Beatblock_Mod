@@ -13,9 +13,11 @@ import net.minecraft.world.World;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -25,6 +27,7 @@ public final class BuildLayerManager {
 
 	private final StageObjectSystem stageObjectSystem;
 	private final Map<String, BuildLayer> layers = new LinkedHashMap<>();
+	private final Map<String, BuildLayerGroup> groups = new LinkedHashMap<>();
 	/** 方块 → 所属图层 id，保证同一 BlockPos 只能归属一个图层。 */
 	private final Map<BlockPos, String> blockOwnerByPos = new HashMap<>();
 
@@ -34,6 +37,37 @@ public final class BuildLayerManager {
 
 	public Collection<BuildLayer> getAll() {
 		return List.copyOf(layers.values());
+	}
+
+	public Collection<BuildLayerGroup> getAllGroups() {
+		return List.copyOf(groups.values());
+	}
+
+	public BuildLayerGroup getGroup(String groupId) {
+		return groupId != null ? groups.get(groupId) : null;
+	}
+
+	public List<BuildLayer> getLayersInGroup(String groupId) {
+		if (groupId == null || groupId.isBlank()) {
+			return List.of();
+		}
+		List<BuildLayer> result = new ArrayList<>();
+		for (BuildLayer layer : layers.values()) {
+			if (groupId.equals(layer.getGroupId())) {
+				result.add(layer);
+			}
+		}
+		return result;
+	}
+
+	public List<BuildLayer> getUngroupedLayers() {
+		List<BuildLayer> result = new ArrayList<>();
+		for (BuildLayer layer : layers.values()) {
+			if (layer.getGroupId() == null) {
+				result.add(layer);
+			}
+		}
+		return result;
 	}
 
 	public BuildLayer get(String id) {
@@ -67,9 +101,12 @@ public final class BuildLayerManager {
 		}
 
 		BuildLayer layer = new BuildLayer(
-			id, layerName, stageObject, LayerVisibilityState.FREE_VISIBLE, initialCapture, null);
+			id, layerName, stageObject, LayerVisibilityState.FREE_HIDDEN, initialCapture, null);
 		layers.put(id, layer);
 		claimBlocks(layer);
+		if (world != null) {
+			applyHiddenBlocks(layer, world);
+		}
 		return layer;
 	}
 
@@ -208,7 +245,177 @@ public final class BuildLayerManager {
 
 	public void clear() {
 		layers.clear();
+		groups.clear();
 		blockOwnerByPos.clear();
+	}
+
+	public BuildLayerGroup createGroup(String name, List<String> layerIds) {
+		if (layerIds == null || layerIds.isEmpty()) {
+			return null;
+		}
+		List<BuildLayer> members = new ArrayList<>();
+		for (String layerId : layerIds) {
+			BuildLayer layer = layers.get(layerId);
+			if (layer == null) {
+				return null;
+			}
+			members.add(layer);
+		}
+		String groupName = name != null && !name.isBlank() ? name.trim() : "group";
+		String groupId = uniqueGroupId(groupName);
+		BuildLayerGroup group = new BuildLayerGroup(groupId, groupName, 0);
+		groups.put(groupId, group);
+		for (BuildLayer layer : members) {
+			layer.setGroupId(groupId);
+		}
+		return group;
+	}
+
+	public boolean dissolveGroup(String groupId) {
+		if (groupId == null || !groups.containsKey(groupId)) {
+			return false;
+		}
+		groups.remove(groupId);
+		for (BuildLayer layer : layers.values()) {
+			if (groupId.equals(layer.getGroupId())) {
+				layer.setGroupId(null);
+			}
+		}
+		return true;
+	}
+
+	public boolean ungroupLayers(List<String> layerIds) {
+		if (layerIds == null || layerIds.isEmpty()) {
+			return false;
+		}
+		Set<String> affectedGroups = new HashSet<>();
+		for (String layerId : layerIds) {
+			BuildLayer layer = layers.get(layerId);
+			if (layer == null || layer.getGroupId() == null) {
+				continue;
+			}
+			affectedGroups.add(layer.getGroupId());
+			layer.setGroupId(null);
+		}
+		for (String groupId : affectedGroups) {
+			boolean anyLeft = layers.values().stream().anyMatch(layer -> groupId.equals(layer.getGroupId()));
+			if (!anyLeft) {
+				groups.remove(groupId);
+			}
+		}
+		return true;
+	}
+
+	public boolean renameGroup(BuildLayerGroup group, String newName) {
+		if (group == null || newName == null || newName.isBlank()) {
+			return false;
+		}
+		String trimmed = newName.trim();
+		if (trimmed.equals(group.getName())) {
+			return true;
+		}
+		if (isGroupNameTaken(trimmed, group.getId())) {
+			return false;
+		}
+		group.setName(trimmed);
+		return true;
+	}
+
+	public boolean isGroupNameTaken(String name, String excludeGroupId) {
+		if (name == null || name.isBlank()) {
+			return true;
+		}
+		for (BuildLayerGroup group : groups.values()) {
+			if (excludeGroupId != null && excludeGroupId.equals(group.getId())) {
+				continue;
+			}
+			if (group.getName().equalsIgnoreCase(name.trim())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public BuildLayer mergeLayers(List<String> layerIds, String requestedName) {
+		if (layerIds == null || layerIds.size() < 2) {
+			return null;
+		}
+		List<BuildLayer> sources = new ArrayList<>(layerIds.size());
+		for (String layerId : layerIds) {
+			BuildLayer layer = layers.get(layerId);
+			if (layer == null || !layer.canDelete()) {
+				return null;
+			}
+			sources.add(layer);
+		}
+
+		LayerVisibilityState state = sources.getFirst().getState();
+		if (state == LayerVisibilityState.BOUND_TO_TRACK) {
+			return null;
+		}
+		for (BuildLayer layer : sources) {
+			if (layer.getState() != state) {
+				return null;
+			}
+		}
+
+		List<BlockPos> mergedBlocks = new ArrayList<>();
+		Map<BlockPos, BlockState> mergedCapture = new LinkedHashMap<>();
+		Set<String> groupIds = new HashSet<>();
+		int mergedColor = 0;
+		for (BuildLayer layer : sources) {
+			mergedBlocks.addAll(layer.getStageObject().getBlocks());
+			mergedCapture.putAll(layer.getCapturedStates());
+			if (layer.getGroupId() != null) {
+				groupIds.add(layer.getGroupId());
+			}
+			if (layer.getColorArgb() != 0) {
+				mergedColor = layer.getColorArgb();
+			}
+		}
+
+		for (BuildLayer layer : sources) {
+			dissolveLayer(layer);
+		}
+
+		String baseName = requestedName != null && !requestedName.isBlank()
+			? requestedName.trim()
+			: sources.getFirst().getName() + "_merged";
+		String layerName = uniqueLayerName(baseName);
+		String id = uniqueLayerId(layerName);
+		StageObject stageObject = StageObjectSystem.fromSelectionSnapshot(
+			id + "_stage", layerName, mergedBlocks, com.beatblock.engine.GroupSortingStrategy.SEQUENTIAL, 0.0);
+		stageObjectSystem.register(stageObject);
+		BuildLayer merged = new BuildLayer(id, layerName, stageObject, state, mergedCapture, null);
+		if (groupIds.size() == 1) {
+			merged.setGroupId(groupIds.iterator().next());
+		}
+		merged.setColorArgb(mergedColor);
+		layers.put(id, merged);
+		claimBlocks(merged);
+		return merged;
+	}
+
+	public void registerGroup(BuildLayerGroup group) {
+		if (group != null) {
+			groups.put(group.getId(), group);
+		}
+	}
+
+	public void dissolveLayer(BuildLayer layer) {
+		if (layer == null) {
+			return;
+		}
+		String groupId = layer.getGroupId();
+		layers.remove(layer.getId());
+		releaseBlocks(layer);
+		stageObjectSystem.remove(layer.getStageObjectId());
+		if (groupId != null) {
+			boolean anyLeft = layers.values().stream().anyMatch(candidate -> groupId.equals(candidate.getGroupId()));
+			if (!anyLeft) {
+				groups.remove(groupId);
+			}
+		}
 	}
 
 	private void claimBlocks(BuildLayer layer) {
@@ -276,6 +483,18 @@ public final class BuildLayerManager {
 			if (pos == null || !isBlockPosInLoadedChunk(world, pos)) continue;
 			target.put(pos.toImmutable(), world.getBlockState(pos));
 		}
+	}
+
+	private String uniqueGroupId(String baseName) {
+		String slug = baseName.toLowerCase().replaceAll("[^a-z0-9_\\-]", "_");
+		if (slug.isBlank()) {
+			slug = "group";
+		}
+		String candidate = "group_" + slug;
+		if (!groups.containsKey(candidate)) {
+			return candidate;
+		}
+		return candidate + "_" + UUID.randomUUID().toString().substring(0, 8);
 	}
 
 	private String uniqueLayerName(String requestedName) {

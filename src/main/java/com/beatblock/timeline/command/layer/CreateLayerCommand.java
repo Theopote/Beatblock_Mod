@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 从当前选区创建图层（初始 FREE_VISIBLE）。 */
+/** 从当前选区创建图层（初始 FREE_HIDDEN，世界方块写为空气）。 */
 public final class CreateLayerCommand implements com.beatblock.timeline.command.Command {
 
 	private final BuildLayerManager manager;

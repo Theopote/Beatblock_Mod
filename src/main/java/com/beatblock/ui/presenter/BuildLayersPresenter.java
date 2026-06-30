@@ -1,19 +1,28 @@
 package com.beatblock.ui.presenter;
 
 import com.beatblock.engine.layer.BuildLayer;
+import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.layer.CreateLayerCommand;
 import com.beatblock.timeline.command.layer.DeleteLayerCommand;
+import com.beatblock.timeline.command.layer.GroupLayersCommand;
+import com.beatblock.timeline.command.layer.MergeLayersCommand;
+import com.beatblock.timeline.command.layer.RenameGroupCommand;
 import com.beatblock.timeline.command.layer.RenameLayerCommand;
+import com.beatblock.timeline.command.layer.SetGroupColorCommand;
+import com.beatblock.timeline.command.layer.SetLayerColorCommand;
 import com.beatblock.timeline.command.layer.ToggleLayerVisibilityCommand;
+import com.beatblock.timeline.command.layer.UngroupLayersCommand;
 import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -33,8 +42,11 @@ public final class BuildLayersPresenter {
 
 	public record DeleteOutcome(PresenterResult result) {}
 
+	public record LayerActionOutcome(PresenterResult result, String primaryId) {}
+
 	private final Supplier<CommandManager> commandManager;
 	private final Supplier<BuildLayerManager> layerManager;
+	private final LinkedHashSet<String> selectedLayerIds = new LinkedHashSet<>();
 
 	public BuildLayersPresenter(
 		Supplier<CommandManager> commandManager,
@@ -42,6 +54,32 @@ public final class BuildLayersPresenter {
 	) {
 		this.commandManager = commandManager;
 		this.layerManager = layerManager;
+	}
+
+	public Set<String> selectedLayerIds() {
+		return Set.copyOf(selectedLayerIds);
+	}
+
+	public boolean isLayerSelected(String layerId) {
+		return layerId != null && selectedLayerIds.contains(layerId);
+	}
+
+	public void selectLayer(String layerId, boolean addToSelection) {
+		if (layerId == null || layerId.isBlank()) {
+			return;
+		}
+		if (!addToSelection) {
+			selectedLayerIds.clear();
+		}
+		if (addToSelection && selectedLayerIds.contains(layerId)) {
+			selectedLayerIds.remove(layerId);
+		} else {
+			selectedLayerIds.add(layerId);
+		}
+	}
+
+	public void clearSelection() {
+		selectedLayerIds.clear();
 	}
 
 	public RenameOutcome renameLayer(String layerId, String rawName) {
@@ -76,6 +114,33 @@ public final class BuildLayersPresenter {
 		return new RenameOutcome(PresenterResult.success(BBTexts.get("beatblock.message.layer_renamed", trimmed)), trimmed);
 	}
 
+	public RenameOutcome renameGroup(String groupId, String rawName) {
+		CommandManager commands = commandManager.get();
+		BuildLayerManager manager = layerManager.get();
+		if (commands == null || manager == null) {
+			return new RenameOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.editor_unavailable")), null);
+		}
+		BuildLayerGroup group = manager.getGroup(groupId);
+		if (group == null) {
+			return new RenameOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.group_not_found")), null);
+		}
+		String trimmed = rawName != null ? rawName.trim() : "";
+		if (trimmed.isEmpty()) {
+			return new RenameOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.layer_name_empty")),
+				group.getName()
+			);
+		}
+		if (manager.isGroupNameTaken(trimmed, group.getId())) {
+			return new RenameOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.group_name_taken", trimmed)),
+				group.getName()
+			);
+		}
+		commands.execute(new RenameGroupCommand(manager, group.getId(), trimmed));
+		return new RenameOutcome(PresenterResult.success(BBTexts.get("beatblock.message.group_renamed", trimmed)), trimmed);
+	}
+
 	public CreateOutcome createLayerFromSelection(String rawName, List<BlockPos> selectedBlocks) {
 		CommandManager commands = commandManager.get();
 		BuildLayerManager manager = layerManager.get();
@@ -108,7 +173,9 @@ public final class BuildLayersPresenter {
 
 		String message = claimed > 0
 			? BBTexts.get("beatblock.message.layer_created_skipped", created.getName(), claimed)
-			: BBTexts.get("beatblock.message.layer_created", created.getName());
+			: BBTexts.get("beatblock.message.layer_created_hidden", created.getName());
+		selectedLayerIds.clear();
+		selectedLayerIds.add(created.getId());
 		return new CreateOutcome(
 			PresenterResult.success(message),
 			created.getId(),
@@ -126,6 +193,14 @@ public final class BuildLayersPresenter {
 			return null;
 		}
 		return manager.get(layerId);
+	}
+
+	public BuildLayerGroup findGroup(String groupId) {
+		BuildLayerManager manager = layerManager.get();
+		if (manager == null || groupId == null || groupId.isBlank()) {
+			return null;
+		}
+		return manager.getGroup(groupId);
 	}
 
 	public ToggleVisibilityOutcome toggleVisibility(String layerId) {
@@ -167,6 +242,91 @@ public final class BuildLayersPresenter {
 
 		String layerName = layer.getName();
 		commands.execute(new DeleteLayerCommand(manager, layer.getId()));
+		selectedLayerIds.remove(layerId);
 		return new DeleteOutcome(PresenterResult.success(BBTexts.get("beatblock.message.layer_deleted", layerName)));
+	}
+
+	public LayerActionOutcome groupSelectedLayers(String rawName) {
+		CommandManager commands = commandManager.get();
+		BuildLayerManager manager = layerManager.get();
+		if (commands == null || manager == null) {
+			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.editor_unavailable")), null);
+		}
+		if (selectedLayerIds.size() < 2) {
+			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.group_need_two_layers")), null);
+		}
+		String name = rawName != null && !rawName.isBlank() ? rawName.trim() : "group";
+		var cmd = new GroupLayersCommand(manager, name, List.copyOf(selectedLayerIds));
+		commands.execute(cmd);
+		BuildLayerGroup group = cmd.getCreatedGroup();
+		if (group == null) {
+			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.group_failed")), null);
+		}
+		return new LayerActionOutcome(
+			PresenterResult.success(BBTexts.get("beatblock.message.group_created", group.getName())),
+			group.getId()
+		);
+	}
+
+	public LayerActionOutcome ungroupSelectedLayers() {
+		CommandManager commands = commandManager.get();
+		BuildLayerManager manager = layerManager.get();
+		if (commands == null || manager == null) {
+			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.editor_unavailable")), null);
+		}
+		if (selectedLayerIds.isEmpty()) {
+			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.select_layers_first")), null);
+		}
+		commands.execute(new UngroupLayersCommand(manager, List.copyOf(selectedLayerIds)));
+		return new LayerActionOutcome(PresenterResult.success(BBTexts.get("beatblock.message.ungrouped")), null);
+	}
+
+	public LayerActionOutcome mergeSelectedLayers(String rawName) {
+		CommandManager commands = commandManager.get();
+		BuildLayerManager manager = layerManager.get();
+		if (commands == null || manager == null) {
+			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.editor_unavailable")), null);
+		}
+		if (selectedLayerIds.size() < 2) {
+			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.merge_need_two_layers")), null);
+		}
+		for (String layerId : selectedLayerIds) {
+			BuildLayer layer = manager.get(layerId);
+			if (layer == null || !layer.canDelete()) {
+				return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.merge_not_allowed")), null);
+			}
+		}
+		var cmd = new MergeLayersCommand(manager, List.copyOf(selectedLayerIds), rawName);
+		commands.execute(cmd);
+		BuildLayer merged = cmd.getMergedLayer();
+		if (merged == null) {
+			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.merge_failed")), null);
+		}
+		selectedLayerIds.clear();
+		selectedLayerIds.add(merged.getId());
+		return new LayerActionOutcome(
+			PresenterResult.success(BBTexts.get("beatblock.message.layers_merged", merged.getName())),
+			merged.getId()
+		);
+	}
+
+	public PresenterResult setLayerColor(String layerId, int colorArgb) {
+		CommandManager commands = commandManager.get();
+		BuildLayerManager manager = layerManager.get();
+		if (commands == null || manager == null || manager.get(layerId) == null) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.layer_not_found"));
+		}
+		commands.execute(new SetLayerColorCommand(manager, layerId, colorArgb));
+		return PresenterResult.success("");
+	}
+
+	public PresenterResult setGroupColor(String groupId, int colorArgb) {
+		CommandManager commands = commandManager.get();
+		BuildLayerManager manager = layerManager.get();
+		if (commands == null || manager == null || manager.getGroup(groupId) == null) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.group_not_found"));
+		}
+		commands.execute(new SetGroupColorCommand(manager, groupId, colorArgb));
+		return PresenterResult.success("");
 	}
 }

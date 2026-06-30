@@ -129,7 +129,7 @@ class BuildLayersPresenterTest {
 
 		assertFalse(outcome.result().ok());
 		assertEquals(BBTexts.get("beatblock.message.no_world_context"), outcome.result().messageOrEmpty());
-		assertEquals(LayerVisibilityState.FREE_VISIBLE, layerManager.get(layer.getId()).getState());
+		assertEquals(LayerVisibilityState.FREE_HIDDEN, layerManager.get(layer.getId()).getState());
 	}
 
 	@Test

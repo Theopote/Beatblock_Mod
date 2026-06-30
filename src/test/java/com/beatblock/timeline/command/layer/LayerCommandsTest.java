@@ -33,6 +33,49 @@ class LayerCommandsTest {
 	}
 
 	@Test
+	void createLayerCommandCreatesHiddenLayer() {
+		BlockPos pos = new BlockPos(0, 64, 0);
+		CreateLayerCommand command = new CreateLayerCommand(
+			layerManager, "Tower", List.of(pos));
+		command.execute();
+
+		BuildLayer created = command.getCreatedLayer();
+		assertNotNull(created);
+		assertEquals(LayerVisibilityState.FREE_HIDDEN, created.getState());
+	}
+
+	@Test
+	void groupAndMergeLayerCommands() {
+		BlockPos a = new BlockPos(10, 64, 0);
+		BlockPos b = new BlockPos(11, 64, 0);
+		BuildLayer layerA = layerManager.createFromSelection("A", List.of(a));
+		BuildLayer layerB = layerManager.createFromSelection("B", List.of(b));
+		assertNotNull(layerA);
+		assertNotNull(layerB);
+
+		GroupLayersCommand groupCmd = new GroupLayersCommand(layerManager, "Section", List.of(layerA.getId(), layerB.getId()));
+		groupCmd.execute();
+		assertNotNull(groupCmd.getCreatedGroup());
+		assertEquals(groupCmd.getCreatedGroup().getId(), layerManager.get(layerA.getId()).getGroupId());
+
+		groupCmd.undo();
+		assertNull(layerManager.get(layerA.getId()).getGroupId());
+
+		MergeLayersCommand mergeCmd = new MergeLayersCommand(layerManager, List.of(layerA.getId(), layerB.getId()), "Merged");
+		mergeCmd.execute();
+		BuildLayer merged = mergeCmd.getMergedLayer();
+		assertNotNull(merged);
+		assertEquals(2, merged.getStageObject().getBlocks().size());
+		assertNull(layerManager.get(layerA.getId()));
+		assertNull(layerManager.get(layerB.getId()));
+
+		mergeCmd.undo();
+		assertNotNull(layerManager.get(layerA.getId()));
+		assertNotNull(layerManager.get(layerB.getId()));
+		assertNull(layerManager.get(merged.getId()));
+	}
+
+	@Test
 	void createLayerCommandCreatesAndUndoRemovesLayer() {
 		BlockPos pos = new BlockPos(0, 64, 0);
 		CreateLayerCommand command = new CreateLayerCommand(
