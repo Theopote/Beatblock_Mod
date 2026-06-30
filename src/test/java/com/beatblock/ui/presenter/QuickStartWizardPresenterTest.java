@@ -3,6 +3,7 @@ package com.beatblock.ui.presenter;
 import com.beatblock.BeatBlock;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
+import com.beatblock.test.BeatBlockTestSupport;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +28,7 @@ class QuickStartWizardPresenterTest {
 
 	@BeforeEach
 	void setUp() {
+		BeatBlock.installContext(BeatBlockTestSupport.minimalContext());
 		var context = BeatBlock.getContext();
 		timeline = context.timeline();
 		editor = context.timelineEditor();
@@ -45,6 +47,7 @@ class QuickStartWizardPresenterTest {
 		for (AudioAsset asset : new ArrayList<>(manager.getAssets())) {
 			manager.remove(asset.getId());
 		}
+		BeatBlock.resetContext();
 	}
 
 	@Test
