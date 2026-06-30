@@ -12,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TimelineTrackMetaTest {
 
 	@Test
-	void cameraRowIsAdjacentToBuildReverseInActionGroup() {
-		assertEquals(TimelineTrackMeta.ROW_BUILD_REVERSE + 1, TimelineTrackMeta.ROW_CAMERA);
+	void cameraRowFollowsBuildLayerSlots() {
+		assertEquals(TimelineTrackMeta.ROW_BUILD_LAYER_END + 1, TimelineTrackMeta.ROW_CAMERA);
 		assertEquals(TimelineTrackMeta.ROW_ACTION_GROUP, TimelineTrackMeta.getParentRowIndex(TimelineTrackMeta.ROW_CAMERA));
 		assertEquals(
 			BBTexts.get("beatblock.track.default.camera"),

@@ -102,9 +102,6 @@ public final class UpdateAnimationEventCommand implements MergeableCommand {
 	}
 
 	private static boolean isAnimationTrack(String trackId) {
-		return Timeline.TRACK_ID_ANIMATION_BLOCK.equals(trackId)
-			|| Timeline.TRACK_ID_ANIMATION_AUTO.equals(trackId)
-			|| Timeline.TRACK_ID_BUILD_REVERSE.equals(trackId)
-			|| Timeline.isBlockAnimationFeatureTrackId(trackId);
+		return Timeline.isAnimationEventsTrackId(trackId);
 	}
 }

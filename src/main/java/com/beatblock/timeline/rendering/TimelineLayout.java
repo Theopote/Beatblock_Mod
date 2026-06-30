@@ -31,12 +31,11 @@ public final class TimelineLayout {
 	/** 内容区最大行数（含所有音频子轨槽位）：1组+MAX_AUDIO_SUB_ROWS子轨+1动画组+2动画子轨+摄像机+全局 */
 	public static final int CONTENT_ROW_COUNT = TimelineTrackMeta.ROW_GLOBAL_EVENT + 1;
 
-	/** 可交互轨道在内容行中的索引（0-based）：方块动画、自动动画、摄像机、全局 */
+	/** 可交互轨道在内容行中的索引（0-based）：方块动画、摄像机、自动动画、全局 */
 	public static final int[] INTERACTIVE_ROW_INDICES = {
 		TimelineTrackMeta.ROW_ANIM_BLOCK,
 		TimelineTrackMeta.ROW_CAMERA,
 		TimelineTrackMeta.ROW_ANIM_AUTO,
-		TimelineTrackMeta.ROW_BUILD_REVERSE,
 		TimelineTrackMeta.ROW_GLOBAL_EVENT
 	};
 
@@ -98,6 +97,7 @@ public final class TimelineLayout {
 	 */
 	private int activeAudioSubRowCount = 3;
 	private int activeAnimationSubRowCount = 0;
+	private int activeBuildLayerRowCount = 0;
 	private List<Integer> customRowOrder = List.of();
 	private Map<Integer, Integer> customRowParents = Map.of();
 
@@ -119,6 +119,12 @@ public final class TimelineLayout {
 	}
 
 	public int getActiveAnimationSubRowCount() { return activeAnimationSubRowCount; }
+
+	public void setActiveBuildLayerRowCount(int count) {
+		activeBuildLayerRowCount = Math.max(0, Math.min(count, TimelineTrackMeta.MAX_BUILD_LAYER_ROWS));
+	}
+
+	public int getActiveBuildLayerRowCount() { return activeBuildLayerRowCount; }
 
 	/**
 	 * 采样固定标尺区域的锚点与共享宽度。本帧只调用一次。
@@ -172,7 +178,7 @@ public final class TimelineLayout {
 		int v = 0;
 		float cursorY = 0f;
 		for (int rowIndex : buildLogicalRenderOrder()) {
-			boolean visible = isRowVisible(rowIndex, trackListState, activeAudioSubRowCount, activeAnimationSubRowCount, customRowParents);
+			boolean visible = isRowVisible(rowIndex, trackListState, activeAudioSubRowCount, activeAnimationSubRowCount, activeBuildLayerRowCount, customRowParents);
 			float h = resolveRowHeight(rowIndex, trackListState);
 			rowHeights[rowIndex] = h;
 			if (visible) {
@@ -247,7 +253,7 @@ public final class TimelineLayout {
 	}
 
 	private static boolean isRowVisible(int rowIndex, TimelineTrackListState state, int activeAudioSubRowCount, int activeAnimationSubRowCount,
-	                                   Map<Integer, Integer> parentOverrides) {
+	                                   int activeBuildLayerRowCount, Map<Integer, Integer> parentOverrides) {
 		// 超出活跃音频子轨数量的槽位始终不可见
 		if (TimelineTrackMeta.isAudioSubRow(rowIndex)) {
 			int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);
@@ -256,6 +262,10 @@ public final class TimelineLayout {
 		if (TimelineTrackMeta.isAnimationFeatureSubRow(rowIndex)) {
 			int slot = TimelineTrackMeta.animationFeatureSubRowSlot(rowIndex);
 			if (slot >= activeAnimationSubRowCount) return false;
+		}
+		if (TimelineTrackMeta.isBuildLayerSubRow(rowIndex)) {
+			int slot = TimelineTrackMeta.buildLayerSubRowSlot(rowIndex);
+			if (slot >= activeBuildLayerRowCount) return false;
 		}
 		if (state == null) return true;
 		int parent = parentOverrides != null && parentOverrides.containsKey(rowIndex)

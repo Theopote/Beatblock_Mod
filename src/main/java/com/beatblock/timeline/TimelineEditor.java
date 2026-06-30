@@ -160,9 +160,11 @@ public final class TimelineEditor {
 		if (!trackAreaContextAttached) {
 			List<TrackDefinition> audioDefs = TrackRegistry.buildAudioSubTracks(timeline);
 			List<TrackDefinition> controlDefs = TrackRegistry.buildBlockAnimationControlTracks(timeline);
+			List<TrackDefinition> buildLayerDefs = TrackRegistry.buildBuildLayerTracks(timeline);
 			layout.setActiveAudioSubRowCount(audioDefs.size());
 			layout.setActiveAnimationSubRowCount(controlDefs.size());
-			layout.setCustomRowOrder(buildFeaturePairedRowOrder(audioDefs, controlDefs));
+			layout.setActiveBuildLayerRowCount(buildLayerDefs.size());
+			layout.setCustomRowOrder(buildFeaturePairedRowOrder(audioDefs, controlDefs, buildLayerDefs));
 			layout.setCustomRowParents(buildCustomRowParents(audioDefs, controlDefs));
 			layout.attachTrackAreaContext(trackListState);
 			trackAreaContextAttached = true;
@@ -170,7 +172,11 @@ public final class TimelineEditor {
 		return frameLayout;
 	}
 
-	private List<Integer> buildFeaturePairedRowOrder(List<TrackDefinition> audioDefs, List<TrackDefinition> controlDefs) {
+	private List<Integer> buildFeaturePairedRowOrder(
+		List<TrackDefinition> audioDefs,
+		List<TrackDefinition> controlDefs,
+		List<TrackDefinition> buildLayerDefs
+	) {
 		List<Integer> ordered = new ArrayList<>(TimelineLayout.CONTENT_ROW_COUNT);
 		Set<Integer> addedRows = new HashSet<>();
 
@@ -215,7 +221,9 @@ public final class TimelineEditor {
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_BLOCK);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_CAMERA);
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_AUTO);
-		addRow(ordered, addedRows, TimelineTrackMeta.ROW_BUILD_REVERSE);
+		for (int slot = 0; slot < buildLayerDefs.size() && slot < TimelineTrackMeta.MAX_BUILD_LAYER_ROWS; slot++) {
+			addRow(ordered, addedRows, TimelineTrackMeta.ROW_BUILD_LAYER_START + slot);
+		}
 		addRow(ordered, addedRows, TimelineTrackMeta.ROW_GLOBAL_EVENT);
 
 		for (int i = 0; i < TimelineLayout.CONTENT_ROW_COUNT; i++) {
@@ -243,7 +251,9 @@ public final class TimelineEditor {
 		parents.put(TimelineTrackMeta.ROW_ANIM_BLOCK, TimelineTrackMeta.ROW_ACTION_GROUP);
 		parents.put(TimelineTrackMeta.ROW_CAMERA, TimelineTrackMeta.ROW_ACTION_GROUP);
 		parents.put(TimelineTrackMeta.ROW_ANIM_AUTO, TimelineTrackMeta.ROW_ACTION_GROUP);
-		parents.put(TimelineTrackMeta.ROW_BUILD_REVERSE, TimelineTrackMeta.ROW_ACTION_GROUP);
+		for (int slot = 0; slot < TimelineTrackMeta.MAX_BUILD_LAYER_ROWS; slot++) {
+			parents.put(TimelineTrackMeta.ROW_BUILD_LAYER_START + slot, TimelineTrackMeta.ROW_ACTION_GROUP);
+		}
 		return parents;
 	}
 

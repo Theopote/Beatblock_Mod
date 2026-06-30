@@ -10,6 +10,9 @@ import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.command.layer.CreateBuildLayerTrackCommand;
+import com.beatblock.timeline.command.layer.DeleteBuildLayerTrackCommand;
+import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import com.beatblock.timeline.camera.CameraPathMetadata;
 import com.beatblock.timeline.camera.CameraSegmentKind;
 import com.beatblock.timeline.camera.CameraTrackFactory;
@@ -107,6 +110,7 @@ public final class TimelineInteractionPopups {
 		if (ImGui.menuItem(BBTexts.get("beatblock.common.paste"), "Ctrl+V", false, hasClipboard)) {
 			host.pasteClipboardEvents(timeline, selectionState, state.contextTimeSeconds, trackListState);
 		}
+		renderBuildLayerTrackMenuItems(timeline, state, host);
 		if (timeline != null && Timeline.TRACK_ID_CAMERA.equals(state.contextTrackId)
 				&& !TimelineInteractiveTrackSlots.isTrackLocked(timeline, trackListState, state.contextTrackId)) {
 			if (state.contextClipId != null) {
@@ -188,6 +192,44 @@ public final class TimelineInteractionPopups {
 		ImGui.endPopup();
 		if (requestDeleteConfirmPopup) {
 			ImGui.openPopup(POPUP_DELETE_CONFIRM);
+		}
+	}
+
+	private static void renderBuildLayerTrackMenuItems(
+		Timeline timeline,
+		TimelineInteractionPopupState state,
+		TimelineInteractionPopupHost host
+	) {
+		if (timeline == null || host.timelineEditor() == null) return;
+		var commandManager = host.timelineEditor().getCommandManager();
+		if (commandManager == null) return;
+
+		String contextTrackId = state.contextTrackId;
+		boolean onBuildLayerTrack = contextTrackId != null
+			&& BuildLayerTrackSupport.isBuildLayerTrackId(contextTrackId);
+		boolean blankContent = contextTrackId == null || contextTrackId.isBlank();
+
+		boolean canCreate = BuildLayerTrackSupport.canCreateMoreTracks(timeline);
+		boolean canDeleteEmpty = false;
+		if (onBuildLayerTrack) {
+			Track track = timeline.getTrack(contextTrackId);
+			canDeleteEmpty = track != null
+				&& track.getClips().isEmpty()
+				&& BuildLayerTrackSupport.listTracks(timeline).size() > 1;
+		}
+
+		if (!canCreate && !canDeleteEmpty) return;
+
+		ImGui.separator();
+		if (canCreate && blankContent
+			&& ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.create_build_layer_track"))) {
+			commandManager.execute(new CreateBuildLayerTrackCommand(timeline));
+			ImGui.closeCurrentPopup();
+		}
+		if (canDeleteEmpty
+			&& ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.delete_build_layer_track"))) {
+			commandManager.execute(new DeleteBuildLayerTrackCommand(timeline, contextTrackId));
+			ImGui.closeCurrentPopup();
 		}
 	}
 

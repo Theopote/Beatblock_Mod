@@ -1,6 +1,7 @@
 package com.beatblock.timeline.project;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
@@ -22,7 +23,6 @@ public final class TimelineAnimationPersistence {
 	private static final List<String> CORE_TRACK_IDS = List.of(
 		Timeline.TRACK_ID_ANIMATION_BLOCK,
 		Timeline.TRACK_ID_ANIMATION_AUTO,
-		Timeline.TRACK_ID_BUILD_REVERSE,
 		Timeline.TRACK_ID_CAMERA,
 		Timeline.TRACK_ID_GLOBAL
 	);
@@ -50,6 +50,7 @@ public final class TimelineAnimationPersistence {
 			if (!arr.get(i).isJsonObject()) continue;
 			trackFromJson(timeline, arr.get(i).getAsJsonObject());
 		}
+		BuildLayerTrackSupport.normalizeLoadedTracks(timeline);
 		timeline.markAnimationEventsDirty();
 	}
 
@@ -58,6 +59,9 @@ public final class TimelineAnimationPersistence {
 		if (timeline == null) return ids;
 		for (Track track : timeline.getTracks()) {
 			if (Timeline.isBlockAnimationFeatureTrackId(track.getId())) {
+				ids.add(track.getId());
+			}
+			if (BuildLayerTrackSupport.isBuildLayerTrack(track)) {
 				ids.add(track.getId());
 			}
 		}
@@ -77,6 +81,9 @@ public final class TimelineAnimationPersistence {
 	private static JsonObject trackToJson(String trackId, Track track) {
 		JsonObject root = new JsonObject();
 		root.addProperty("trackId", trackId);
+		if (BuildLayerTrackSupport.isBuildLayerTrack(track)) {
+			root.addProperty("trackName", track.getName());
+		}
 		JsonArray clipsArr = new JsonArray();
 		for (Clip clip : track.getClips()) {
 			clipsArr.add(clipToJson(clip));
@@ -112,6 +119,9 @@ public final class TimelineAnimationPersistence {
 		String trackId = root.get("trackId").getAsString();
 		Track track = ensureTrack(timeline, trackId);
 		if (track == null || !root.has("clips") || !root.get("clips").isJsonArray()) return;
+		if (root.has("trackName") && BuildLayerTrackSupport.isBuildLayerTrack(track)) {
+			track.setName(root.get("trackName").getAsString());
+		}
 		JsonArray clipsArr = root.getAsJsonArray("clips");
 		for (int i = 0; i < clipsArr.size(); i++) {
 			if (!clipsArr.get(i).isJsonObject()) continue;
@@ -124,6 +134,12 @@ public final class TimelineAnimationPersistence {
 		if (timeline == null || trackId == null) return null;
 		Track existing = timeline.getTrack(trackId);
 		if (existing != null) return existing;
+		if (BuildLayerTrackSupport.isBuildLayerTrackId(trackId)) {
+			Track track = new Track(trackId, BuildLayerTrackSupport.nextDefaultTrackName(timeline),
+				com.beatblock.timeline.TrackType.BUILD_LAYER);
+			timeline.addTrack(track);
+			return track;
+		}
 		if (Timeline.isBlockAnimationFeatureTrackId(trackId)) {
 			String featureKey = Timeline.blockAnimationFeatureKeyFromTrackId(trackId);
 			Track track = new Track(trackId, featureKey, com.beatblock.timeline.TrackType.ANIMATION);

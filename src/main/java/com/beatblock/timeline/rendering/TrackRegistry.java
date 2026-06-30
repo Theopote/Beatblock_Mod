@@ -216,6 +216,27 @@ public final class TrackRegistry {
 		return List.copyOf(result);
 	}
 
+	/**
+	 * 建造图层轨定义（按 Timeline 中轨道顺序）。
+	 */
+	public static List<TrackDefinition> buildBuildLayerTracks(Timeline timeline) {
+		if (timeline == null) {
+			return List.of();
+		}
+		com.beatblock.timeline.layer.BuildLayerTrackSupport.normalizeLoadedTracks(timeline);
+		List<TrackDefinition> result = new ArrayList<>();
+		for (Track track : com.beatblock.timeline.layer.BuildLayerTrackSupport.listTracks(timeline)) {
+			result.add(new TrackDefinition(
+				track.getId(),
+				track.getName(),
+				TrackDefinition.VisualType.ANIMATION_CLIP,
+				TrackDefinition.GROUP_NONE,
+				0xFF_66_CC_88
+			));
+		}
+		return List.copyOf(result);
+	}
+
 	/** 本地化显示名称（未知 key 直接返回原 key）。 */
 	public static String localizedName(String key) {
 		return BBTexts.trackName(key);

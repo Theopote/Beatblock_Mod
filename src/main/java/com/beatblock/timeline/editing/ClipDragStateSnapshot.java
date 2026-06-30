@@ -170,12 +170,8 @@ public record ClipDragStateSnapshot(
 
 	private static void markAnimationTracksDirty(Timeline timeline) {
 		for (Track track : timeline.getTracks()) {
-			String trackId = track.getId();
-			if (Timeline.TRACK_ID_ANIMATION_BLOCK.equals(trackId)
-				|| Timeline.TRACK_ID_ANIMATION_AUTO.equals(trackId)
-				|| Timeline.TRACK_ID_BUILD_REVERSE.equals(trackId)
-				|| Timeline.isBlockAnimationFeatureTrackId(trackId)) {
-				timeline.markAnimationEventsDirty(trackId);
+			if (Timeline.isAnimationEventsTrackId(track.getId())) {
+				timeline.markAnimationEventsDirty(track.getId());
 			}
 		}
 	}

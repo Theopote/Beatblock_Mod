@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -266,6 +267,13 @@ public class Timeline {
 		return trackId != null && trackId.startsWith(TRACK_ID_ANIMATION_BLOCK_FEATURE_PREFIX);
 	}
 
+	public static boolean isAnimationEventsTrackId(String trackId) {
+		return TRACK_ID_ANIMATION_BLOCK.equals(trackId)
+			|| TRACK_ID_ANIMATION_AUTO.equals(trackId)
+			|| BuildLayerTrackSupport.isBuildLayerTrackId(trackId)
+			|| isBlockAnimationFeatureTrackId(trackId);
+	}
+
 	public static String blockAnimationFeatureKeyFromTrackId(String trackId) {
 		if (!isBlockAnimationFeatureTrackId(trackId)) return "";
 		return trackId.substring(TRACK_ID_ANIMATION_BLOCK_FEATURE_PREFIX.length());
@@ -326,6 +334,9 @@ public class Timeline {
 		autoAnimationCache.addAll(getAnimationEvents(TRACK_ID_ANIMATION_AUTO));
 		autoAnimationCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
 		buildReverseCache.addAll(getAnimationEvents(TRACK_ID_BUILD_REVERSE));
+		for (Track track : BuildLayerTrackSupport.listTracks(this)) {
+			buildReverseCache.addAll(getAnimationEvents(track.getId()));
+		}
 		buildReverseCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
 		animationCachesDirty = false;
 	}
@@ -447,7 +458,7 @@ public class Timeline {
 		t.addTrack(new Track(TRACK_ID_AUDIO, "音频", TrackType.AUDIO));
 		t.addTrack(new Track(TRACK_ID_ANIMATION_BLOCK, "方块动画", TrackType.ANIMATION));
 		t.addTrack(new Track(TRACK_ID_ANIMATION_AUTO, "自动动画", TrackType.ANIMATION));
-		t.addTrack(new Track(TRACK_ID_BUILD_REVERSE, "建造还原", TrackType.ANIMATION));
+		BuildLayerTrackSupport.ensureDefaultTrack(t);
 		t.addTrack(new Track(TRACK_ID_CAMERA, "摄像机", TrackType.CAMERA));
 		t.addTrack(new Track(TRACK_ID_GLOBAL, "全局事件", TrackType.EVENT));
 		return t;

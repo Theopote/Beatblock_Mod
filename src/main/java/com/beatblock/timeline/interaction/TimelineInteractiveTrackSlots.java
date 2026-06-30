@@ -1,7 +1,6 @@
 package com.beatblock.timeline.interaction;
 
 import com.beatblock.timeline.Timeline;
-import com.beatblock.timeline.Track;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TrackDefinition;
@@ -29,6 +28,14 @@ public final class TimelineInteractiveTrackSlots {
 		slots.add(new InteractiveTrackSlot(Timeline.TRACK_ID_ANIMATION_BLOCK, TimelineTrackMeta.ROW_ANIM_BLOCK));
 		slots.add(new InteractiveTrackSlot(Timeline.TRACK_ID_CAMERA, TimelineTrackMeta.ROW_CAMERA));
 		slots.add(new InteractiveTrackSlot(Timeline.TRACK_ID_ANIMATION_AUTO, TimelineTrackMeta.ROW_ANIM_AUTO));
+		if (timeline != null) {
+			List<TrackDefinition> buildDefs = TrackRegistry.buildBuildLayerTracks(timeline);
+			for (int i = 0; i < buildDefs.size() && i < TimelineTrackMeta.MAX_BUILD_LAYER_ROWS; i++) {
+				slots.add(new InteractiveTrackSlot(
+					buildDefs.get(i).getKey(),
+					TimelineTrackMeta.ROW_BUILD_LAYER_START + i));
+			}
+		}
 		slots.add(new InteractiveTrackSlot(Timeline.TRACK_ID_GLOBAL, TimelineTrackMeta.ROW_GLOBAL_EVENT));
 		return slots;
 	}

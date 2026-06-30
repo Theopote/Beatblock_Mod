@@ -39,32 +39,36 @@ public final class TimelineRowHoverHighlighter {
 		if (controlRow != null) drawHoverRowHighlight(layout, controlRow, x0, x1);
 	}
 
-	public static void drawActionCameraHoverHighlight(TimelineLayout layout) {
+	public static void drawActionCameraHoverHighlight(
+		TimelineLayout layout,
+		List<TrackDefinition> buildLayerTracks
+	) {
 		if (layout == null || !isPointerInTrackArea(layout)) return;
 
 		int hoveredRow = layout.findRowAtScreenY(ImGui.getMousePosY());
 		if (hoveredRow < 0) return;
 
-		int[] linkedRows;
-		if (hoveredRow == TimelineTrackMeta.ROW_CAMERA) {
-			linkedRows = new int[]{
-				TimelineTrackMeta.ROW_ANIM_BLOCK,
-				TimelineTrackMeta.ROW_ANIM_AUTO,
-				TimelineTrackMeta.ROW_BUILD_REVERSE
-			};
-		} else if (hoveredRow == TimelineTrackMeta.ROW_ANIM_BLOCK
+		boolean hoveredBuildLayer = TimelineTrackMeta.isBuildLayerSubRow(hoveredRow);
+		boolean hoveredActionCamera = hoveredRow == TimelineTrackMeta.ROW_CAMERA
+			|| hoveredRow == TimelineTrackMeta.ROW_ANIM_BLOCK
 			|| hoveredRow == TimelineTrackMeta.ROW_ANIM_AUTO
-			|| hoveredRow == TimelineTrackMeta.ROW_BUILD_REVERSE) {
-			linkedRows = new int[]{TimelineTrackMeta.ROW_CAMERA};
-		} else {
-			return;
-		}
+			|| hoveredBuildLayer;
+
+		if (!hoveredActionCamera) return;
 
 		float x0 = layout.trackHeaderLeft;
 		float x1 = layout.contentLeft + layout.contentWidth;
 		drawHoverRowHighlight(layout, hoveredRow, x0, x1);
-		for (int row : linkedRows) {
-			drawHoverRowHighlight(layout, row, x0, x1);
+
+		if (hoveredRow == TimelineTrackMeta.ROW_CAMERA) {
+			drawHoverRowHighlight(layout, TimelineTrackMeta.ROW_ANIM_BLOCK, x0, x1);
+			drawHoverRowHighlight(layout, TimelineTrackMeta.ROW_ANIM_AUTO, x0, x1);
+			int buildCount = buildLayerTracks != null ? buildLayerTracks.size() : layout.getActiveBuildLayerRowCount();
+			for (int slot = 0; slot < buildCount && slot < TimelineTrackMeta.MAX_BUILD_LAYER_ROWS; slot++) {
+				drawHoverRowHighlight(layout, TimelineTrackMeta.ROW_BUILD_LAYER_START + slot, x0, x1);
+			}
+		} else {
+			drawHoverRowHighlight(layout, TimelineTrackMeta.ROW_CAMERA, x0, x1);
 		}
 	}
 

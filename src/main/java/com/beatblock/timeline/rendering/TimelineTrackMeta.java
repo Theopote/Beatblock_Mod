@@ -28,8 +28,14 @@ public final class TimelineTrackMeta {
 	public static final int ROW_ACTION_GROUP    = ROW_ANIM_FEATURES_END + 1;
 	public static final int ROW_ANIM_BLOCK      = ROW_ACTION_GROUP + 1;
 	public static final int ROW_ANIM_AUTO       = ROW_ANIM_BLOCK + 1;
-	public static final int ROW_BUILD_REVERSE   = ROW_ANIM_AUTO + 1;
-	public static final int ROW_CAMERA          = ROW_BUILD_REVERSE + 1;
+	/** 动态建造图层轨槽位（最多 {@link #MAX_BUILD_LAYER_ROWS} 条）。 */
+	public static final int MAX_BUILD_LAYER_ROWS = 16;
+	public static final int ROW_BUILD_LAYER_START = ROW_ANIM_AUTO + 1;
+	public static final int ROW_BUILD_LAYER_END   = ROW_BUILD_LAYER_START + MAX_BUILD_LAYER_ROWS - 1;
+	/** @deprecated 使用 {@link #ROW_BUILD_LAYER_START} 与 {@link #isBuildLayerSubRow(int)} */
+	@Deprecated
+	public static final int ROW_BUILD_REVERSE   = ROW_BUILD_LAYER_START;
+	public static final int ROW_CAMERA          = ROW_BUILD_LAYER_END + 1;
 	public static final int ROW_GLOBAL_EVENT    = ROW_CAMERA + 1;
 
 	/** 总行槽数（最大值，含所有音频子轨槽位）。 */
@@ -59,7 +65,9 @@ public final class TimelineTrackMeta {
 		DEFAULT_NAME_KEYS[ROW_ACTION_GROUP]    = "beatblock.track.default.action";
 		DEFAULT_NAME_KEYS[ROW_ANIM_BLOCK]      = "beatblock.track.default.block_animation";
 		DEFAULT_NAME_KEYS[ROW_ANIM_AUTO]       = "beatblock.track.default.auto_animation";
-		DEFAULT_NAME_KEYS[ROW_BUILD_REVERSE]   = "beatblock.track.default.build_reverse";
+		for (int i = ROW_BUILD_LAYER_START; i <= ROW_BUILD_LAYER_END; i++) {
+			DEFAULT_NAME_KEYS[i] = "beatblock.track.default.build_layer_slot";
+		}
 		DEFAULT_NAME_KEYS[ROW_CAMERA]          = "beatblock.track.default.camera";
 		DEFAULT_NAME_KEYS[ROW_GLOBAL_EVENT]    = "beatblock.track.default.events";
 
@@ -75,7 +83,9 @@ public final class TimelineTrackMeta {
 		PARENT_ROW[ROW_ANIM_BLOCK]      = ROW_ACTION_GROUP;
 		PARENT_ROW[ROW_CAMERA]          = ROW_ACTION_GROUP;
 		PARENT_ROW[ROW_ANIM_AUTO]       = ROW_ACTION_GROUP;
-		PARENT_ROW[ROW_BUILD_REVERSE]   = ROW_ACTION_GROUP;
+		for (int i = ROW_BUILD_LAYER_START; i <= ROW_BUILD_LAYER_END; i++) {
+			PARENT_ROW[i] = ROW_ACTION_GROUP;
+		}
 		PARENT_ROW[ROW_GLOBAL_EVENT]    = NO_PARENT;
 	}
 
@@ -109,6 +119,15 @@ public final class TimelineTrackMeta {
 		return rowIndex - ROW_ANIM_FEATURES_START;
 	}
 
+	public static boolean isBuildLayerSubRow(int rowIndex) {
+		return rowIndex >= ROW_BUILD_LAYER_START && rowIndex <= ROW_BUILD_LAYER_END;
+	}
+
+	public static int buildLayerSubRowSlot(int rowIndex) {
+		if (!isBuildLayerSubRow(rowIndex)) return -1;
+		return rowIndex - ROW_BUILD_LAYER_START;
+	}
+
 	/** 是否有父轨道（是否为子轨道，需要缩进显示） */
 	public static boolean hasParent(int rowIndex) {
 		if (rowIndex < 0 || rowIndex >= PARENT_ROW.length) return false;
@@ -129,7 +148,8 @@ public final class TimelineTrackMeta {
 		if (isAudioSubRow(rowIndex)) return BBTexts.get("beatblock.track.type.feature");
 		if (rowIndex == ROW_ANIMATION_GROUP) return BBTexts.get("beatblock.track.type.feature");
 		if (rowIndex == ROW_ACTION_GROUP) return BBTexts.get("beatblock.track.type.action");
-		if (rowIndex == ROW_ANIM_BLOCK || rowIndex == ROW_ANIM_AUTO || rowIndex == ROW_BUILD_REVERSE) return BBTexts.get("beatblock.track.type.animation");
+		if (rowIndex == ROW_ANIM_BLOCK || rowIndex == ROW_ANIM_AUTO) return BBTexts.get("beatblock.track.type.animation");
+		if (isBuildLayerSubRow(rowIndex)) return BBTexts.get("beatblock.track.type.build_layer");
 		if (isAnimationFeatureSubRow(rowIndex)) return BBTexts.get("beatblock.track.type.animation_control");
 		if (rowIndex == ROW_CAMERA) return BBTexts.get("beatblock.track.type.camera");
 		if (rowIndex == ROW_GLOBAL_EVENT) return BBTexts.get("beatblock.track.type.event");

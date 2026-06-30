@@ -6,7 +6,7 @@ import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.timeline.Timeline;
-import net.minecraft.util.math.BlockPos;
+import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -159,7 +159,7 @@ class LayerCommandsTest {
 		assertEquals(LayerVisibilityState.BOUND_TO_TRACK, bound.getState());
 		assertNotNull(command.getCreatedClipId());
 
-		var track = timeline.getTrack(Timeline.TRACK_ID_BUILD_REVERSE);
+		var track = timeline.getTrack(BuildLayerTrackSupport.DEFAULT_FIRST_TRACK_ID);
 		assertNotNull(track);
 		assertNotNull(track.getClip(command.getCreatedClipId()));
 

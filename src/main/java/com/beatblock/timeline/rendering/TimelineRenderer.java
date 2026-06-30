@@ -53,6 +53,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	 */
 	private List<TrackDefinition> currentAudioSubTracks = Collections.emptyList();
 	private List<TrackDefinition> currentAnimationSubTracks = Collections.emptyList();
+	private List<TrackDefinition> currentBuildLayerTracks = Collections.emptyList();
 	/** 上次构建 currentAudioSubTracks 时的 featureTracks key 快照，用于脏检测。 */
 	private AudioSubTrackCacheKey lastAudioSubTrackCacheKey = AudioSubTrackCacheKey.empty();
 	private Set<String> lastAnimationTrackIds = Set.of();
@@ -145,6 +146,8 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 			currentAnimationSubTracks = TrackRegistry.buildBlockAnimationControlTracks(timeline);
 		}
 		pairedFeatureLaneSync.sync(trackListState, currentAudioSubTracks, currentAnimationSubTracks);
+		currentBuildLayerTracks = TrackRegistry.buildBuildLayerTracks(timeline);
+		layout.setActiveBuildLayerRowCount(currentBuildLayerTracks.size());
 		layout.setActiveAnimationSubRowCount(currentAnimationSubTracks.size());
 		if (trackListState != null) {
 			TimelineStemMuteSync.syncPrimaryPlayerMuteState(ctx(), trackListState, currentAudioSubTracks);
@@ -178,7 +181,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		gridRenderer.render(viewState, layout, layout.contentHeight);
 		TimelineRowHoverHighlighter.drawPairedFeatureHoverHighlight(
 			layout, currentAudioSubTracks, currentAnimationSubTracks);
-		TimelineRowHoverHighlighter.drawActionCameraHoverHighlight(layout);
+		TimelineRowHoverHighlighter.drawActionCameraHoverHighlight(layout, currentBuildLayerTracks);
 
 		// 每帧重置音频组拖放高亮标记
 		audioGroupDropHighlight = false;
@@ -190,16 +193,16 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 			float rowHeight = layout.getRowHeight(i);
 			boolean isGroup = TimelineTrackMeta.isGroupRow(i);
 			String displayName = TimelineRowLabelResolver.resolveDisplayName(
-				i, trackListState, currentAudioSubTracks, currentAnimationSubTracks);
+				i, trackListState, currentAudioSubTracks, currentAnimationSubTracks, currentBuildLayerTracks);
 			boolean canControlPlayback = TimelineStemMuteSync.isPlayableAudioControlRow(i, currentAudioSubTracks);
 			String rowTypeLabel = TimelineRowLabelResolver.resolveTypeLabel(
-				i, currentAudioSubTracks, currentAnimationSubTracks);
+				i, currentAudioSubTracks, currentAnimationSubTracks, currentBuildLayerTracks);
 			trackRenderer.drawTrackLabel(rowY, rowHeight, i, displayName, isGroup, trackListState,
 				layout.trackHeaderLeft, layout.trackHeaderWidth, canControlPlayback, rowTypeLabel,
 				timeline, clock);
 			rowContentRenderer.drawRowContent(
 				this, i, rowY, timeline, viewState, selectionState, layout, trackListState,
-				currentAudioSubTracks, currentAnimationSubTracks);
+				currentAudioSubTracks, currentAnimationSubTracks, currentBuildLayerTracks);
 		}
 
 		// 音频组拖放高亮（在所有行内容绘制后叠加边框）

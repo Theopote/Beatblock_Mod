@@ -14,7 +14,8 @@ public final class TimelineRowLabelResolver {
 		int rowIndex,
 		TimelineTrackListState trackListState,
 		List<TrackDefinition> audioSubTracks,
-		List<TrackDefinition> animationSubTracks
+		List<TrackDefinition> animationSubTracks,
+		List<TrackDefinition> buildLayerTracks
 	) {
 		if (trackListState != null) {
 			String custom = trackListState.getDisplayName(rowIndex);
@@ -43,6 +44,12 @@ public final class TimelineRowLabelResolver {
 				return base + " 控制";
 			}
 		}
+		if (TimelineTrackMeta.isBuildLayerSubRow(rowIndex)) {
+			int slot = TimelineTrackMeta.buildLayerSubRowSlot(rowIndex);
+			if (slot >= 0 && slot < buildLayerTracks.size()) {
+				return buildLayerTracks.get(slot).getDisplayName();
+			}
+		}
 		return trackListState != null
 			? trackListState.getDisplayName(rowIndex)
 			: TimelineTrackMeta.getDefaultName(rowIndex);
@@ -51,7 +58,8 @@ public final class TimelineRowLabelResolver {
 	public static String resolveTypeLabel(
 		int rowIndex,
 		List<TrackDefinition> audioSubTracks,
-		List<TrackDefinition> animationSubTracks
+		List<TrackDefinition> animationSubTracks,
+		List<TrackDefinition> buildLayerTracks
 	) {
 		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) return "音频片段";
 		if (TimelineTrackMeta.isAudioSubRow(rowIndex)) {
@@ -66,6 +74,9 @@ public final class TimelineRowLabelResolver {
 		}
 		if (TimelineTrackMeta.isAnimationFeatureSubRow(rowIndex)) {
 			return "动画控制";
+		}
+		if (TimelineTrackMeta.isBuildLayerSubRow(rowIndex)) {
+			return TimelineTrackMeta.getCategoryTypeLabel(rowIndex);
 		}
 		return TimelineTrackMeta.getCategoryTypeLabel(rowIndex);
 	}

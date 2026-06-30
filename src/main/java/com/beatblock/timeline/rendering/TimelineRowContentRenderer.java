@@ -42,7 +42,8 @@ public final class TimelineRowContentRenderer {
 		TimelineLayout layout,
 		TimelineTrackListState trackListState,
 		List<TrackDefinition> audioSubTracks,
-		List<TrackDefinition> animationSubTracks
+		List<TrackDefinition> animationSubTracks,
+		List<TrackDefinition> buildLayerTracks
 	) {
 		float rowHeight = layout.getRowHeight(rowIndex);
 		float rowScreenY = layout.getRowScreenY(rowIndex);
@@ -104,15 +105,22 @@ public final class TimelineRowContentRenderer {
 			TimelineAudioDropHandler.renderAnimationTrackDropTarget(dropHost, rowIndex, rowHeight, timeline, layout);
 			eventRenderer.renderAnimationEventBlocks(
 				rowY, timeline.getAutoAnimationEvents(), layout, viewState, selectionState);
-		} else if (rowIndex == TimelineTrackMeta.ROW_BUILD_REVERSE) {
-			renderBuildReverseTrackDropTarget(dropHost.context(), rowY, rowHeight, timeline, layout, viewState);
+		} else if (TimelineTrackMeta.isBuildLayerSubRow(rowIndex)) {
+			int slot = TimelineTrackMeta.buildLayerSubRowSlot(rowIndex);
+			if (slot < 0 || slot >= buildLayerTracks.size()) {
+				ImGui.popClipRect();
+				return;
+			}
+			TrackDefinition td = buildLayerTracks.get(slot);
+			renderBuildLayerTrackDropTarget(
+				dropHost.context(), rowIndex, rowHeight, timeline, layout, viewState, td.getKey());
 			eventRenderer.renderAnimationEventBlocks(
 				rowY,
-				timeline.getBuildReverseEvents(),
+				timeline.getAnimationEvents(td.getKey()),
 				layout,
 				viewState,
 				selectionState,
-				0xFF_66_CC_88
+				td.hasCustomColor() ? td.getColor() : 0xFF_66_CC_88
 			);
 		} else if (rowIndex == TimelineTrackMeta.ROW_CAMERA) {
 			eventRenderer.renderCameraTrackRow(rowY, timeline, layout, viewState, selectionState);
@@ -122,18 +130,19 @@ public final class TimelineRowContentRenderer {
 		ImGui.popClipRect();
 	}
 
-	static void renderBuildReverseTrackDropTarget(
+	static void renderBuildLayerTrackDropTarget(
 		BeatBlockContext context,
-		float rowY,
+		int rowIndex,
 		float rowHeight,
 		Timeline timeline,
 		TimelineLayout layout,
-		TimelineViewState viewState
+		TimelineViewState viewState,
+		String targetTrackId
 	) {
-		float screenY = layout.getRowScreenY(TimelineTrackMeta.ROW_BUILD_REVERSE);
-		if (screenY < 0) return;
+		float screenY = layout.getRowScreenY(rowIndex);
+		if (screenY < 0 || targetTrackId == null || targetTrackId.isBlank()) return;
 		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
-		ImGui.invisibleButton("##BuildReverseDropTarget", layout.contentWidth, rowHeight);
+		ImGui.invisibleButton("##BuildLayerDrop" + rowIndex, layout.contentWidth, rowHeight);
 		if (ImGui.beginDragDropTarget()) {
 			byte[] payload = ImGui.acceptDragDropPayload("BB_BUILD_LAYER_ID");
 			if (payload != null && context != null
@@ -144,8 +153,8 @@ public final class TimelineRowContentRenderer {
 				var cmd = new BindLayerToTrackCommand(
 					timeline,
 					context.blockAnimationEngine().getBuildLayerManager(),
-					context.timelineEditor().getCommandManager(),
 					layerId,
+					targetTrackId,
 					dropTime,
 					BindLayerToTrackCommand.DEFAULT_CLIP_DURATION_SECONDS
 				);
