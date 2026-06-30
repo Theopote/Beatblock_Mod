@@ -26,7 +26,7 @@ class TimelineRowLabelResolverTest {
 		int row = TimelineTrackMeta.ROW_CAMERA;
 		state.setCustomName(row, "我的相机");
 
-		String name = TimelineRowLabelResolver.resolveDisplayName(row, state, List.of(), List.of());
+		String name = TimelineRowLabelResolver.resolveDisplayName(row, state, List.of(), List.of(), List.of());
 
 		assertEquals("我的相机", name);
 	}
@@ -37,8 +37,8 @@ class TimelineRowLabelResolverTest {
 		int kickRow = TimelineTrackMeta.ROW_AUDIO_SUBS_START + 1;
 
 		assertEquals("底鼓 特征", TimelineRowLabelResolver.resolveDisplayName(
-			kickRow, null, audio, List.of()));
-		assertEquals("节奏特征", TimelineRowLabelResolver.resolveTypeLabel(kickRow, audio, List.of()));
+			kickRow, null, audio, List.of(), List.of()));
+		assertEquals("节奏特征", TimelineRowLabelResolver.resolveTypeLabel(kickRow, audio, List.of(), List.of()));
 	}
 
 	@Test
@@ -46,7 +46,7 @@ class TimelineRowLabelResolverTest {
 		List<TrackDefinition> audio = List.of(waveform("waveform", "主混音"), waveform("stem_wf_drums", "Drums"));
 		int stemRow = TimelineTrackMeta.ROW_AUDIO_SUBS_START + 1;
 
-		assertEquals("音频", TimelineRowLabelResolver.resolveTypeLabel(stemRow, audio, List.of()));
+		assertEquals("音频", TimelineRowLabelResolver.resolveTypeLabel(stemRow, audio, List.of(), List.of()));
 	}
 
 	@Test
@@ -55,13 +55,13 @@ class TimelineRowLabelResolverTest {
 			animControl("animation_block_feature_kick", "Kick Control"));
 		int row = TimelineTrackMeta.ROW_ANIM_FEATURES_START;
 
-		assertEquals("底鼓 控制", TimelineRowLabelResolver.resolveDisplayName(row, null, List.of(), anim));
-		assertEquals("动画控制", TimelineRowLabelResolver.resolveTypeLabel(row, List.of(), anim));
+		assertEquals("底鼓 控制", TimelineRowLabelResolver.resolveDisplayName(row, null, List.of(), anim, List.of()));
+		assertEquals("动画控制", TimelineRowLabelResolver.resolveTypeLabel(row, List.of(), anim, List.of()));
 	}
 
 	@Test
 	void audioGroupTypeLabel() {
 		assertEquals("音频片段", TimelineRowLabelResolver.resolveTypeLabel(
-			TimelineTrackMeta.ROW_AUDIO_GROUP, List.of(), List.of()));
+			TimelineTrackMeta.ROW_AUDIO_GROUP, List.of(), List.of(), List.of()));
 	}
 }

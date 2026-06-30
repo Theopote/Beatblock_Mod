@@ -70,10 +70,10 @@ public final class CommandDescriptions {
 		if (command instanceof com.beatblock.timeline.command.layer.ReorderLayerCommand) {
 			return BBTexts.get("beatblock.undo.reorder_layer");
 		}
-		if (command instanceof CreateBuildLayerTrackCommand) {
+		if (command instanceof com.beatblock.timeline.command.layer.CreateBuildLayerTrackCommand) {
 			return BBTexts.get("beatblock.undo.create_build_layer_track");
 		}
-		if (command instanceof DeleteBuildLayerTrackCommand) {
+		if (command instanceof com.beatblock.timeline.command.layer.DeleteBuildLayerTrackCommand) {
 			return BBTexts.get("beatblock.undo.delete_build_layer_track");
 		}
 		return command.getClass().getSimpleName();

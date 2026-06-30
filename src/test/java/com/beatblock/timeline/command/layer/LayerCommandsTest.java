@@ -7,6 +7,7 @@ import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -151,7 +152,7 @@ class LayerCommandsTest {
 			"layer-bind", "Bind Me", stage, LayerVisibilityState.FREE_HIDDEN, Map.of(), null));
 
 		BindLayerToTrackCommand command = new BindLayerToTrackCommand(
-			timeline, layerManager, null, "layer-bind", 1.0, 2.0);
+			timeline, layerManager, "layer-bind", null, 1.0, 2.0);
 		command.execute();
 
 		BuildLayer bound = layerManager.get("layer-bind");
