@@ -232,7 +232,7 @@ public class LayerPanel {
 		IconButtonStyle.pushBeatBlockIconButton();
 		ImGui.button(Icons.Action.DRAG_HANDLE + "##layerReorder_" + layer.getId(), ICON_BTN, ICON_BTN);
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(BBTexts.get("beatblock.layer.reorder_tooltip"));
+			IconButtonStyle.setTooltipWithDefaultFont(BBTexts.get("beatblock.layer.reorder_tooltip"));
 		}
 		renderLayerReorderDragSource(layer);
 		IconButtonStyle.popBeatBlockIconButton();
@@ -243,10 +243,10 @@ public class LayerPanel {
 
 		IconButtonStyle.pushBeatBlockIconButton();
 		String visTooltip = renderVisibilityIconButton(layer);
-		IconButtonStyle.popBeatBlockIconButton();
 		if (visTooltip != null) {
-			ImGui.setTooltip(visTooltip);
+			IconButtonStyle.setTooltipWithDefaultFont(visTooltip);
 		}
+		IconButtonStyle.popBeatBlockIconButton();
 		ImGui.sameLine();
 
 		float nameWidth = Math.max(80f, ImGui.getContentRegionAvail().x - reservedIcons - 8f);
@@ -257,7 +257,7 @@ public class LayerPanel {
 			IconButtonStyle.pushBeatBlockIconButton();
 			ImGui.button(Icons.Action.LINK + "##layerBindDrag_" + layer.getId(), ICON_BTN, ICON_BTN);
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(BBTexts.get("beatblock.layer.drag_bind"));
+				IconButtonStyle.setTooltipWithDefaultFont(BBTexts.get("beatblock.layer.drag_bind"));
 			}
 			renderTimelineBindDragSource(layer);
 			IconButtonStyle.popBeatBlockIconButton();
@@ -274,7 +274,7 @@ public class LayerPanel {
 		if (!canDelete) {
 			ImGui.endDisabled();
 			if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
-				ImGui.setTooltip(BBTexts.get("beatblock.layer.cannot_delete_bound"));
+				IconButtonStyle.setTooltipWithDefaultFont(BBTexts.get("beatblock.layer.cannot_delete_bound"));
 			}
 		}
 		IconButtonStyle.popBeatBlockIconButton();

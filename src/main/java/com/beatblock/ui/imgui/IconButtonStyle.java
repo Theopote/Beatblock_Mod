@@ -18,6 +18,25 @@ public final class IconButtonStyle {
 	}
 
 	/**
+	 * 在 {@link #pushBeatBlockIconButton()} 内显示 tooltip 时必须用默认字体，否则中文会变成乱码图标。
+	 */
+	public static void setTooltipWithDefaultFont(String text) {
+		if (text == null || text.isEmpty()) {
+			return;
+		}
+		ImFont iconFont = ImGuiFontManager.getIconButtonFont();
+		boolean restoreIconFont = false;
+		if (iconFont != null) {
+			ImGui.popFont();
+			restoreIconFont = true;
+		}
+		ImGui.setTooltip(text);
+		if (restoreIconFont) {
+			ImGui.pushFont(iconFont);
+		}
+	}
+
+	/**
 	 * 仅方形槽：零内边距 + 标签居中。用于主字体字符（如 “+”），不要与 {@link #pushBeatBlockIconButton()} 混用同一对 push/pop。
 	 */
 	public static void pushSquareIconSlot() {
