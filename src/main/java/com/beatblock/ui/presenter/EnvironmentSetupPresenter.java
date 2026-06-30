@@ -57,6 +57,7 @@ public final class EnvironmentSetupPresenter {
 	private final AtomicBoolean installInFlight = new AtomicBoolean();
 	private volatile AnalysisCancelControl installControl = new AnalysisCancelControl();
 	private boolean openRequested;
+	private boolean manualOpen;
 
 	EnvironmentSetupPresenter(PythonEnvironmentDiagnostics diagnostics) {
 		this.diagnostics = diagnostics;
@@ -74,11 +75,18 @@ public final class EnvironmentSetupPresenter {
 		if (!shouldAutoOpen()) {
 			return;
 		}
+		manualOpen = false;
 		openRequested = true;
 		startEnvironmentCheck();
 	}
 
+	public void invalidateProbeCache() {
+		diagnostics.clearProbeCache();
+	}
+
 	public void open() {
+		invalidateProbeCache();
+		manualOpen = true;
 		openRequested = true;
 		startEnvironmentCheck();
 	}
@@ -89,6 +97,7 @@ public final class EnvironmentSetupPresenter {
 
 	public void close() {
 		openRequested = false;
+		manualOpen = false;
 		installControl.cancelRunningProcess();
 	}
 
@@ -201,7 +210,9 @@ public final class EnvironmentSetupPresenter {
 
 				if (isEnvironmentReady(health)) {
 					UiPreferences.setPythonSetupAcknowledged(true);
-					openRequested = false;
+					if (!manualOpen) {
+						openRequested = false;
+					}
 					viewState = withPhase(Phase.READY, "");
 					return;
 				}

@@ -15,4 +15,12 @@ class EnvironmentSetupPresenterTest {
 		presenter.open();
 		assertTrue(presenter.isOpen());
 	}
+
+	@Test
+	void manualOpenStaysOpenAfterClose() {
+		EnvironmentSetupPresenter presenter = new EnvironmentSetupPresenter(new PythonEnvironmentDiagnostics());
+		presenter.open();
+		presenter.close();
+		assertFalse(presenter.isOpen());
+	}
 }

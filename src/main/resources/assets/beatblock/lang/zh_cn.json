@@ -976,6 +976,7 @@
   "beatblock.env_setup.python_hint_winget": "Windows 可在终端运行：winget install Python.Python.3.12",
   "beatblock.env_setup.python_hint_path": "或在 config/beatblock/python_path.txt 写入 python.exe 完整路径",
   "beatblock.env_setup.needs_setup": "检测到 Python，但分析依赖尚未安装。点击下方按钮将自动创建虚拟环境并安装 librosa 等包。",
+  "beatblock.env_setup.manual_install_hint": "若你已在系统 Python 手动安装过依赖，重新打开本窗口或重启游戏后会自动识别；BeatBlock 使用的是独立 venv 或已装好包的那个 Python。",
   "beatblock.env_setup.install_demucs": "同时安装 Demucs 分轨（可选，约 2GB）",
   "beatblock.env_setup.install_demucs.tooltip": "Demucs 可将音乐分离为鼓/贝斯/人声等轨道，首次下载 PyTorch 较慢",
   "beatblock.env_setup.install": "一键安装依赖",

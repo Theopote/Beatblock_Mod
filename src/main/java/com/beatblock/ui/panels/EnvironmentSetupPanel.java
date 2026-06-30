@@ -117,6 +117,10 @@ public final class EnvironmentSetupPanel {
 			presenter.open();
 		}
 		ImGui.sameLine();
+		if (ImGui.button(BBTexts.get("beatblock.common.close") + "##envCloseMissing")) {
+			presenter.close();
+		}
+		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.env_setup.skip") + "##envSkipMissing")) {
 			presenter.skipForNow();
 		}
@@ -130,6 +134,8 @@ public final class EnvironmentSetupPanel {
 		} else {
 			ImGui.textWrapped(BBTexts.get("beatblock.env_setup.needs_setup"));
 		}
+		ImGui.textDisabled(BBTexts.get("beatblock.env_setup.manual_install_hint"));
+		ImGui.spacing();
 
 		installDemucs.set(state.installDemucs());
 		if (ImGui.checkbox(BBTexts.get("beatblock.env_setup.install_demucs"), installDemucs)) {

@@ -899,6 +899,7 @@
   "beatblock.env_setup.python_hint_winget": "On Windows, run in terminal: winget install Python.Python.3.12",
   "beatblock.env_setup.python_hint_path": "Or write the full path to python.exe in config/beatblock/python_path.txt",
   "beatblock.env_setup.needs_setup": "Python detected, but analysis dependencies are missing. Click below to create a venv and install librosa, etc.",
+  "beatblock.env_setup.manual_install_hint": "If you already installed deps in system Python, reopen this dialog or restart the game; BeatBlock picks the Python that already has the packages (venv or system).",
   "beatblock.env_setup.install_demucs": "Also install Demucs stem separation (optional, ~2GB)",
   "beatblock.env_setup.install_demucs.tooltip": "Demucs separates drums/bass/vocals; first PyTorch download may take a while",
   "beatblock.env_setup.install": "Install Dependencies",

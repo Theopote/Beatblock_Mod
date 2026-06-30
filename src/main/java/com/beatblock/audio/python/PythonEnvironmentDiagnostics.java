@@ -8,6 +8,7 @@ import com.beatblock.audio.process.ProcessIo;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -71,14 +72,32 @@ public final class PythonEnvironmentDiagnostics {
 	}
 
 	public String resolvePythonExe(Path configDir) {
-		Path venvPython = PythonVirtualEnvironment.venvPythonExecutable(configDir);
-		if (venvPython != null) {
-			String venvExe = venvPython.toAbsolutePath().toString();
-			if (isUsablePythonForAnalyzer(venvExe)) {
-				return venvExe;
-			}
+		if (configDir == null) {
+			return null;
 		}
-		return resolveBasePythonExe(configDir);
+		String base = resolveBasePythonExe(configDir);
+		Path venvPath = PythonVirtualEnvironment.venvPythonExecutable(configDir);
+		String venv = venvPath != null ? venvPath.toAbsolutePath().toString() : null;
+
+		// Prefer whichever interpreter already has analysis dependencies (system or venv).
+		if (venv != null && hasBasicAnalysisDeps(venv)) {
+			return venv;
+		}
+		if (base != null && hasBasicAnalysisDeps(base)) {
+			return base;
+		}
+		if (venv != null && isUsablePythonForAnalyzer(venv)) {
+			return venv;
+		}
+		return base;
+	}
+
+	public boolean hasBasicAnalysisDeps(String pythonExe) {
+		return runPythonImportCheck(pythonExe, "import numpy, librosa, soundfile, scipy");
+	}
+
+	public boolean hasDemucsDeps(String pythonExe) {
+		return runPythonImportCheck(pythonExe, "import demucs.api, torch");
 	}
 
 	/** 解析系统 Python（不含 venv），用于首次创建虚拟环境。 */
@@ -222,27 +241,16 @@ public final class PythonEnvironmentDiagnostics {
 					return "Python 依赖缺失，且找不到 requirements.txt：" + requirementsPath;
 				}
 
-				Process install = new ProcessBuilder(
-					pythonExe,
-					"-m",
-					"pip",
-					"install",
-					"-r",
-					requirementsPath.toAbsolutePath().toString()
-				).redirectErrorStream(true).start();
-				control.attachProcess(install);
-				String installOut = ProcessIo.readProcessOutput(install);
-				int installCode = ProcessIo.waitProcess(install);
-				control.clearProcess(install);
+				String installError = pipInstallRequirements(pythonExe, requirementsPath, control);
 				if (control.isCancelled()) return "分析被取消";
-				if (installCode != 0) {
-					String detail = ProcessIo.sanitizeProcessOutput(installOut);
-					if (detail.isEmpty()) detail = ProcessIo.sanitizeProcessOutput(checkOut);
+				if (installError != null) {
+					String detail = installError;
 					String hint = explainPythonError(detail);
 					String resolvedExe = getProbeInfo(pythonExe).executablePath();
 					String cmdExe = resolvedExe != null && !resolvedExe.isBlank() ? resolvedExe : pythonExe;
 					return "Python 依赖安装失败，请手动执行：\n"
-						+ "\"" + cmdExe + "\" -m pip install -r \"" + requirementsPath.toAbsolutePath() + "\"\n"
+						+ "\"" + cmdExe + "\" -m pip install --no-cache-dir -r \""
+						+ requirementsPath.toAbsolutePath() + "\"\n"
 						+ (hint.isEmpty() ? "" : ("\n" + hint + "\n"))
 						+ detail;
 				}
@@ -269,6 +277,7 @@ public final class PythonEnvironmentDiagnostics {
 					demucsInstallCmd.add("-m");
 					demucsInstallCmd.add("pip");
 					demucsInstallCmd.add("install");
+					demucsInstallCmd.add("--no-cache-dir");
 					if (Files.isRegularFile(demucsRequirementsPath)) {
 						demucsInstallCmd.add("-r");
 						demucsInstallCmd.add(demucsRequirementsPath.toAbsolutePath().toString());
@@ -331,6 +340,12 @@ public final class PythonEnvironmentDiagnostics {
 		}
 		if (s.contains("permission denied") || s.contains("access is denied") || s.contains("errno 13")) {
 			return "检测到权限不足。请用有权限的目录运行，或检查防病毒软件是否拦截 Python/pip 写入。";
+		}
+		if (s.contains("winerror 32")
+			|| s.contains("being used by another process")
+			|| s.contains("另一个程序正在使用此文件")) {
+			return "检测到文件被占用（WinError 32）。请关闭其他 Python/IDE 进程与杀毒实时扫描，"
+				+ "或删除 config/beatblock/analyzer/.venv 后重试；若已在系统 Python 安装依赖，重启游戏后会自动识别。";
 		}
 		if (s.contains("could not find a version that satisfies") || s.contains("no matching distribution found")) {
 			return "pip 未找到可安装版本。请检查 Python 版本是否过旧，或切换可用的 pip 镜像源。";
@@ -407,8 +422,26 @@ public final class PythonEnvironmentDiagnostics {
 					请从 python.org 安装 Python，或在 config/beatblock/python_path.txt 中指定 python.exe 完整路径。""";
 			}
 
+			// System Python already has deps: use it directly (manual pip install case).
+			if (hasBasicAnalysisDeps(basePython) && (!installDemucs || hasDemucsDeps(basePython))) {
+				onProgress.onProgress("ENV_VENV", 100);
+				onProgress.onProgress("DEPENDENCY_INSTALL", 100);
+				probeCache.clear();
+				return null;
+			}
+			if (hasBasicAnalysisDeps(basePython)) {
+				onProgress.onProgress("ENV_VENV", 100);
+				Path requirementsPath = beatblockConfigDir.resolve("analyzer").resolve("requirements.txt");
+				onProgress.onProgress("DEPENDENCY_INSTALL", 100);
+				String demucsOnly = ensurePythonDependencies(
+					basePython, requirementsPath, control, onProgress, true);
+				probeCache.clear();
+				return demucsOnly;
+			}
+
 			String pythonExe;
-			if (PythonVirtualEnvironment.isReady(beatblockConfigDir, this)) {
+			if (PythonVirtualEnvironment.isReady(beatblockConfigDir, this)
+				&& hasBasicAnalysisDeps(PythonVirtualEnvironment.venvPythonExecutable(beatblockConfigDir).toString())) {
 				pythonExe = PythonVirtualEnvironment.venvPythonExecutable(beatblockConfigDir)
 					.toAbsolutePath().toString();
 			} else {
@@ -421,6 +454,11 @@ public final class PythonEnvironmentDiagnostics {
 			onProgress.onProgress("DEPENDENCY_INSTALL", 0);
 			String dependencyError = ensurePythonDependencies(
 				pythonExe, requirementsPath, control, onProgress, installDemucs);
+			if (dependencyError != null && hasBasicAnalysisDeps(basePython)) {
+				LOGGER.warn("BeatBlock: venv pip install failed, falling back to system Python with existing deps");
+				probeCache.clear();
+				return null;
+			}
 			if (dependencyError != null) {
 				return dependencyError;
 			}
@@ -435,6 +473,10 @@ public final class PythonEnvironmentDiagnostics {
 
 	public Path beatblockConfigDirOrNull() {
 		return configDirOrNull();
+	}
+
+	public void clearProbeCache() {
+		probeCache.clear();
 	}
 
 	private HealthItem moduleHealth(String[] parts, int index, String label) {
@@ -452,6 +494,91 @@ public final class PythonEnvironmentDiagnostics {
 
 	private static String detailOrDefault(String detail, String fallback) {
 		return detail == null || detail.isBlank() ? fallback : detail;
+	}
+
+	private boolean runPythonImportCheck(String pythonExe, String importScript) {
+		if (pythonExe == null || pythonExe.isBlank() || !isUsablePythonForAnalyzer(pythonExe)) {
+			return false;
+		}
+		try {
+			Process p = new ProcessBuilder(pythonExe, "-c", importScript)
+				.redirectErrorStream(true)
+				.start();
+			boolean finished = p.waitFor(PROBE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+			if (!finished) {
+				p.destroyForcibly();
+				return false;
+			}
+			return p.exitValue() == 0;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	private @Nullable String pipInstallRequirements(
+		String pythonExe,
+		Path requirementsPath,
+		AnalysisCancelControl control
+	) throws IOException {
+		List<String> cmd = List.of(
+			pythonExe,
+			"-m",
+			"pip",
+			"install",
+			"--no-cache-dir",
+			"-r",
+			requirementsPath.toAbsolutePath().toString()
+		);
+		String output = runPipCommand(cmd, control);
+		if (output == null) {
+			return null;
+		}
+		if (looksLikeFileLockError(output)) {
+			for (String pkg : readRequirementPackages(requirementsPath)) {
+				String lineError = runPipCommand(List.of(
+					pythonExe, "-m", "pip", "install", "--no-cache-dir", pkg
+				), control);
+				if (lineError != null) {
+					return lineError;
+				}
+			}
+			return null;
+		}
+		return output;
+	}
+
+	private @Nullable String runPipCommand(List<String> cmd, AnalysisCancelControl control) throws IOException {
+		Process install = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+		control.attachProcess(install);
+		String installOut = ProcessIo.readProcessOutput(install);
+		int installCode = ProcessIo.waitProcess(install);
+		control.clearProcess(install);
+		if (installCode == 0) {
+			return null;
+		}
+		return ProcessIo.sanitizeProcessOutput(installOut);
+	}
+
+	static List<String> readRequirementPackages(Path requirementsPath) throws IOException {
+		List<String> packages = new ArrayList<>();
+		for (String line : Files.readAllLines(requirementsPath)) {
+			String trimmed = line.trim();
+			if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+				continue;
+			}
+			packages.add(trimmed);
+		}
+		return packages;
+	}
+
+	private static boolean looksLikeFileLockError(String detail) {
+		if (detail == null || detail.isBlank()) {
+			return false;
+		}
+		String s = detail.toLowerCase();
+		return s.contains("winerror 32")
+			|| s.contains("being used by another process")
+			|| s.contains("另一个程序正在使用此文件");
 	}
 
 	private PythonProbeInfo probePythonInfoOnce(String pythonExe) {
