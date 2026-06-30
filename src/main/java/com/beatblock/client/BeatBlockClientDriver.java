@@ -108,8 +108,8 @@ public final class BeatBlockClientDriver {
 			if (musicPlayer != null) {
 				musicPlayer.tick(delta);
 			}
-			syncStemMixerToMusicPlayer();
-			double currentTime = musicPlayer != null ? musicPlayer.getCurrentTimeSeconds() : 0.0;
+			ctx().pauseFullMixIfStemPlayback();
+			double currentTime = ctx().playbackTimeSeconds();
 			tickBlockAnimationEngine(currentTime, false, world);
 			return;
 		}
@@ -140,28 +140,6 @@ public final class BeatBlockClientDriver {
 			return new double[0];
 		}
 		return ReferenceBeatResolver.resolveBeatTimesSeconds(timeline);
-	}
-
-	private void syncStemMixerToMusicPlayer() {
-		var stemMixer = ctx().stemMixer();
-		var musicPlayer = ctx().musicPlayer();
-		if (stemMixer == null || !stemMixer.hasStems() || musicPlayer == null) return;
-		boolean musicPlaying = musicPlayer.isPlaying();
-		double musicTime = musicPlayer.getCurrentTimeSeconds();
-		double stemTime = stemMixer.getCurrentTimeSeconds();
-
-		if (Math.abs(stemTime - musicTime) > 0.05) {
-			stemMixer.setCurrentTimeSeconds(musicTime);
-		}
-
-		if (musicPlaying) {
-			if (!stemMixer.isPlaying()) {
-				stemMixer.setCurrentTimeSeconds(musicTime);
-				stemMixer.play();
-			}
-		} else if (stemMixer.isPlaying()) {
-			stemMixer.pause();
-		}
 	}
 
 	public static void startDriving() {
@@ -227,6 +205,10 @@ public final class BeatBlockClientDriver {
 		var musicPlayer = ctx().musicPlayer();
 		if (musicPlayer != null) {
 			musicPlayer.setCurrentTimeSeconds(timeSeconds);
+		}
+		var stemMixer = ctx().stemMixer();
+		if (stemMixer != null && stemMixer.hasStems()) {
+			stemMixer.setCurrentTimeSeconds(timeSeconds);
 		}
 		resetTimelineAnimationScheduling();
 		MinecraftClient mc = MinecraftClient.getInstance();
@@ -474,13 +456,16 @@ public final class BeatBlockClientDriver {
 	}
 
 	private void togglePlaybackInternal() {
-		var musicPlayer = ctx().musicPlayer();
-		if (musicPlayer == null) return;
-		if (musicPlayer.isPlaying()) {
-			stopPlaybackInternal();
-		} else {
-			musicPlayer.play();
-			startDrivingInternal();
+		var player = ctx().activeAudioPlayer();
+		if (player == null) {
+			return;
 		}
+		if (player.isPlaying()) {
+			stopPlaybackInternal();
+			return;
+		}
+		ctx().pauseFullMixIfStemPlayback();
+		player.play();
+		startDrivingInternal();
 	}
 }

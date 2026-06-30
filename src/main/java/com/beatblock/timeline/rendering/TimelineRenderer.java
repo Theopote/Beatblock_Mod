@@ -362,6 +362,14 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 
 		if (anyLoaded) {
 			LOGGER.info("BeatBlock TimelineRenderer: StemMixer loaded {} stems", loadedCount);
+			var musicPlayer = ctx().musicPlayer();
+			if (musicPlayer != null) {
+				double syncTime = musicPlayer.getCurrentTimeSeconds();
+				if (musicPlayer.isPlaying()) {
+					musicPlayer.pause();
+				}
+				ctx().stemMixer().setCurrentTimeSeconds(syncTime);
+			}
 		} else {
 			LOGGER.warn("BeatBlock TimelineRenderer: stem metadata present but no stems were loaded successfully");
 		}

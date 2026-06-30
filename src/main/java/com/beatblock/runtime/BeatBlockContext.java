@@ -106,10 +106,31 @@ public final class BeatBlockContext {
 	}
 
 	public @Nullable IAudioPlayer activeAudioPlayer() {
-		if (stemMixer != null && stemMixer.hasStems()) {
+		if (usesStemPlayback()) {
 			return stemMixer;
 		}
 		return musicPlayer;
+	}
+
+	/** Demucs 分轨已加载时，时间轴应只驱动 {@link StemMixer}，不再播放全曲混音。 */
+	public boolean usesStemPlayback() {
+		return stemMixer != null && stemMixer.hasStems();
+	}
+
+	public void pauseFullMixIfStemPlayback() {
+		if (!usesStemPlayback() || musicPlayer == null) {
+			return;
+		}
+		if (musicPlayer.isPlaying()) {
+			musicPlayer.pause();
+		}
+	}
+
+	public double playbackTimeSeconds() {
+		if (usesStemPlayback() && stemMixer != null) {
+			return stemMixer.getCurrentTimeSeconds();
+		}
+		return musicPlayer != null ? musicPlayer.getCurrentTimeSeconds() : 0.0;
 	}
 
 	public @Nullable VideoExportService videoExportService() {

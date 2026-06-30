@@ -246,4 +246,80 @@ class TimelineTransportPresenterTest {
 		assertEquals(60.0, state.durationSeconds(), 1e-9);
 		assertFalse(state.hasMusic());
 	}
+
+	@Test
+	void playInStemModeStartsStemMixerOnly() {
+		MusicPlayer music = new MusicPlayer();
+		music.setDurationSeconds(120.0);
+		RecordingAudioPlayer stems = new RecordingAudioPlayer();
+		var stemPresenter = new TimelineTransportPresenter(
+			() -> editor,
+			() -> timeline,
+			() -> music,
+			() -> stems,
+			null
+		);
+		stemPresenter.play(editor);
+		assertTrue(stems.playInvoked);
+		assertFalse(music.isPlaying());
+	}
+
+	@Test
+	void pauseInStemModePausesStemMixerOnly() {
+		MusicPlayer music = new MusicPlayer();
+		music.setDurationSeconds(120.0);
+		music.play();
+		RecordingAudioPlayer stems = new RecordingAudioPlayer();
+		stems.playing = true;
+		var stemPresenter = new TimelineTransportPresenter(
+			() -> editor,
+			() -> timeline,
+			() -> music,
+			() -> stems,
+			null
+		);
+		stemPresenter.pause();
+		assertTrue(stems.pauseInvoked);
+		assertFalse(music.isPlaying());
+	}
+
+	private static final class RecordingAudioPlayer implements com.beatblock.timeline.IAudioPlayer {
+		boolean playing;
+		boolean playInvoked;
+		boolean pauseInvoked;
+		double timeSeconds;
+
+		@Override
+		public boolean isPlaying() {
+			return playing;
+		}
+
+		@Override
+		public double getCurrentTimeSeconds() {
+			return timeSeconds;
+		}
+
+		@Override
+		public void setCurrentTimeSeconds(double timeSeconds) {
+			this.timeSeconds = timeSeconds;
+		}
+
+		@Override
+		public void play() {
+			playInvoked = true;
+			playing = true;
+		}
+
+		@Override
+		public void pause() {
+			pauseInvoked = true;
+			playing = false;
+		}
+
+		@Override
+		public void stop() {
+			playing = false;
+			timeSeconds = 0.0;
+		}
+	}
 }

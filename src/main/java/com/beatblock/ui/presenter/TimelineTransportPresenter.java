@@ -80,7 +80,8 @@ public final class TimelineTransportPresenter {
 		double currentTime = editor.getClock().getCurrentTimeSeconds();
 		double duration = resolveDuration(editor);
 		boolean hasMusic = music != null && currentTimeline != null && currentTimeline.getDurationSeconds() > 0;
-		boolean playing = hasMusic && music.isPlaying();
+		IAudioPlayer playback = resolvedPlaybackPlayer();
+		boolean playing = hasMusic && playback != null && playback.isPlaying();
 		String positionDisplay = MusicTimeFormatter.formatPositionDisplay(currentTime, duration, bpm);
 		return new TransportViewState(hasMusic, playing, bpm, seekStep, stepSeek,
 			currentTime, duration, positionDisplay);
@@ -97,11 +98,13 @@ public final class TimelineTransportPresenter {
 		double duration = resolveDuration(editor);
 		double time = Math.max(0, Math.min(targetSeconds, duration));
 		editor.getClock().seek(time);
-		MusicPlayer music = musicPlayer.get();
-		if (music != null) {
+		IAudioPlayer playback = resolvedPlaybackPlayer();
+		if (playback != null) {
 			ensureMusicDurationForPlayback(editor);
-			music.setCurrentTimeSeconds(time);
+			playback.setCurrentTimeSeconds(time);
 		}
+		pauseFullMixIfStemMode();
+		syncFullMixTime(time);
 	}
 
 	public void seekBy(TimelineEditor editor, double deltaSeconds) {
@@ -113,13 +116,10 @@ public final class TimelineTransportPresenter {
 
 	public void play(TimelineEditor editor) {
 		ensureMusicDurationForPlayback(editor);
-		MusicPlayer music = musicPlayer.get();
-		if (music != null) {
-			music.play();
-		}
-		IAudioPlayer active = activeAudioPlayer.get();
-		if (active != null && active != music) {
-			active.play();
+		pauseFullMixIfStemMode();
+		IAudioPlayer playback = resolvedPlaybackPlayer();
+		if (playback != null) {
+			playback.play();
 		}
 		if (!driveControl.isDriving()) {
 			driveControl.startDriving();
@@ -131,14 +131,11 @@ public final class TimelineTransportPresenter {
 	}
 
 	public void pause() {
-		MusicPlayer music = musicPlayer.get();
-		if (music != null) {
-			music.pause();
+		IAudioPlayer playback = resolvedPlaybackPlayer();
+		if (playback != null) {
+			playback.pause();
 		}
-		IAudioPlayer active = activeAudioPlayer.get();
-		if (active != null && active != music) {
-			active.pause();
-		}
+		pauseFullMixIfStemMode();
 		TimelineEditor editor = timelineEditor.get();
 		if (editor != null) {
 			editor.getClock().pause();
@@ -146,13 +143,15 @@ public final class TimelineTransportPresenter {
 	}
 
 	public void stop(TimelineEditor editor) {
-		MusicPlayer music = musicPlayer.get();
-		if (music != null) {
-			music.stop();
+		IAudioPlayer playback = resolvedPlaybackPlayer();
+		if (playback != null) {
+			playback.stop();
 		}
-		IAudioPlayer active = activeAudioPlayer.get();
-		if (active != null && active != music) {
-			active.stop();
+		if (isStemPlaybackMode()) {
+			MusicPlayer music = musicPlayer.get();
+			if (music != null) {
+				music.pause();
+			}
 		}
 		TimelineEditor currentEditor = editor != null ? editor : timelineEditor.get();
 		if (currentEditor != null) {
@@ -299,6 +298,37 @@ public final class TimelineTransportPresenter {
 		double duration = resolveDuration(editor);
 		if (duration > 0) {
 			music.setDurationSeconds(duration);
+		}
+	}
+
+	private IAudioPlayer resolvedPlaybackPlayer() {
+		IAudioPlayer active = activeAudioPlayer.get();
+		if (active != null) {
+			return active;
+		}
+		return musicPlayer.get();
+	}
+
+	private boolean isStemPlaybackMode() {
+		IAudioPlayer active = activeAudioPlayer.get();
+		MusicPlayer music = musicPlayer.get();
+		return active != null && music != null && active != music;
+	}
+
+	private void pauseFullMixIfStemMode() {
+		if (!isStemPlaybackMode()) {
+			return;
+		}
+		MusicPlayer music = musicPlayer.get();
+		if (music != null && music.isPlaying()) {
+			music.pause();
+		}
+	}
+
+	private void syncFullMixTime(double timeSeconds) {
+		MusicPlayer music = musicPlayer.get();
+		if (music != null) {
+			music.setCurrentTimeSeconds(timeSeconds);
 		}
 	}
 
