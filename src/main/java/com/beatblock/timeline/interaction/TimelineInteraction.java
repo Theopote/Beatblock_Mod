@@ -314,12 +314,11 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				int headerRow = layout.findRowAtScreenY(my);
 				if (TimelineTrackMeta.isBuildLayerSubRow(headerRow)) {
 					popupState.contextTrackId = BuildLayerTrackSupport.trackIdForRow(timeline, headerRow);
-					popupState.contextClipId = null;
-				} else {
+                } else {
 					popupState.contextTrackId = null;
-					popupState.contextClipId = null;
-				}
-			} else {
+                }
+                popupState.contextClipId = null;
+            } else {
 				popupState.contextTrackId = hit.getTrackId();
 				popupState.contextClipId = hit.getClipId();
 			}

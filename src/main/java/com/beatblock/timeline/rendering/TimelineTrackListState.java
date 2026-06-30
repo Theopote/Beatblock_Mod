@@ -1,9 +1,7 @@
 package com.beatblock.timeline.rendering;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+
 import imgui.type.ImString;
 
 /**
@@ -37,9 +35,7 @@ public final class TimelineTrackListState {
 	private final Set<Integer> collapsedGroupRows = new HashSet<>();
 
 	public TimelineTrackListState() {
-		for (int i = 0; i < visible.length; i++) {
-			visible[i] = true;
-		}
+        Arrays.fill(visible, true);
 	}
 
 	public boolean isVisible(int rowIndex) {
@@ -133,9 +129,8 @@ public final class TimelineTrackListState {
 	 */
 	public boolean isEffectivelyMuted(int rowIndex) {
 		if (isMuted(rowIndex)) return true;
-		if (hasAnySolo() && !isSoloed(rowIndex)) return true;
-		return false;
-	}
+        return hasAnySolo() && !isSoloed(rowIndex);
+    }
 
 	/** 当前显示名称：自定义名优先，否则用 TimelineTrackMeta 的默认名 */
 	public String getDisplayName(int rowIndex) {

@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -152,7 +153,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		if (trackListState != null) {
 			TimelineStemMuteSync.syncPrimaryPlayerMuteState(ctx(), trackListState, currentAudioSubTracks);
 		}
-		if (trackListState != null && ctx().stemMixer() != null && ctx().stemMixer().hasStems()) {
+		if (trackListState != null && ctx().stemMixer() != null && Objects.requireNonNull(ctx().stemMixer()).hasStems()) {
 			TimelineStemMuteSync.syncStemMuteState(ctx(), trackListState, currentAudioSubTracks);
 		}
 
@@ -309,7 +310,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	@Override
 	public String resolveDefaultTargetObjectId() {
 		if (ctx().blockAnimationEngine() != null) {
-			var sys = ctx().blockAnimationEngine().getStageObjectSystem();
+			var sys = Objects.requireNonNull(ctx().blockAnimationEngine()).getStageObjectSystem();
 			var all = sys.getAll();
 			if (!all.isEmpty()) {
 				return all.iterator().next().getId();
@@ -321,7 +322,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	@Override
 	public void syncClockDuration() {
 		if (ctx().timelineEditor() != null) {
-			ctx().timelineEditor().syncClockDuration();
+			Objects.requireNonNull(ctx().timelineEditor()).syncClockDuration();
 		}
 	}
 
@@ -336,9 +337,9 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	 */
 	private void bindStemAudioIfDemucsInternal(com.beatblock.audio.beatmap.Beatmap beatmap) {
 		if (ctx().stemMixer() == null) return;
-		ctx().stemMixer().clearStems();
+		Objects.requireNonNull(ctx().stemMixer()).clearStems();
 
-		if (beatmap == null || beatmap.meta == null || !beatmap.meta.hasStemSeparation()) return;
+		if (beatmap == null || !beatmap.meta.hasStemSeparation()) return;
 		if (beatmap.beatmapFilePath == null || beatmap.meta.stems() == null) return;
 
 		java.nio.file.Path beatmapDir = beatmap.beatmapFilePath.getParent();
@@ -352,7 +353,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 			if (relativePath == null || relativePath.isBlank()) continue;
 			java.nio.file.Path stemPath = beatmapDir.resolve(relativePath).normalize();
 			if (java.nio.file.Files.isRegularFile(stemPath)) {
-				if (ctx().stemMixer().loadStem(stemKey, stemPath)) {
+				if (Objects.requireNonNull(ctx().stemMixer()).loadStem(stemKey, stemPath)) {
 					anyLoaded = true;
 					loadedCount++;
 				}
@@ -369,7 +370,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 				if (musicPlayer.isPlaying()) {
 					musicPlayer.pause();
 				}
-				ctx().stemMixer().setCurrentTimeSeconds(syncTime);
+				Objects.requireNonNull(ctx().stemMixer()).setCurrentTimeSeconds(syncTime);
 			}
 		} else {
 			LOGGER.warn("BeatBlock TimelineRenderer: stem metadata present but no stems were loaded successfully");

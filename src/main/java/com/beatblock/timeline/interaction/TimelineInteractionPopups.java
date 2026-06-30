@@ -95,10 +95,7 @@ public final class TimelineInteractionPopups {
 			&& (!selectionState.getSelectedEvents().isEmpty() || !selectionState.getSelectedClips().isEmpty());
 		boolean canDeleteSelection = TimelineInteractionDeleteSupport.hasDeletableSelection(timeline, selectionState, trackListState);
 		boolean canDeleteContextClip = host.canDeleteContextClip(timeline, trackListState);
-		BeatBlockClient.LOGGER.info(String.format(
-			"[TimelineInteraction.renderContextMenu] Menu opened: contextClipId=%s, contextTrackId=%s, canDeleteSelection=%s, canDeleteContextClip=%s",
-			state.contextClipId, state.contextTrackId, canDeleteSelection, canDeleteContextClip
-		));
+		BeatBlockClient.LOGGER.info("[TimelineInteraction.renderContextMenu] Menu opened: contextClipId={}, contextTrackId={}, canDeleteSelection={}, canDeleteContextClip={}", state.contextClipId, state.contextTrackId, canDeleteSelection, canDeleteContextClip);
 		boolean canDeleteAny = canDeleteSelection || canDeleteContextClip;
 		boolean hasClipboard = !host.clipboardEvents().isEmpty();
 		TimelineEventRef propertiesRef = host.resolvePropertiesEventRef(timeline, selectionState);
@@ -202,11 +199,9 @@ public final class TimelineInteractionPopups {
 	) {
 		if (timeline == null || host.timelineEditor() == null) return;
 		var commandManager = host.timelineEditor().getCommandManager();
-		if (commandManager == null) return;
 
-		String contextTrackId = state.contextTrackId;
-		boolean onBuildLayerTrack = contextTrackId != null
-			&& BuildLayerTrackSupport.isBuildLayerTrackId(contextTrackId);
+        String contextTrackId = state.contextTrackId;
+		boolean onBuildLayerTrack = BuildLayerTrackSupport.isBuildLayerTrackId(contextTrackId);
 
 		boolean canCreate = BuildLayerTrackSupport.canCreateMoreTracks(timeline);
 		boolean canDeleteEmpty = false;
@@ -416,8 +411,8 @@ public final class TimelineInteractionPopups {
 					ref.clip().getStartTimeSeconds(),
 					ref.clip().getEndTimeSeconds()
 				);
-				if (result instanceof GenericEventPropertiesEditor.Result.Err err) {
-					state.propertiesError = err.message();
+				if (result instanceof GenericEventPropertiesEditor.Result.Err(String message)) {
+					state.propertiesError = message;
 				} else {
 					AnimationEventSnapshot after = ((GenericEventPropertiesEditor.Result.Ok) result).snapshot();
 					AnimationEventSnapshot before = AnimationEventSnapshot.capture(ref.event(), ref.clip());
