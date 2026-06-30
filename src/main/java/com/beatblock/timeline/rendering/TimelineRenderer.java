@@ -179,9 +179,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 
 		// 网格竖线（仅时间轴方向，不画行间线）
 		gridRenderer.render(viewState, layout, layout.contentHeight);
-		TimelineRowHoverHighlighter.drawPairedFeatureHoverHighlight(
-			layout, currentAudioSubTracks, currentAnimationSubTracks);
-		TimelineRowHoverHighlighter.drawActionCameraHoverHighlight(layout, currentBuildLayerTracks);
+		TimelineRowHoverHighlighter.drawRowHoverHighlight(layout);
 
 		// 每帧重置音频组拖放高亮标记
 		audioGroupDropHighlight = false;
