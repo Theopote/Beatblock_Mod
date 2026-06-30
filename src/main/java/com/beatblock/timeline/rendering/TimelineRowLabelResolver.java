@@ -46,6 +46,12 @@ public final class TimelineRowLabelResolver {
 		}
 		if (TimelineTrackMeta.isBuildLayerSubRow(rowIndex)) {
 			int slot = TimelineTrackMeta.buildLayerSubRowSlot(rowIndex);
+			if (trackListState != null) {
+				String rowCustom = trackListState.getCustomNameOrNull(rowIndex);
+				if (rowCustom != null) {
+					return rowCustom;
+				}
+			}
 			if (slot >= 0 && slot < buildLayerTracks.size()) {
 				return buildLayerTracks.get(slot).getDisplayName();
 			}

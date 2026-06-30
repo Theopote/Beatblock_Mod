@@ -207,7 +207,6 @@ public final class TimelineInteractionPopups {
 		String contextTrackId = state.contextTrackId;
 		boolean onBuildLayerTrack = contextTrackId != null
 			&& BuildLayerTrackSupport.isBuildLayerTrackId(contextTrackId);
-		boolean blankContent = contextTrackId == null || contextTrackId.isBlank();
 
 		boolean canCreate = BuildLayerTrackSupport.canCreateMoreTracks(timeline);
 		boolean canDeleteEmpty = false;
@@ -221,7 +220,7 @@ public final class TimelineInteractionPopups {
 		if (!canCreate && !canDeleteEmpty) return;
 
 		ImGui.separator();
-		if (canCreate && blankContent
+		if (canCreate
 			&& ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.create_build_layer_track"))) {
 			commandManager.execute(new CreateBuildLayerTrackCommand(timeline));
 			ImGui.closeCurrentPopup();

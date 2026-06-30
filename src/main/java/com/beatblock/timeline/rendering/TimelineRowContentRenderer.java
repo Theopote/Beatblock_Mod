@@ -112,8 +112,6 @@ public final class TimelineRowContentRenderer {
 				return;
 			}
 			TrackDefinition td = buildLayerTracks.get(slot);
-			renderBuildLayerTrackDropTarget(
-				dropHost.context(), rowIndex, rowHeight, timeline, layout, viewState, td.getKey());
 			eventRenderer.renderAnimationEventBlocks(
 				rowY,
 				timeline.getAnimationEvents(td.getKey()),
@@ -122,6 +120,8 @@ public final class TimelineRowContentRenderer {
 				selectionState,
 				td.hasCustomColor() ? td.getColor() : 0xFF_66_CC_88
 			);
+			renderBuildLayerTrackDropTarget(
+				dropHost, rowIndex, rowHeight, timeline, layout, viewState, td.getKey(), trackListState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_CAMERA) {
 			eventRenderer.renderCameraTrackRow(rowY, timeline, layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_GLOBAL_EVENT) {
@@ -131,34 +131,41 @@ public final class TimelineRowContentRenderer {
 	}
 
 	static void renderBuildLayerTrackDropTarget(
-		BeatBlockContext context,
+		TimelineAudioDropHost dropHost,
 		int rowIndex,
 		float rowHeight,
 		Timeline timeline,
 		TimelineLayout layout,
 		TimelineViewState viewState,
-		String targetTrackId
+		String targetTrackId,
+		TimelineTrackListState trackListState
 	) {
 		float screenY = layout.getRowScreenY(rowIndex);
 		if (screenY < 0 || targetTrackId == null || targetTrackId.isBlank()) return;
+		if (trackListState != null && trackListState.isLocked(rowIndex)) return;
+
 		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
 		ImGui.invisibleButton("##BuildLayerDrop" + rowIndex, layout.contentWidth, rowHeight);
 		if (ImGui.beginDragDropTarget()) {
 			byte[] payload = ImGui.acceptDragDropPayload("BB_BUILD_LAYER_ID");
-			if (payload != null && context != null
-				&& context.blockAnimationEngine() != null && context.timelineEditor() != null) {
-				String layerId = new String(payload, StandardCharsets.UTF_8).trim();
-				double dropTime = viewState.screenToTime(ImGui.getMousePosX() - layout.contentLeft);
-				dropTime = Math.max(0, dropTime);
-				var cmd = new BindLayerToTrackCommand(
-					timeline,
-					context.blockAnimationEngine().getBuildLayerManager(),
-					layerId,
-					targetTrackId,
-					dropTime,
-					BindLayerToTrackCommand.DEFAULT_CLIP_DURATION_SECONDS
-				);
-				context.timelineEditor().getCommandManager().execute(cmd);
+			if (payload != null) {
+				BeatBlockContext context = dropHost != null ? dropHost.context() : null;
+				if (context != null
+					&& context.blockAnimationEngine() != null
+					&& context.timelineEditor() != null) {
+					String layerId = new String(payload, StandardCharsets.UTF_8).trim();
+					double dropTime = viewState.screenToTime(ImGui.getMousePosX() - layout.contentLeft);
+					dropTime = Math.max(0, dropTime);
+					var cmd = new BindLayerToTrackCommand(
+						timeline,
+						context.blockAnimationEngine().getBuildLayerManager(),
+						layerId,
+						targetTrackId,
+						dropTime,
+						BindLayerToTrackCommand.DEFAULT_CLIP_DURATION_SECONDS
+					);
+					context.timelineEditor().getCommandManager().execute(cmd);
+				}
 			}
 			ImGui.endDragDropTarget();
 		}

@@ -157,6 +157,13 @@ public final class TimelineTrackListState {
 		if (rowIndex >= 0 && rowIndex < TimelineLayout.CONTENT_ROW_COUNT) customNames.remove(rowIndex);
 	}
 
+	/** 仅返回用户自定义名；无自定义时返回 null。 */
+	public @org.jspecify.annotations.Nullable String getCustomNameOrNull(int rowIndex) {
+		if (rowIndex < 0 || rowIndex >= TimelineLayout.CONTENT_ROW_COUNT) return null;
+		String custom = customNames.get(rowIndex);
+		return custom != null && !custom.isBlank() ? custom.trim() : null;
+	}
+
 	public int getEditingRowIndex() { return editingRowIndex; }
 
 	public void startEditing(int rowIndex) {

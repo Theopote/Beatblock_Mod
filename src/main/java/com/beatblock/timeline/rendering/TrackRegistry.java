@@ -225,10 +225,12 @@ public final class TrackRegistry {
 		}
 		com.beatblock.timeline.layer.BuildLayerTrackSupport.normalizeLoadedTracks(timeline);
 		List<TrackDefinition> result = new ArrayList<>();
-		for (Track track : com.beatblock.timeline.layer.BuildLayerTrackSupport.listTracks(timeline)) {
+		List<Track> buildTracks = com.beatblock.timeline.layer.BuildLayerTrackSupport.listTracks(timeline);
+		for (int i = 0; i < buildTracks.size(); i++) {
+			Track track = buildTracks.get(i);
 			result.add(new TrackDefinition(
 				track.getId(),
-				track.getName(),
+				com.beatblock.timeline.layer.BuildLayerTrackSupport.displayNameFor(track, i),
 				TrackDefinition.VisualType.ANIMATION_CLIP,
 				TrackDefinition.GROUP_NONE,
 				0xFF_66_CC_88

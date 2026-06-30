@@ -103,7 +103,33 @@ public final class BuildLayerTrackSupport {
 
 	public static String nextDefaultTrackName(Timeline timeline) {
 		int n = listTracks(timeline).size() + 1;
-		return BBTexts.get("beatblock.track.default.build_layer_numbered", n);
+		return displayNameForSlot(n);
+	}
+
+	/** 解析轨道显示名：兼容存为 i18n 键的旧数据。 */
+	public static String displayNameFor(Track track, int slotIndex) {
+		if (track == null) {
+			return displayNameForSlot(slotIndex + 1);
+		}
+		String name = track.getName();
+		if (name == null || name.isBlank()) {
+			return displayNameForSlot(slotIndex + 1);
+		}
+		if (name.startsWith("beatblock.")) {
+			if (name.contains("numbered")) {
+				return displayNameForSlot(slotIndex + 1);
+			}
+			String translated = BBTexts.get(name);
+			if (!translated.equals(name)) {
+				return translated;
+			}
+			return displayNameForSlot(slotIndex + 1);
+		}
+		return name;
+	}
+
+	private static String displayNameForSlot(int slotNumber) {
+		return BBTexts.get("beatblock.track.default.build_layer_numbered", slotNumber);
 	}
 
 	public static Track ensureDefaultTrack(Timeline timeline) {
@@ -115,7 +141,7 @@ public final class BuildLayerTrackSupport {
 		if (!existing.isEmpty()) {
 			return existing.getFirst();
 		}
-		Track track = new Track(DEFAULT_FIRST_TRACK_ID, nextDefaultTrackName(timeline), TrackType.BUILD_LAYER);
+		Track track = new Track(DEFAULT_FIRST_TRACK_ID, displayNameForSlot(1), TrackType.BUILD_LAYER);
 		timeline.addTrack(track);
 		return track;
 	}
@@ -158,9 +184,15 @@ public final class BuildLayerTrackSupport {
 			return;
 		}
 		migrateLegacyTrack(timeline);
-		for (Track track : listTracks(timeline)) {
+		List<Track> tracks = listTracks(timeline);
+		for (int i = 0; i < tracks.size(); i++) {
+			Track track = tracks.get(i);
 			if (track.getType() != TrackType.BUILD_LAYER) {
 				track.setType(TrackType.BUILD_LAYER);
+			}
+			String name = track.getName();
+			if (name != null && name.startsWith("beatblock.")) {
+				track.setName(displayNameFor(track, i));
 			}
 		}
 	}
