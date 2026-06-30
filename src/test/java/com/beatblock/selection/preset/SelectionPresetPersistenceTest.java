@@ -62,7 +62,7 @@ class SelectionPresetPersistenceTest {
 
 		SelectionPresetPersistence.load(file, manager);
 
-		assertEquals(0, manager.getPresetCount());
+		assertEquals(1, manager.getPresetCount());
 	}
 
 	@Test

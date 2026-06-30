@@ -7,6 +7,7 @@ import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.selection.SelectionOperation;
 import com.beatblock.selection.preset.SelectionPresetManager;
+import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -249,7 +250,7 @@ class ToolPanelPresenterTest {
 	void saveSelectionPresetFailsWithoutSelection() {
 		var outcome = presenter.saveCurrentSelectionAsPreset("Empty");
 		assertFalse(outcome.success());
-		assertEquals("当前没有方块选区，请先选择方块。", outcome.message());
+		assertEquals(BBTexts.get("beatblock.tool.selection_preset.no_selection"), outcome.message());
 	}
 
 	@Test
