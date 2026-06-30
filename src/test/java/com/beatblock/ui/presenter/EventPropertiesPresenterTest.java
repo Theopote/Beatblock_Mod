@@ -2,6 +2,7 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineOperations;
@@ -249,7 +250,8 @@ class EventPropertiesPresenterTest {
 			timeline,
 			selection,
 			commandManager,
-			new EventPropertiesPresenter.BatchAnimationEditRequest(0.9f, null, 0.5)
+			new EventPropertiesPresenter.BatchAnimationEditRequest(
+				0.9f, null, 0.5, null, null, null, null)
 		);
 		assertTrue(outcome.success());
 		assertEquals(2, outcome.updatedCount());
@@ -283,5 +285,64 @@ class EventPropertiesPresenterTest {
 		selection.selectEvent(marker.getId());
 
 		assertEquals(1, presenter.countSelectedAnimationEvents(timeline, selection));
+	}
+
+	@Test
+	void applyBatchAnimationEditScalesDurationPreservingRelativeDifferences() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 20.0);
+		var shortEvent = TimelineOperations.addEvent(
+			clip, 1.0, EventType.ANIMATION,
+			Map.of("animationType", "pulse", "targetObject", "t", "durationSeconds", 1.0)
+		);
+		var longEvent = TimelineOperations.addEvent(
+			clip, 3.0, EventType.ANIMATION,
+			Map.of("animationType", "pulse", "targetObject", "t", "durationSeconds", 2.0)
+		);
+		SelectionState selection = editor.getSelectionState();
+		selection.selectEvent(shortEvent.getId());
+		selection.selectEvent(longEvent.getId());
+
+		var outcome = presenter.applyBatchAnimationEdit(
+			timeline, selection, commandManager,
+			new EventPropertiesPresenter.BatchAnimationEditRequest(
+				null, null, null, null, 2.0, null, null)
+		);
+		assertTrue(outcome.success());
+		assertEquals(2.0, ((Number) shortEvent.getParameters().get("durationSeconds")).doubleValue(), 1e-6);
+		assertEquals(4.0, ((Number) longEvent.getParameters().get("durationSeconds")).doubleValue(), 1e-6);
+	}
+
+	@Test
+	void applyBatchAnimationEditSetsActionModeAndPlaceBlock() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 10.0);
+		var event = TimelineOperations.addEvent(
+			clip, 1.0, EventType.ANIMATION,
+			Map.of(
+				"animationType", "build",
+				"targetObject", "t",
+				"actionMode", "BUILD",
+				"mode", "BUILD",
+				"placeBlock", "minecraft:diamond_block",
+				"buildMode", "wall"
+			)
+		);
+		SelectionState selection = editor.getSelectionState();
+		selection.selectEvent(event.getId());
+
+		var outcome = presenter.applyBatchAnimationEdit(
+			timeline, selection, commandManager,
+			new EventPropertiesPresenter.BatchAnimationEditRequest(
+				null, null, null,
+				TimelineAnimationActionMode.PLACE,
+				null, null,
+				Map.of("placeBlock", "minecraft:gold_block"))
+		);
+		assertTrue(outcome.success());
+		assertEquals("PLACE", event.getParameters().get("actionMode"));
+		assertEquals("PLACE", event.getParameters().get("mode"));
+		assertEquals("minecraft:gold_block", event.getParameters().get("placeBlock"));
+		assertEquals("wall", event.getParameters().get("buildMode"));
 	}
 }

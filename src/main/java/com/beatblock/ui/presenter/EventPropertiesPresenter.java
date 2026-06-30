@@ -54,7 +54,11 @@ public final class EventPropertiesPresenter {
 	public record BatchAnimationEditRequest(
 		@Nullable Float energy,
 		@Nullable String animationId,
-		@Nullable Double timeOffsetSeconds
+		@Nullable Double timeOffsetSeconds,
+		@Nullable TimelineAnimationActionMode actionMode,
+		@Nullable Double durationScale,
+		@Nullable Double fixedDurationSeconds,
+		@Nullable Map<String, Object> customParameters
 	) {}
 
 	public record BatchEditOutcome(int updatedCount, @Nullable String errorMessage) {
@@ -750,7 +754,11 @@ public final class EventPropertiesPresenter {
 		}
 		boolean hasChange = request.energy() != null
 			|| (request.animationId() != null && !request.animationId().isBlank())
-			|| request.timeOffsetSeconds() != null;
+			|| request.timeOffsetSeconds() != null
+			|| request.actionMode() != null
+			|| request.durationScale() != null
+			|| request.fixedDurationSeconds() != null
+			|| (request.customParameters() != null && !request.customParameters().isEmpty());
 		if (!hasChange) {
 			return new BatchEditOutcome(0, BBTexts.get("beatblock.event.batch.no_changes"));
 		}
@@ -764,15 +772,39 @@ public final class EventPropertiesPresenter {
 			}
 			AnimationEventSnapshot before = AnimationEventSnapshot.capture(
 				ref.event(), ref.clip(), timeline, ref.clip().getId());
-			Map<String, Object> params = new HashMap<>(before.parameters());
-			double newTime = before.timeSeconds();
+			AnimationEventParams parsed = AnimationEventParams.fromParameterMap(before.parameters());
 
-			if (request.energy() != null) {
-				params.put("energy", request.energy());
+			float energy = request.energy() != null ? request.energy() : parsed.energy();
+			String animationType = request.animationId() != null && !request.animationId().isBlank()
+				? request.animationId()
+				: parsed.animationType();
+			TimelineAnimationActionMode actionMode = request.actionMode() != null
+				? request.actionMode()
+				: parsed.actionMode();
+
+			double duration = parsed.durationSeconds();
+			if (request.durationScale() != null) {
+				duration = duration * request.durationScale();
 			}
-			if (request.animationId() != null && !request.animationId().isBlank()) {
-				params.put("animationType", request.animationId());
+			if (request.fixedDurationSeconds() != null) {
+				duration = request.fixedDurationSeconds();
 			}
+
+			AnimationEventParams updatedParams = new AnimationEventParams(
+				actionMode,
+				animationType,
+				parsed.targetObject(),
+				energy,
+				duration,
+				parsed.eventOrigin(),
+				parsed.extensions()
+			);
+			if (request.customParameters() != null && !request.customParameters().isEmpty()) {
+				updatedParams = updatedParams.withMergedExtensions(request.customParameters());
+			}
+
+			Map<String, Object> params = updatedParams.toParameterMap();
+			double newTime = before.timeSeconds();
 			Map<String, Double> eventTimes = new HashMap<>(before.clipEventTimesById());
 			if (request.timeOffsetSeconds() != null) {
 				newTime = Math.max(0, newTime + request.timeOffsetSeconds());

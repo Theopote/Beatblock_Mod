@@ -80,6 +80,14 @@ public class EventPropertiesPanel {
 	private final ImBoolean batchApplyEnergy = new ImBoolean(true);
 	private final ImBoolean batchApplyAnimation = new ImBoolean(false);
 	private final ImBoolean batchApplyTimeOffset = new ImBoolean(false);
+	private final ImBoolean batchApplyActionMode = new ImBoolean(false);
+	private final ImBoolean batchApplyDurationScale = new ImBoolean(false);
+	private final ImBoolean batchApplyFixedDuration = new ImBoolean(false);
+	private final ImBoolean batchApplyPlaceBlock = new ImBoolean(false);
+	private final ImInt batchActionModeIndex = new ImInt(0);
+	private final ImString batchDurationScaleBuffer = new ImString(16);
+	private final ImString batchFixedDurationBuffer = new ImString(16);
+	private final ImString batchPlaceBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
 	private final ImBoolean livePreviewOnApply = new ImBoolean(true);
 	private boolean pendingLivePreview;
 
@@ -165,7 +173,9 @@ public class EventPropertiesPanel {
 			}
 
 			EventPropertiesRef ref = presenter.resolvePropertiesRef(timeline, editor.getSelectionState());
-			if (!isAnimationRef(ref)) {
+			int batchCount = presenter.countSelectedAnimationEvents(timeline, editor.getSelectionState());
+
+			if (batchCount == 0 && !isAnimationRef(ref)) {
 				boundRefKey = null;
 				validationError = null;
 				batchMessage = null;
@@ -173,10 +183,13 @@ public class EventPropertiesPanel {
 				return;
 			}
 
-			int batchCount = presenter.countSelectedAnimationEvents(timeline, editor.getSelectionState());
 			if (batchCount > 1) {
 				renderBatchEditor(timeline, editor, batchCount);
 				ImGui.separator();
+			}
+
+			if (!isAnimationRef(ref)) {
+				return;
 			}
 
 			String rk = EventPropertiesRef.refKey(ref);
@@ -264,6 +277,39 @@ public class EventPropertiesPanel {
 			ImGui.setTooltip(BBTexts.get("beatblock.event.batch.time_offset.tooltip"));
 		}
 
+		List<EventPropertiesOption> actionOptions = presenter.actionOptions();
+		String[] actionLabels = optionLabels(actionOptions);
+
+		ImGui.checkbox(BBTexts.get("beatblock.event.batch.apply_action_mode") + "##batchAction", batchApplyActionMode);
+		ImGui.setNextItemWidth(-1f);
+		if (!batchApplyActionMode.get()) ImGui.beginDisabled();
+		ImGui.combo(BBTexts.get("beatblock.event.action_mode") + "##batchActionVal", batchActionModeIndex, actionLabels);
+		if (!batchApplyActionMode.get()) ImGui.endDisabled();
+
+		ImGui.checkbox(BBTexts.get("beatblock.event.batch.apply_duration_scale") + "##batchDurScale", batchApplyDurationScale);
+		ImGui.setNextItemWidth(-1f);
+		if (!batchApplyDurationScale.get()) ImGui.beginDisabled();
+		ImGui.inputText(BBTexts.get("beatblock.event.batch.duration_scale") + "##batchDurScaleVal", batchDurationScaleBuffer);
+		if (!batchApplyDurationScale.get()) ImGui.endDisabled();
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.event.batch.duration_scale.tooltip"));
+		}
+
+		ImGui.checkbox(BBTexts.get("beatblock.event.batch.apply_fixed_duration") + "##batchFixedDur", batchApplyFixedDuration);
+		ImGui.setNextItemWidth(-1f);
+		if (!batchApplyFixedDuration.get()) ImGui.beginDisabled();
+		ImGui.inputText(BBTexts.get("beatblock.event.batch.fixed_duration") + "##batchFixedDurVal", batchFixedDurationBuffer);
+		if (!batchApplyFixedDuration.get()) ImGui.endDisabled();
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.event.batch.fixed_duration.tooltip"));
+		}
+
+		ImGui.checkbox(BBTexts.get("beatblock.event.batch.apply_place_block") + "##batchPlace", batchApplyPlaceBlock);
+		ImGui.setNextItemWidth(-1f);
+		if (!batchApplyPlaceBlock.get()) ImGui.beginDisabled();
+		ImGui.inputText(BBTexts.get("beatblock.event.place_block") + "##batchPlaceVal", batchPlaceBlockBuffer);
+		if (!batchApplyPlaceBlock.get()) ImGui.endDisabled();
+
 		if (ImGui.button(BBTexts.get("beatblock.event.batch.apply") + "##batchApply", -1f, 0f)) {
 			applyBatchEdit(timeline, editor, animationOptions);
 		}
@@ -297,11 +343,50 @@ public class EventPropertiesPanel {
 				return;
 			}
 		}
+		TimelineAnimationActionMode actionMode = null;
+		if (batchApplyActionMode.get() && batchActionModeIndex.get() >= 0
+				&& batchActionModeIndex.get() < presenter.actionOptions().size()) {
+			String modeId = presenter.actionOptions().get(batchActionModeIndex.get()).id();
+			actionMode = TimelineAnimationActionMode.fromValue(modeId);
+		}
+		Double durationScale = null;
+		if (batchApplyDurationScale.get()) {
+			try {
+				durationScale = Double.parseDouble(batchDurationScaleBuffer.get().trim());
+			} catch (NumberFormatException ex) {
+				batchMessage = BBTexts.get("beatblock.event.invalid_number");
+				return;
+			}
+		}
+		Double fixedDuration = null;
+		if (batchApplyFixedDuration.get()) {
+			try {
+				fixedDuration = Double.parseDouble(batchFixedDurationBuffer.get().trim());
+			} catch (NumberFormatException ex) {
+				batchMessage = BBTexts.get("beatblock.event.invalid_number");
+				return;
+			}
+		}
+		java.util.Map<String, Object> customParameters = null;
+		if (batchApplyPlaceBlock.get()) {
+			String placeBlock = batchPlaceBlockBuffer.get().trim();
+			if (!placeBlock.isBlank()) {
+				customParameters = java.util.Map.of("placeBlock", placeBlock);
+			}
+		}
 		var outcome = presenter.applyBatchAnimationEdit(
 			timeline,
 			editor.getSelectionState(),
 			editor.getCommandManager(),
-			new EventPropertiesPresenter.BatchAnimationEditRequest(energy, animationId, timeOffset)
+			new EventPropertiesPresenter.BatchAnimationEditRequest(
+				energy,
+				animationId,
+				timeOffset,
+				actionMode,
+				durationScale,
+				fixedDuration,
+				customParameters
+			)
 		);
 		batchMessage = outcome.success()
 			? BBTexts.get("beatblock.event.batch.applied", outcome.updatedCount())
