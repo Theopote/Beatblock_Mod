@@ -5,6 +5,7 @@ import com.beatblock.client.export.VideoExportCoordinator;
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.client.BeatBlockUIScreen;
 import com.beatblock.client.camera.CameraPathWorldRenderer;
+import com.beatblock.client.layer.BuildLayerWorldStore;
 import com.beatblock.client.render.BeatBlockAnimatedBlocksRenderer;
 import com.beatblock.client.render.BeatBlockHoverOutlineRenderer;
 import com.beatblock.client.render.BeatBlockSelectedBlocksRenderer;
@@ -17,6 +18,7 @@ import com.beatblock.ui.ImportScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.MinecraftClient;
@@ -81,6 +83,7 @@ public class BeatBlockClient implements ClientModInitializer {
 			BeatBlockSelectionBrushTick.onEndClientTick(client);
 			BeatBlockLassoInteraction.onEndClientTick(client);
 			VideoExportCoordinator.getInstance().onClientTick();
+			BuildLayerWorldStore.onClientTick(client);
 		});
 
 		keyTogglePlayback = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -95,8 +98,12 @@ public class BeatBlockClient implements ClientModInitializer {
 			}
 		});
 		
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> BuildLayerWorldStore.onWorldJoined(client));
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> BuildLayerWorldStore.onWorldLeft(client));
+
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
 			LOGGER.info("BeatBlock client stopping: releasing timeline and audio background resources");
+			BuildLayerWorldStore.flushNow(client);
 			var ctx = BeatBlock.getContext();
 			if (ctx.timelineEditor() != null) {
 				ctx.timelineEditor().shutdown();

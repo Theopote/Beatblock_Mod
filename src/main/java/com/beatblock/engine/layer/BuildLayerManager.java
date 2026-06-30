@@ -301,6 +301,14 @@ public final class BuildLayerManager {
 		blockOwnerByPos.clear();
 	}
 
+	/** 删除全部图层并释放舞台对象与方块占用（用于切换世界/维度前卸载）。 */
+	public void purgeAllLayers() {
+		List<BuildLayer> snapshot = new ArrayList<>(layers.values());
+		for (BuildLayer layer : snapshot) {
+			dissolveLayer(layer);
+		}
+	}
+
 	public BuildLayerGroup createGroup(String name, List<String> layerIds) {
 		if (layerIds == null || layerIds.isEmpty()) {
 			return null;
