@@ -23,7 +23,7 @@ final class AudioAnalysisRuntimeControls {
 		IAudioAnalyzer analyzer = host.presenter().backendAnalyzer();
 		if (analyzer != null) {
 			String backendLabel = analyzer.backendId();
-			if (!analyzer.isAvailable()) {
+			if (isRuntimeBackendUnavailable(snapshot)) {
 				backendLabel += BBTexts.get("beatblock.audio.runtime.backend_unavailable");
 			}
 			ImGui.textDisabled(BBTexts.get("beatblock.audio.runtime.backend", backendLabel));
@@ -123,6 +123,18 @@ final class AudioAnalysisRuntimeControls {
 			case "error" -> new ImVec4(0.87f, 0.30f, 0.30f, 1f);
 			default -> new ImVec4(0.62f, 0.64f, 0.70f, 1f);
 		};
+	}
+
+	private static boolean isRuntimeBackendUnavailable(PythonEnvironmentDiagnostics.RuntimeHealthSnapshot snapshot) {
+		if (snapshot == null) {
+			return false;
+		}
+		String pythonState = snapshot.python() != null ? snapshot.python().state() : null;
+		if ("missing".equals(pythonState) || "error".equals(pythonState)) {
+			return true;
+		}
+		String librosaState = snapshot.librosa() != null ? snapshot.librosa().state() : null;
+		return "missing".equals(librosaState);
 	}
 
 	private static boolean isRuntimeIssue(PythonEnvironmentDiagnostics.HealthItem item) {

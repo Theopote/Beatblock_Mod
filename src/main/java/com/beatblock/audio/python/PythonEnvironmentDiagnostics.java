@@ -29,6 +29,14 @@ public final class PythonEnvironmentDiagnostics {
 	private static final long PROBE_TIMEOUT_MS = 3000L;
 
 	private final Map<String, PythonProbeInfo> probeCache = new ConcurrentHashMap<>();
+	private final Map<String, TimedBoolean> basicDepsCache = new ConcurrentHashMap<>();
+	private final Map<String, TimedBoolean> demucsDepsCache = new ConcurrentHashMap<>();
+
+	private @Nullable String cachedResolvedExe;
+	private @Nullable Path cachedResolvedConfigDir;
+	private long cachedResolvedAtMs;
+
+	private record TimedBoolean(boolean value, long checkedAtMs) {}
 
 	public record HealthItem(String state, String detail) {}
 
@@ -75,6 +83,22 @@ public final class PythonEnvironmentDiagnostics {
 		if (configDir == null) {
 			return null;
 		}
+		long now = System.currentTimeMillis();
+		Path normalizedConfigDir = configDir.toAbsolutePath().normalize();
+		if (cachedResolvedConfigDir != null
+			&& cachedResolvedConfigDir.equals(normalizedConfigDir)
+			&& (now - cachedResolvedAtMs) <= PROBE_CACHE_TTL_MS) {
+			return cachedResolvedExe;
+		}
+
+		String resolved = resolvePythonExeUncached(normalizedConfigDir);
+		cachedResolvedExe = resolved;
+		cachedResolvedConfigDir = normalizedConfigDir;
+		cachedResolvedAtMs = now;
+		return resolved;
+	}
+
+	private String resolvePythonExeUncached(Path configDir) {
 		String base = resolveBasePythonExe(configDir);
 		Path venvPath = PythonVirtualEnvironment.venvPythonExecutable(configDir);
 		String venv = venvPath != null ? venvPath.toAbsolutePath().toString() : null;
@@ -93,11 +117,19 @@ public final class PythonEnvironmentDiagnostics {
 	}
 
 	public boolean hasBasicAnalysisDeps(String pythonExe) {
-		return runPythonImportCheck(pythonExe, "import numpy, librosa, soundfile, scipy");
+		return cachedImportCheck(
+			basicDepsCache,
+			pythonExe,
+			"import numpy, librosa, soundfile, scipy"
+		);
 	}
 
 	public boolean hasDemucsDeps(String pythonExe) {
-		return runPythonImportCheck(pythonExe, "import demucs.api, torch");
+		return cachedImportCheck(
+			demucsDepsCache,
+			pythonExe,
+			"import demucs.api, torch"
+		);
 	}
 
 	/** 解析系统 Python（不含 venv），用于首次创建虚拟环境。 */
@@ -426,7 +458,7 @@ public final class PythonEnvironmentDiagnostics {
 			if (hasBasicAnalysisDeps(basePython) && (!installDemucs || hasDemucsDeps(basePython))) {
 				onProgress.onProgress("ENV_VENV", 100);
 				onProgress.onProgress("DEPENDENCY_INSTALL", 100);
-				probeCache.clear();
+				clearProbeCache();
 				return null;
 			}
 			if (hasBasicAnalysisDeps(basePython)) {
@@ -435,7 +467,7 @@ public final class PythonEnvironmentDiagnostics {
 				onProgress.onProgress("DEPENDENCY_INSTALL", 100);
 				String demucsOnly = ensurePythonDependencies(
 					basePython, requirementsPath, control, onProgress, true);
-				probeCache.clear();
+				clearProbeCache();
 				return demucsOnly;
 			}
 
@@ -446,7 +478,7 @@ public final class PythonEnvironmentDiagnostics {
 					.toAbsolutePath().toString();
 			} else {
 				pythonExe = PythonVirtualEnvironment.ensureCreated(beatblockConfigDir, basePython);
-				probeCache.clear();
+				clearProbeCache();
 			}
 			onProgress.onProgress("ENV_VENV", 100);
 
@@ -456,14 +488,14 @@ public final class PythonEnvironmentDiagnostics {
 				pythonExe, requirementsPath, control, onProgress, installDemucs);
 			if (dependencyError != null && hasBasicAnalysisDeps(basePython)) {
 				LOGGER.warn("BeatBlock: venv pip install failed, falling back to system Python with existing deps");
-				probeCache.clear();
+				clearProbeCache();
 				return null;
 			}
 			if (dependencyError != null) {
 				return dependencyError;
 			}
 			onProgress.onProgress("DEPENDENCY_INSTALL", 100);
-			probeCache.clear();
+			clearProbeCache();
 			return null;
 		} catch (IOException e) {
 			if (control.isCancelled()) return "安装被取消";
@@ -477,6 +509,26 @@ public final class PythonEnvironmentDiagnostics {
 
 	public void clearProbeCache() {
 		probeCache.clear();
+		basicDepsCache.clear();
+		demucsDepsCache.clear();
+		cachedResolvedExe = null;
+		cachedResolvedConfigDir = null;
+		cachedResolvedAtMs = 0;
+	}
+
+	private boolean cachedImportCheck(Map<String, TimedBoolean> cache, String pythonExe, String importScript) {
+		String normalizedExe = normalizePythonCandidate(pythonExe);
+		if (normalizedExe.isEmpty()) {
+			return false;
+		}
+		long now = System.currentTimeMillis();
+		TimedBoolean cached = cache.get(normalizedExe);
+		if (cached != null && (now - cached.checkedAtMs()) <= PROBE_CACHE_TTL_MS) {
+			return cached.value();
+		}
+		boolean value = runPythonImportCheck(normalizedExe, importScript);
+		cache.put(normalizedExe, new TimedBoolean(value, now));
+		return value;
 	}
 
 	private HealthItem moduleHealth(String[] parts, int index, String label) {
