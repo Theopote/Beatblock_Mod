@@ -33,6 +33,19 @@ public final class SelectionPresetManager {
     }
 
     /**
+     * 导入已有预设（用于持久化加载，保留原始 id 与时间）。
+     */
+    public void putPreset(SelectionPreset preset) {
+        if (preset == null || preset.id() == null || preset.id().isBlank()) {
+            throw new IllegalArgumentException("预设 ID 无效");
+        }
+        if (preset.name() == null || preset.name().isBlank()) {
+            throw new IllegalArgumentException("预设名称不能为空");
+        }
+        presets.put(preset.id(), preset);
+    }
+
+    /**
      * 保存选区为预设。
      *
      * @param name 预设名称

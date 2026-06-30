@@ -33,6 +33,9 @@ public class ToolPanel {
 	private final ImBoolean stageObjectIncludeAir = new ImBoolean(false);
 	private final ImInt stageObjectSortingIndex = new ImInt(0);
 	private final ImString stageObjectStaggerBuffer = new ImString(16);
+	private final ImString selectionPresetNameBuffer = new ImString(48);
+	private final ImInt selectedPresetIndex = new ImInt(-1);
+	private String selectionPresetMessage;
 	private String stageObjectMessage;
 	private long stageObjectMessageTimeMs;
 	private static String[] stageGroupSortingLabels() {
@@ -254,6 +257,75 @@ public class ToolPanel {
 		if (selCount > 0) {
 			ImGui.textColored(0.4f, 1f, 0.4f, 1f,
 				BBTexts.get("beatblock.common.selected_blocks", selCount));
+		}
+
+		renderSelectionPresets();
+	}
+
+	private void renderSelectionPresets() {
+		ImGui.spacing();
+		ImGui.textDisabled(BBTexts.get("beatblock.tool.selection_presets"));
+		ImGui.separator();
+
+		var presets = presenter.listSelectionPresets();
+		String preview = BBTexts.get("beatblock.tool.selection_preset.empty");
+		if (selectedPresetIndex.get() >= 0 && selectedPresetIndex.get() < presets.size()) {
+			preview = presets.get(selectedPresetIndex.get()).label();
+		}
+		ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
+		if (ImGui.beginCombo("##selectionPresetCombo", preview)) {
+			for (int i = 0; i < presets.size(); i++) {
+				boolean selected = selectedPresetIndex.get() == i;
+				if (ImGui.selectable(presets.get(i).label() + "##preset" + i, selected)) {
+					selectedPresetIndex.set(i);
+				}
+				if (selected) {
+					ImGui.setItemDefaultFocus();
+				}
+			}
+			ImGui.endCombo();
+		}
+
+		ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
+		ImGui.inputText(BBTexts.get("beatblock.tool.selection_preset.name") + "##presetName", selectionPresetNameBuffer);
+
+		if (ImGui.button(BBTexts.get("beatblock.tool.selection_preset.save") + "##savePreset")) {
+			var outcome = presenter.saveCurrentSelectionAsPreset(selectionPresetNameBuffer.get());
+			selectionPresetMessage = outcome.message();
+			if (outcome.success()) {
+				selectedPresetIndex.set(Math.max(0, presenter.listSelectionPresets().size() - 1));
+			}
+		}
+		ImGui.sameLine();
+		boolean canLoad = selectedPresetIndex.get() >= 0 && selectedPresetIndex.get() < presets.size();
+		if (!canLoad) {
+			ImGui.beginDisabled();
+		}
+		if (ImGui.button(BBTexts.get("beatblock.tool.selection_preset.load") + "##loadPreset")) {
+			var outcome = presenter.loadSelectionPreset(presets.get(selectedPresetIndex.get()).id());
+			selectionPresetMessage = outcome.message();
+		}
+		if (!canLoad) {
+			ImGui.endDisabled();
+		}
+		ImGui.sameLine();
+		if (!canLoad) {
+			ImGui.beginDisabled();
+		}
+		if (ImGui.button(BBTexts.get("beatblock.tool.selection_preset.delete") + "##deletePreset")) {
+			String presetId = presets.get(selectedPresetIndex.get()).id();
+			var outcome = presenter.deleteSelectionPreset(presetId);
+			selectionPresetMessage = outcome.message();
+			if (outcome.success()) {
+				selectedPresetIndex.set(-1);
+			}
+		}
+		if (!canLoad) {
+			ImGui.endDisabled();
+		}
+
+		if (selectionPresetMessage != null && !selectionPresetMessage.isBlank()) {
+			ImGui.textWrapped(selectionPresetMessage);
 		}
 	}
 

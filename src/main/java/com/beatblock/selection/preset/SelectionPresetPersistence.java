@@ -113,16 +113,11 @@ public final class SelectionPresetPersistence {
                     blocks.add(new BlockPos(x, y, z));
                 }
 
-                // 直接创建预设并添加到管理器
                 SelectionPresetManager.SelectionPreset preset =
                     new SelectionPresetManager.SelectionPreset(
                         id, name, description, blocks, createdTime
                     );
-
-                // 注意：这里需要 SelectionPresetManager 提供直接添加预设的方法
-                // 或者通过反射访问 presets Map
-                // 暂时假设有这样的方法
-                // manager.addPreset(preset);
+                manager.putPreset(preset);
 
                 loadedCount++;
             } catch (Exception e) {

@@ -6,6 +6,7 @@ import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.selection.SelectionOperation;
+import com.beatblock.selection.preset.SelectionPresetManager;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ class ToolPanelPresenterTest {
 
 	@BeforeEach
 	void setUp() {
+		SelectionPresetManager.getInstance().clear();
 		selectionManager = BeatBlockSelectionManager.get();
 		selectionManager.reset();
 		selectionManager.setMode(SelectionMode.BOX);
@@ -220,6 +222,45 @@ class ToolPanelPresenterTest {
 		var state = missing.selectionToolViewState();
 		assertEquals(SelectionMode.OFF, state.mode());
 		assertEquals(0, state.selectionCount());
+	}
+
+	@Test
+	void saveAndLoadSelectionPresetRoundTrip() {
+		selectionManager.setMode(SelectionMode.LASSO);
+		selectionManager.commitLassoSelection(List.of(
+			new BlockPos(4, 64, 4),
+			new BlockPos(5, 64, 4)
+		), SelectionOperation.NEW);
+
+		var saved = presenter.saveCurrentSelectionAsPreset("My Preset");
+		assertTrue(saved.success());
+		assertEquals(1, presenter.listSelectionPresets().size());
+
+		selectionManager.clearSelection();
+		assertEquals(0, selectionManager.getSelectedBlocks().size());
+
+		String presetId = SelectionPresetManager.getInstance().getAllPresets().getFirst().id();
+		var loaded = presenter.loadSelectionPreset(presetId);
+		assertTrue(loaded.success());
+		assertEquals(2, selectionManager.getSelectedBlocks().size());
+	}
+
+	@Test
+	void saveSelectionPresetFailsWithoutSelection() {
+		var outcome = presenter.saveCurrentSelectionAsPreset("Empty");
+		assertFalse(outcome.success());
+		assertEquals("当前没有方块选区，请先选择方块。", outcome.message());
+	}
+
+	@Test
+	void deleteSelectionPresetRemovesEntry() {
+		selectionManager.commitLassoSelection(List.of(new BlockPos(1, 64, 1)), SelectionOperation.NEW);
+		presenter.saveCurrentSelectionAsPreset("ToDelete");
+		String presetId = SelectionPresetManager.getInstance().getAllPresets().getFirst().id();
+
+		var deleted = presenter.deleteSelectionPreset(presetId);
+		assertTrue(deleted.success());
+		assertTrue(presenter.listSelectionPresets().isEmpty());
 	}
 
 	@Test

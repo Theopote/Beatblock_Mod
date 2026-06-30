@@ -5,6 +5,8 @@ import com.beatblock.engine.StageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
+import com.beatblock.selection.preset.SelectionPresetManager;
+import com.beatblock.selection.preset.SelectionPresetStore;
 import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -13,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -350,6 +353,91 @@ public final class ToolPanelPresenter {
 			}
 		}
 		return out;
+	}
+
+	public record SelectionPresetListItem(String id, String label, int blockCount) {}
+
+	public record SelectionPresetActionOutcome(boolean success, String message) {}
+
+	public List<SelectionPresetListItem> listSelectionPresets() {
+		SelectionPresetStore.ensureLoaded();
+		return SelectionPresetManager.getInstance().getAllPresets().stream()
+			.map(preset -> new SelectionPresetListItem(
+				preset.id(),
+				preset.name() + " (" + preset.getBlockCount() + ")",
+				preset.getBlockCount()
+			))
+			.toList();
+	}
+
+	public SelectionPresetActionOutcome saveCurrentSelectionAsPreset(String rawName) {
+		SelectionPresetStore.ensureLoaded();
+		BeatBlockSelectionManager mgr = selectionManager.get();
+		if (mgr == null) {
+			return new SelectionPresetActionOutcome(false, BBTexts.get("beatblock.message.selection_manager_unavailable"));
+		}
+		Set<BlockPos> blocks = mgr.getSelectedBlocks();
+		if (blocks.isEmpty()) {
+			return new SelectionPresetActionOutcome(false, BBTexts.get("beatblock.tool.selection_preset.no_selection"));
+		}
+		String trimmed = rawName != null ? rawName.trim() : "";
+		if (trimmed.isEmpty()) {
+			return new SelectionPresetActionOutcome(false, BBTexts.get("beatblock.tool.selection_preset.name_required"));
+		}
+		String uniqueName = SelectionPresetManager.getInstance().generateUniqueName(trimmed);
+		SelectionPresetManager.getInstance().savePreset(uniqueName, blocks, null);
+		SelectionPresetStore.persist();
+		return new SelectionPresetActionOutcome(
+			true,
+			BBTexts.get("beatblock.tool.selection_preset.saved", uniqueName, blocks.size())
+		);
+	}
+
+	public SelectionPresetActionOutcome loadSelectionPreset(String presetId) {
+		SelectionPresetStore.ensureLoaded();
+		BeatBlockSelectionManager mgr = selectionManager.get();
+		if (mgr == null) {
+			return new SelectionPresetActionOutcome(false, BBTexts.get("beatblock.message.selection_manager_unavailable"));
+		}
+		if (presetId == null || presetId.isBlank()) {
+			return new SelectionPresetActionOutcome(false, BBTexts.get("beatblock.tool.selection_preset.not_found"));
+		}
+		SelectionPresetManager manager = SelectionPresetManager.getInstance();
+		List<BlockPos> blocks = manager.loadPreset(presetId);
+		if (blocks.isEmpty()) {
+			return new SelectionPresetActionOutcome(false, BBTexts.get("beatblock.tool.selection_preset.not_found"));
+		}
+		mgr.applyPresetSelection(blocks);
+		String name = manager.getAllPresets().stream()
+			.filter(preset -> presetId.equals(preset.id()))
+			.map(SelectionPresetManager.SelectionPreset::name)
+			.findFirst()
+			.orElse(presetId);
+		return new SelectionPresetActionOutcome(
+			true,
+			BBTexts.get("beatblock.tool.selection_preset.loaded", name, blocks.size())
+		);
+	}
+
+	public SelectionPresetActionOutcome deleteSelectionPreset(String presetId) {
+		SelectionPresetStore.ensureLoaded();
+		if (presetId == null || presetId.isBlank()) {
+			return new SelectionPresetActionOutcome(false, BBTexts.get("beatblock.tool.selection_preset.not_found"));
+		}
+		SelectionPresetManager manager = SelectionPresetManager.getInstance();
+		String name = manager.getAllPresets().stream()
+			.filter(preset -> presetId.equals(preset.id()))
+			.map(SelectionPresetManager.SelectionPreset::name)
+			.findFirst()
+			.orElse(null);
+		if (!manager.deletePreset(presetId)) {
+			return new SelectionPresetActionOutcome(false, BBTexts.get("beatblock.tool.selection_preset.not_found"));
+		}
+		SelectionPresetStore.persist();
+		return new SelectionPresetActionOutcome(
+			true,
+			BBTexts.get("beatblock.tool.selection_preset.deleted", name != null ? name : presetId)
+		);
 	}
 
 	private static String normalizeName(String name) {

@@ -59,6 +59,7 @@ public class BeatBlockClient implements ClientModInitializer {
 		importScreen = new ImportScreen();
 
 		BeatBlock.openUICallback = () -> MinecraftClient.getInstance().setScreen(new BeatBlockUIScreen());
+		com.beatblock.selection.preset.SelectionPresetStore.ensureLoaded();
 	}
 
 	private static void registerClientEvents() {

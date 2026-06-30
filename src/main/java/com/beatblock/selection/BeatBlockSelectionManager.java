@@ -641,6 +641,15 @@ public final class BeatBlockSelectionManager implements SelectionToolHost {
 		return SelectionBounds.fromPositions(selected).max();
 	}
 
+	/** 用预设方块替换当前选区（始终按「新建」操作合并）。 */
+	public void applyPresetSelection(java.util.Collection<BlockPos> blocks) {
+		if (blocks == null || blocks.isEmpty()) {
+			clearSelection();
+			return;
+		}
+		mergeBlockListIntoSelection(new ArrayList<>(blocks), SelectionOperation.NEW);
+	}
+
 	public List<BlockPos> copySelectionAsList() {
 		return new ArrayList<>(selected);
 	}
