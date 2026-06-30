@@ -43,6 +43,14 @@ public class TimelineEvent {
 		if (parameters == null) parameters = new java.util.HashMap<>();
 		parameters.put(key, value);
 	}
+	/**
+	 * 整体替换参数（不是合并）。用于"先用 {@code AnimationEventParams} 解析出强类型视图、
+	 * 改完某些字段、再 toParameterMap() 写回"这种场景——这样能保证旧键里不会残留
+	 * 已经不该存在的脏数据，比逐个 setParameter 更安全。
+	 */
+	public void setParameters(@Nullable Map<String, Object> newParameters) {
+		this.parameters = newParameters != null ? new java.util.HashMap<>(newParameters) : new java.util.HashMap<>();
+	}
 	public void removeParameter(@Nullable String key) {
 		if (parameters == null || key == null) return;
 		parameters.remove(key);

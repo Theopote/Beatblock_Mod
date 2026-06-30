@@ -11,57 +11,61 @@ import java.util.List;
 /**
  * 剪切事件命令：将选中的事件移动到剪贴板。
  * <p>
- * 实现方式：先复制到剪贴板（标记为剪切），然后删除原事件。
+ * 实现方式：先复制到剪贴板（标记为剪切），然后删除原事件。删除复用
+ * {@link DeleteEventCommand}；每个待剪切的 {@link TimelineAnimationEvent} 先用
+ * {@link AnimationEventLocator} 定位到它真正所在的 clipId 和底层可写的
+ * {@link com.beatblock.timeline.TimelineEvent}，再交给 {@code DeleteEventCommand} 执行。
  */
 public final class CutEventsCommand implements Command {
 
-    private final Timeline timeline;
-    private final String trackId;
-    private final List<TimelineAnimationEvent> eventsToCut;
-    private final List<Command> deleteCommands = new ArrayList<>();
-    private boolean executed = false;
+	private final Timeline timeline;
+	private final String trackId;
+	private final List<TimelineAnimationEvent> eventsToCut;
+	private final List<Command> deleteCommands = new ArrayList<>();
+	private boolean executed = false;
 
-    public CutEventsCommand(
-        @NonNull Timeline timeline,
-        @NonNull String trackId,
-        @NonNull List<TimelineAnimationEvent> events
-    ) {
-        this.timeline = timeline;
-        this.trackId = trackId;
-        this.eventsToCut = new ArrayList<>(events);
-    }
+	public CutEventsCommand(
+		@NonNull Timeline timeline,
+		@NonNull String trackId,
+		@NonNull List<TimelineAnimationEvent> events
+	) {
+		this.timeline = timeline;
+		this.trackId = trackId;
+		this.eventsToCut = new ArrayList<>(events);
+	}
 
-    @Override
-    public void execute() {
-        if (executed) return;
+	@Override
+	public void execute() {
+		if (executed) return;
 
-        // 1. 复制到剪贴板（标记为剪切）
-        TimelineClipboard.getInstance().cut(eventsToCut);
+		TimelineClipboard.getInstance().cut(eventsToCut);
 
-        // 2. 删除原事件（这里假设事件有唯一 ID 可以查找删除）
-        // 注意：实际实现需要根据项目中如何删除事件来调整
-        for (TimelineAnimationEvent event : eventsToCut) {
-            // 这里需要实际的删除逻辑
-            // 由于当前没有看到通过 TimelineAnimationEvent 直接删除的命令
-            // 可能需要通过 Clip ID + Event ID 来删除
-            // 暂时留空，需要根据实际 API 补充
-        }
+		deleteCommands.clear();
+		for (TimelineAnimationEvent event : eventsToCut) {
+			AnimationEventLocator.Located located =
+				AnimationEventLocator.locate(timeline, trackId, event.getEventId());
+			if (located == null) continue;
+			DeleteEventCommand deleteCmd = new DeleteEventCommand(
+				timeline, trackId, located.clipId(), located.event());
+			deleteCmd.execute();
+			deleteCommands.add(deleteCmd);
+		}
+		timeline.markAnimationEventsDirty(trackId);
 
-        executed = true;
-    }
+		executed = true;
+	}
 
-    @Override
-    public void undo() {
-        if (!executed) return;
+	@Override
+	public void undo() {
+		if (!executed) return;
 
-        // 恢复删除的事件
-        for (int i = deleteCommands.size() - 1; i >= 0; i--) {
-            deleteCommands.get(i).undo();
-        }
+		for (int i = deleteCommands.size() - 1; i >= 0; i--) {
+			deleteCommands.get(i).undo();
+		}
+		timeline.markAnimationEventsDirty(trackId);
 
-        // 清空剪贴板
-        TimelineClipboard.getInstance().clear();
+		TimelineClipboard.getInstance().clear();
 
-        executed = false;
-    }
+		executed = false;
+	}
 }
