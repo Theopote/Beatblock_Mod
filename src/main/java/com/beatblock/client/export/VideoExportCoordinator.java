@@ -105,6 +105,7 @@ public final class VideoExportCoordinator {
 				exportSettings.fps(),
 				exportSettings.totalFrames(),
 				exportSettings.includeAudio() ? audioPath : null,
+				exportSettings.includeAudio() ? exportSettings.startTimeSeconds() : 0.0,
 				(message, percent) -> updateProgress(VideoExportProgress.State.RUNNING, message, percent)
 			);
 			BeatBlockClientDriver.stopPlayback();

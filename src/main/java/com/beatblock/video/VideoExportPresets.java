@@ -67,15 +67,13 @@ public final class VideoExportPresets {
         double endTime,
         boolean includeAudio
     ) {
-        int totalFrames = (int) Math.ceil((endTime - startTime) * preset.getFps());
-
         return new VideoExportSettings(
             outputPath,
             preset.getWidth(),
             preset.getHeight(),
             preset.getFps(),
             startTime,
-            totalFrames,
+            endTime,
             includeAudio
         );
     }

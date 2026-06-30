@@ -41,6 +41,7 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 		int fps,
 		int totalFrames,
 		Path audioFile,
+		double audioStartSeconds,
 		ProgressListener progressListener
 	) throws IOException {
 		this.totalFrames = Math.max(1, totalFrames);
@@ -56,7 +57,8 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 			width,
 			height,
 			fps,
-			audioFile
+			audioFile,
+			audioStartSeconds
 		);
 		LOGGER.info("Starting ffmpeg video encode: {}", command);
 		this.process = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -71,7 +73,8 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 		int width,
 		int height,
 		int fps,
-		Path audioFile
+		Path audioFile,
+		double audioStartSeconds
 	) {
 		List<String> cmd = new ArrayList<>();
 		cmd.add(ffmpegExecutable);
@@ -87,6 +90,10 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 		cmd.add("-i");
 		cmd.add("pipe:0");
 		if (audioFile != null && Files.isRegularFile(audioFile)) {
+			if (audioStartSeconds > 0.0) {
+				cmd.add("-ss");
+				cmd.add(formatFfmpegSeconds(audioStartSeconds));
+			}
 			cmd.add("-i");
 			cmd.add(audioFile.toAbsolutePath().toString());
 		}
@@ -107,6 +114,17 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 		}
 		cmd.add(outputFile.toAbsolutePath().toString());
 		return List.copyOf(cmd);
+	}
+
+	static String formatFfmpegSeconds(double seconds) {
+		if (seconds <= 0.0) {
+			return "0";
+		}
+		String formatted = String.format(java.util.Locale.ROOT, "%.3f", seconds);
+		if (formatted.contains(".")) {
+			formatted = formatted.replaceAll("0+$", "").replaceAll("\\.$", "");
+		}
+		return formatted;
 	}
 
 	private void startProgressReader() {

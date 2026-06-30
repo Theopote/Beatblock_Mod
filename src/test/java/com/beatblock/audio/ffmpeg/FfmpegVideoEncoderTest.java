@@ -20,7 +20,8 @@ class FfmpegVideoEncoderTest {
 			1920,
 			1080,
 			30,
-			null
+			null,
+			0.0
 		);
 		assertEquals("C:/ffmpeg/ffmpeg.exe", cmd.get(0));
 		assertTrue(cmd.contains("-f"));
@@ -41,11 +42,40 @@ class FfmpegVideoEncoderTest {
 			1280,
 			720,
 			24,
-			audio
+			audio,
+			0.0
 		);
 		assertTrue(cmd.contains(audio.toAbsolutePath().toString()));
 		assertTrue(cmd.contains("aac"));
 		assertTrue(cmd.contains("-shortest"));
+		assertTrue(cmd.stream().noneMatch("-ss"::equals));
+	}
+
+	@Test
+	void buildVideoCommandWithAudioSeek(@TempDir Path tempDir) throws Exception {
+		Path audio = tempDir.resolve("track.mp3");
+		Files.writeString(audio, "fake");
+		List<String> cmd = FfmpegVideoEncoder.buildVideoCommand(
+			"ffmpeg",
+			tempDir.resolve("out.mp4"),
+			1920,
+			1080,
+			60,
+			audio,
+			12.5
+		);
+		int ssIndex = cmd.indexOf("-ss");
+		int audioIndex = cmd.indexOf(audio.toAbsolutePath().toString());
+		assertTrue(ssIndex >= 0);
+		assertTrue(ssIndex < audioIndex);
+		assertEquals("12.5", cmd.get(ssIndex + 1));
+	}
+
+	@Test
+	void formatFfmpegSecondsTrimsTrailingZeros() {
+		assertEquals("30", FfmpegVideoEncoder.formatFfmpegSeconds(30.0));
+		assertEquals("12.5", FfmpegVideoEncoder.formatFfmpegSeconds(12.5));
+		assertEquals("0", FfmpegVideoEncoder.formatFfmpegSeconds(0.0));
 	}
 
 	@Test
