@@ -103,9 +103,7 @@ final class AudioAnalysisAssetDetailControls {
 	private static void renderDetailCompleted(AudioAnalysisPanelHost host, AudioAsset asset) {
 		AudioAnalysisPanelUiState state = host.uiState();
 		Beatmap detailBm = asset.getBeatmap();
-		boolean hasStemSeparation = detailBm != null
-			&& detailBm.meta != null
-			&& detailBm.meta.hasStemSeparation();
+		boolean hasStemSeparation = detailBm != null && detailBm.meta.hasStemSeparation();
 
 		if (AudioAnalysisPanelImGui.beginDetailSection("completed_basic", BBTexts.get("beatblock.audio.basic_info"), false)) {
 			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.file_name"), asset.getFileName());
@@ -117,7 +115,7 @@ final class AudioAnalysisAssetDetailControls {
 
 		if (AudioAnalysisPanelImGui.beginDetailSection("completed_result", BBTexts.get("beatblock.audio.analysis_result"), false)) {
 			AudioAnalysisPanelImGui.detailRowCompact(state, "BPM", String.format("%.1f", asset.getBpm()), AudioAnalysisPanelImGui.COLOR_PROGRESS_FG);
-			if (detailBm != null && detailBm.meta != null && detailBm.meta.bpmConfidence() < 0.5) {
+			if (detailBm != null && detailBm.meta.bpmConfidence() < 0.5) {
 				AudioAnalysisPanelImGui.compactGap();
 				AudioAnalysisPanelImGui.renderWarningBanner("beatblock.audio.bpm_low_confidence");
 			}

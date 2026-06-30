@@ -27,6 +27,7 @@ import com.beatblock.timeline.rendering.TrackDefinition;
 import com.beatblock.timeline.rendering.TrackRegistry;
 import com.beatblock.ui.i18n.BBTexts;
 
+import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -181,16 +182,16 @@ public final class EventPropertiesPresenter {
 			stageObjectExists,
 			blockIdValid
 		);
-		if (result instanceof AnimationEventPropertiesEditor.Result.Err err) {
-			return new ApplyResult.Err(err.message());
+		if (result instanceof AnimationEventPropertiesEditor.Result.Err(String message)) {
+			return new ApplyResult.Err(message);
 		}
 		AnimationEventSnapshot after = ((AnimationEventPropertiesEditor.Result.Ok) result).snapshot();
 		Map<String, Object> merged = new HashMap<>(after.parameters());
 		if (WorldTrajectoryEventParamsEditor.supports(input.animationId())) {
 			if (trajectoryInput != null) {
 				var trajectoryResult = WorldTrajectoryEventParamsEditor.merge(merged, input.animationId(), trajectoryInput);
-				if (trajectoryResult instanceof WorldTrajectoryEventParamsEditor.MergeResult.Err err) {
-					return new ApplyResult.Err(err.message());
+				if (trajectoryResult instanceof WorldTrajectoryEventParamsEditor.MergeResult.Err(String message)) {
+					return new ApplyResult.Err(message);
 				}
 				merged = new HashMap<>(((WorldTrajectoryEventParamsEditor.MergeResult.Ok) trajectoryResult).parameters());
 			}
@@ -231,8 +232,8 @@ public final class EventPropertiesPresenter {
 			oldStart, newStart, newEnd, pathVisible,
 			existingTimes, timeline, ref.clip().getId()
 		);
-		if (result instanceof CameraEventPropertiesEditor.Result.Err err) {
-			return new ApplyResult.Err(err.message());
+		if (result instanceof CameraEventPropertiesEditor.Result.Err(String message)) {
+			return new ApplyResult.Err(message);
 		}
 		AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.captureClipOnly(ref.clip(), timeline, ref.clip().getId());
@@ -259,8 +260,8 @@ public final class EventPropertiesPresenter {
 			ref.clip().getStartTimeSeconds(),
 			ref.clip().getEndTimeSeconds()
 		);
-		if (result instanceof CameraEventPropertiesEditor.Result.Err err) {
-			return new ApplyResult.Err(err.message());
+		if (result instanceof CameraEventPropertiesEditor.Result.Err(String message)) {
+			return new ApplyResult.Err(message);
 		}
 		AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.capture(
@@ -294,8 +295,8 @@ public final class EventPropertiesPresenter {
 			timeline,
 			ref.clip().getId()
 		);
-		if (result instanceof CameraEventPropertiesEditor.Result.Err err) {
-			return new ApplyResult.Err(err.message());
+		if (result instanceof CameraEventPropertiesEditor.Result.Err(String message)) {
+			return new ApplyResult.Err(message);
 		}
 		AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.capture(
@@ -328,8 +329,8 @@ public final class EventPropertiesPresenter {
 			newTime, x, y, z, yaw, pitch, ease,
 			new HashMap<>(ref.event().getParameters())
 		);
-		if (result instanceof CameraEventPropertiesEditor.Result.Err err) {
-			return new ApplyResult.Err(err.message());
+		if (result instanceof CameraEventPropertiesEditor.Result.Err(String message)) {
+			return new ApplyResult.Err(message);
 		}
 		AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.capture(ref.event(), ref.clip());
@@ -774,31 +775,7 @@ public final class EventPropertiesPresenter {
 				ref.event(), ref.clip(), timeline, ref.clip().getId());
 			AnimationEventParams parsed = AnimationEventParams.fromParameterMap(before.parameters());
 
-			float energy = request.energy() != null ? request.energy() : parsed.energy();
-			String animationType = request.animationId() != null && !request.animationId().isBlank()
-				? request.animationId()
-				: parsed.animationType();
-			TimelineAnimationActionMode actionMode = request.actionMode() != null
-				? request.actionMode()
-				: parsed.actionMode();
-
-			double duration = parsed.durationSeconds();
-			if (request.durationScale() != null) {
-				duration = duration * request.durationScale();
-			}
-			if (request.fixedDurationSeconds() != null) {
-				duration = request.fixedDurationSeconds();
-			}
-
-			AnimationEventParams updatedParams = new AnimationEventParams(
-				actionMode,
-				animationType,
-				parsed.targetObject(),
-				energy,
-				duration,
-				parsed.eventOrigin(),
-				parsed.extensions()
-			);
+			AnimationEventParams updatedParams = getAnimationEventParams(request, parsed);
 			if (request.customParameters() != null && !request.customParameters().isEmpty()) {
 				updatedParams = updatedParams.withMergedExtensions(request.customParameters());
 			}
@@ -832,6 +809,34 @@ public final class EventPropertiesPresenter {
 		}
 		timeline.sortAll();
 		return new BatchEditOutcome(updated, lastError);
+	}
+
+	private static @NotNull AnimationEventParams getAnimationEventParams(BatchAnimationEditRequest request, AnimationEventParams parsed) {
+		float energy = request.energy() != null ? request.energy() : parsed.energy();
+		String animationType = request.animationId() != null && !request.animationId().isBlank()
+			? request.animationId()
+			: parsed.animationType();
+		TimelineAnimationActionMode actionMode = request.actionMode() != null
+			? request.actionMode()
+			: parsed.actionMode();
+
+		double duration = parsed.durationSeconds();
+		if (request.durationScale() != null) {
+			duration = duration * request.durationScale();
+		}
+		if (request.fixedDurationSeconds() != null) {
+			duration = request.fixedDurationSeconds();
+		}
+
+        return new AnimationEventParams(
+            actionMode,
+            animationType,
+            parsed.targetObject(),
+            energy,
+            duration,
+            parsed.eventOrigin(),
+            parsed.extensions()
+        );
 	}
 
 	private static EventPropertiesRef findAnimationEventRef(Timeline timeline, String eventId) {

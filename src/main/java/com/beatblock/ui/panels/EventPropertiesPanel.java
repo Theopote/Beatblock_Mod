@@ -32,7 +32,6 @@ import imgui.type.ImInt;
 import imgui.type.ImString;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -709,7 +708,7 @@ public class EventPropertiesPanel {
 
 	private void renderRuntimeStatus(EventPropertiesRef ref) {
 		String eventId = ref != null && ref.event() != null ? ref.event().getId() : "";
-		if (eventId == null || eventId.isBlank()) return;
+		if (eventId.isBlank()) return;
 		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getTimelineActionExecutionReport(eventId);
 		if (report == null) return;
 
@@ -841,15 +840,14 @@ public class EventPropertiesPanel {
 		}
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText(BBTexts.get("beatblock.event.fall_height") + "##eventMeteorHeight", meteorHeightBuffer);
-		if (rhythmDrop) {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.impact_threshold") + "##eventImpactThreshold", impactThresholdBuffer);
+        ImGui.setNextItemWidth(-1f);
+        if (rhythmDrop) {
+            ImGui.inputText(BBTexts.get("beatblock.event.impact_threshold") + "##eventImpactThreshold", impactThresholdBuffer);
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip(BBTexts.get("beatblock.event.impact_threshold.tooltip"));
 			}
 		} else {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.scatter") + "##eventMeteorScatter", meteorScatterBuffer);
+            ImGui.inputText(BBTexts.get("beatblock.event.scatter") + "##eventMeteorScatter", meteorScatterBuffer);
 		}
 	}
 

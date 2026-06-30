@@ -2,7 +2,6 @@ package com.beatblock.timeline.rendering;
 
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.assets.AudioAsset;
-import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import org.slf4j.Logger;
@@ -72,7 +71,7 @@ public final class TimelineDenseFeatureApplier {
 		double prevDuration = timeline.getDurationSeconds();
 		Map<String, TimelineAudioFeatureFillSupport.SavedFeatureTrack> savedFeatureEvents =
 			TimelineAudioFeatureFillSupport.saveFeatureEvents(timeline);
-		host.context().audioAnalysisEngine().fillTimelineFromBeatmap(timeline, matched.getBeatmap());
+		Objects.requireNonNull(host.context().audioAnalysisEngine()).fillTimelineFromBeatmap(timeline, matched.getBeatmap());
 		TimelineAudioFeatureFillSupport.shiftFeatureEventsByOffset(timeline, startOffset);
 		TimelineAudioFeatureFillSupport.restoreFeatureEvents(timeline, savedFeatureEvents);
 		timeline.setDurationSeconds(prevDuration);
@@ -172,7 +171,7 @@ public final class TimelineDenseFeatureApplier {
 		TimelineAudioFeatureFillSupport.shiftFeatureEventsByOffset(timeline, startOffset);
 		TimelineAudioFeatureFillSupport.restoreFeatureEvents(timeline, savedFeatureEvents);
 		timeline.setDurationSeconds(prevDuration);
-		if (asset.getBeatmap() != null && asset.getBeatmap().meta != null) {
+		if (asset.getBeatmap() != null) {
 			timeline.setMetadata("bpm", asset.getBeatmap().meta.bpm());
 			timeline.setMetadata("beatCount", asset.getBeatmap().beats.size());
 		}

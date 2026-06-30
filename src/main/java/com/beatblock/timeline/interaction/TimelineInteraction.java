@@ -301,10 +301,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			HitResult hit = TimelineContentHitTest.hitContentAtMouse(timeline, viewState, layout, mx, my);
 			popupState.contextTrackId = hit.getTrackId();
 			popupState.contextClipId = hit.getClipId();
-			BeatBlockClient.LOGGER.info(String.format(
-				"[TimelineInteraction.handleMouse] Right-click detected: popupState.contextTrackId=%s, popupState.contextClipId=%s, hitTrackId=%s, hitClipId=%s, hitEventId=%s",
-				popupState.contextTrackId, popupState.contextClipId, hit.getTrackId(), hit.getClipId(), hit.getEventId()
-			));
+			BeatBlockClient.LOGGER.info("[TimelineInteraction.handleMouse] Right-click detected: popupState.contextTrackId={}, popupState.contextClipId={}, hitTrackId={}, hitClipId={}, hitEventId={}", popupState.contextTrackId, popupState.contextClipId, hit.getTrackId(), hit.getClipId(), hit.getEventId());
 			if (Timeline.TRACK_ID_CAMERA.equals(hit.getTrackId())) {
 				if (hit.getClipId() != null) {
 					popupState.contextCameraShowPath.set(CameraPathMetadata.isPathVisible(timeline, hit.getClipId()));
@@ -324,10 +321,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			} else {
 				// 右键命中片段时自动将其加入选中，确保右键菜单的 Delete 项可用
 				if (hit.getClipId() != null && !selectionState.isClipSelected(hit.getClipId())) {
-					BeatBlockClient.LOGGER.info(String.format(
-						"[TimelineInteraction.handleMouse] Auto-selecting context clip: %s",
-						hit.getClipId()
-					));
+					BeatBlockClient.LOGGER.info("[TimelineInteraction.handleMouse] Auto-selecting context clip: {}", hit.getClipId());
 					selectionState.clearEvents();
 					selectionState.clearClips();
 					selectionState.selectClip(hit.getClipId());

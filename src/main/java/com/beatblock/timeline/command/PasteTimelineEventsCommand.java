@@ -105,7 +105,7 @@ public final class PasteTimelineEventsCommand implements Command {
 				continue;
 			}
 			Clip clip = track.getClip(pasted.clipId());
-			if (clip != null && TimelineOperations.removeEvent(clip, pasted.event().getId())) {
+			if (TimelineOperations.removeEvent(clip, pasted.event().getId())) {
 				dirtyTracks.add(track.getId());
 			}
 		}
