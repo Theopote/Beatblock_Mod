@@ -26,6 +26,7 @@ import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TrackDefinition;
 import com.beatblock.timeline.rendering.TrackRegistry;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.util.UiNumberFormatter;
 
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
@@ -34,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -466,8 +466,8 @@ public final class EventPropertiesPresenter {
 		if (ref.event() == null) {
 			return new EventPropertiesFormSnapshot(
 				refKey,
-				formatSeconds(ref.clip().getStartTimeSeconds()),
-				formatSeconds(ref.clip().getEndTimeSeconds()),
+				UiNumberFormatter.format(ref.clip().getStartTimeSeconds()),
+				UiNumberFormatter.format(ref.clip().getEndTimeSeconds()),
 				isPathVisible(timeline, ref.clip().getId()),
 				"", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 				"",
@@ -496,7 +496,7 @@ public final class EventPropertiesPresenter {
 		boolean camSegPathVisible = false;
 		Map<String, String> camSegParams = Map.of();
 		if (event.getType() == EventType.CAMERA_SEGMENT) {
-			camSegDuration = formatSeconds(ref.clip().getDurationSeconds());
+			camSegDuration = UiNumberFormatter.format(ref.clip().getDurationSeconds());
 			camSegPathVisible = isPathVisible(timeline, ref.clip().getId());
 			Map<String, String> segParams = new HashMap<>();
 			for (Map.Entry<String, Object> entry : params.entrySet()) {
@@ -504,7 +504,7 @@ public final class EventPropertiesPresenter {
 				if ("kind".equals(key)) {
 					continue;
 				}
-				segParams.put(key, String.valueOf(entry.getValue()));
+				segParams.put(key, UiNumberFormatter.formatParamValue(entry.getValue()));
 			}
 			camSegParams = Map.copyOf(segParams);
 		}
@@ -516,11 +516,11 @@ public final class EventPropertiesPresenter {
 		String camPitch = "";
 		String camEase = "";
 		if (event.getType() == EventType.CAMERA_KEYFRAME) {
-			camX = formatDecimal(EventParameterReaders.numericParam(params, "x", 0), 6);
-			camY = formatDecimal(EventParameterReaders.numericParam(params, "y", 0), 6);
-			camZ = formatDecimal(EventParameterReaders.numericParam(params, "z", 0), 6);
-			camYaw = formatDecimal(EventParameterReaders.numericParam(params, "yawDeg", 0), 3);
-			camPitch = formatDecimal(EventParameterReaders.numericParam(params, "pitchDeg", 0), 3);
+			camX = UiNumberFormatter.format(EventParameterReaders.numericParam(params, "x", 0));
+			camY = UiNumberFormatter.format(EventParameterReaders.numericParam(params, "y", 0));
+			camZ = UiNumberFormatter.format(EventParameterReaders.numericParam(params, "z", 0));
+			camYaw = UiNumberFormatter.format(EventParameterReaders.numericParam(params, "yawDeg", 0));
+			camPitch = UiNumberFormatter.format(EventParameterReaders.numericParam(params, "pitchDeg", 0));
 			camEase = EventParameterReaders.stringParam(params, "ease", "SMOOTH");
 		}
 
@@ -528,21 +528,21 @@ public final class EventPropertiesPresenter {
 			refKey,
 			"", "",
 			false,
-			formatSeconds(event.getTimeSeconds()),
-			formatSeconds(params.containsKey("durationSeconds") ? core.durationSeconds() : 0.25),
-			formatDecimal(params.containsKey("energy") ? core.energy() : 1.0, 3),
-			formatDecimal(EventParameterReaders.numericParam(params, "energyThreshold", 0.15), 3),
-			formatDecimal(EventParameterReaders.numericParam(params, "sequentialDelaySeconds", 0.0), 3),
+			UiNumberFormatter.format(event.getTimeSeconds()),
+			UiNumberFormatter.format(params.containsKey("durationSeconds") ? core.durationSeconds() : 0.25),
+			UiNumberFormatter.format(params.containsKey("energy") ? core.energy() : 1.0),
+			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "energyThreshold", 0.15)),
+			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "sequentialDelaySeconds", 0.0)),
 			String.valueOf(Math.max(1, (int) Math.round(EventParameterReaders.numericParam(params, "blocksPerBeat", 1.0)))),
-			formatDecimal(EventParameterReaders.numericParam(
-				params, "distancePaceSecondsPerBlock", DistancePacing.DEFAULT_SECONDS_PER_BLOCK_UNIT), 3),
-			formatDecimal(EventParameterReaders.numericParam(
-				params, "distancePaceMinGapSeconds", DistancePacing.DEFAULT_MIN_GAP_SECONDS), 3),
-			formatDecimal(EventParameterReaders.numericParam(params, "cameraNearDistance", 8.0), 3),
-			formatDecimal(EventParameterReaders.numericParam(params, "cameraFarDistance", 48.0), 3),
-			formatDecimal(EventParameterReaders.numericParam(params, "cameraNearScale", 0.6), 3),
-			formatDecimal(EventParameterReaders.numericParam(params, "cameraFarScale", 1.5), 3),
-			formatDecimal(EventParameterReaders.numericParam(params, "cameraEdgePriority", 0.0), 2),
+			UiNumberFormatter.format(EventParameterReaders.numericParam(
+				params, "distancePaceSecondsPerBlock", DistancePacing.DEFAULT_SECONDS_PER_BLOCK_UNIT)),
+			UiNumberFormatter.format(EventParameterReaders.numericParam(
+				params, "distancePaceMinGapSeconds", DistancePacing.DEFAULT_MIN_GAP_SECONDS)),
+			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraNearDistance", 8.0)),
+			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraFarDistance", 48.0)),
+			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraNearScale", 0.6)),
+			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraFarScale", 1.5)),
+			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraEdgePriority", 0.0)),
 			placeBlock,
 			flashBlock,
 			camSegDuration,
@@ -598,12 +598,12 @@ public final class EventPropertiesPresenter {
 		);
 	}
 
-	private static String formatSeconds(double value) {
-		return String.format(Locale.ROOT, "%.6f", value);
+	private static void putParam(Map<String, String> params, String key, double value) {
+		params.put(key, UiNumberFormatter.format(value));
 	}
 
-	private static String formatDecimal(double value, int precision) {
-		return String.format(Locale.ROOT, "%." + precision + "f", value);
+	private static void putParam(Map<String, String> params, String key, float value) {
+		params.put(key, UiNumberFormatter.format(value));
 	}
 
 	private void commitEventEdit(
@@ -677,14 +677,6 @@ public final class EventPropertiesPresenter {
 			}
 		}
 		return -1;
-	}
-
-	private static void putParam(Map<String, String> params, String key, double value) {
-		params.put(key, String.format(Locale.ROOT, "%.6f", value));
-	}
-
-	private static void putParam(Map<String, String> params, String key, float value) {
-		params.put(key, String.format(Locale.ROOT, "%.3f", value));
 	}
 
 	/** 从动画引擎收集动画模板选项（无引擎时仅「未绑定」）。 */

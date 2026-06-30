@@ -16,6 +16,7 @@ import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.EventPropertiesFormSnapshot;
 import com.beatblock.ui.presenter.EventPropertiesPresenter;
+import com.beatblock.ui.util.UiNumberFormatter;
 import com.beatblock.ui.presenter.EventPropertiesRef;
 import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
@@ -25,7 +26,6 @@ import imgui.type.ImInt;
 import imgui.type.ImString;
 
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -479,11 +479,11 @@ public class CameraPropertiesPanel {
 				validationError = BBTexts.get("beatblock.camera.no_camera");
 			} else {
 				EventPropertiesPresenter.CameraViewSample sample = view.get();
-				camXBuffer.set(String.format(Locale.ROOT, "%.6f", sample.x()));
-				camYBuffer.set(String.format(Locale.ROOT, "%.6f", sample.y()));
-				camZBuffer.set(String.format(Locale.ROOT, "%.6f", sample.z()));
-				camYawBuffer.set(String.format(Locale.ROOT, "%.3f", sample.yaw()));
-				camPitchBuffer.set(String.format(Locale.ROOT, "%.3f", sample.pitch()));
+				camXBuffer.set(UiNumberFormatter.format(sample.x()));
+				camYBuffer.set(UiNumberFormatter.format(sample.y()));
+				camZBuffer.set(UiNumberFormatter.format(sample.z()));
+				camYawBuffer.set(UiNumberFormatter.format(sample.yaw()));
+				camPitchBuffer.set(UiNumberFormatter.format(sample.pitch()));
 				validationError = null;
 			}
 		}

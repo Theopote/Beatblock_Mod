@@ -20,6 +20,7 @@ import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineClock;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.util.UiNumberFormatter;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import imgui.type.ImString;
@@ -72,7 +73,7 @@ public final class TimelineInteractionPopups {
 		if (TimelineInteractiveTrackSlots.isTrackLocked(timeline, trackListState, ref.track().getId())) return;
 		TimelineInteractionPopupState state = host.popupState();
 		state.propertiesEventId = ref.event().getId();
-		state.propertiesTimeBuffer.set(String.format(java.util.Locale.ROOT, "%.6f", ref.event().getTimeSeconds()));
+		state.propertiesTimeBuffer.set(UiNumberFormatter.format(ref.event().getTimeSeconds()));
 		loadPropertiesParameterBuffers(state, ref.event());
 		state.propertiesError = null;
 		ImGui.openPopup(POPUP_EVENT_PROPERTIES);
@@ -246,7 +247,7 @@ public final class TimelineInteractionPopups {
 
 		TimelineMarker marker = timeline.getMarkers().get(markerIndex);
 		ImGui.text(BBTexts.get("beatblock.timeline.interaction.marker"));
-		ImGui.textDisabled(String.format(java.util.Locale.ROOT, "%.3fs", marker.getTimeSeconds()));
+		ImGui.textDisabled(UiNumberFormatter.format(marker.getTimeSeconds()) + "s");
 		ImGui.setNextItemWidth(180f);
 		ImGui.inputText(BBTexts.get("beatblock.marker.name") + "##markerRename", state.markerNameBuffer);
 
@@ -389,7 +390,7 @@ public final class TimelineInteractionPopups {
 						before,
 						after
 					)) {
-						state.propertiesOriginalTime = String.format(java.util.Locale.ROOT, "%.6f", ref.event().getTimeSeconds());
+						state.propertiesOriginalTime = UiNumberFormatter.format(ref.event().getTimeSeconds());
 						for (Map.Entry<String, ImString> entry : state.propertiesParamBuffers.entrySet()) {
 							String key = entry.getKey();
 							state.propertiesOriginalParamValues.put(key, entry.getValue().get());
@@ -425,12 +426,12 @@ public final class TimelineInteractionPopups {
 		state.propertiesNewParamValue.set("");
 		state.propertiesNewParamAsNumber = false;
 		if (event == null) return;
-		state.propertiesOriginalTime = String.format(java.util.Locale.ROOT, "%.6f", event.getTimeSeconds());
+		state.propertiesOriginalTime = UiNumberFormatter.format(event.getTimeSeconds());
 		state.propertiesTimeBuffer.set(state.propertiesOriginalTime);
 		for (Map.Entry<String, Object> entry : event.getParameters().entrySet()) {
 			String key = entry.getKey();
 			Object value = entry.getValue();
-			String text = value == null ? "" : String.valueOf(value);
+			String text = UiNumberFormatter.formatParamValue(value);
 			boolean asNumber = value instanceof Number;
 			ImString buf = new ImString(256);
 			buf.set(text);

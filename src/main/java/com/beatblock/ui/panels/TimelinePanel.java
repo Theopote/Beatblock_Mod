@@ -14,6 +14,7 @@ import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 
+import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
@@ -49,7 +50,7 @@ public class TimelinePanel {
 		}
 		try {
 			double musicDuration = runtime().musicPlayer() != null
-				? runtime().musicPlayer().getDurationSeconds()
+				? Objects.requireNonNull(runtime().musicPlayer()).getDurationSeconds()
 				: 0.0;
 			TimelinePanelPresenter.TimelinePanelViewState viewState = presenter.viewState(
 				runtime().timeline(),

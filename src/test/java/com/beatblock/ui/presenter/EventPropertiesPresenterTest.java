@@ -150,8 +150,8 @@ class EventPropertiesPresenterTest {
 			com.beatblock.timeline.camera.CameraSegmentKind.DOLLY
 		);
 		assertTrue(captured.isPresent());
-		assertEquals("1.000000", captured.get().get("startX"));
-		assertEquals("90.000", captured.get().get("baseYawDeg"));
+		assertEquals("1.00", captured.get().get("startX"));
+		assertEquals("90.00", captured.get().get("baseYawDeg"));
 	}
 
 	@Test
@@ -180,9 +180,9 @@ class EventPropertiesPresenterTest {
 		EventPropertiesRef ref = new EventPropertiesRef(track, clip, event);
 
 		EventPropertiesFormSnapshot snapshot = presenter.buildFormSnapshot(ref, timeline);
-		assertEquals("2.500000", snapshot.time());
-		assertEquals("0.750000", snapshot.duration());
-		assertEquals("0.500", snapshot.energy());
+		assertEquals("2.50", snapshot.time());
+		assertEquals("0.75", snapshot.duration());
+		assertEquals("0.50", snapshot.energy());
 		assertEquals("pulse", presenter.readAnimationEditorState(event.getParameters()).animationId());
 	}
 
@@ -210,8 +210,8 @@ class EventPropertiesPresenterTest {
 		assertEquals("5", snapshot.singleBlockX());
 		assertEquals("64", snapshot.singleBlockY());
 		assertEquals("-2", snapshot.singleBlockZ());
-		assertEquals("8.000", snapshot.meteorHeight());
-		assertEquals("0.930", snapshot.impactThreshold());
+		assertEquals("8.00", snapshot.meteorHeight());
+		assertEquals("0.93", snapshot.impactThreshold());
 	}
 
 	@Test
@@ -221,8 +221,8 @@ class EventPropertiesPresenterTest {
 		EventPropertiesRef ref = new EventPropertiesRef(cam, clip, null);
 
 		EventPropertiesFormSnapshot snapshot = presenter.buildFormSnapshot(ref, timeline);
-		assertEquals("1.000000", snapshot.camClipStart());
-		assertEquals("5.000000", snapshot.camClipEnd());
+		assertEquals("1.00", snapshot.camClipStart());
+		assertEquals("5.00", snapshot.camClipEnd());
 	}
 
 	@Test

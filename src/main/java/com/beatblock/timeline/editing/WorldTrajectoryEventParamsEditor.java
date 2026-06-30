@@ -1,8 +1,7 @@
 package com.beatblock.timeline.editing;
 
 import com.beatblock.timeline.generation.RhythmDropEventFactory;
-
-import java.util.Locale;
+import com.beatblock.ui.util.UiNumberFormatter;
 import java.util.Map;
 
 /**
@@ -58,9 +57,9 @@ public final class WorldTrajectoryEventParamsEditor {
 			readIntString(safe, "singleBlockX"),
 			readIntString(safe, "singleBlockY"),
 			readIntString(safe, "singleBlockZ"),
-			formatDouble(readDouble(safe, "meteorHeight", defaultHeight)),
-			formatDouble(readDouble(safe, "meteorScatter", defaultScatter)),
-			formatDouble(readDouble(safe, "impactThreshold", defaultImpact))
+			UiNumberFormatter.format(readDouble(safe, "meteorHeight", defaultHeight)),
+			UiNumberFormatter.format(readDouble(safe, "meteorScatter", defaultScatter)),
+			UiNumberFormatter.format(readDouble(safe, "impactThreshold", defaultImpact))
 		);
 	}
 
@@ -156,10 +155,6 @@ public final class WorldTrajectoryEventParamsEditor {
 			throw new NumberFormatException(label);
 		}
 		return Double.parseDouble(trimmed);
-	}
-
-	private static String formatDouble(double value) {
-		return String.format(Locale.ROOT, "%.3f", value);
 	}
 
 	private static String trim(String raw) {
