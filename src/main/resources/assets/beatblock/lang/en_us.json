@@ -973,6 +973,13 @@
   "beatblock.wizard.back": "Back",
   "beatblock.wizard.next": "Next",
   "beatblock.wizard.close": "Close",
+  "beatblock.wizard.close_wizard": "Close Wizard",
+  "beatblock.wizard.skip_wizard": "Skip Wizard",
+  "beatblock.wizard.music_already_loaded": "Music is already bound to the timeline. You can continue to the next step.",
+  "beatblock.wizard.continue": "Continue",
+  "beatblock.wizard.analysis_progress": "Analyzing audio: %d%%",
+  "beatblock.wizard.analysis_status": "%s",
+  "beatblock.wizard.play_preview": "Play Preview",
 
   "beatblock.timeline.record.section": "Record",
   "beatblock.timeline.record.tooltip": "Record mode: press Space during playback to add a bounce event at the playhead\nCreate a StageObject first",

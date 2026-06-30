@@ -30,6 +30,10 @@ public final class EnvironmentSetupPanel {
 		presenter.open();
 	}
 
+	public boolean isOpen() {
+		return presenter.isOpen();
+	}
+
 	public void onUiOpened() {
 		if (!autoOpenTriggered) {
 			autoOpenTriggered = true;

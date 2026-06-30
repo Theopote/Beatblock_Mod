@@ -2,12 +2,15 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.notification.ToastNotificationSystem;
+import com.beatblock.ui.preferences.UiPreferences;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.QuickStartWizardPresenter;
 import com.beatblock.ui.util.AudioFilePicker;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 
@@ -19,36 +22,73 @@ public final class QuickStartWizardPanel {
 	private static final int PATH_CAPACITY = 512;
 
 	private final QuickStartWizardPresenter presenter;
+	private final Runnable onPlayPreview;
 	private final ImString musicPath = new ImString(PATH_CAPACITY);
 	private final ImInt creationTypeIndex = new ImInt(0);
-	private boolean open;
+	private final ImBoolean windowOpen = new ImBoolean(false);
+	private boolean autoOpenTriggered;
+	private boolean skippedImportOnOpen;
 
 	public QuickStartWizardPanel() {
-		this(PresenterFactories.quickStartWizardPresenter());
+		this(PresenterFactories.quickStartWizardPresenter(), () -> {});
+	}
+
+	public QuickStartWizardPanel(Runnable onPlayPreview) {
+		this(PresenterFactories.quickStartWizardPresenter(), onPlayPreview);
 	}
 
 	QuickStartWizardPanel(QuickStartWizardPresenter presenter) {
+		this(presenter, () -> {});
+	}
+
+	QuickStartWizardPanel(QuickStartWizardPresenter presenter, Runnable onPlayPreview) {
 		this.presenter = presenter;
+		this.onPlayPreview = onPlayPreview != null ? onPlayPreview : () -> {};
 	}
 
 	public void open() {
-		open = true;
+		var session = presenter.prepareOpen();
+		musicPath.set(session.audioPath());
+		creationTypeIndex.set(presenter.indexForCreationType(presenter.viewState().creationType()));
+		skippedImportOnOpen = session.skippedImport();
+		windowOpen.set(true);
+	}
+
+	public void onUiOpened(boolean environmentSetupOpen) {
+		if (autoOpenTriggered || environmentSetupOpen) {
+			return;
+		}
+		if (UiPreferences.isQuickStartWizardAcknowledged()) {
+			return;
+		}
+		if (!UiPreferences.isPythonSetupAcknowledged()) {
+			return;
+		}
+		autoOpenTriggered = true;
+		open();
 	}
 
 	public void render() {
-		if (!open) return;
+		if (!windowOpen.get()) {
+			return;
+		}
 
 		ImGui.setNextWindowSize(520, 0, ImGuiCond.FirstUseEver);
 		ImGui.setNextWindowPos(ImGui.getIO().getDisplaySizeX() * 0.5f, ImGui.getIO().getDisplaySizeY() * 0.35f,
 			ImGuiCond.FirstUseEver, 0.5f, 0.35f);
 
-		if (!ImGui.begin(BBTexts.get("beatblock.wizard.title"),
+		if (!ImGui.begin(BBTexts.get("beatblock.wizard.title"), windowOpen,
 			ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize)) {
 			ImGui.end();
 			return;
 		}
 
 		try {
+			if (!windowOpen.get()) {
+				presenter.reset();
+				return;
+			}
+
 			renderStepIndicator(presenter.viewState().step());
 			ImGui.separator();
 			ImGui.spacing();
@@ -95,6 +135,22 @@ public final class QuickStartWizardPanel {
 	}
 
 	private void renderImportStep() {
+		if (skippedImportOnOpen) {
+			ImGui.textWrapped(BBTexts.get("beatblock.wizard.music_already_loaded"));
+			ImGui.spacing();
+			ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
+			ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
+			ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
+			if (ImGui.button(BBTexts.get("beatblock.wizard.continue") + "##wizardContinueLoaded", -1f, 32f)) {
+				presenter.continueWithLoadedMusic();
+				skippedImportOnOpen = false;
+			}
+			ImGui.popStyleColor(3);
+			ImGui.spacing();
+			renderWizardFooter(true);
+			return;
+		}
+
 		ImGui.textWrapped(BBTexts.get("beatblock.wizard.import.desc"));
 		ImGui.spacing();
 
@@ -116,7 +172,7 @@ public final class QuickStartWizardPanel {
 		if (ImGui.button(BBTexts.get("beatblock.wizard.import.button") + "##wizardImport", -1f, 32f)) {
 			presenter.importMusic(musicPath.get());
 			if (presenter.viewState().step() != QuickStartWizardPresenter.Step.IMPORT) {
-				ToastNotificationSystem.showSuccess(presenter.viewState().statusMessage());
+				ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.toast.wizard.music_imported"));
 			} else if (!presenter.viewState().statusMessage().isBlank()) {
 				ToastNotificationSystem.showError(presenter.viewState().statusMessage());
 			}
@@ -124,9 +180,7 @@ public final class QuickStartWizardPanel {
 		ImGui.popStyleColor(3);
 
 		ImGui.spacing();
-		if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##wizardCancelImport")) {
-			open = false;
-		}
+		renderWizardFooter(true);
 	}
 
 	private void renderTypeStep() {
@@ -157,6 +211,7 @@ public final class QuickStartWizardPanel {
 		ImGui.spacing();
 		if (ImGui.button(BBTexts.get("beatblock.wizard.back") + "##wizardBackType")) {
 			presenter.goToStep(QuickStartWizardPresenter.Step.IMPORT);
+			skippedImportOnOpen = presenter.viewState().musicLoaded();
 		}
 		ImGui.sameLine();
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
@@ -166,6 +221,8 @@ public final class QuickStartWizardPanel {
 			presenter.advanceFromTypeStep();
 		}
 		ImGui.popStyleColor(3);
+		ImGui.spacing();
+		renderWizardFooter(false);
 	}
 
 	private void renderSelectStep() {
@@ -202,6 +259,8 @@ public final class QuickStartWizardPanel {
 		}
 		ImGui.popStyleColor(3);
 		if (!canContinue) ImGui.endDisabled();
+		ImGui.spacing();
+		renderWizardFooter(false);
 	}
 
 	private void renderGenerateStep() {
@@ -210,9 +269,16 @@ public final class QuickStartWizardPanel {
 			ImGui.textColored(0.4f, 1f, 0.4f, 1f, BBTexts.get("beatblock.wizard.done.title"));
 			ImGui.textWrapped(BBTexts.get("beatblock.wizard.done.desc"));
 			ImGui.spacing();
+			ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
+			ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
+			ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
+			if (ImGui.button(BBTexts.get("beatblock.wizard.play_preview") + "##wizardPlayPreview", -1f, 32f)) {
+				onPlayPreview.run();
+			}
+			ImGui.popStyleColor(3);
+			ImGui.spacing();
 			if (ImGui.button(BBTexts.get("beatblock.wizard.close") + "##wizardClose", -1f, 32f)) {
-				open = false;
-				presenter.reset();
+				closeWizard(true);
 			}
 			return;
 		}
@@ -223,15 +289,15 @@ public final class QuickStartWizardPanel {
 			typeLabel(state.creationType()),
 			state.selectionCount()));
 
-		if (!state.analysisReady() && state.creationType() != QuickStartWizardPresenter.CreationType.BLOCK_FALL) {
-			ImGui.textColored(1f, 0.6f, 0.2f, 1f, BBTexts.get("beatblock.wizard.analysis_pending"));
-		}
+		renderAnalysisStatus(state);
 
 		ImGui.spacing();
 		if (ImGui.button(BBTexts.get("beatblock.wizard.back") + "##wizardBackGenerate")) {
 			presenter.goToStep(QuickStartWizardPresenter.Step.SELECT_BLOCKS);
 		}
 		ImGui.sameLine();
+		boolean canGenerate = presenter.canGenerate();
+		if (!canGenerate) ImGui.beginDisabled();
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
@@ -244,9 +310,55 @@ public final class QuickStartWizardPanel {
 			}
 		}
 		ImGui.popStyleColor(3);
-		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(BBTexts.get("beatblock.wizard.generate.tooltip"));
+		if (!canGenerate) ImGui.endDisabled();
+		if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+			ImGui.setTooltip(canGenerate
+				? BBTexts.get("beatblock.wizard.generate.tooltip")
+				: BBTexts.get("beatblock.wizard.analysis_pending"));
 		}
+		ImGui.spacing();
+		renderWizardFooter(false);
+	}
+
+	private void renderAnalysisStatus(QuickStartWizardPresenter.ViewState state) {
+		var progress = presenter.analysisProgress();
+		if (!state.analysisReady()) {
+			ImGui.textColored(1f, 0.6f, 0.2f, 1f, BBTexts.get("beatblock.wizard.analysis_pending"));
+			if (progress.analyzing()) {
+				float fraction = Math.max(0f, Math.min(1f, progress.percent() / 100f));
+				ImGui.progressBar(fraction, -1f, 0f,
+					BBTexts.get("beatblock.wizard.analysis_progress", progress.percent()));
+				if (progress.statusText() != null && !progress.statusText().isBlank()) {
+					ImGui.textDisabled(BBTexts.get("beatblock.wizard.analysis_status", progress.statusText()));
+				}
+			}
+		} else {
+			ImGui.textColored(0.4f, 1f, 0.4f, 1f, BBTexts.get("beatblock.wizard.music_imported"));
+		}
+	}
+
+	private void renderWizardFooter(boolean showSkip) {
+		if (showSkip && ImGui.button(BBTexts.get("beatblock.wizard.skip_wizard") + "##wizardSkip")) {
+			dismissWizard();
+		}
+		if (showSkip) ImGui.sameLine();
+		if (ImGui.button(BBTexts.get("beatblock.wizard.close_wizard") + "##wizardCloseFooter")) {
+			closeWizard(false);
+		}
+	}
+
+	private void closeWizard(boolean completed) {
+		windowOpen.set(false);
+		presenter.reset();
+		skippedImportOnOpen = false;
+		if (completed) {
+			UiPreferences.setQuickStartWizardAcknowledged(true);
+		}
+	}
+
+	private void dismissWizard() {
+		UiPreferences.setQuickStartWizardAcknowledged(true);
+		closeWizard(false);
 	}
 
 	private static String typeLabel(QuickStartWizardPresenter.CreationType type) {

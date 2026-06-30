@@ -23,10 +23,12 @@ public final class UiPreferences {
 	private static final String THEME_KEY = "uiTheme";
 	private static final String SHORTCUTS_KEY = "shortcuts";
 	private static final String PYTHON_SETUP_ACKNOWLEDGED_KEY = "pythonSetupAcknowledged";
+	private static final String QUICK_START_WIZARD_ACKNOWLEDGED_KEY = "quickStartWizardAcknowledged";
 
 	private static UiTheme theme = UiTheme.DARK;
 	private static final EnumMap<BeatBlockShortcutId, String> shortcuts = new EnumMap<>(BeatBlockShortcutId.class);
 	private static boolean pythonSetupAcknowledged;
+	private static boolean quickStartWizardAcknowledged;
 	private static boolean loaded;
 
 	private UiPreferences() {
@@ -81,6 +83,20 @@ public final class UiPreferences {
 		save();
 	}
 
+	public static boolean isQuickStartWizardAcknowledged() {
+		ensureLoaded();
+		return quickStartWizardAcknowledged;
+	}
+
+	public static void setQuickStartWizardAcknowledged(boolean acknowledged) {
+		ensureLoaded();
+		if (quickStartWizardAcknowledged == acknowledged) {
+			return;
+		}
+		quickStartWizardAcknowledged = acknowledged;
+		save();
+	}
+
 	public static Map<BeatBlockShortcutId, String> allShortcuts() {
 		ensureLoaded();
 		Map<BeatBlockShortcutId, String> out = new EnumMap<>(BeatBlockShortcutId.class);
@@ -132,6 +148,9 @@ public final class UiPreferences {
 			if (root.has(PYTHON_SETUP_ACKNOWLEDGED_KEY)) {
 				pythonSetupAcknowledged = root.get(PYTHON_SETUP_ACKNOWLEDGED_KEY).getAsBoolean();
 			}
+			if (root.has(QUICK_START_WIZARD_ACKNOWLEDGED_KEY)) {
+				quickStartWizardAcknowledged = root.get(QUICK_START_WIZARD_ACKNOWLEDGED_KEY).getAsBoolean();
+			}
 		} catch (Exception e) {
 			LOGGER.warn("Failed to load UI preferences from {}", path, e);
 		}
@@ -154,6 +173,7 @@ public final class UiPreferences {
 			}
 			root.add(SHORTCUTS_KEY, map);
 			root.addProperty(PYTHON_SETUP_ACKNOWLEDGED_KEY, pythonSetupAcknowledged);
+			root.addProperty(QUICK_START_WIZARD_ACKNOWLEDGED_KEY, quickStartWizardAcknowledged);
 			Files.writeString(path, GSON.toJson(root), StandardCharsets.UTF_8);
 		} catch (Exception e) {
 			LOGGER.warn("Failed to save UI preferences to {}", path, e);

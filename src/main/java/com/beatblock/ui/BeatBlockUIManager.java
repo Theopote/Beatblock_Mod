@@ -1,5 +1,6 @@
 package com.beatblock.ui;
 
+import com.beatblock.BeatBlock;
 import com.beatblock.client.export.VideoExportCoordinator;
 import com.beatblock.client.render.BeatBlockLassoOverlay;
 import com.beatblock.selection.BeatBlockSelectionManager;
@@ -75,7 +76,7 @@ public class BeatBlockUIManager {
 		this.selectionPropertiesPanel = new SelectionPropertiesPanel();
 		this.layerPanel = new LayerPanel();
 		this.rhythmDropPanel = new RhythmDropPanel();
-		this.quickStartWizardPanel = new QuickStartWizardPanel();
+		this.quickStartWizardPanel = new QuickStartWizardPanel(this::playPreviewFromWizard);
 		this.environmentSetupPanel = new EnvironmentSetupPanel();
 		this.undoHistoryPanel = new UndoHistoryPanel();
 		this.eventLibraryPanel = new EventLibraryPanel();
@@ -86,6 +87,18 @@ public class BeatBlockUIManager {
 
 	public void openQuickStartWizard() {
 		quickStartWizardPanel.open();
+	}
+
+	private void playPreviewFromWizard() {
+		panelVisibility.timeline.set(true);
+		var context = BeatBlock.getContext();
+		if (context == null) {
+			return;
+		}
+		var editor = context.timelineEditor();
+		if (editor != null) {
+			PresenterFactories.timelineTransportPresenter(context).play(editor);
+		}
 	}
 
 	public void openEnvironmentSetup() {
@@ -190,8 +203,9 @@ public class BeatBlockUIManager {
 		preferencesPanel.render(panelVisibility.preferences);
 		UiPreferences.popPanelThemeColors();
 
-		quickStartWizardPanel.render();
 		environmentSetupPanel.render();
+		quickStartWizardPanel.onUiOpened(environmentSetupPanel.isOpen());
+		quickStartWizardPanel.render();
 		videoExportDialog.render();
 		BeatBlockLassoOverlay.render();
 		ToastNotificationSystem.render();

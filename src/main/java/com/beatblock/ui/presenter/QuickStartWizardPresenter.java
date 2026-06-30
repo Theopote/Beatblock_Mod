@@ -6,12 +6,16 @@ import com.beatblock.automap.engine.Complexity;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
+import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.engine.GroupSortingStrategy;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
+import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.ui.i18n.BBTexts;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -42,6 +46,17 @@ public final class QuickStartWizardPresenter {
 		int selectionCount,
 		CreationType creationType,
 		String statusMessage
+	) {}
+
+	public record OpenSession(
+		String audioPath,
+		boolean skippedImport
+	) {}
+
+	public record AnalysisProgress(
+		int percent,
+		@Nullable String statusText,
+		boolean analyzing
 	) {}
 
 	public record GenerateOutcome(
@@ -78,7 +93,7 @@ public final class QuickStartWizardPresenter {
 		return new ViewState(
 			step,
 			isMusicLoaded(),
-			autoMapPresenter.canGenerate(),
+			isAnalysisReady(),
 			selectionCount(),
 			creationType,
 			statusMessage
@@ -95,10 +110,65 @@ public final class QuickStartWizardPresenter {
 		statusMessage = "";
 	}
 
+	public OpenSession prepareOpen() {
+		reset();
+		String path = currentAudioPath();
+		if (!path.isBlank() && isMusicLoaded()) {
+			step = Step.CHOOSE_TYPE;
+			return new OpenSession(path, true);
+		}
+		return new OpenSession(path, false);
+	}
+
 	public void setCreationType(CreationType type) {
 		if (type != null) {
 			creationType = type;
 		}
+	}
+
+	public int indexForCreationType(CreationType type) {
+		if (type == null) {
+			return 0;
+		}
+		return switch (type) {
+			case RHYTHM_JUMP -> 1;
+			case BLOCK_FALL -> 2;
+			default -> 0;
+		};
+	}
+
+	public boolean isAnalysisReady() {
+		return switch (creationType) {
+			case BLOCK_FALL -> hasBeatGrid();
+			default -> autoMapPresenter.canGenerate();
+		};
+	}
+
+	public boolean canGenerate() {
+		return selectionCount() > 0 && isAnalysisReady();
+	}
+
+	public AnalysisProgress analysisProgress() {
+		AudioAsset asset = connectedAsset();
+		if (asset == null) {
+			return new AnalysisProgress(0, null, false);
+		}
+		boolean analyzing = asset.getStatus() == AudioAssetStatus.QUEUED
+			|| asset.getStatus() == AudioAssetStatus.ANALYZING;
+		return new AnalysisProgress(
+			asset.getAnalysisProgressPercent(),
+			asset.getProcessingStatusText(),
+			analyzing
+		);
+	}
+
+	public String currentAudioPath() {
+		Timeline tl = timeline.get();
+		if (tl == null) {
+			return "";
+		}
+		Object audioPath = tl.getMetadata("audioPath");
+		return audioPath != null ? String.valueOf(audioPath).trim() : "";
 	}
 
 	public PresenterResult importMusic(String path) {
@@ -137,6 +207,15 @@ public final class QuickStartWizardPresenter {
 		return PresenterResult.success("");
 	}
 
+	public void continueWithLoadedMusic() {
+		if (!isMusicLoaded()) {
+			statusMessage = BBTexts.get("beatblock.message.import_music_first");
+			return;
+		}
+		statusMessage = "";
+		step = Step.CHOOSE_TYPE;
+	}
+
 	public void goToStep(Step target) {
 		if (target != null) {
 			step = target;
@@ -166,6 +245,11 @@ public final class QuickStartWizardPresenter {
 	public GenerateOutcome generate() {
 		if (selectionCount() <= 0) {
 			PresenterResult failure = PresenterResult.failure(BBTexts.get("beatblock.wizard.select_blocks_hint"));
+			statusMessage = failure.messageOrEmpty();
+			return new GenerateOutcome(failure, null, null);
+		}
+		if (!isAnalysisReady()) {
+			PresenterResult failure = PresenterResult.failure(BBTexts.get("beatblock.wizard.analysis_pending"));
 			statusMessage = failure.messageOrEmpty();
 			return new GenerateOutcome(failure, null, null);
 		}
@@ -252,15 +336,33 @@ public final class QuickStartWizardPresenter {
 	}
 
 	private boolean isMusicLoaded() {
+		return !currentAudioPath().isBlank();
+	}
+
+	private boolean hasBeatGrid() {
 		Timeline tl = timeline.get();
-		if (tl == null) return false;
-		Object audioPath = tl.getMetadata("audioPath");
-		return audioPath != null && !String.valueOf(audioPath).isBlank();
+		return ReferenceBeatResolver.resolveBeatTimesSeconds(tl).length > 0;
 	}
 
 	private int selectionCount() {
 		BeatBlockSelectionManager mgr = BeatBlockSelectionManager.get();
 		return mgr != null ? mgr.getSelectionCount() : 0;
+	}
+
+	private @Nullable AudioAsset connectedAsset() {
+		String path = currentAudioPath();
+		if (path.isBlank()) {
+			return null;
+		}
+		for (AudioAsset asset : AudioAssetManager.getInstance().getAssets()) {
+			if (asset.getPath() == null) {
+				continue;
+			}
+			if (asset.getPath().toAbsolutePath().normalize().toString().equals(path)) {
+				return asset;
+			}
+		}
+		return null;
 	}
 
 	private String generateAutoObjectName() {

@@ -988,6 +988,13 @@
   "beatblock.wizard.back": "上一步",
   "beatblock.wizard.next": "下一步",
   "beatblock.wizard.close": "完成",
+  "beatblock.wizard.close_wizard": "关闭向导",
+  "beatblock.wizard.skip_wizard": "跳过向导",
+  "beatblock.wizard.music_already_loaded": "检测到时间线已绑定音乐，可直接进入下一步。",
+  "beatblock.wizard.continue": "继续",
+  "beatblock.wizard.analysis_progress": "音频分析中：%d%%",
+  "beatblock.wizard.analysis_status": "%s",
+  "beatblock.wizard.play_preview": "播放预览",
 
   "beatblock.menu.environment_setup": "音频分析环境设置...",
   "beatblock.tooltip.environment_setup": "检测并安装 Python、librosa 等音频分析依赖",
