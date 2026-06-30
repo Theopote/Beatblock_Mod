@@ -4,10 +4,13 @@ import com.beatblock.automap.engine.AutoMapSettings;
 import com.beatblock.automap.engine.AutoMapStyle;
 import com.beatblock.automap.engine.Complexity;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
+import com.beatblock.audio.assets.AudioAsset;
+import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.engine.GroupSortingStrategy;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.ui.i18n.BBTexts;
 
 import java.util.List;
@@ -47,28 +50,28 @@ public final class QuickStartWizardPresenter {
 		String stageObjectId
 	) {}
 
-	private final MenuBarPresenter menuBarPresenter;
 	private final AutoMapSettingsPanelPresenter autoMapPresenter;
 	private final ToolPanelPresenter toolPanelPresenter;
 	private final RhythmDropPanelPresenter rhythmDropPresenter;
 	private final Supplier<Timeline> timeline;
+	private final Supplier<TimelineEditor> timelineEditor;
 
 	private Step step = Step.IMPORT;
 	private CreationType creationType = CreationType.BUILD_APPEARANCE;
 	private String statusMessage = "";
 
 	public QuickStartWizardPresenter(
-		MenuBarPresenter menuBarPresenter,
 		AutoMapSettingsPanelPresenter autoMapPresenter,
 		ToolPanelPresenter toolPanelPresenter,
 		RhythmDropPanelPresenter rhythmDropPresenter,
-		Supplier<Timeline> timeline
+		Supplier<Timeline> timeline,
+		Supplier<TimelineEditor> timelineEditor
 	) {
-		this.menuBarPresenter = menuBarPresenter;
 		this.autoMapPresenter = autoMapPresenter;
 		this.toolPanelPresenter = toolPanelPresenter;
 		this.rhythmDropPresenter = rhythmDropPresenter;
 		this.timeline = timeline;
+		this.timelineEditor = timelineEditor;
 	}
 
 	public ViewState viewState() {
@@ -99,14 +102,39 @@ public final class QuickStartWizardPresenter {
 	}
 
 	public PresenterResult importMusic(String path) {
-		PresenterResult result = menuBarPresenter.importAudio(path);
-		if (result.ok()) {
-			statusMessage = BBTexts.get("beatblock.wizard.music_imported");
-			step = Step.CHOOSE_TYPE;
-		} else {
-			statusMessage = result.messageOrEmpty();
+		String trimmed = path != null ? path.trim() : "";
+		if (trimmed.isEmpty()) {
+			statusMessage = BBTexts.get("beatblock.message.path_empty");
+			return PresenterResult.failure(statusMessage);
 		}
-		return result;
+
+		AudioAssetManager manager = AudioAssetManager.getInstance();
+		if (!manager.isSupportedAudioPath(trimmed)) {
+			statusMessage = BBTexts.get(
+				"beatblock.audio.unsupported_extensions",
+				manager.getSupportedAudioExtensionsLabel()
+			);
+			return PresenterResult.failure(statusMessage);
+		}
+
+		AudioAsset asset = manager.addFromPath(trimmed);
+		if (asset == null) {
+			statusMessage = BBTexts.get("beatblock.audio.path_invalid");
+			return PresenterResult.failure(statusMessage);
+		}
+
+		TimelineEditor editor = timelineEditor.get();
+		if (editor == null) {
+			statusMessage = BBTexts.get("beatblock.message.timeline_unavailable");
+			return PresenterResult.failure(statusMessage);
+		}
+
+		editor.connectAudioAsset(asset);
+		manager.startAnalysis(asset);
+
+		statusMessage = BBTexts.get("beatblock.audio.added_and_analyzing", asset.getFileName());
+		step = Step.CHOOSE_TYPE;
+		return PresenterResult.success("");
 	}
 
 	public void goToStep(Step target) {

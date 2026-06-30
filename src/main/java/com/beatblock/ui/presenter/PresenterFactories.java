@@ -216,11 +216,11 @@ public final class PresenterFactories {
 
 	public static QuickStartWizardPresenter quickStartWizardPresenter(BeatBlockContext context) {
 		return new QuickStartWizardPresenter(
-			menuBarPresenter(context),
 			autoMapSettingsPanelPresenter(context),
 			toolPanelPresenter(context),
 			rhythmDropPanelPresenter(context),
-			context::timeline
+			context::timeline,
+			context::timelineEditor
 		);
 	}
 

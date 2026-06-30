@@ -1,6 +1,7 @@
 package com.beatblock.timeline;
 
 import com.beatblock.audio.MusicPlayer;
+import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.CutTimelineEventsCommand;
 import com.beatblock.timeline.command.PasteTimelineEventsCommand;
@@ -10,6 +11,7 @@ import com.beatblock.timeline.interaction.TimelineInteractionClipboard;
 import com.beatblock.timeline.interaction.TimelineInteractionDeleteSupport;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineRenderer;
+import com.beatblock.timeline.rendering.TimelineAudioDropHandler;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.rendering.TrackDefinition;
@@ -119,6 +121,13 @@ public final class TimelineEditor {
 	/** 打开/切换工程后丢弃 Undo/Redo 栈，避免旧命令引用已替换的时间线状态。 */
 	public void clearUndoHistory() {
 		commandManager.clear();
+	}
+
+	/**
+	 * 将音频资产接入时间线（播放绑定、音频轨片段、分析回填），与拖入时间线行为一致。
+	 */
+	public void connectAudioAsset(@NonNull AudioAsset asset) {
+		TimelineAudioDropHandler.handleDroppedAudioAsset(renderer, timeline, asset, -1);
 	}
 
 	public @NonNull TimelineToolbarState getToolbarState() {

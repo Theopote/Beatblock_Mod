@@ -116,7 +116,7 @@ public final class QuickStartWizardPanel {
 		if (ImGui.button(BBTexts.get("beatblock.wizard.import.button") + "##wizardImport", -1f, 32f)) {
 			presenter.importMusic(musicPath.get());
 			if (presenter.viewState().step() != QuickStartWizardPresenter.Step.IMPORT) {
-				ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.toast.wizard.music_imported"));
+				ToastNotificationSystem.showSuccess(presenter.viewState().statusMessage());
 			} else if (!presenter.viewState().statusMessage().isBlank()) {
 				ToastNotificationSystem.showError(presenter.viewState().statusMessage());
 			}
