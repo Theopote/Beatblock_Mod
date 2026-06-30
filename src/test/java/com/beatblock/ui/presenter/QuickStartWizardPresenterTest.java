@@ -1,14 +1,18 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.BeatBlock;
+import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,20 +23,28 @@ class QuickStartWizardPresenterTest {
 	private Timeline timeline;
 	private TimelineEditor editor;
 	private QuickStartWizardPresenter presenter;
+	private final AudioAssetManager manager = AudioAssetManager.getInstance();
 
 	@BeforeEach
 	void setUp() {
-		timeline = Timeline.createDefault();
-		editor = new TimelineEditor(timeline);
+		var context = BeatBlock.getContext();
+		timeline = context.timeline();
+		editor = context.timelineEditor();
+		manager.bindContext(BeatBlock::getContext);
 		presenter = new QuickStartWizardPresenter(
-			new AutoMapSettingsPanelPresenter(() -> null),
-			new ToolPanelPresenter(() -> null, () -> null, () -> null, null),
-			new RhythmDropPanelPresenter(() -> null, () -> timeline, () -> editor, () -> null),
+			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
+			PresenterFactories.toolPanelPresenter(context),
+			PresenterFactories.rhythmDropPanelPresenter(context),
 			() -> timeline,
 			() -> editor
 		);
-		AudioAssetManager.getInstance().getAssets().forEach(asset ->
-			AudioAssetManager.getInstance().remove(asset.getId()));
+	}
+
+	@AfterEach
+	void tearDown() {
+		for (AudioAsset asset : new ArrayList<>(manager.getAssets())) {
+			manager.remove(asset.getId());
+		}
 	}
 
 	@Test
@@ -58,6 +70,6 @@ class QuickStartWizardPresenterTest {
 		assertTrue(result.ok());
 		assertEquals(QuickStartWizardPresenter.Step.CHOOSE_TYPE, presenter.step());
 		assertEquals(mp3.toAbsolutePath().normalize().toString(), timeline.getMetadata("audioPath"));
-		assertEquals(1, AudioAssetManager.getInstance().getAssets().size());
+		assertEquals(1, manager.getAssets().size());
 	}
 }
