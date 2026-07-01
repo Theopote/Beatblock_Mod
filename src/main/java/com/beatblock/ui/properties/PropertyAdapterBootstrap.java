@@ -1,11 +1,11 @@
 package com.beatblock.ui.properties;
 
 import com.beatblock.ui.properties.adapters.AnimationEventPropertyAdapter;
+import com.beatblock.ui.properties.adapters.AudioClipPropertyAdapter;
+import com.beatblock.ui.properties.adapters.BuildLayerClipPropertyAdapter;
 import com.beatblock.ui.properties.adapters.CameraPropertyAdapter;
+import com.beatblock.ui.properties.adapters.GlobalEventPropertyAdapter;
 
-/**
- * 注册时间线属性适配器（对齐 Director {@code PropertyAdapterBootstrap}）。
- */
 public final class PropertyAdapterBootstrap {
 
 	private static boolean initialized;
@@ -20,6 +20,9 @@ public final class PropertyAdapterBootstrap {
 		PropertyAdapterRegistry.clear();
 		PropertyAdapterRegistry.registerAdapter(new AnimationEventPropertyAdapter());
 		PropertyAdapterRegistry.registerAdapter(new CameraPropertyAdapter());
+		PropertyAdapterRegistry.registerAdapter(new GlobalEventPropertyAdapter());
+		PropertyAdapterRegistry.registerAdapter(new BuildLayerClipPropertyAdapter());
+		PropertyAdapterRegistry.registerAdapter(new AudioClipPropertyAdapter());
 		initialized = true;
 	}
 

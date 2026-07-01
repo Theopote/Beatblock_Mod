@@ -1,4 +1,4 @@
-package com.beatblock.ui.panels;
+package com.beatblock.ui.properties.editors;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockClientDriver;
@@ -15,8 +15,6 @@ import com.beatblock.timeline.editing.AnimationEventFormInput;
 import com.beatblock.timeline.editing.AnimationEventPropertiesEditor;
 import com.beatblock.timeline.editing.WorldTrajectoryEventParamsEditor;
 import com.beatblock.ui.i18n.BBTexts;
-import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
-import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.presenter.AnimationEditorViewState;
 import com.beatblock.ui.presenter.EventPropertiesFormSnapshot;
@@ -27,7 +25,6 @@ import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
 import com.beatblock.timeline.rendering.TrackRegistry;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
@@ -37,11 +34,10 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * 右侧方块动画事件属性面板。
+ * 方块动画事件属性编辑器。
  */
-public class EventPropertiesPanel {
+public final class AnimationPropertyEditor {
 
-	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private static final int INPUT_BUFFER_SIZE = 128;
 
 	private String boundRefKey;
@@ -91,11 +87,11 @@ public class EventPropertiesPanel {
 	private final ImBoolean livePreviewOnApply = new ImBoolean(true);
 	private boolean pendingLivePreview;
 
-	public EventPropertiesPanel() {
+	public AnimationPropertyEditor() {
 		this(PresenterFactories.eventPropertiesPresenter(), BeatBlock::getContext);
 	}
 
-	EventPropertiesPanel(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
+	AnimationPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
 		this.presenter = presenter;
 		this.context = context;
 	}
@@ -153,34 +149,8 @@ public class EventPropertiesPanel {
 		"DISTANCE"
 	};
 
-	public void render(ImBoolean pOpen) {
-		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.eventPropertiesWindow());
-			return;
-		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.eventPropertiesWindow(), pOpen, WINDOW_FLAGS)) {
-			return;
-		}
-		try {
-			ImGui.text(BBTexts.get("beatblock.event.title"));
-			ImGui.separator();
-
-			Timeline timeline = runtime().timeline();
-			TimelineEditor editor = runtime().timelineEditor();
-			if (timeline == null || editor == null) {
-				ImGui.textDisabled(BBTexts.get("beatblock.common.timeline_not_initialized"));
-				return;
-			}
-
-			EventPropertiesRef ref = presenter.resolvePropertiesRef(timeline, editor.getSelectionState());
-			renderBody(ref, timeline, editor);
-		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.eventPropertiesWindow());
-		}
-	}
-
 	/**
-	 * 由 {@link com.beatblock.ui.properties.adapters.AnimationEventPropertyAdapter} 调用的属性编辑区。
+	 * 由 {@link com.beatblock.ui.properties.adapters.AnimationEventPropertyAdapter} 调用。
 	 */
 	public void renderBody(EventPropertiesRef ref, Timeline timeline, TimelineEditor editor) {
 		int batchCount = presenter.countSelectedAnimationEvents(timeline, editor.getSelectionState());
@@ -218,10 +188,6 @@ public class EventPropertiesPanel {
 		if (trackLocked) {
 			ImGui.endDisabled();
 		}
-	}
-
-	private static boolean isAnimationRef(EventPropertiesRef ref) {
-		return TimelinePropertyKinds.isAnimationRef(ref);
 	}
 
 	private void renderEventSummary(EventPropertiesRef ref, Timeline timeline) {

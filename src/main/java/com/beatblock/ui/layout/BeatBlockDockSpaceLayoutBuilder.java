@@ -24,8 +24,6 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 	public static final String TOOL_PANEL_ID = "ToolPanel";
 	public static final String MARKER_PANEL_ID = "MarkerPanel";
 	public static final String TIMELINE_PROPERTIES_PANEL_ID = "TimelinePropertiesPanel";
-	public static final String EVENT_PROPERTIES_PANEL_ID = "EventPropertiesPanel";
-	public static final String CAMERA_PROPERTIES_PANEL_ID = "CameraPropertiesPanel";
 	public static final String TIMELINE_PANEL_ID = "TimelinePanel";
 	public static final String ANIMATION_LIBRARY_PANEL_ID = "AnimationLibraryPanel";
 	public static final String SELECTION_PROPERTIES_PANEL_ID = "BeatBlockSelectionProperties";
@@ -52,14 +50,6 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 
 	public static String timelinePropertiesWindow() {
 		return BBTexts.windowTitle("beatblock.panel.timeline_properties", TIMELINE_PROPERTIES_PANEL_ID);
-	}
-
-	public static String eventPropertiesWindow() {
-		return BBTexts.windowTitle("beatblock.panel.event_properties", EVENT_PROPERTIES_PANEL_ID);
-	}
-
-	public static String cameraPropertiesWindow() {
-		return BBTexts.windowTitle("beatblock.panel.camera_properties", CAMERA_PROPERTIES_PANEL_ID);
 	}
 
 	public static String timelinePanelWindow() {

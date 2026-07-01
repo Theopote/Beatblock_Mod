@@ -1,20 +1,17 @@
 package com.beatblock.ui.properties.adapters;
 
-import com.beatblock.ui.properties.editors.AnimationPropertyEditor;
 import com.beatblock.ui.properties.IPropertyAdapter;
 import com.beatblock.ui.properties.TimelinePropertyContext;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
+import com.beatblock.ui.properties.editors.AudioClipPropertyEditor;
 
-/**
- * 方块动画事件属性适配器（含多选批量编辑）。
- */
-public final class AnimationEventPropertyAdapter implements IPropertyAdapter<TimelinePropertyContext> {
+public final class AudioClipPropertyAdapter implements IPropertyAdapter<TimelinePropertyContext> {
 
-	private AnimationPropertyEditor editor;
+	private AudioClipPropertyEditor editor;
 
-	private AnimationPropertyEditor editor() {
+	private AudioClipPropertyEditor editor() {
 		if (editor == null) {
-			editor = new AnimationPropertyEditor();
+			editor = new AudioClipPropertyEditor();
 		}
 		return editor;
 	}
@@ -26,20 +23,17 @@ public final class AnimationEventPropertyAdapter implements IPropertyAdapter<Tim
 
 	@Override
 	public int getPriority() {
-		return 100;
+		return 60;
 	}
 
 	@Override
 	public String getTitleKey() {
-		return "beatblock.event.title";
+		return "beatblock.audio.title";
 	}
 
 	@Override
 	public boolean supports(Object target) {
-		if (!(target instanceof TimelinePropertyContext ctx)) {
-			return false;
-		}
-		return ctx.selectedAnimationEventCount() > 1 || TimelinePropertyKinds.isAnimationRef(ctx.ref());
+		return target instanceof TimelinePropertyContext ctx && TimelinePropertyKinds.isAudioClipRef(ctx.ref());
 	}
 
 	@Override

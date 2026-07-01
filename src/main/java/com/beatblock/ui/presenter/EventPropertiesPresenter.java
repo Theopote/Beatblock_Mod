@@ -2,9 +2,12 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.StageObject;
+import com.beatblock.engine.layer.BuildLayer;
+import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
+import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineEditor;
@@ -18,6 +21,8 @@ import com.beatblock.timeline.editing.AnimationEventFormInput;
 import com.beatblock.timeline.editing.AnimationEventPropertiesEditor;
 import com.beatblock.timeline.editing.AnimationEventSnapshot;
 import com.beatblock.timeline.editing.CameraEventPropertiesEditor;
+import com.beatblock.timeline.editing.ClipTimingPropertiesEditor;
+import com.beatblock.timeline.editing.GlobalEventPropertiesEditor;
 import com.beatblock.timeline.editing.TimelineEventEditActions;
 import com.beatblock.timeline.editing.WorldTrajectoryEventParamsEditor;
 import com.beatblock.timeline.editor.SelectionState;
@@ -68,6 +73,14 @@ public final class EventPropertiesPresenter {
 		}
 	}
 
+	public record GlobalFormSnapshot(String time, String name, int typeIndex) {}
+
+	public record AudioClipFormSnapshot(String label, String path, String start, String end) {}
+
+	public record ClipTimingFormSnapshot(String start, String end) {}
+
+	public record BuildLayerClipSummary(String trackLabel, @Nullable String layerName, int eventCount) {}
+
 	@FunctionalInterface
 	public interface CameraViewProvider {
 		CameraViewSample currentView();
@@ -98,30 +111,165 @@ public final class EventPropertiesPresenter {
 		if (fromEvent != null) {
 			return fromEvent;
 		}
-		if (timeline == null || selectionState == null || selectionState.getSelectedClips().isEmpty()) {
-			return null;
+		return resolveSelectedClipRef(timeline, selectionState);
+	}
+
+	public GlobalFormSnapshot buildGlobalFormSnapshot(EventPropertiesRef ref) {
+		if (ref == null || ref.event() == null || ref.event().getType() != EventType.GLOBAL) {
+			return new GlobalFormSnapshot("", "", 0);
 		}
-		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
-		if (cam == null) {
-			return null;
+		Map<String, Object> params = ref.event().getParameters();
+		GlobalEventType type = GlobalEventPropertiesEditor.parseType(
+			EventParameterReaders.stringParam(params, "type", GlobalEventType.SPECIAL.name())
+		);
+		String name = EventParameterReaders.stringParam(params, "name", "");
+		return new GlobalFormSnapshot(
+			UiNumberFormatter.format(ref.event().getTimeSeconds()),
+			name,
+			Math.max(0, type.ordinal())
+		);
+	}
+
+	public ApplyResult applyGlobalEvent(
+		EventPropertiesRef ref,
+		Timeline timeline,
+		CommandManager commandManager,
+		double timeSeconds,
+		GlobalEventType type,
+		String name
+	) {
+		if (commandManager == null) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.common.timeline_editor_not_initialized"));
 		}
-		List<String> clipIds = new ArrayList<>(selectionState.getSelectedClips());
-		clipIds.sort(String::compareTo);
-		for (String clipId : clipIds) {
-			if (clipId == null) {
-				continue;
-			}
-			Clip c = cam.getClip(clipId);
-			if (c == null) {
-				continue;
-			}
-			TimelineEvent seg = CameraTrackFactory.findSegmentHeadEvent(c);
-			if (seg != null) {
-				return new EventPropertiesRef(cam, c, seg);
-			}
-			return new EventPropertiesRef(cam, c, null);
+		if (ref == null || ref.event() == null || ref.event().getType() != EventType.GLOBAL) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.message.no_global_event"));
 		}
-		return null;
+		String rangeError = GlobalEventPropertiesEditor.validateTimeRange(
+			ref.clip().getStartTimeSeconds(),
+			ref.clip().getEndTimeSeconds()
+		);
+		if (rangeError != null) {
+			return new ApplyResult.Err(rangeError);
+		}
+		Map<String, Double> eventTimes = new HashMap<>();
+		for (TimelineEvent clipEvent : ref.clip().getEvents()) {
+			eventTimes.put(clipEvent.getId(), clipEvent.getTimeSeconds());
+		}
+		var result = GlobalEventPropertiesEditor.buildUpdatedSnapshot(
+			timeSeconds,
+			type,
+			name,
+			ref.clip().getStartTimeSeconds(),
+			ref.clip().getEndTimeSeconds(),
+			eventTimes
+		);
+		if (result instanceof GlobalEventPropertiesEditor.Result.Err(String message)) {
+			return new ApplyResult.Err(message);
+		}
+		AnimationEventSnapshot after = ((GlobalEventPropertiesEditor.Result.Ok) result).snapshot();
+		AnimationEventSnapshot before = AnimationEventSnapshot.capture(
+			ref.event(), ref.clip(), timeline, ref.clip().getId());
+		commitEventEdit(ref, timeline, commandManager, before, after);
+		return new ApplyResult.Ok();
+	}
+
+	public AudioClipFormSnapshot buildAudioClipFormSnapshot(EventPropertiesRef ref, Timeline timeline) {
+		if (ref == null || ref.clip() == null) {
+			return new AudioClipFormSnapshot("", "", "", "");
+		}
+		String clipId = ref.clip().getId();
+		String label = metadataString(timeline, "clipLabel_" + clipId);
+		String path = metadataString(timeline, "clipAudioPath_" + clipId);
+		return new AudioClipFormSnapshot(
+			label,
+			path,
+			UiNumberFormatter.format(ref.clip().getStartTimeSeconds()),
+			UiNumberFormatter.format(ref.clip().getEndTimeSeconds())
+		);
+	}
+
+	public ClipTimingFormSnapshot buildClipTimingFormSnapshot(EventPropertiesRef ref, Timeline timeline) {
+		if (ref == null || ref.clip() == null) {
+			return new ClipTimingFormSnapshot("", "");
+		}
+		return new ClipTimingFormSnapshot(
+			UiNumberFormatter.format(ref.clip().getStartTimeSeconds()),
+			UiNumberFormatter.format(ref.clip().getEndTimeSeconds())
+		);
+	}
+
+	public BuildLayerClipSummary buildBuildLayerClipSummary(
+		EventPropertiesRef ref,
+		Timeline timeline,
+		@Nullable BuildLayerManager layerManager
+	) {
+		if (ref == null || ref.track() == null || ref.clip() == null) {
+			return new BuildLayerClipSummary("", null, 0);
+		}
+		String trackLabel = ref.track().getName().isBlank() ? ref.track().getId() : ref.track().getName();
+		String layerName = null;
+		String layerId = findBoundLayerId(ref.clip());
+		if (layerId != null && layerManager != null) {
+			BuildLayer layer = layerManager.get(layerId);
+			if (layer != null) {
+				layerName = layer.getName();
+			}
+		}
+		return new BuildLayerClipSummary(trackLabel, layerName, ref.clip().getEvents().size());
+	}
+
+	public ApplyResult applyAudioClipProperties(
+		EventPropertiesRef ref,
+		Timeline timeline,
+		CommandManager commandManager,
+		double newStart,
+		double newEnd,
+		@Nullable String label
+	) {
+		Map<String, String> metadata = new HashMap<>();
+		if (label != null && ref != null && ref.clip() != null) {
+			metadata.put("clipLabel_" + ref.clip().getId(), label.trim());
+		}
+		return applyClipTiming(ref, timeline, commandManager, newStart, newEnd, metadata);
+	}
+
+	public ApplyResult applyClipTiming(
+		EventPropertiesRef ref,
+		Timeline timeline,
+		CommandManager commandManager,
+		double newStart,
+		double newEnd,
+		@Nullable Map<String, String> metadataUpdates
+	) {
+		if (commandManager == null) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.common.timeline_editor_not_initialized"));
+		}
+		if (ref == null || ref.clip() == null) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.message.no_clip"));
+		}
+		double oldStart = ref.clip().getStartTimeSeconds();
+		Map<String, Double> existingTimes = new HashMap<>();
+		for (TimelineEvent ev : ref.clip().getEvents()) {
+			existingTimes.put(ev.getId(), ev.getTimeSeconds());
+		}
+		var result = ClipTimingPropertiesEditor.buildSnapshot(
+			oldStart,
+			newStart,
+			newEnd,
+			existingTimes,
+			metadataUpdates,
+			timeline
+		);
+		if (result instanceof ClipTimingPropertiesEditor.Result.Err(String message)) {
+			return new ApplyResult.Err(message);
+		}
+		AnimationEventSnapshot after = ((ClipTimingPropertiesEditor.Result.Ok) result).snapshot();
+		AnimationEventSnapshot before = AnimationEventSnapshot.captureClipOnly(ref.clip(), timeline, ref.clip().getId());
+		if (ref.event() != null) {
+			before = AnimationEventSnapshot.capture(ref.event(), ref.clip(), timeline, ref.clip().getId());
+		}
+		commitEventEdit(ref, timeline, commandManager, before, after);
+		return new ApplyResult.Ok();
 	}
 
 	public boolean isTrackLocked(Timeline timeline, TimelineEditor editor, String trackId) {
@@ -622,6 +770,57 @@ public final class EventPropertiesPresenter {
 			before,
 			after
 		);
+	}
+
+	private static EventPropertiesRef resolveSelectedClipRef(
+		Timeline timeline,
+		SelectionState selectionState
+	) {
+		if (timeline == null || selectionState == null || selectionState.getSelectedClips().isEmpty()) {
+			return null;
+		}
+		List<String> clipIds = new ArrayList<>(selectionState.getSelectedClips());
+		clipIds.sort(String::compareTo);
+		for (String clipId : clipIds) {
+			if (clipId == null || clipId.isBlank()) {
+				continue;
+			}
+			for (Track track : timeline.getTracks()) {
+				Clip clip = track.getClip(clipId);
+				if (clip == null) {
+					continue;
+				}
+				if (Timeline.TRACK_ID_CAMERA.equals(track.getId())) {
+					TimelineEvent segmentHead = CameraTrackFactory.findSegmentHeadEvent(clip);
+					if (segmentHead != null) {
+						return new EventPropertiesRef(track, clip, segmentHead);
+					}
+				}
+				return new EventPropertiesRef(track, clip, null);
+			}
+		}
+		return null;
+	}
+
+	private static @Nullable String findBoundLayerId(Clip clip) {
+		if (clip == null) {
+			return null;
+		}
+		for (TimelineEvent event : clip.getEvents()) {
+			Object raw = event.getParameters().get("layerId");
+			if (raw != null && !raw.toString().isBlank()) {
+				return raw.toString();
+			}
+		}
+		return null;
+	}
+
+	private static String metadataString(Timeline timeline, String key) {
+		if (timeline == null || key == null) {
+			return "";
+		}
+		Object raw = timeline.getMetadata(key);
+		return raw != null ? raw.toString() : "";
 	}
 
 	private static EventPropertiesRef resolveSelectedEventRefFromEvents(

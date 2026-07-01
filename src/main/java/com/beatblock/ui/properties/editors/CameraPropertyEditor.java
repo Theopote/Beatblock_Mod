@@ -1,4 +1,4 @@
-package com.beatblock.ui.panels;
+package com.beatblock.ui.properties.editors;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.client.camera.CameraKeyframeActions;
@@ -12,8 +12,6 @@ import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.editing.CameraEventPropertiesEditor;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.ui.i18n.BBTexts;
-import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
-import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.EventPropertiesFormSnapshot;
 import com.beatblock.ui.presenter.EventPropertiesPresenter;
 import com.beatblock.ui.util.UiNumberFormatter;
@@ -21,7 +19,6 @@ import com.beatblock.ui.presenter.EventPropertiesRef;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
@@ -31,11 +28,10 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * 右侧摄像机属性面板：片段起止、分段参数、关键帧位姿。
+ * 摄像机片段 / 分段 / 关键帧属性编辑器。
  */
-public class CameraPropertiesPanel {
+public final class CameraPropertyEditor {
 
-	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private static final int INPUT_BUFFER_SIZE = 128;
 
 	private String boundRefKey;
@@ -56,11 +52,11 @@ public class CameraPropertiesPanel {
 	private final EventPropertiesPresenter presenter;
 	private final Supplier<BeatBlockContext> context;
 
-	public CameraPropertiesPanel() {
+	public CameraPropertyEditor() {
 		this(PresenterFactories.eventPropertiesPresenter(), BeatBlock::getContext);
 	}
 
-	CameraPropertiesPanel(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
+	CameraPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
 		this.presenter = presenter;
 		this.context = context;
 	}
@@ -69,34 +65,8 @@ public class CameraPropertiesPanel {
 		return context.get();
 	}
 
-	public void render(ImBoolean pOpen) {
-		if (!pOpen.get()) {
-			BeatBlockDockPanelBegin.markClosed(BeatBlockDockSpaceLayoutBuilder.cameraPropertiesWindow());
-			return;
-		}
-		if (!BeatBlockDockPanelBegin.begin(BeatBlockDockSpaceLayoutBuilder.cameraPropertiesWindow(), pOpen, WINDOW_FLAGS)) {
-			return;
-		}
-		try {
-			ImGui.text(BBTexts.get("beatblock.camera.title"));
-			ImGui.separator();
-
-			Timeline timeline = runtime().timeline();
-			TimelineEditor editor = runtime().timelineEditor();
-			if (timeline == null || editor == null) {
-				ImGui.textDisabled(BBTexts.get("beatblock.common.timeline_not_initialized"));
-				return;
-			}
-
-			EventPropertiesRef ref = presenter.resolvePropertiesRef(timeline, editor.getSelectionState());
-			renderBody(ref, timeline, editor);
-		} finally {
-			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.cameraPropertiesWindow());
-		}
-	}
-
 	/**
-	 * 由 {@link com.beatblock.ui.properties.adapters.CameraPropertyAdapter} 调用的属性编辑区。
+	 * 由 {@link com.beatblock.ui.properties.adapters.CameraPropertyAdapter} 调用。
 	 */
 	public void renderBody(EventPropertiesRef ref, Timeline timeline, TimelineEditor editor) {
 		if (!TimelinePropertyKinds.isCameraRef(ref)) {
@@ -134,10 +104,6 @@ public class CameraPropertiesPanel {
 		if (trackLocked) {
 			ImGui.endDisabled();
 		}
-	}
-
-	private static boolean isCameraRef(EventPropertiesRef ref) {
-		return TimelinePropertyKinds.isCameraRef(ref);
 	}
 
 	private void renderEventSummary(EventPropertiesRef ref, Timeline timeline) {

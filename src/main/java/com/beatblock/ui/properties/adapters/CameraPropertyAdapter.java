@@ -1,6 +1,6 @@
 package com.beatblock.ui.properties.adapters;
 
-import com.beatblock.ui.panels.CameraPropertiesPanel;
+import com.beatblock.ui.properties.editors.CameraPropertyEditor;
 import com.beatblock.ui.properties.IPropertyAdapter;
 import com.beatblock.ui.properties.TimelinePropertyContext;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
@@ -10,11 +10,11 @@ import com.beatblock.ui.properties.TimelinePropertyKinds;
  */
 public final class CameraPropertyAdapter implements IPropertyAdapter<TimelinePropertyContext> {
 
-	private CameraPropertiesPanel editor;
+	private CameraPropertyEditor editor;
 
-	private CameraPropertiesPanel editor() {
+	private CameraPropertyEditor editor() {
 		if (editor == null) {
-			editor = new CameraPropertiesPanel();
+			editor = new CameraPropertyEditor();
 		}
 		return editor;
 	}

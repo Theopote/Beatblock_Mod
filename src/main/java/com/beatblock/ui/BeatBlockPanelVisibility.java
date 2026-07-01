@@ -12,12 +12,6 @@ public final class BeatBlockPanelVisibility {
 	public final ImBoolean tool = new ImBoolean(true);
 	public final ImBoolean marker = new ImBoolean(true);
 	public final ImBoolean timelineProperties = new ImBoolean(true);
-	/** @deprecated 已由 {@link #timelineProperties} 替代，保留以兼容旧布局 ini */
-	@Deprecated
-	public final ImBoolean eventProperties = timelineProperties;
-	/** @deprecated 已由 {@link #timelineProperties} 替代，保留以兼容旧布局 ini */
-	@Deprecated
-	public final ImBoolean cameraProperties = timelineProperties;
 	public final ImBoolean timeline = new ImBoolean(true);
 	public final ImBoolean animationLibrary = new ImBoolean(false);
 	public final ImBoolean selectionProperties = new ImBoolean(false);

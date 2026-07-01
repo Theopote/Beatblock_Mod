@@ -1,20 +1,17 @@
 package com.beatblock.ui.properties.adapters;
 
-import com.beatblock.ui.properties.editors.AnimationPropertyEditor;
 import com.beatblock.ui.properties.IPropertyAdapter;
 import com.beatblock.ui.properties.TimelinePropertyContext;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
+import com.beatblock.ui.properties.editors.BuildLayerClipPropertyEditor;
 
-/**
- * 方块动画事件属性适配器（含多选批量编辑）。
- */
-public final class AnimationEventPropertyAdapter implements IPropertyAdapter<TimelinePropertyContext> {
+public final class BuildLayerClipPropertyAdapter implements IPropertyAdapter<TimelinePropertyContext> {
 
-	private AnimationPropertyEditor editor;
+	private BuildLayerClipPropertyEditor editor;
 
-	private AnimationPropertyEditor editor() {
+	private BuildLayerClipPropertyEditor editor() {
 		if (editor == null) {
-			editor = new AnimationPropertyEditor();
+			editor = new BuildLayerClipPropertyEditor();
 		}
 		return editor;
 	}
@@ -26,20 +23,17 @@ public final class AnimationEventPropertyAdapter implements IPropertyAdapter<Tim
 
 	@Override
 	public int getPriority() {
-		return 100;
+		return 70;
 	}
 
 	@Override
 	public String getTitleKey() {
-		return "beatblock.event.title";
+		return "beatblock.build_layer.clip_title";
 	}
 
 	@Override
 	public boolean supports(Object target) {
-		if (!(target instanceof TimelinePropertyContext ctx)) {
-			return false;
-		}
-		return ctx.selectedAnimationEventCount() > 1 || TimelinePropertyKinds.isAnimationRef(ctx.ref());
+		return target instanceof TimelinePropertyContext ctx && TimelinePropertyKinds.isBuildLayerClipRef(ctx.ref());
 	}
 
 	@Override
