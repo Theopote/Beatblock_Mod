@@ -47,6 +47,23 @@ class EventPropertiesPresenterTest {
 	}
 
 	@Test
+	void resolvePropertiesRefFromSelectedAudioClip() {
+		Track audio = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		var clip = TimelineOperations.addClip(audio, 0.0, 6.0);
+		timeline.setMetadata("clipLabel_" + clip.getId(), "Intro");
+		timeline.setMetadata("clipAudioPath_" + clip.getId(), "C:/music/intro.wav");
+
+		SelectionState selection = editor.getSelectionState();
+		selection.selectClip(clip.getId());
+
+		EventPropertiesRef ref = presenter.resolvePropertiesRef(timeline, selection);
+		assertNotNull(ref);
+		assertEquals(clip.getId(), ref.clip().getId());
+		assertNull(ref.event());
+		assertEquals(Timeline.TRACK_ID_AUDIO, ref.track().getId());
+	}
+
+	@Test
 	void resolvePropertiesRefPrefersSelectedEvent() {
 		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
 		var clip = TimelineOperations.addClip(track, 0.0, 2.0);
