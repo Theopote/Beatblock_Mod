@@ -409,6 +409,9 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		}
 
 		if (ImGui.isMouseClicked(0)) {
+			if (ImGui.getDragDropPayload() != null) {
+				return;
+			}
 			boolean ctrl = ImGui.getIO().getKeyCtrl();
 			boolean shift = ImGui.getIO().getKeyShift();
 			if (trackListState != null && TimelineRulerHitTest.isMouseOverDivider(mx, my, layout)) {

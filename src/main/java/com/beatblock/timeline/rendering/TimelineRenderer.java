@@ -6,6 +6,7 @@ import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.timeline.*;
 import com.beatblock.timeline.editor.SelectionBox;
 import com.beatblock.timeline.editor.InteractionState;
+import com.beatblock.timeline.layer.BuildLayerDragDropHandler;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineClock;
 import com.beatblock.timeline.editor.TimelineViewState;
@@ -208,6 +209,19 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 				toolbarState, interactionState,
 				currentAudioSubTracks, currentAnimationSubTracks, currentBuildLayerTracks);
 		}
+
+		// 建造图层拖放目标叠在最上层，避免被片段绘制或裁剪区挡住
+		BuildLayerDragDropHandler.renderDropTargetsOverlay(
+			this,
+			timeline,
+			layout,
+			viewState,
+			toolbarState,
+			interactionState,
+			selectionState,
+			trackListState,
+			currentBuildLayerTracks
+		);
 
 		// 音频组拖放高亮（在所有行内容绘制后叠加边框）
 		TimelineAudioGroupDropHighlight.drawIfActive(layout, audioGroupDropHighlight);

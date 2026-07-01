@@ -224,8 +224,12 @@ public final class TrackRegistry {
 			return List.of();
 		}
 		com.beatblock.timeline.layer.BuildLayerTrackSupport.normalizeLoadedTracks(timeline);
-		List<TrackDefinition> result = new ArrayList<>();
 		List<Track> buildTracks = com.beatblock.timeline.layer.BuildLayerTrackSupport.listTracks(timeline);
+		if (buildTracks.isEmpty()) {
+			com.beatblock.timeline.layer.BuildLayerTrackSupport.ensureDefaultTrack(timeline);
+			buildTracks = com.beatblock.timeline.layer.BuildLayerTrackSupport.listTracks(timeline);
+		}
+		List<TrackDefinition> result = new ArrayList<>();
 		for (int i = 0; i < buildTracks.size(); i++) {
 			Track track = buildTracks.get(i);
 			result.add(new TrackDefinition(

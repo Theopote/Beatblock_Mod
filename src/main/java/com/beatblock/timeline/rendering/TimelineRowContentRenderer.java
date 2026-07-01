@@ -9,7 +9,6 @@ import com.beatblock.timeline.WaveformData;
 import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineViewState;
-import com.beatblock.timeline.layer.BuildLayerDragDropHandler;
 import imgui.ImGui;
 
 import java.util.List;
@@ -121,43 +120,12 @@ public final class TimelineRowContentRenderer {
 				selectionState,
 				td.hasCustomColor() ? td.getColor() : 0xFF_66_CC_88
 			);
-			renderBuildLayerTrackDropTarget(
-				dropHost, rowIndex, rowHeight, timeline, layout, viewState,
-				toolbarState, interactionState, selectionState, td.getKey(), trackListState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_CAMERA) {
 			eventRenderer.renderCameraTrackRow(rowY, timeline, layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_GLOBAL_EVENT) {
 			eventRenderer.renderGlobalEventRow(rowY, timeline.getGlobalEvents(), layout, viewState);
 		}
 		ImGui.popClipRect();
-	}
-
-	static void renderBuildLayerTrackDropTarget(
-		TimelineAudioDropHost dropHost,
-		int rowIndex,
-		float rowHeight,
-		Timeline timeline,
-		TimelineLayout layout,
-		TimelineViewState viewState,
-		TimelineToolbarState toolbarState,
-		InteractionState interactionState,
-		SelectionState selectionState,
-		String targetTrackId,
-		TimelineTrackListState trackListState
-	) {
-		BuildLayerDragDropHandler.renderDropTarget(
-			dropHost,
-			rowIndex,
-			rowHeight,
-			timeline,
-			layout,
-			viewState,
-			toolbarState,
-			interactionState,
-			selectionState,
-			targetTrackId,
-			trackListState
-		);
 	}
 
 	private void renderAudioSubTrack(

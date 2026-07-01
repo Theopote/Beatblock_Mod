@@ -18,10 +18,11 @@ import com.beatblock.timeline.rendering.TimelineAudioDropHost;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
+import com.beatblock.timeline.rendering.TimelineTrackMeta;
+import com.beatblock.timeline.rendering.TrackDefinition;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import imgui.ImGui;
-import imgui.flag.ImGuiDragDropFlags;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -32,6 +33,45 @@ public final class BuildLayerDragDropHandler {
 	public static final String PAYLOAD_TYPE = "BB_BUILD_LAYER_ID";
 
 	private BuildLayerDragDropHandler() {
+	}
+
+	/**
+	 * 在所有轨道内容绘制完成后调用，保证拖放目标位于行内最上层（避免被片段绘制或裁剪遮挡）。
+	 */
+	public static void renderDropTargetsOverlay(
+		TimelineAudioDropHost host,
+		Timeline timeline,
+		TimelineLayout layout,
+		TimelineViewState viewState,
+		TimelineToolbarState toolbarState,
+		InteractionState interactionState,
+		SelectionState selectionState,
+		TimelineTrackListState trackListState,
+		List<TrackDefinition> buildLayerTracks
+	) {
+		if (timeline == null || layout == null || buildLayerTracks == null || buildLayerTracks.isEmpty()) {
+			return;
+		}
+		for (int slot = 0; slot < buildLayerTracks.size() && slot < TimelineTrackMeta.MAX_BUILD_LAYER_ROWS; slot++) {
+			int rowIndex = TimelineTrackMeta.ROW_BUILD_LAYER_START + slot;
+			if (!layout.isRowVisible(rowIndex)) {
+				continue;
+			}
+			TrackDefinition trackDef = buildLayerTracks.get(slot);
+			renderDropTarget(
+				host,
+				rowIndex,
+				layout.getRowHeight(rowIndex),
+				timeline,
+				layout,
+				viewState,
+				toolbarState,
+				interactionState,
+				selectionState,
+				trackDef.getKey(),
+				trackListState
+			);
+		}
 	}
 
 	public static void renderDropTarget(
@@ -65,10 +105,7 @@ public final class BuildLayerDragDropHandler {
 			host.setBuildLayerDropHighlightRow(rowIndex);
 		}
 
-		byte[] payload = ImGui.acceptDragDropPayload(
-			PAYLOAD_TYPE,
-			ImGuiDragDropFlags.AcceptBeforeDelivery | ImGuiDragDropFlags.AcceptNoDrawDefaultRect
-		);
+		byte[] payload = ImGui.acceptDragDropPayload(PAYLOAD_TYPE);
 		if (payload != null) {
 			handleDrop(
 				host,
@@ -97,7 +134,7 @@ public final class BuildLayerDragDropHandler {
 		String layerId
 	) {
 		BeatBlockContext context = host != null ? host.context() : null;
-		if (context == null || context.blockAnimationEngine() == null || context.timelineEditor() == null) {
+		if (context == null) {
 			ToastNotificationSystem.showError(BBTexts.get("beatblock.message.editor_unavailable"));
 			return;
 		}
@@ -105,8 +142,13 @@ public final class BuildLayerDragDropHandler {
 			return;
 		}
 
-		BuildLayerManager layerManager = context.blockAnimationEngine().getBuildLayerManager();
-		BuildLayer layer = layerManager != null ? layerManager.get(layerId) : null;
+		BuildLayerManager layerManager = context.buildLayerManager();
+		if (layerManager == null) {
+			ToastNotificationSystem.showError(BBTexts.get("beatblock.message.editor_unavailable"));
+			return;
+		}
+
+		BuildLayer layer = layerManager.get(layerId);
 		String validationError = validateLayerForBind(layer);
 		if (validationError != null) {
 			ToastNotificationSystem.showError(validationError);
@@ -135,8 +177,14 @@ public final class BuildLayerDragDropHandler {
 			dropTime,
 			clipDuration
 		);
+
+		var commandManager = context.commandManager();
 		TimelineEditor editor = context.timelineEditor();
-		editor.getCommandManager().execute(cmd);
+		if (commandManager == null) {
+			ToastNotificationSystem.showError(BBTexts.get("beatblock.message.editor_unavailable"));
+			return;
+		}
+		commandManager.execute(cmd);
 		if (!cmd.isApplied()) {
 			ToastNotificationSystem.showError(BBTexts.get("beatblock.message.layer_bind_failed"));
 			return;
@@ -151,7 +199,9 @@ public final class BuildLayerDragDropHandler {
 				selectionState.selectEvent(cmd.getCreatedEventId());
 			}
 		}
-		editor.syncClockDuration();
+		if (editor != null) {
+			editor.syncClockDuration();
+		}
 		ToastNotificationSystem.showSuccess(
 			BBTexts.get("beatblock.message.layer_bound_to_track", layer.getName(), formatTime(dropTime))
 		);

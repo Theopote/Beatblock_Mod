@@ -334,8 +334,13 @@ public class LayerPanel {
 				displayOrder
 			);
 		}
+		float bindDragX = ImGui.getItemRectMinX();
+		float bindDragY = ImGui.getItemRectMinY();
+		float bindDragH = Math.max(ICON_BTN, ImGui.getItemRectSizeY());
 		renderLayerReorderDropTarget(layer.getId());
 		if (layer.canBindToTrack()) {
+			ImGui.setCursorScreenPos(bindDragX, bindDragY);
+			ImGui.invisibleButton("##layerBindDragName_" + layer.getId(), nameWidth, bindDragH);
 			renderTimelineBindDragSource(layer);
 		}
 		if (layer.getColorArgb() != 0) {
