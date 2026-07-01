@@ -38,7 +38,6 @@ class BuildLayerDragDropHandlerTest {
 	@Test
 	void computeClipDurationScalesWithBlockCount() {
 		Timeline timeline = Timeline.createDefault();
-		timeline.setBpm(120.0);
 
 		List<BlockPos> blocks = IntStream.range(0, 8)
 			.mapToObj(i -> new BlockPos(i, 64, 0))
