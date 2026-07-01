@@ -770,6 +770,7 @@
   "beatblock.message.layer_renamed": "Renamed to: %s",
   "beatblock.message.layer_bound_to_track": "Layer \"%s\" bound to timeline at %s",
   "beatblock.message.layer_bind_failed": "Could not bind layer to track.",
+  "beatblock.message.layer_bind_wrong_track": "Drop onto a Build Layer track row (under the Action group).",
   "beatblock.message.engine_or_timeline_unavailable": "Engine or timeline editor unavailable.",
   "beatblock.message.create_selection_first": "Create a block selection first.",
   "beatblock.message.all_blocks_claimed": "All blocks in selection already belong to other layers.",

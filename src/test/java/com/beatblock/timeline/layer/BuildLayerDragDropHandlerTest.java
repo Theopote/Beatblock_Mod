@@ -55,4 +55,16 @@ class BuildLayerDragDropHandlerTest {
 		byte[] raw = new byte[]{'l', 'a', 'y', 'e', 'r', '-', '1', 0, 0};
 		assertEquals("layer-1", BuildLayerDragDropHandler.decodeLayerId(raw));
 	}
+
+	@Test
+	void resolveLayerIdAcceptsStringPayload() {
+		BuildLayerDragDropHandler.rememberSourceLayerId("fallback");
+		assertEquals("layer-a", BuildLayerDragDropHandler.resolveLayerId("layer-a"));
+	}
+
+	@Test
+	void resolveLayerIdFallsBackToLastSource() {
+		BuildLayerDragDropHandler.rememberSourceLayerId("layer-fallback");
+		assertEquals("layer-fallback", BuildLayerDragDropHandler.resolveLayerId(null));
+	}
 }

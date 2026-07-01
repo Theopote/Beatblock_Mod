@@ -27,18 +27,33 @@ import imgui.ImGui;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-/** 建造图层拖入时间线建造轨道：校验、吸附、绑定命令与反馈。 */
+/**
+ * 建造图层拖入时间线建造轨道（对齐 Director 容器拖放模式）。
+ *
+ * <p>时间线侧使用覆盖整个轨道子窗口的 invisibleButton + beginDragDropTarget，
+ * 根据鼠标 Y 解析目标行；图层面板侧在列表行上 beginDragDropSource 并写入 String 载荷。
+ */
 public final class BuildLayerDragDropHandler {
 
 	public static final String PAYLOAD_TYPE = "BB_BUILD_LAYER_ID";
 
+	private static String lastSourceLayerId = "";
+
 	private BuildLayerDragDropHandler() {
 	}
 
+	public static void rememberSourceLayerId(String layerId) {
+		if (layerId != null && !layerId.isBlank()) {
+			lastSourceLayerId = layerId.trim();
+		}
+	}
+
 	/**
-	 * 在所有轨道内容绘制完成后调用，保证拖放目标位于行内最上层（避免被片段绘制或裁剪遮挡）。
+	 * 在轨道子窗口全部绘制完成后调用：单块画布接收拖放（Director {@code ##TimelineCanvas} 模式）。
+	 *
+	 * @return 当前悬停的有效建造图层行索引，无则 -1
 	 */
-	public static void renderDropTargetsOverlay(
+	public static int handleCanvasDragDropTarget(
 		TimelineAudioDropHost host,
 		Timeline timeline,
 		TimelineLayout layout,
@@ -49,77 +64,63 @@ public final class BuildLayerDragDropHandler {
 		TimelineTrackListState trackListState,
 		List<TrackDefinition> buildLayerTracks
 	) {
-		if (timeline == null || layout == null || buildLayerTracks == null || buildLayerTracks.isEmpty()) {
-			return;
-		}
-		for (int slot = 0; slot < buildLayerTracks.size() && slot < TimelineTrackMeta.MAX_BUILD_LAYER_ROWS; slot++) {
-			int rowIndex = TimelineTrackMeta.ROW_BUILD_LAYER_START + slot;
-			if (!layout.isRowVisible(rowIndex)) {
-				continue;
-			}
-			TrackDefinition trackDef = buildLayerTracks.get(slot);
-			renderDropTarget(
-				host,
-				rowIndex,
-				layout.getRowHeight(rowIndex),
-				timeline,
-				layout,
-				viewState,
-				toolbarState,
-				interactionState,
-				selectionState,
-				trackDef.getKey(),
-				trackListState
-			);
-		}
-	}
-
-	public static void renderDropTarget(
-		TimelineAudioDropHost host,
-		int rowIndex,
-		float rowHeight,
-		Timeline timeline,
-		TimelineLayout layout,
-		TimelineViewState viewState,
-		TimelineToolbarState toolbarState,
-		InteractionState interactionState,
-		SelectionState selectionState,
-		String targetTrackId,
-		TimelineTrackListState trackListState
-	) {
-		float screenY = layout.getRowScreenY(rowIndex);
-		if (screenY < 0 || targetTrackId == null || targetTrackId.isBlank()) {
-			return;
-		}
-		if (trackListState != null && trackListState.isLocked(rowIndex)) {
-			return;
+		if (timeline == null || layout == null) {
+			return -1;
 		}
 
-		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
-		ImGui.invisibleButton("##BuildLayerDrop" + rowIndex, layout.contentWidth, rowHeight);
+		ImGui.setCursorPos(0f, 0f);
+		float canvasW = ImGui.getWindowContentRegionMax().x;
+		float canvasH = Math.max(
+			layout.trackHeaderHeight + layout.contentHeight + 16f,
+			ImGui.getWindowContentRegionMax().y
+		);
+		ImGui.invisibleButton("##TimelineBuildLayerCanvas", canvasW, canvasH);
+
+		int dropRow = -1;
 		if (!ImGui.beginDragDropTarget()) {
-			return;
+			return -1;
 		}
 
-		if (host != null) {
-			host.setBuildLayerDropHighlightRow(rowIndex);
+		float mouseY = ImGui.getMousePosY();
+		int rowIndex = layout.findRowAtScreenY(mouseY);
+		String targetTrackId = resolveTrackIdForRow(rowIndex, buildLayerTracks);
+		boolean validRow = targetTrackId != null
+			&& (trackListState == null || !trackListState.isLocked(rowIndex));
+
+		if (validRow) {
+			dropRow = rowIndex;
+			if (host != null) {
+				host.setBuildLayerDropHighlightRow(rowIndex);
+			}
 		}
 
-		byte[] payload = ImGui.acceptDragDropPayload(PAYLOAD_TYPE);
+		Object payload = ImGui.acceptDragDropPayload(PAYLOAD_TYPE);
 		if (payload != null) {
-			handleDrop(
-				host,
-				timeline,
-				layout,
-				viewState,
-				toolbarState,
-				interactionState,
-				selectionState,
-				targetTrackId,
-				decodeLayerId(payload)
-			);
+			dropRow = -1;
+			String layerId = resolveLayerId(payload);
+			if (layerId.isBlank()) {
+				ImGui.endDragDropTarget();
+				return -1;
+			}
+			if (!validRow || targetTrackId == null) {
+				ToastNotificationSystem.showError(BBTexts.get("beatblock.message.layer_bind_wrong_track"));
+			} else {
+				handleDrop(
+					host,
+					timeline,
+					layout,
+					viewState,
+					toolbarState,
+					interactionState,
+					selectionState,
+					targetTrackId,
+					layerId
+				);
+			}
 		}
+
 		ImGui.endDragDropTarget();
+		return dropRow;
 	}
 
 	public static void handleDrop(
@@ -205,6 +206,34 @@ public final class BuildLayerDragDropHandler {
 		ToastNotificationSystem.showSuccess(
 			BBTexts.get("beatblock.message.layer_bound_to_track", layer.getName(), formatTime(dropTime))
 		);
+	}
+
+	public static String resolveTrackIdForRow(int rowIndex, List<TrackDefinition> buildLayerTracks) {
+		if (!TimelineTrackMeta.isBuildLayerSubRow(rowIndex) || buildLayerTracks == null) {
+			return null;
+		}
+		int slot = TimelineTrackMeta.buildLayerSubRowSlot(rowIndex);
+		if (slot < 0 || slot >= buildLayerTracks.size()) {
+			return null;
+		}
+		String trackId = buildLayerTracks.get(slot).getKey();
+		return trackId != null && !trackId.isBlank() ? trackId : null;
+	}
+
+	public static String resolveLayerId(Object payload) {
+		if (payload instanceof String text) {
+			String trimmed = text.trim();
+			if (!trimmed.isEmpty()) {
+				return trimmed;
+			}
+		}
+		if (payload instanceof byte[] raw) {
+			String decoded = decodeLayerId(raw);
+			if (!decoded.isBlank()) {
+				return decoded;
+			}
+		}
+		return lastSourceLayerId != null ? lastSourceLayerId : "";
 	}
 
 	public static String validateLayerForBind(BuildLayer layer) {

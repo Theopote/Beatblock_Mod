@@ -792,6 +792,7 @@
   "beatblock.message.layer_renamed": "已重命名为：%s",
   "beatblock.message.layer_bound_to_track": "图层「%s」已绑定到时间线 %s",
   "beatblock.message.layer_bind_failed": "无法将图层绑定到轨道。",
+  "beatblock.message.layer_bind_wrong_track": "请拖到「动作」组下的建造图层轨道行上。",
   "beatblock.message.engine_or_timeline_unavailable": "引擎或时间线编辑器不可用。",
   "beatblock.message.create_selection_first": "请先建立方块选区。",
   "beatblock.message.all_blocks_claimed": "选区内方块均已属于其他图层，无法创建新图层。",

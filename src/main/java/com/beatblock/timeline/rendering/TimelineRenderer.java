@@ -210,8 +210,8 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 				currentAudioSubTracks, currentAnimationSubTracks, currentBuildLayerTracks);
 		}
 
-		// 建造图层拖放目标叠在最上层，避免被片段绘制或裁剪区挡住
-		BuildLayerDragDropHandler.renderDropTargetsOverlay(
+		// 建造图层拖放：Director 风格整画布 invisibleButton（置于所有轨道绘制之后）
+		buildLayerDropHighlightRow = BuildLayerDragDropHandler.handleCanvasDragDropTarget(
 			this,
 			timeline,
 			layout,

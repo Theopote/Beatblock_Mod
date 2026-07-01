@@ -260,7 +260,7 @@ public class LayerPanel {
 			if (ImGui.isItemHovered()) {
 				IconButtonStyle.setTooltipWithDefaultFont(BBTexts.get("beatblock.layer.drag_bind"));
 			}
-			renderTimelineBindDragSource(layer);
+			setupTimelineBindDragSource(layer);
 			IconButtonStyle.popBeatBlockIconButton();
 			ImGui.sameLine();
 		}
@@ -326,7 +326,9 @@ public class LayerPanel {
 		if (layer.getColorArgb() != 0) {
 			LayerColorUtils.pushTextColor(layer.getColorArgb());
 		}
-		if (ImGui.selectable(layer.getName() + "##layerRow", selected, 0, nameWidth, ICON_BTN)) {
+		boolean clickedRow = ImGui.selectable(layer.getName() + "##layerRow", selected, 0, nameWidth, ICON_BTN);
+		boolean timelineBindDragActive = layer.canBindToTrack() && setupTimelineBindDragSource(layer);
+		if (clickedRow && !timelineBindDragActive) {
 			presenter.selectLayer(
 				layer.getId(),
 				ImGuiModifierKeys.ctrl(),
@@ -334,22 +336,14 @@ public class LayerPanel {
 				displayOrder
 			);
 		}
-		float bindDragX = ImGui.getItemRectMinX();
-		float bindDragY = ImGui.getItemRectMinY();
-		float bindDragH = Math.max(ICON_BTN, ImGui.getItemRectSizeY());
 		renderLayerReorderDropTarget(layer.getId());
-		if (layer.canBindToTrack()) {
-			ImGui.setCursorScreenPos(bindDragX, bindDragY);
-			ImGui.invisibleButton("##layerBindDragName_" + layer.getId(), nameWidth, bindDragH);
-			renderTimelineBindDragSource(layer);
-		}
 		if (layer.getColorArgb() != 0) {
 			LayerColorUtils.popTextColor(layer.getColorArgb());
 		}
 		if (selected) {
 			ImGui.popStyleColor(2);
 		}
-		if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+		if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0) && !timelineBindDragActive) {
 			renamingLayerId = layer.getId();
 		}
 	}
@@ -448,16 +442,19 @@ public class LayerPanel {
 		ImGui.endDragDropTarget();
 	}
 
-	private void renderTimelineBindDragSource(BuildLayer layer) {
-		if (!layer.canBindToTrack()) {
-			return;
+	private boolean setupTimelineBindDragSource(BuildLayer layer) {
+		if (layer == null || !layer.canBindToTrack()) {
+			return false;
 		}
-		if (!ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
-			return;
+		if (!ImGui.beginDragDropSource()) {
+			return false;
 		}
+		String layerId = layer.getId();
+		BuildLayerDragDropHandler.rememberSourceLayerId(layerId);
+		ImGui.setDragDropPayload(DRAG_PAYLOAD_TYPE, layerId);
 		ImGui.text(BBTexts.get("beatblock.layer.drag_bind") + ": " + layer.getName());
-		ImGui.setDragDropPayload(DRAG_PAYLOAD_TYPE, layer.getId().getBytes(StandardCharsets.UTF_8), ImGuiCond.Once);
 		ImGui.endDragDropSource();
+		return true;
 	}
 
 	private static String decodePayload(byte[] raw) {
