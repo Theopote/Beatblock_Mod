@@ -69,6 +69,7 @@ public class BeatBlockUIManager {
 			this::openQuickStartWizard, this::openVideoExportDialog,
 			this::openEnvironmentSetup);
 		this.timelinePropertiesPanel = new TimelinePropertiesPanel();
+		TimelinePanelVisibility.bind(panelVisibility);
 		this.timelinePanel = new TimelinePanel();
 		this.animationLibraryPanel = new AnimationLibraryPanel();
 		this.selectionPropertiesPanel = new SelectionPropertiesPanel();

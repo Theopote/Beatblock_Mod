@@ -9,8 +9,6 @@
   "beatblock.panel.audio_analysis": "音频解析",
   "beatblock.panel.tool": "工具",
   "beatblock.panel.marker_debug": "标记与调试",
-  "beatblock.panel.event_properties": "事件属性",
-  "beatblock.panel.camera_properties": "摄像机属性",
   "beatblock.panel.timeline_properties": "属性",
   "beatblock.properties.select_hint": "在时间线中选择片段、事件或关键帧以编辑其属性。",
   "beatblock.properties.clip.start": "开始 (秒)",

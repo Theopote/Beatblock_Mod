@@ -328,7 +328,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 					popupState.contextCameraShowPath.set(CameraPathMetadata.isPathVisible(timeline, hit.getClipId()));
 				}
 				if (hit.getEventId() != null) {
-					popupState.propertiesEventId = hit.getEventId();
+					popupState.contextEventId = hit.getEventId();
 					selectionState.clearEvents();
 					selectionState.selectEvent(hit.getEventId());
 					if (hit.getClipId() != null) {
@@ -340,7 +340,6 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 					selectionState.selectClip(hit.getClipId());
 				}
 			} else {
-				// 右键命中片段时自动将其加入选中，确保右键菜单的 Delete 项可用
 				if (hit.getClipId() != null && !selectionState.isClipSelected(hit.getClipId())) {
 					BeatBlockClient.LOGGER.info("[TimelineInteraction.handleMouse] Auto-selecting context clip: {}", hit.getClipId());
 					selectionState.clearEvents();
@@ -348,7 +347,13 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 					selectionState.selectClip(hit.getClipId());
 				}
 				if (hit.getEventId() != null) {
-					popupState.propertiesEventId = hit.getEventId();
+					popupState.contextEventId = hit.getEventId();
+					if (!selectionState.isEventSelected(hit.getEventId())) {
+						selectionState.selectEvent(hit.getEventId());
+					}
+					if (hit.getClipId() != null) {
+						selectionState.selectClip(hit.getClipId());
+					}
 				}
 			}
 			ImGui.openPopup(POPUP_EVENT_CONTEXT);
@@ -694,13 +699,8 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 	}
 
 	@Override
-	public TimelineEventRef resolvePropertiesEventRef(Timeline timeline, SelectionState selectionState) {
-		return TimelineEventRefs.resolveForProperties(
-						timeline,
-			selectionState,
-			popupState.propertiesEventId,
-			id -> popupState.propertiesEventId = id
-		);
+	public TimelineSelectionRef resolvePropertiesSelection(Timeline timeline, SelectionState selectionState) {
+		return TimelineEventRefs.resolveFromSelection(timeline, selectionState);
 	}
 
 	@Override

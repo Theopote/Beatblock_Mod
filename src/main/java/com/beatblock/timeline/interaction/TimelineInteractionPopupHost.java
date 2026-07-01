@@ -34,7 +34,7 @@ public interface TimelineInteractionPopupHost {
 		TimelineTrackListState trackListState
 	);
 
-	TimelineEventRef resolvePropertiesEventRef(Timeline timeline, SelectionState selectionState);
+	TimelineSelectionRef resolvePropertiesSelection(Timeline timeline, SelectionState selectionState);
 
 	boolean canDeleteContextClip(Timeline timeline, TimelineTrackListState trackListState);
 }

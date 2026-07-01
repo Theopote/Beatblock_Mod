@@ -8,10 +8,7 @@ import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.editor.SelectionState;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -42,18 +39,31 @@ class TimelineEventRefsTest {
 	}
 
 	@Test
-	void resolveForPropertiesFallsBackToSelection() {
+	void resolveFromSelectionUsesSelectedEvent() {
 		Timeline timeline = Timeline.createDefault();
 		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_GLOBAL, 0, 4);
 		TimelineEvent event = TimelineOperations.addEvent(clip, 0.5, EventType.GLOBAL, Map.of());
 		SelectionState selection = new SelectionState();
 		selection.selectEvent(event.getId());
 
-		AtomicReference<String> updatedId = new AtomicReference<>();
-		TimelineEventRef ref = TimelineEventRefs.resolveForProperties(
-			timeline, selection, null, updatedId::set);
+		TimelineSelectionRef ref = TimelineEventRefs.resolveFromSelection(timeline, selection);
 
 		assertNotNull(ref);
-		assertEquals(event.getId(), updatedId.get());
+		assertTrue(ref.hasEvent());
+		assertEquals(event.getId(), ref.event().getId());
+	}
+
+	@Test
+	void resolveFromSelectionUsesSelectedClipWhenNoEvent() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_AUDIO, 0, 6);
+		SelectionState selection = new SelectionState();
+		selection.selectClip(clip.getId());
+
+		TimelineSelectionRef ref = TimelineEventRefs.resolveFromSelection(timeline, selection);
+
+		assertNotNull(ref);
+		assertNull(ref.event());
+		assertEquals(clip.getId(), ref.clip().getId());
 	}
 }

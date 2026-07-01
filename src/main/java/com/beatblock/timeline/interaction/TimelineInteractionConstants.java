@@ -11,12 +11,9 @@ public final class TimelineInteractionConstants {
 	public static final double CAMERA_MIN_CLIP_DURATION = 0.05;
 
 	public static final String POPUP_EVENT_CONTEXT = "##TimelineEventContextPopup";
-	public static final String POPUP_EVENT_PROPERTIES = "##TimelineEventPropertiesPopup";
 	public static final String POPUP_MARKER_CONTEXT = "##TimelineMarkerContextPopup";
 	public static final String POPUP_DELETE_CONFIRM = "##TimelineDeleteConfirmPopup";
 
-	public static final int TIME_INPUT_BUFFER_SIZE = 64;
-	public static final int PARAM_INPUT_BUFFER_SIZE = 256;
 	public static final int MARKER_NAME_BUFFER_SIZE = 128;
 
 	private TimelineInteractionConstants() {}
