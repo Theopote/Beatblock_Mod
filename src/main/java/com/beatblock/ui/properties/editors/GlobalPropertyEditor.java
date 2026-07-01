@@ -1,6 +1,5 @@
 package com.beatblock.ui.properties.editors;
 
-import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
@@ -11,8 +10,6 @@ import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
 import imgui.type.ImInt;
 import imgui.type.ImString;
-
-import java.util.function.Supplier;
 
 /** 全局事件属性编辑器。 */
 public final class GlobalPropertyEditor {
@@ -26,15 +23,13 @@ public final class GlobalPropertyEditor {
 	private String validationError;
 
 	private final EventPropertiesPresenter presenter;
-	private final Supplier<BeatBlockContext> context;
 
 	public GlobalPropertyEditor() {
-		this(PresenterFactories.eventPropertiesPresenter(), () -> null);
+		this(PresenterFactories.eventPropertiesPresenter());
 	}
 
-	GlobalPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
+	GlobalPropertyEditor(EventPropertiesPresenter presenter) {
 		this.presenter = presenter;
-		this.context = context;
 	}
 
 	public void renderBody(EventPropertiesRef ref, Timeline timeline, TimelineEditor editor) {
