@@ -36,7 +36,9 @@ public final class GlobalEventPropertiesEditor {
 			parameters,
 			clipStartSeconds,
 			clipEndSeconds,
-			clipEventTimesById != null ? clipEventTimesById : Map.of()
+			clipEventTimesById != null ? clipEventTimesById : Map.of(),
+			Map.of(),
+			clipEndSeconds
 		));
 	}
 
