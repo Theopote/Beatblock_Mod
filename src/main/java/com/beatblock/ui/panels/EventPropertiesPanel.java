@@ -24,6 +24,7 @@ import com.beatblock.ui.presenter.EventPropertiesOption;
 import com.beatblock.ui.presenter.EventPropertiesPresenter;
 import com.beatblock.ui.presenter.EventPropertiesRef;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.properties.TimelinePropertyKinds;
 import com.beatblock.timeline.rendering.TrackRegistry;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -172,49 +173,55 @@ public class EventPropertiesPanel {
 			}
 
 			EventPropertiesRef ref = presenter.resolvePropertiesRef(timeline, editor.getSelectionState());
-			int batchCount = presenter.countSelectedAnimationEvents(timeline, editor.getSelectionState());
-
-			if (batchCount == 0 && !isAnimationRef(ref)) {
-				boundRefKey = null;
-				validationError = null;
-				batchMessage = null;
-				ImGui.textWrapped(BBTexts.get("beatblock.event.select_hint"));
-				return;
-			}
-
-			if (batchCount > 1) {
-				renderBatchEditor(timeline, editor, batchCount);
-				ImGui.separator();
-			}
-
-			if (!isAnimationRef(ref)) {
-				return;
-			}
-
-			String rk = EventPropertiesRef.refKey(ref);
-			if (!rk.equals(boundRefKey)) {
-				bindBuffers(ref);
-			}
-
-			boolean trackLocked = presenter.isTrackLocked(timeline, editor, ref.track().getId());
-			if (trackLocked) {
-				ImGui.textDisabled(BBTexts.get("beatblock.event.track_locked"));
-				ImGui.separator();
-				ImGui.beginDisabled();
-			}
-
-			renderAnimationEditor(ref, timeline, editor, batchCount);
-
-			if (trackLocked) {
-				ImGui.endDisabled();
-			}
+			renderBody(ref, timeline, editor);
 		} finally {
 			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.eventPropertiesWindow());
 		}
 	}
 
+	/**
+	 * 由 {@link com.beatblock.ui.properties.adapters.AnimationEventPropertyAdapter} 调用的属性编辑区。
+	 */
+	public void renderBody(EventPropertiesRef ref, Timeline timeline, TimelineEditor editor) {
+		int batchCount = presenter.countSelectedAnimationEvents(timeline, editor.getSelectionState());
+
+		if (batchCount == 0 && !TimelinePropertyKinds.isAnimationRef(ref)) {
+			boundRefKey = null;
+			validationError = null;
+			batchMessage = null;
+			return;
+		}
+
+		if (batchCount > 1) {
+			renderBatchEditor(timeline, editor, batchCount);
+			ImGui.separator();
+		}
+
+		if (!TimelinePropertyKinds.isAnimationRef(ref)) {
+			return;
+		}
+
+		String rk = EventPropertiesRef.refKey(ref);
+		if (!rk.equals(boundRefKey)) {
+			bindBuffers(ref);
+		}
+
+		boolean trackLocked = presenter.isTrackLocked(timeline, editor, ref.track().getId());
+		if (trackLocked) {
+			ImGui.textDisabled(BBTexts.get("beatblock.event.track_locked"));
+			ImGui.separator();
+			ImGui.beginDisabled();
+		}
+
+		renderAnimationEditor(ref, timeline, editor, batchCount);
+
+		if (trackLocked) {
+			ImGui.endDisabled();
+		}
+	}
+
 	private static boolean isAnimationRef(EventPropertiesRef ref) {
-		return ref != null && ref.event() != null && ref.event().getType() == EventType.ANIMATION;
+		return TimelinePropertyKinds.isAnimationRef(ref);
 	}
 
 	private void renderEventSummary(EventPropertiesRef ref, Timeline timeline) {

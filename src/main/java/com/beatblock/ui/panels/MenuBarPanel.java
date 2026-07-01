@@ -129,8 +129,7 @@ public class MenuBarPanel {
 					panelToggleItem(BBTexts.get("beatblock.panel.audio_analysis"), panels.audioAnalysis);
 					panelToggleItem(BBTexts.get("beatblock.panel.tool"), panels.tool);
 					panelToggleItem(BBTexts.get("beatblock.panel.marker_debug"), panels.marker);
-					panelToggleItem(BBTexts.get("beatblock.panel.event_properties"), panels.eventProperties);
-					panelToggleItem(BBTexts.get("beatblock.panel.camera_properties"), panels.cameraProperties);
+					panelToggleItem(BBTexts.get("beatblock.panel.timeline_properties"), panels.timelineProperties);
 					panelToggleItem(BBTexts.get("beatblock.panel.timeline"), panels.timeline);
 					panelToggleItem(BBTexts.get("beatblock.panel.animation_library"), panels.animationLibrary);
 					panelToggleItem(BBTexts.get("beatblock.panel.selection_properties"), panels.selectionProperties);

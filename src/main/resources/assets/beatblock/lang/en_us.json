@@ -10,6 +10,8 @@
   "beatblock.panel.marker_debug": "Markers & Debug",
   "beatblock.panel.event_properties": "Event Properties",
   "beatblock.panel.camera_properties": "Camera Properties",
+  "beatblock.panel.timeline_properties": "Properties",
+  "beatblock.properties.select_hint": "Select a timeline clip, event, or keyframe to edit its properties.",
   "beatblock.panel.timeline": "Timeline",
   "beatblock.panel.animation_library": "Animation Library",
   "beatblock.panel.selection_properties": "Selection Properties",

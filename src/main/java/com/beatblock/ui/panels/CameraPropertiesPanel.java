@@ -19,6 +19,7 @@ import com.beatblock.ui.presenter.EventPropertiesPresenter;
 import com.beatblock.ui.util.UiNumberFormatter;
 import com.beatblock.ui.presenter.EventPropertiesRef;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.properties.TimelinePropertyKinds;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
@@ -88,56 +89,55 @@ public class CameraPropertiesPanel {
 			}
 
 			EventPropertiesRef ref = presenter.resolvePropertiesRef(timeline, editor.getSelectionState());
-			if (!isCameraRef(ref)) {
-				boundRefKey = null;
-				validationError = null;
-				ImGui.textWrapped(BBTexts.get("beatblock.camera.select_hint"));
-				return;
-			}
-
-			String rk = EventPropertiesRef.refKey(ref);
-			if (!rk.equals(boundRefKey)) {
-				bindBuffers(ref);
-			}
-
-			renderEventSummary(ref, timeline);
-			ImGui.separator();
-
-			boolean trackLocked = presenter.isTrackLocked(timeline, editor, ref.track().getId());
-			if (trackLocked) {
-				ImGui.textDisabled(BBTexts.get("beatblock.camera.track_locked"));
-				ImGui.separator();
-				ImGui.beginDisabled();
-			}
-
-			if (ref.event() == null) {
-				renderCameraClipOnlyPanel(ref, timeline);
-			} else {
-				EventType et = ref.event().getType();
-				if (et == EventType.CAMERA_SEGMENT) {
-					renderCameraSegmentPanel(ref, timeline);
-				} else if (et == EventType.CAMERA_KEYFRAME) {
-					renderCameraKeyframePanel(ref, timeline, editor.getSelectionState());
-				}
-			}
-
-			if (trackLocked) {
-				ImGui.endDisabled();
-			}
+			renderBody(ref, timeline, editor);
 		} finally {
 			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.cameraPropertiesWindow());
 		}
 	}
 
-	private static boolean isCameraRef(EventPropertiesRef ref) {
-		if (ref == null) {
-			return false;
+	/**
+	 * 由 {@link com.beatblock.ui.properties.adapters.CameraPropertyAdapter} 调用的属性编辑区。
+	 */
+	public void renderBody(EventPropertiesRef ref, Timeline timeline, TimelineEditor editor) {
+		if (!TimelinePropertyKinds.isCameraRef(ref)) {
+			boundRefKey = null;
+			validationError = null;
+			return;
 		}
+
+		String rk = EventPropertiesRef.refKey(ref);
+		if (!rk.equals(boundRefKey)) {
+			bindBuffers(ref);
+		}
+
+		renderEventSummary(ref, timeline);
+		ImGui.separator();
+
+		boolean trackLocked = presenter.isTrackLocked(timeline, editor, ref.track().getId());
+		if (trackLocked) {
+			ImGui.textDisabled(BBTexts.get("beatblock.camera.track_locked"));
+			ImGui.separator();
+			ImGui.beginDisabled();
+		}
+
 		if (ref.event() == null) {
-			return true;
+			renderCameraClipOnlyPanel(ref, timeline);
+		} else {
+			EventType et = ref.event().getType();
+			if (et == EventType.CAMERA_SEGMENT) {
+				renderCameraSegmentPanel(ref, timeline);
+			} else if (et == EventType.CAMERA_KEYFRAME) {
+				renderCameraKeyframePanel(ref, timeline, editor.getSelectionState());
+			}
 		}
-		EventType et = ref.event().getType();
-		return et == EventType.CAMERA_SEGMENT || et == EventType.CAMERA_KEYFRAME;
+
+		if (trackLocked) {
+			ImGui.endDisabled();
+		}
+	}
+
+	private static boolean isCameraRef(EventPropertiesRef ref) {
+		return TimelinePropertyKinds.isCameraRef(ref);
 	}
 
 	private void renderEventSummary(EventPropertiesRef ref, Timeline timeline) {

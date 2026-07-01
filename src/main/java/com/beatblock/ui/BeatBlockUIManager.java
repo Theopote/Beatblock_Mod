@@ -19,7 +19,7 @@ import imgui.flag.ImGuiWindowFlags;
 
 /**
  * BeatBlock 主 UI 管理器：菜单栏 + Dockspace + 各面板。
- * 布局：顶部菜单栏；底部时间线；左侧工具；右侧事件属性；中间不放置面板（即 Minecraft 场景）；动画库可开关。
+ * 布局：顶部菜单栏；底部时间线；左侧工具；右侧统一属性面板；中间不放置面板（即 Minecraft 场景）；动画库可开关。
  */
 public class BeatBlockUIManager {
 
@@ -39,8 +39,7 @@ public class BeatBlockUIManager {
 	private final AudioAnalysisPanel audioAnalysisPanel;
 	private final ToolPanel toolPanel;
 	private final MarkerPanel markerPanel;
-	private final EventPropertiesPanel eventPropertiesPanel;
-	private final CameraPropertiesPanel cameraPropertiesPanel;
+	private final TimelinePropertiesPanel timelinePropertiesPanel;
 	private final TimelinePanel timelinePanel;
 	private final AnimationLibraryPanel animationLibraryPanel;
 	private final SelectionPropertiesPanel selectionPropertiesPanel;
@@ -69,8 +68,7 @@ public class BeatBlockUIManager {
 			this::resetLayoutState, this::saveCurrentLayout, this::loadSavedLayout,
 			this::openQuickStartWizard, this::openVideoExportDialog,
 			this::openEnvironmentSetup);
-		this.eventPropertiesPanel = new EventPropertiesPanel();
-		this.cameraPropertiesPanel = new CameraPropertiesPanel();
+		this.timelinePropertiesPanel = new TimelinePropertiesPanel();
 		this.timelinePanel = new TimelinePanel();
 		this.animationLibraryPanel = new AnimationLibraryPanel();
 		this.selectionPropertiesPanel = new SelectionPropertiesPanel();
@@ -190,8 +188,7 @@ public class BeatBlockUIManager {
 		audioAnalysisPanel.render(panelVisibility.audioAnalysis);
 		toolPanel.render(panelVisibility.tool);
 		markerPanel.render(panelVisibility.marker);
-		eventPropertiesPanel.render(panelVisibility.eventProperties);
-		cameraPropertiesPanel.render(panelVisibility.cameraProperties);
+		timelinePropertiesPanel.render(panelVisibility.timelineProperties);
 		timelinePanel.render(panelVisibility.timeline);
 		animationLibraryPanel.render(panelVisibility.animationLibrary);
 		selectionPropertiesPanel.render(panelVisibility.selectionProperties);

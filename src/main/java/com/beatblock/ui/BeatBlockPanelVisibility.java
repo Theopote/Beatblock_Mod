@@ -11,8 +11,13 @@ public final class BeatBlockPanelVisibility {
 	public final ImBoolean audioAnalysis = new ImBoolean(true);
 	public final ImBoolean tool = new ImBoolean(true);
 	public final ImBoolean marker = new ImBoolean(true);
-	public final ImBoolean eventProperties = new ImBoolean(true);
-	public final ImBoolean cameraProperties = new ImBoolean(true);
+	public final ImBoolean timelineProperties = new ImBoolean(true);
+	/** @deprecated 已由 {@link #timelineProperties} 替代，保留以兼容旧布局 ini */
+	@Deprecated
+	public final ImBoolean eventProperties = timelineProperties;
+	/** @deprecated 已由 {@link #timelineProperties} 替代，保留以兼容旧布局 ini */
+	@Deprecated
+	public final ImBoolean cameraProperties = timelineProperties;
 	public final ImBoolean timeline = new ImBoolean(true);
 	public final ImBoolean animationLibrary = new ImBoolean(false);
 	public final ImBoolean selectionProperties = new ImBoolean(false);
@@ -27,8 +32,7 @@ public final class BeatBlockPanelVisibility {
 		audioAnalysis.set(false);
 		tool.set(false);
 		marker.set(false);
-		eventProperties.set(false);
-		cameraProperties.set(false);
+		timelineProperties.set(false);
 		timeline.set(false);
 		animationLibrary.set(false);
 		selectionProperties.set(false);
@@ -44,8 +48,7 @@ public final class BeatBlockPanelVisibility {
 		audioAnalysis.set(true);
 		tool.set(true);
 		marker.set(true);
-		eventProperties.set(true);
-		cameraProperties.set(true);
+		timelineProperties.set(true);
 		timeline.set(true);
 		animationLibrary.set(true);
 		selectionProperties.set(true);
