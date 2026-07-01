@@ -82,7 +82,10 @@ public final class BindLayerToTrackCommand implements com.beatblock.timeline.com
 
 		createdClipId = "clip_layer_" + UUID.randomUUID().toString().substring(0, 8);
 		createdEventId = "evt_layer_" + UUID.randomUUID().toString().substring(0, 8);
-		double clipEnd = clipStartSeconds + clipDurationSeconds;
+  		double duration = clipDurationSeconds > 0
+			? clipDurationSeconds
+			: com.beatblock.timeline.layer.BuildLayerDragDropHandler.computeClipDuration(layer, timeline);
+		double clipEnd = clipStartSeconds + duration;
 
 		Clip clip = new Clip(createdClipId, clipStartSeconds, clipEnd);
 		track.addClip(clip);
@@ -92,7 +95,7 @@ public final class BindLayerToTrackCommand implements com.beatblock.timeline.com
 			"",
 			layer.getStageObjectId(),
 			1f,
-			clipDurationSeconds,
+			duration,
 			TimelineEventOrigin.MANUAL,
 			Map.of(
 				"layerId", layer.getId(),
@@ -112,6 +115,7 @@ public final class BindLayerToTrackCommand implements com.beatblock.timeline.com
 
 		layerManager.bindToClip(layer, createdClipId);
 		timeline.markAnimationEventsDirty(track.getId());
+		timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), clipEnd));
 	}
 
 	private @Nullable Track resolveTargetTrack() {
@@ -169,6 +173,14 @@ public final class BindLayerToTrackCommand implements com.beatblock.timeline.com
 
 	public @Nullable String getCreatedClipId() {
 		return createdClipId;
+	}
+
+	public @Nullable String getCreatedEventId() {
+		return createdEventId;
+	}
+
+	public boolean isApplied() {
+		return createdClipId != null;
 	}
 
 	public @Nullable String getTargetTrackId() {

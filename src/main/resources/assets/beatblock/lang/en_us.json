@@ -768,6 +768,8 @@
   "beatblock.message.layer_name_taken": "Name already used by another layer: %s",
   "beatblock.message.layer_reorder_invalid": "Cannot reorder layers (they may not be in the same group).",
   "beatblock.message.layer_renamed": "Renamed to: %s",
+  "beatblock.message.layer_bound_to_track": "Layer \"%s\" bound to timeline at %s",
+  "beatblock.message.layer_bind_failed": "Could not bind layer to track.",
   "beatblock.message.engine_or_timeline_unavailable": "Engine or timeline editor unavailable.",
   "beatblock.message.create_selection_first": "Create a block selection first.",
   "beatblock.message.all_blocks_claimed": "All blocks in selection already belong to other layers.",

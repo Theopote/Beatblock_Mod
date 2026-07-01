@@ -61,6 +61,8 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 
 	/** 当前帧音频组是否有拖拽悬停高亮（任意 row 0~4 悬停且有 audio payload 时置 true） */
 	private boolean audioGroupDropHighlight;
+	/** 当前帧建造图层拖放悬停的行索引，-1 表示无。 */
+	private int buildLayerDropHighlightRow = -1;
 	/** 已注册静音回调的 TrackListState 对象（避免重复注册）。 */
 	private TimelineTrackListState registeredMuteListenerFor;
 	private final Supplier<BeatBlockContext> contextSource;
@@ -111,7 +113,8 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		SelectionBox selectionBox,
 		InteractionState interactionState,
 		TimelineTrackListState trackListState,
-		TimelineLayout layout
+		TimelineLayout layout,
+		TimelineToolbarState toolbarState
 	) {
 		if (timeline == null || viewState == null || layout == null) return;
 
@@ -182,8 +185,9 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		gridRenderer.render(viewState, layout, layout.contentHeight);
 		TimelineRowHoverHighlighter.drawRowHoverHighlight(layout);
 
-		// 每帧重置音频组拖放高亮标记
+		// 每帧重置拖放高亮标记
 		audioGroupDropHighlight = false;
+		buildLayerDropHighlightRow = -1;
 
 		// 轨道名 + 内容区（仅可见行）；组可折叠，折叠后子轨道不绘制
 		for (int i = 0; i < TimelineLayout.CONTENT_ROW_COUNT; i++) {
@@ -201,12 +205,15 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 				timeline, clock);
 			rowContentRenderer.drawRowContent(
 				this, i, rowY, timeline, viewState, selectionState, layout, trackListState,
+				toolbarState, interactionState,
 				currentAudioSubTracks, currentAnimationSubTracks, currentBuildLayerTracks);
 		}
 
 		// 音频组拖放高亮（在所有行内容绘制后叠加边框）
 		TimelineAudioGroupDropHighlight.drawIfActive(layout, audioGroupDropHighlight);
+		TimelineBuildLayerDropHighlight.drawIfActive(layout, buildLayerDropHighlightRow);
 		audioGroupDropHighlight = false;
+		buildLayerDropHighlightRow = -1;
 
 		// 分割线：位于轨道背景/内容之上，但低于对齐辅助线与框选。
 		drawDivider(layout, layout.contentTop, layout.contentTop + layout.contentHeight);
@@ -290,6 +297,11 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	@Override
 	public void setAudioGroupDropHighlight(boolean highlight) {
 		audioGroupDropHighlight = highlight;
+	}
+
+	@Override
+	public void setBuildLayerDropHighlightRow(int rowIndex) {
+		buildLayerDropHighlightRow = rowIndex;
 	}
 
 	@Override

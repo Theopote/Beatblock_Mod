@@ -11,6 +11,8 @@ public interface TimelineAudioDropHost {
 
 	void setAudioGroupDropHighlight(boolean highlight);
 
+	void setBuildLayerDropHighlightRow(int rowIndex);
+
 	void resetBeatmapAutoApplySignature();
 
 	void requestDenseFeatureEnrichment(Timeline timeline, AudioAsset asset);

@@ -155,6 +155,7 @@ class LayerCommandsTest {
 			timeline, layerManager, "layer-bind", null, 1.0, 2.0);
 		command.execute();
 
+		assertTrue(command.isApplied());
 		BuildLayer bound = layerManager.get("layer-bind");
 		assertNotNull(bound);
 		assertEquals(LayerVisibilityState.BOUND_TO_TRACK, bound.getState());

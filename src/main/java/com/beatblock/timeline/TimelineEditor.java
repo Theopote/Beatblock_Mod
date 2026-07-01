@@ -441,7 +441,8 @@ public final class TimelineEditor {
 			state.getSelectionBox(),
 			state.getInteractionState(),
 			trackListState,
-			layout
+			layout,
+			toolbarState
 		);
 		syncBuildLayerTrackNamesFromUi();
 		uiStateStore.syncAndFlush(timeline, trackListState);

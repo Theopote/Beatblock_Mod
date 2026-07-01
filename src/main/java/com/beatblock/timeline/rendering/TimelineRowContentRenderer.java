@@ -1,18 +1,17 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.audio.assets.AudioAsset;
-import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.WaveformData;
-import com.beatblock.timeline.command.layer.BindLayerToTrackCommand;
+import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineViewState;
+import com.beatblock.timeline.layer.BuildLayerDragDropHandler;
 import imgui.ImGui;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /** 时间线各行内容区绘制（波形/片段条/动画事件/拖放目标）。 */
@@ -41,6 +40,8 @@ public final class TimelineRowContentRenderer {
 		SelectionState selectionState,
 		TimelineLayout layout,
 		TimelineTrackListState trackListState,
+		TimelineToolbarState toolbarState,
+		InteractionState interactionState,
 		List<TrackDefinition> audioSubTracks,
 		List<TrackDefinition> animationSubTracks,
 		List<TrackDefinition> buildLayerTracks
@@ -121,7 +122,8 @@ public final class TimelineRowContentRenderer {
 				td.hasCustomColor() ? td.getColor() : 0xFF_66_CC_88
 			);
 			renderBuildLayerTrackDropTarget(
-				dropHost, rowIndex, rowHeight, timeline, layout, viewState, td.getKey(), trackListState);
+				dropHost, rowIndex, rowHeight, timeline, layout, viewState,
+				toolbarState, interactionState, selectionState, td.getKey(), trackListState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_CAMERA) {
 			eventRenderer.renderCameraTrackRow(rowY, timeline, layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_GLOBAL_EVENT) {
@@ -137,38 +139,25 @@ public final class TimelineRowContentRenderer {
 		Timeline timeline,
 		TimelineLayout layout,
 		TimelineViewState viewState,
+		TimelineToolbarState toolbarState,
+		InteractionState interactionState,
+		SelectionState selectionState,
 		String targetTrackId,
 		TimelineTrackListState trackListState
 	) {
-		float screenY = layout.getRowScreenY(rowIndex);
-		if (screenY < 0 || targetTrackId == null || targetTrackId.isBlank()) return;
-		if (trackListState != null && trackListState.isLocked(rowIndex)) return;
-
-		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
-		ImGui.invisibleButton("##BuildLayerDrop" + rowIndex, layout.contentWidth, rowHeight);
-		if (ImGui.beginDragDropTarget()) {
-			byte[] payload = ImGui.acceptDragDropPayload("BB_BUILD_LAYER_ID");
-			if (payload != null) {
-				BeatBlockContext context = dropHost != null ? dropHost.context() : null;
-				if (context != null
-					&& context.blockAnimationEngine() != null
-					&& context.timelineEditor() != null) {
-					String layerId = new String(payload, StandardCharsets.UTF_8).trim();
-					double dropTime = viewState.screenToTime(ImGui.getMousePosX() - layout.contentLeft);
-					dropTime = Math.max(0, dropTime);
-					var cmd = new BindLayerToTrackCommand(
-						timeline,
-						context.blockAnimationEngine().getBuildLayerManager(),
-						layerId,
-						targetTrackId,
-						dropTime,
-						BindLayerToTrackCommand.DEFAULT_CLIP_DURATION_SECONDS
-					);
-					context.timelineEditor().getCommandManager().execute(cmd);
-				}
-			}
-			ImGui.endDragDropTarget();
-		}
+		BuildLayerDragDropHandler.renderDropTarget(
+			dropHost,
+			rowIndex,
+			rowHeight,
+			timeline,
+			layout,
+			viewState,
+			toolbarState,
+			interactionState,
+			selectionState,
+			targetTrackId,
+			trackListState
+		);
 	}
 
 	private void renderAudioSubTrack(

@@ -13,6 +13,7 @@ import com.beatblock.ui.imgui.IconButtonStyle;
 import com.beatblock.ui.imgui.ImGuiModifierKeys;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.timeline.layer.BuildLayerDragDropHandler;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
@@ -37,7 +38,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class LayerPanel {
 
-	public static final String DRAG_PAYLOAD_TYPE = "BB_BUILD_LAYER_ID";
+	public static final String DRAG_PAYLOAD_TYPE = BuildLayerDragDropHandler.PAYLOAD_TYPE;
 	public static final String REORDER_DRAG_PAYLOAD_TYPE = "BB_BUILD_LAYER_REORDER";
 	private static final String CONTEXT_POPUP = "##LayerRowContext";
 	private static final String DELETE_CONFIRM_POPUP = "##LayerDeleteConfirm";
@@ -334,6 +335,9 @@ public class LayerPanel {
 			);
 		}
 		renderLayerReorderDropTarget(layer.getId());
+		if (layer.canBindToTrack()) {
+			renderTimelineBindDragSource(layer);
+		}
 		if (layer.getColorArgb() != 0) {
 			LayerColorUtils.popTextColor(layer.getColorArgb());
 		}
@@ -440,23 +444,19 @@ public class LayerPanel {
 	}
 
 	private void renderTimelineBindDragSource(BuildLayer layer) {
+		if (!layer.canBindToTrack()) {
+			return;
+		}
 		if (!ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
 			return;
 		}
-		ImGui.text(BBTexts.get("beatblock.layer.drag_bind"));
+		ImGui.text(BBTexts.get("beatblock.layer.drag_bind") + ": " + layer.getName());
 		ImGui.setDragDropPayload(DRAG_PAYLOAD_TYPE, layer.getId().getBytes(StandardCharsets.UTF_8), ImGuiCond.Once);
 		ImGui.endDragDropSource();
 	}
 
 	private static String decodePayload(byte[] raw) {
-		if (raw == null || raw.length == 0) {
-			return "";
-		}
-		int end = raw.length;
-		while (end > 0 && raw[end - 1] == 0) {
-			end--;
-		}
-		return new String(raw, 0, end, StandardCharsets.UTF_8);
+		return BuildLayerDragDropHandler.decodeLayerId(raw);
 	}
 
 	private String renderVisibilityIconButton(BuildLayer layer) {
