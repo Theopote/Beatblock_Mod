@@ -118,11 +118,10 @@ public final class MenuBarPresenter {
 			BuildLayerManager layers = layerManager.get();
 			OscProjectStore.LoadedProject loaded = OscProjectStore.load(Path.of(path), layers, current);
 			applyLoadedProject(current, loaded);
+			boolean audioLoadFailed = false;
 			if (!loaded.getAudioPath().isBlank()) {
 				AudioLoader loader = audioLoader.get();
-				if (loader != null) {
-					loader.load(loaded.getAudioPath());
-				}
+				audioLoadFailed = loader == null || !loader.load(loaded.getAudioPath());
 			}
 			TimelineEditor editor = timelineEditor.get();
 			if (editor != null) {
@@ -132,7 +131,9 @@ public final class MenuBarPresenter {
 			if (layers != null) {
 				layers.applyPersistedWorldState(BuildLayerManager.currentWorld());
 			}
-			return PresenterResult.success(BBTexts.get("beatblock.message.project_opened"));
+			return PresenterResult.success(BBTexts.get(audioLoadFailed
+				? "beatblock.message.project_opened_audio_failed"
+				: "beatblock.message.project_opened"));
 		} catch (Exception e) {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.open_failed", e.getMessage()));
 		}

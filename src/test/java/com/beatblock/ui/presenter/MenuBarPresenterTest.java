@@ -154,6 +154,21 @@ class MenuBarPresenterTest {
 		assertFalse(presenter.undoRedoState().canRedo());
 	}
 
+	@Test
+	void openProjectReportsAudioLoadFailure(@TempDir Path tempDir) throws Exception {
+		Path file = tempDir.resolve("audio-failure.osc");
+		timeline.setMetadata("audioPath", "C:/missing/audio.wav");
+		OscProjectStore.save(file, timeline);
+		audioLoader.nextResult = false;
+
+		var result = presenter.openProject(file.toString());
+
+		assertTrue(result.ok());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get(
+			"beatblock.message.project_opened_audio_failed"), result.messageOrEmpty());
+		assertEquals("C:/missing/audio.wav", audioLoader.lastPath);
+	}
+
 	private static final class RecordingAudioLoader extends AudioLoader {
 		String lastPath;
 		boolean nextResult;

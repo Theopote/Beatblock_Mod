@@ -8,6 +8,8 @@ import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.TimelineToolbarActionsPresenter;
 import com.beatblock.ui.presenter.TimelineToolbarFeedbackPresenter;
 import com.beatblock.ui.notification.ToastNotificationSystem;
+import com.beatblock.ui.preferences.BeatBlockShortcutId;
+import com.beatblock.ui.preferences.UiPreferences;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
@@ -43,6 +45,7 @@ public class MenuBarPanel {
 	private final ImString openProjectPath = new ImString(IMPORT_PATH_CAPACITY);
 	private final ImString saveProjectPath = new ImString(IMPORT_PATH_CAPACITY);
 	private String projectDialogMessage = "";
+	private String importDialogMessage = "";
 
 	public MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
 			Runnable onGenerateRhythmDrop, Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout,
@@ -76,20 +79,18 @@ public class MenuBarPanel {
 		if (!ImGui.beginMainMenuBar()) return;
 		try {
 			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.file"))) {
-				if (ImGui.menuItem(BBTexts.get("beatblock.menu.open_project"), "Ctrl+Shift+O")) {
-					showOpenProjectDialog = true;
-					projectDialogMessage = "";
-					openProjectPath.set("");
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.open_project"), shortcut(BeatBlockShortcutId.OPEN_PROJECT))) {
+					requestOpenProject();
 				}
-				if (ImGui.menuItem(BBTexts.get("beatblock.menu.save_project"), "Ctrl+S")) {
-					showSaveProjectDialog = true;
-					projectDialogMessage = "";
-					saveProjectPath.set(presenter.defaultSaveProjectPath());
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.save_project"), shortcut(BeatBlockShortcutId.SAVE_PROJECT))) {
+					requestSaveProject();
+				}
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.save_project_as"))) {
+					requestSaveProjectAs();
 				}
 				ImGui.separator();
-				if (ImGui.menuItem(BBTexts.get("beatblock.menu.import_music"), "Ctrl+O")) {
-					showImportDialog = true;
-					importPath.set("");
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.import_music"), shortcut(BeatBlockShortcutId.IMPORT_MUSIC))) {
+					requestImportMusic();
 				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.export_video"))) {
 					onOpenVideoExport.run();
@@ -102,24 +103,24 @@ public class MenuBarPanel {
 			}
 			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.edit"))) {
 				var undoRedo = presenter.undoRedoState();
-				if (ImGui.menuItem(BBTexts.get("beatblock.menu.undo"), "Ctrl+Z", false, undoRedo.canUndo())) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.undo"), shortcut(BeatBlockShortcutId.UNDO), false, undoRedo.canUndo())) {
 					presenter.undo();
 				}
-				if (ImGui.menuItem(BBTexts.get("beatblock.menu.redo"), "Ctrl+Y", false, undoRedo.canRedo())) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.redo"), shortcut(BeatBlockShortcutId.REDO), false, undoRedo.canRedo())) {
 					presenter.redo();
 				}
 				ImGui.separator();
 				var editState = presenter.editViewState();
-				if (ImGui.menuItem(BBTexts.get("beatblock.common.cut"), "Ctrl+X", false, editState.hasSelection())) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.common.cut"), shortcut(BeatBlockShortcutId.CUT), false, editState.hasSelection())) {
 					presenter.cutTimelineSelection();
 				}
-				if (ImGui.menuItem(BBTexts.get("beatblock.common.copy"), "Ctrl+C", false, editState.hasSelection())) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.common.copy"), shortcut(BeatBlockShortcutId.COPY), false, editState.hasSelection())) {
 					presenter.copyTimelineSelection();
 				}
-				if (ImGui.menuItem(BBTexts.get("beatblock.menu.paste_at_playhead"), "Ctrl+V", false, editState.hasClipboard())) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.paste_at_playhead"), shortcut(BeatBlockShortcutId.PASTE), false, editState.hasClipboard())) {
 					presenter.pasteTimelineAtPlayhead();
 				}
-				if (ImGui.menuItem(BBTexts.get("beatblock.common.delete"), "Delete", false, editState.canDelete())) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.common.delete"), shortcut(BeatBlockShortcutId.DELETE), false, editState.canDelete())) {
 					presenter.deleteTimelineSelection();
 				}
 				ImGui.endMenu();
@@ -174,7 +175,7 @@ public class MenuBarPanel {
 					onOpenSmartAutoMap.run();
 				}
 				if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.tooltip.smart_auto_map"));
-				if (ImGui.menuItem(BBTexts.get("beatblock.menu.generate_rhythm_drop"), "Ctrl+Shift+D")) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.generate_rhythm_drop"), shortcut(BeatBlockShortcutId.GENERATE_RHYTHM_DROP))) {
 					onGenerateRhythmDrop.run();
 				}
 				if (ImGui.isItemHovered()) {
@@ -244,6 +245,43 @@ public class MenuBarPanel {
 		}
 	}
 
+	private static String shortcut(BeatBlockShortcutId id) {
+		return UiPreferences.shortcut(id);
+	}
+
+	public void requestImportMusic() {
+		showImportDialog = true;
+		importDialogMessage = "";
+		importPath.set("");
+	}
+
+	public void requestOpenProject() {
+		showOpenProjectDialog = true;
+		projectDialogMessage = "";
+		openProjectPath.set("");
+	}
+
+	public void requestSaveProject() {
+		String path = presenter.defaultSaveProjectPath();
+		if (path == null || path.isBlank()) {
+			requestSaveProjectAs();
+			return;
+		}
+		showPresenterResult(presenter.saveProject(path));
+	}
+
+	private void requestSaveProjectAs() {
+		showSaveProjectDialog = true;
+		projectDialogMessage = "";
+		saveProjectPath.set(presenter.defaultSaveProjectPath());
+	}
+
+	private static void showPresenterResult(com.beatblock.ui.presenter.PresenterResult result) {
+		if (result == null || result.messageOrEmpty().isBlank()) return;
+		if (result.ok()) ToastNotificationSystem.showSuccess(result.messageOrEmpty());
+		else ToastNotificationSystem.showError(result.messageOrEmpty());
+	}
+
 	private static void panelToggleItem(String label, ImBoolean open) {
 		boolean v = open.get();
 		if (ImGui.menuItem(label, null, v)) {
@@ -260,13 +298,19 @@ public class MenuBarPanel {
 			ImGui.inputText("##path", importPath);
 			if (ImGui.button(BBTexts.get("beatblock.common.import"))) {
 				var result = presenter.importAudio(importPath.get());
+				importDialogMessage = result.messageOrEmpty();
 				if (result.ok()) {
 					showImportDialog = false;
+					showPresenterResult(result);
 				}
 			}
 			ImGui.sameLine();
 			if (ImGui.button(BBTexts.get("beatblock.common.cancel"))) {
 				showImportDialog = false;
+			}
+			if (!importDialogMessage.isBlank()) {
+				ImGui.spacing();
+				ImGui.textWrapped(importDialogMessage);
 			}
 		}
 		ImGui.end();
@@ -284,6 +328,7 @@ public class MenuBarPanel {
 				projectDialogMessage = result.messageOrEmpty();
 				if (result.ok()) {
 					showOpenProjectDialog = false;
+					showPresenterResult(result);
 				}
 			}
 			ImGui.sameLine();
@@ -310,6 +355,7 @@ public class MenuBarPanel {
 				projectDialogMessage = result.messageOrEmpty();
 				if (result.ok()) {
 					showSaveProjectDialog = false;
+					showPresenterResult(result);
 				}
 			}
 			ImGui.sameLine();

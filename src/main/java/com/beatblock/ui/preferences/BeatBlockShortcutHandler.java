@@ -5,14 +5,28 @@ import com.beatblock.ui.presenter.MenuBarPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
+import org.lwjgl.glfw.GLFW;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /** 全局快捷键处理：在 ImGui 未捕获键盘时响应可配置组合键。 */
 public final class BeatBlockShortcutHandler {
 
+	private static final int NATIVE_KEY_OFFSET = 512;
+	private static final Set<Integer> NATIVE_KEYS_DOWN = new HashSet<>();
+
+	public interface MenuActions {
+		void openImportMusic();
+		void saveProject();
+		void openProject();
+		void generateRhythmDrop();
+	}
+
 	private BeatBlockShortcutHandler() {
 	}
 
-	public static void processGlobalShortcuts() {
+	public static void processGlobalShortcuts(MenuActions menuActions) {
 		if (ImGui.getIO() == null || ImGui.getIO().getWantCaptureKeyboard()) {
 			return;
 		}
@@ -23,6 +37,12 @@ public final class BeatBlockShortcutHandler {
 		}
 		if (isPressed(BeatBlockShortcutId.REDO)) {
 			menu.redo();
+		}
+		if (menuActions != null) {
+			if (isPressed(BeatBlockShortcutId.IMPORT_MUSIC)) menuActions.openImportMusic();
+			if (isPressed(BeatBlockShortcutId.SAVE_PROJECT)) menuActions.saveProject();
+			if (isPressed(BeatBlockShortcutId.OPEN_PROJECT)) menuActions.openProject();
+			if (isPressed(BeatBlockShortcutId.GENERATE_RHYTHM_DROP)) menuActions.generateRhythmDrop();
 		}
 		if (editor != null) {
 			if (isPressed(BeatBlockShortcutId.COPY)) {
@@ -76,11 +96,23 @@ public final class BeatBlockShortcutHandler {
 			if (io.getKeyCtrl() != ctrl || io.getKeyShift() != shift || io.getKeyAlt() != alt) {
 				return false;
 			}
+			if (key >= NATIVE_KEY_OFFSET) {
+				int nativeKey = key - NATIVE_KEY_OFFSET;
+				boolean down = io.getKeysDown(nativeKey);
+				if (!down) {
+					NATIVE_KEYS_DOWN.remove(nativeKey);
+					return false;
+				}
+				return NATIVE_KEYS_DOWN.add(nativeKey);
+			}
 			return ImGui.isKeyPressed(key);
 		}
 
 		private static int keyFromToken(String token) {
 			return switch (token) {
+				case "S" -> NATIVE_KEY_OFFSET + GLFW.GLFW_KEY_S;
+				case "O" -> NATIVE_KEY_OFFSET + GLFW.GLFW_KEY_O;
+				case "D" -> NATIVE_KEY_OFFSET + GLFW.GLFW_KEY_D;
 				case "Z" -> ImGuiKey.Z;
 				case "Y" -> ImGuiKey.Y;
 				case "C" -> ImGuiKey.C;

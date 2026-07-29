@@ -124,9 +124,14 @@ public class BeatBlockUIManager {
 				String path = io.getIniFilename();
 				if (path != null && !path.isBlank()) {
 					ImGui.saveIniSettingsToDisk(path);
+					ToastNotificationSystem.showSuccess(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.layout_saved"));
+					return;
 				}
 			}
-		} catch (Throwable ignored) {
+			ToastNotificationSystem.showError(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.layout_path_unavailable"));
+		} catch (Throwable error) {
+			ToastNotificationSystem.showError(com.beatblock.ui.i18n.BBTexts.get(
+				"beatblock.message.layout_save_failed", error.getMessage()));
 		}
 	}
 
@@ -137,14 +142,24 @@ public class BeatBlockUIManager {
 				String path = io.getIniFilename();
 				if (path != null && !path.isBlank()) {
 					ImGui.loadIniSettingsFromDisk(path);
+					ToastNotificationSystem.showSuccess(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.layout_loaded"));
+					return;
 				}
 			}
-		} catch (Throwable ignored) {
+			ToastNotificationSystem.showError(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.layout_path_unavailable"));
+		} catch (Throwable error) {
+			ToastNotificationSystem.showError(com.beatblock.ui.i18n.BBTexts.get(
+				"beatblock.message.layout_load_failed", error.getMessage()));
 		}
 	}
 
 	public void render() {
-		BeatBlockShortcutHandler.processGlobalShortcuts();
+		BeatBlockShortcutHandler.processGlobalShortcuts(new BeatBlockShortcutHandler.MenuActions() {
+			@Override public void openImportMusic() { menuBarPanel.requestImportMusic(); }
+			@Override public void saveProject() { menuBarPanel.requestSaveProject(); }
+			@Override public void openProject() { menuBarPanel.requestOpenProject(); }
+			@Override public void generateRhythmDrop() { generateRhythmDropFromMenu(); }
+		});
 
 		if (VideoExportCoordinator.getInstance().shouldHideEditorChrome()) {
 			videoExportDialog.render();
@@ -212,5 +227,6 @@ public class BeatBlockUIManager {
 	public void resetLayoutState() {
 		BeatBlockDockSpaceLayoutBuilder.resetLayoutState();
 		firstLayout = true;
+		ToastNotificationSystem.showSuccess(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.layout_reset"));
 	}
 }

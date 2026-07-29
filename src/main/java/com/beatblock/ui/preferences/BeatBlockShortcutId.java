@@ -10,7 +10,8 @@ public enum BeatBlockShortcutId {
 	DELETE("delete", "Delete"),
 	IMPORT_MUSIC("import_music", "Ctrl+O"),
 	SAVE_PROJECT("save_project", "Ctrl+S"),
-	OPEN_PROJECT("open_project", "Ctrl+Shift+O");
+	OPEN_PROJECT("open_project", "Ctrl+Shift+O"),
+	GENERATE_RHYTHM_DROP("generate_rhythm_drop", "Ctrl+Shift+D");
 
 	private final String id;
 	private final String defaultChord;
