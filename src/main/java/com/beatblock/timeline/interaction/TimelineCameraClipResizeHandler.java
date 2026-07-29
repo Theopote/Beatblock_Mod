@@ -25,7 +25,11 @@ public final class TimelineCameraClipResizeHandler {
 		double initialEnd,
 		Map<String, Double> eventOrigTimes,
 		ClipDragStateSnapshot undoSnapshot
-	) {}
+	) {
+		public Session {
+			eventOrigTimes = eventOrigTimes != null ? Map.copyOf(eventOrigTimes) : Map.of();
+		}
+	}
 
 	private TimelineCameraClipResizeHandler() {}
 

@@ -18,6 +18,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TimelineClipDragSessionTest {
@@ -66,6 +67,8 @@ class TimelineClipDragSessionTest {
 
 		assertEquals(1, session.cameraClipEventOriginalTimes().size());
 		assertEquals(2.0, session.cameraClipEventOriginalTimes().get(event.getId()), 1e-9);
+		assertThrows(UnsupportedOperationException.class,
+			() -> session.cameraClipEventOriginalTimes().clear());
 	}
 
 	@Test

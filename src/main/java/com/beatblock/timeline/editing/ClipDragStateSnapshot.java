@@ -34,6 +34,11 @@ public record ClipDragStateSnapshot(
 		featureTracksByKey = featureTracksByKey != null ? copyFeatureTracks(featureTracksByKey) : Map.of();
 	}
 
+	@Override
+	public Map<String, List<FeatureEvent>> featureTracksByKey() {
+		return copyFeatureTracks(featureTracksByKey);
+	}
+
 	public static @NonNull ClipDragStateSnapshot capture(
 		@Nullable Timeline timeline,
 		@Nullable String primaryTrackId,

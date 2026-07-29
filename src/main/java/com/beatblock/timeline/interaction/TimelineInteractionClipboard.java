@@ -10,6 +10,7 @@ import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,7 +29,16 @@ public final class TimelineInteractionClipboard {
 		double timeSeconds,
 		EventType type,
 		Map<String, Object> parameters
-	) {}
+	) {
+		public ClipboardEvent {
+			parameters = immutableMapCopy(parameters);
+		}
+
+		@Override
+		public Map<String, Object> parameters() {
+			return immutableMapCopy(parameters);
+		}
+	}
 
 	public record PasteRequest(
 		Timeline timeline,
@@ -38,7 +48,11 @@ public final class TimelineInteractionClipboard {
 		String contextTrackId,
 		String contextClipId,
 		TimelineTrackListState trackListState
-	) {}
+	) {
+		public PasteRequest {
+			clipboard = clipboard != null ? List.copyOf(clipboard) : List.of();
+		}
+	}
 
 	public static void copy(List<ClipboardEvent> target, Timeline timeline, SelectionState selectionState) {
 		target.clear();
@@ -125,6 +139,11 @@ public final class TimelineInteractionClipboard {
 	public record CreatedClipRef(String trackId, String clipId) {}
 
 	public record PasteResult(List<PastedEventRef> pastedEvents, List<CreatedClipRef> createdClips) {
+		public PasteResult {
+			pastedEvents = pastedEvents != null ? List.copyOf(pastedEvents) : List.of();
+			createdClips = createdClips != null ? List.copyOf(createdClips) : List.of();
+		}
+
 		public static PasteResult empty() {
 			return new PasteResult(List.of(), List.of());
 		}
@@ -141,6 +160,13 @@ public final class TimelineInteractionClipboard {
 			source.getType(),
 			new HashMap<>(source.getParameters())
 		);
+	}
+
+
+	private static <K, V> Map<K, V> immutableMapCopy(Map<K, V> source) {
+		return source == null || source.isEmpty()
+			? Map.of()
+			: Collections.unmodifiableMap(new HashMap<>(source));
 	}
 
 	private static Track resolvePasteTargetTrack(

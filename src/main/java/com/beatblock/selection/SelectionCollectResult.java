@@ -7,6 +7,10 @@ import java.util.List;
 /** 单次选区收集（魔棒/整列/框选等）的结果。 */
 public record SelectionCollectResult(List<BlockPos> blocks, String errorMessage, String noticeMessage) {
 
+	public SelectionCollectResult {
+		blocks = blocks != null ? List.copyOf(blocks) : null;
+	}
+
 	public static SelectionCollectResult success(List<BlockPos> blocks) {
 		return new SelectionCollectResult(blocks, null, null);
 	}

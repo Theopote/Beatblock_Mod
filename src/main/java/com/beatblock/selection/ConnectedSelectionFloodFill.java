@@ -48,7 +48,11 @@ public final class ConnectedSelectionFloodFill {
 		}
 	}
 
-	public record Result(List<BlockPos> blocks, boolean truncated) {}
+	public record Result(List<BlockPos> blocks, boolean truncated) {
+		public Result {
+			blocks = blocks != null ? List.copyOf(blocks) : List.of();
+		}
+	}
 
 	private ConnectedSelectionFloodFill() {}
 

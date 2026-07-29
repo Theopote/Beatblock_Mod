@@ -10,6 +10,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConnectedSelectionFloodFillTest {
@@ -110,5 +111,16 @@ class ConnectedSelectionFloodFillTest {
 		);
 
 		assertEquals(1, result.blocks().size());
+	}
+
+	@Test
+	void resultSnapshotsItsBlockList() {
+		var source = new java.util.ArrayList<>(List.of(new BlockPos(0, 64, 0)));
+		var result = new ConnectedSelectionFloodFill.Result(source, false);
+
+		source.clear();
+
+		assertEquals(1, result.blocks().size());
+		assertThrows(UnsupportedOperationException.class, () -> result.blocks().clear());
 	}
 }

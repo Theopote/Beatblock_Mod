@@ -40,15 +40,15 @@ public final class TimelineClipDragSession {
 	}
 
 	public Map<String, Double> linkedEventOriginalTimes() {
-		return linkedEventOriginalTimes;
+		return Map.copyOf(linkedEventOriginalTimes);
 	}
 
 	public Map<String, List<double[]>> featureEventSnapshot() {
-		return featureEventSnapshot;
+		return copyFeatureEventSnapshot(featureEventSnapshot);
 	}
 
 	public Map<String, Double> cameraClipEventOriginalTimes() {
-		return cameraClipEventOriginalTimes;
+		return Map.copyOf(cameraClipEventOriginalTimes);
 	}
 
 	public ClipDragStateSnapshot undoSnapshot() {
@@ -148,5 +148,19 @@ public final class TimelineClipDragSession {
 		featureEventSnapshot.clear();
 		cameraClipEventOriginalTimes.clear();
 		undoSnapshot = null;
+	}
+
+	private static Map<String, List<double[]>> copyFeatureEventSnapshot(
+		Map<String, List<double[]>> source
+	) {
+		Map<String, List<double[]>> copy = new HashMap<>();
+		for (Map.Entry<String, List<double[]>> entry : source.entrySet()) {
+			List<double[]> events = new ArrayList<>();
+			for (double[] event : entry.getValue()) {
+				events.add(event.clone());
+			}
+			copy.put(entry.getKey(), List.copyOf(events));
+		}
+		return Map.copyOf(copy);
 	}
 }

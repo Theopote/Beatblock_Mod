@@ -10,10 +10,12 @@ import com.beatblock.timeline.rendering.TimelineTrackListState;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TimelineInteractionClipboardTest {
 
@@ -69,5 +71,24 @@ class TimelineInteractionClipboardTest {
 		assertEquals(2.0, times[1], 1e-9);
 		assertEquals(5.0, times[2], 1e-9);
 		assertEquals(6.0, times[3], 1e-9);
+	}
+
+	@Test
+	void clipboardAndPasteResultSnapshotCollections() {
+		Map<String, Object> parameters = new HashMap<>();
+		parameters.put("value", 1);
+		var event = new TimelineInteractionClipboard.ClipboardEvent(
+			"track", "clip", 1.0, EventType.ANIMATION, parameters);
+		parameters.put("value", 2);
+
+		assertEquals(1, event.parameters().get("value"));
+		assertThrows(UnsupportedOperationException.class, () -> event.parameters().clear());
+
+		var pasted = new ArrayList<TimelineInteractionClipboard.PastedEventRef>();
+		var result = new TimelineInteractionClipboard.PasteResult(pasted, List.of());
+		pasted.add(new TimelineInteractionClipboard.PastedEventRef(
+			"track", "clip", new TimelineEvent("event", 1.0, EventType.ANIMATION, Map.of())));
+		assertEquals(0, result.pastedEvents().size());
+		assertThrows(UnsupportedOperationException.class, () -> result.pastedEvents().clear());
 	}
 }
