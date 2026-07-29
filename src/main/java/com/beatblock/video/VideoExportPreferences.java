@@ -121,7 +121,10 @@ public final class VideoExportPreferences {
 	private static void save() {
 		try {
 			Path path = configPath();
-			Files.createDirectories(path.getParent());
+			Path parent = path.getParent();
+			if (parent != null) {
+				Files.createDirectories(parent);
+			}
 			JsonObject root = new JsonObject();
 			root.addProperty("resolutionPresetIndex", resolutionPresetIndex);
 			root.addProperty("fpsPresetIndex", fpsPresetIndex);

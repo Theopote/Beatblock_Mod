@@ -58,11 +58,9 @@ public final class PerformanceMonitor {
 	}
 
 	public static Snapshot snapshot(@Nullable BeatBlockContext context) {
-		if (context == null) {
-			context = BeatBlock.getContext();
-		}
-		Timeline timeline = context != null ? context.timeline() : null;
-		BlockAnimationEngine engine = context != null ? context.blockAnimationEngine() : null;
+		BeatBlockContext effectiveContext = context != null ? context : BeatBlock.getContext();
+		Timeline timeline = effectiveContext.timeline();
+		BlockAnimationEngine engine = effectiveContext.blockAnimationEngine();
 		AnimationPlayer player = engine != null ? engine.getAnimationPlayer() : null;
 		StageObjectSystem stageObjects = engine != null ? engine.getStageObjectSystem() : null;
 

@@ -85,7 +85,9 @@ public class Timeline {
 		}
 		metadata.put(key, value);
 	}
-	public @Nullable Object getMetadata(@Nullable String key) { return metadata.get(key); }
+	public @Nullable Object getMetadata(@Nullable String key) {
+		return key != null ? metadata.get(key) : null;
+	}
 	public @NonNull List<TimelineMarker> getMarkers() { return markerView; }
 	/** BPM（由音频分析填入 metadata["bpm"]），未设置时返回 0。 */
 	public double getBpm() {

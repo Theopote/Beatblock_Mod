@@ -157,10 +157,11 @@ public final class TimelineInteractionDeleteSupport {
 
 		if (!audioTrack.getClips().isEmpty()) return;
 
-		if (audioTrack.getAudioData() != null) {
-			audioTrack.getAudioData().setWaveform(null);
-			audioTrack.getAudioData().clearAll();
-			audioTrack.getAudioData().clearStemWaveforms();
+		var audioData = audioTrack.getAudioData();
+		if (audioData != null) {
+			audioData.setWaveform(null);
+			audioData.clearAll();
+			audioData.clearStemWaveforms();
 		}
 
 		timeline.setMetadata("audioRootClipId", null);

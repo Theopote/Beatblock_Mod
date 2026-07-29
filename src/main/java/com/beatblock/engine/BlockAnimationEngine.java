@@ -196,11 +196,12 @@ public final class BlockAnimationEngine {
 
 		Map<String, Object> params = event.getParameters();
 		var payload = event.getPayload();
-		if (payload instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate
-			&& animate.singleBlock() != null) {
+		if (payload instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate) {
 			var ref = animate.singleBlock();
-			scheduleSingleBlockBurst(event, target, def, new BlockPos(ref.x(), ref.y(), ref.z()));
-			return;
+			if (ref != null) {
+				scheduleSingleBlockBurst(event, target, def, new BlockPos(ref.x(), ref.y(), ref.z()));
+				return;
+			}
 		}
 		net.minecraft.util.math.BlockPos singleBlock =
 			com.beatblock.timeline.generation.StepBurstEventFactory.readSingleBlockPos(params);
