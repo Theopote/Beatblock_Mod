@@ -310,16 +310,20 @@ public final class BuildLayerManager {
 	}
 
 	public BuildLayerGroup createGroup(String name, List<String> layerIds) {
-		if (layerIds == null || layerIds.isEmpty()) {
+		if (layerIds == null) {
 			return null;
 		}
+		List<String> uniqueLayerIds = layerIds.stream().distinct().toList();
+		if (uniqueLayerIds.size() < 2) return null;
 		List<BuildLayer> members = new ArrayList<>();
-		for (String layerId : layerIds) {
+		Set<String> previousGroupIds = new HashSet<>();
+		for (String layerId : uniqueLayerIds) {
 			BuildLayer layer = layers.get(layerId);
 			if (layer == null) {
 				return null;
 			}
 			members.add(layer);
+			if (layer.getGroupId() != null) previousGroupIds.add(layer.getGroupId());
 		}
 		String groupName = name != null && !name.isBlank() ? name.trim() : "group";
 		String groupId = uniqueGroupId(groupName);
@@ -328,6 +332,7 @@ public final class BuildLayerManager {
 		for (BuildLayer layer : members) {
 			layer.setGroupId(groupId);
 		}
+		removeEmptyGroups(previousGroupIds);
 		return group;
 	}
 
@@ -397,11 +402,13 @@ public final class BuildLayerManager {
 	}
 
 	public BuildLayer mergeLayers(List<String> layerIds, String requestedName) {
-		if (layerIds == null || layerIds.size() < 2) {
+		if (layerIds == null) {
 			return null;
 		}
-		List<BuildLayer> sources = new ArrayList<>(layerIds.size());
-		for (String layerId : layerIds) {
+		List<String> uniqueLayerIds = layerIds.stream().distinct().toList();
+		if (uniqueLayerIds.size() < 2) return null;
+		List<BuildLayer> sources = new ArrayList<>(uniqueLayerIds.size());
+		for (String layerId : uniqueLayerIds) {
 			BuildLayer layer = layers.get(layerId);
 			if (layer == null || !layer.canDelete()) {
 				return null;
@@ -422,6 +429,8 @@ public final class BuildLayerManager {
 		List<BlockPos> mergedBlocks = new ArrayList<>();
 		Map<BlockPos, BlockState> mergedCapture = new LinkedHashMap<>();
 		Set<String> groupIds = new HashSet<>();
+		String commonGroupId = sources.getFirst().getGroupId();
+		boolean allInSameGroup = commonGroupId != null;
 		int mergedColor = 0;
 		for (BuildLayer layer : sources) {
 			mergedBlocks.addAll(layer.getStageObject().getBlocks());
@@ -429,6 +438,7 @@ public final class BuildLayerManager {
 			if (layer.getGroupId() != null) {
 				groupIds.add(layer.getGroupId());
 			}
+			allInSameGroup &= java.util.Objects.equals(commonGroupId, layer.getGroupId());
 			if (layer.getColorArgb() != 0) {
 				mergedColor = layer.getColorArgb();
 			}
@@ -447,8 +457,8 @@ public final class BuildLayerManager {
 			id + "_stage", layerName, mergedBlocks, com.beatblock.engine.GroupSortingStrategy.SEQUENTIAL, 0.0);
 		stageObjectSystem.register(stageObject);
 		BuildLayer merged = new BuildLayer(id, layerName, stageObject, state, mergedCapture, null);
-		if (groupIds.size() == 1) {
-			merged.setGroupId(groupIds.iterator().next());
+		if (allInSameGroup && groups.containsKey(commonGroupId)) {
+			merged.setGroupId(commonGroupId);
 		}
 		merged.setColorArgb(mergedColor);
 		layers.put(id, merged);
@@ -475,6 +485,16 @@ public final class BuildLayerManager {
 			if (!anyLeft) {
 				groups.remove(groupId);
 			}
+		}
+	}
+
+	private void removeEmptyGroups(Collection<String> groupIds) {
+		if (groupIds == null) return;
+		for (String groupId : groupIds) {
+			if (groupId == null) continue;
+			boolean hasMembers = layers.values().stream()
+				.anyMatch(layer -> groupId.equals(layer.getGroupId()));
+			if (!hasMembers) groups.remove(groupId);
 		}
 	}
 

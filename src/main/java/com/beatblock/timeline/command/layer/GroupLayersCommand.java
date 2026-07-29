@@ -7,7 +7,9 @@ import com.beatblock.engine.layer.BuildLayerManager;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** 将多个图层归入新组。 */
 public final class GroupLayersCommand implements com.beatblock.timeline.command.Command {
@@ -17,6 +19,7 @@ public final class GroupLayersCommand implements com.beatblock.timeline.command.
 	private final List<String> layerIds;
 	private @Nullable BuildLayerGroup createdGroup;
 	private final List<String> previousGroupIds = new ArrayList<>();
+	private final Map<String, BuildLayerGroup> previousGroups = new LinkedHashMap<>();
 
 	public GroupLayersCommand(BuildLayerManager manager, String groupName, List<String> layerIds) {
 		this.manager = manager;
@@ -34,9 +37,16 @@ public final class GroupLayersCommand implements com.beatblock.timeline.command.
 			return;
 		}
 		previousGroupIds.clear();
+		previousGroups.clear();
 		for (String layerId : layerIds) {
 			BuildLayer layer = manager.get(layerId);
-			previousGroupIds.add(layer != null ? layer.getGroupId() : null);
+			String previousGroupId = layer != null ? layer.getGroupId() : null;
+			previousGroupIds.add(previousGroupId);
+			BuildLayerGroup previousGroup = manager.getGroup(previousGroupId);
+			if (previousGroup != null) {
+				previousGroups.putIfAbsent(previousGroupId, new BuildLayerGroup(
+					previousGroup.getId(), previousGroup.getName(), previousGroup.getColorArgb()));
+			}
 		}
 		createdGroup = manager.createGroup(groupName, layerIds);
 	}
@@ -48,6 +58,9 @@ public final class GroupLayersCommand implements com.beatblock.timeline.command.
 		}
 		String groupId = createdGroup.getId();
 		manager.dissolveGroup(groupId);
+		for (BuildLayerGroup previousGroup : previousGroups.values()) {
+			manager.registerGroup(previousGroup);
+		}
 		for (int i = 0; i < layerIds.size(); i++) {
 			BuildLayer layer = manager.get(layerIds.get(i));
 			if (layer == null) {
@@ -55,9 +68,6 @@ public final class GroupLayersCommand implements com.beatblock.timeline.command.
 			}
 			String previous = i < previousGroupIds.size() ? previousGroupIds.get(i) : null;
 			layer.setGroupId(previous);
-			if (previous != null && manager.getGroup(previous) == null) {
-				manager.registerGroup(new BuildLayerGroup(previous, previous, 0));
-			}
 		}
 		createdGroup = null;
 	}

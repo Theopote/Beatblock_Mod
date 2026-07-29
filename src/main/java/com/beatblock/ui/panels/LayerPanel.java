@@ -212,9 +212,11 @@ public class LayerPanel {
 		if (open) {
 			for (BuildLayer layer : manager.getLayersInGroup(group.getId())) {
 				renderLayerRow(layer, manager, 1);
-				rendered.add(layer.getId());
 			}
 			ImGui.treePop();
+		}
+		for (BuildLayer layer : manager.getLayersInGroup(group.getId())) {
+			rendered.add(layer.getId());
 		}
 		ImGui.popID();
 	}
