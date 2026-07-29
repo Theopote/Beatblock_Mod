@@ -12,6 +12,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.world.World;
+import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +79,17 @@ public final class BuildLayerWorldStore {
 		}
 		if (dirty && now - lastChangeAtMs >= SAVE_DEBOUNCE_MS) {
 			saveForWorld(client, client.world, manager);
+		}
+	}
+
+	public static void onChunkLoaded(World world, WorldChunk chunk) {
+		if (world == null || chunk == null || activeDimension == null
+			|| !activeDimension.equals(world.getRegistryKey())) {
+			return;
+		}
+		BuildLayerManager manager = layerManager();
+		if (manager != null) {
+			manager.applyPersistedWorldStateForChunk(world, chunk.getPos().x, chunk.getPos().z);
 		}
 	}
 

@@ -17,6 +17,7 @@ import com.beatblock.ui.HUD;
 import com.beatblock.ui.ImportScreen;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
@@ -100,6 +101,7 @@ public class BeatBlockClient implements ClientModInitializer {
 		
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> BuildLayerWorldStore.onWorldJoined(client));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> BuildLayerWorldStore.onWorldLeft(client));
+		ClientChunkEvents.CHUNK_LOAD.register(BuildLayerWorldStore::onChunkLoaded);
 
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
 			LOGGER.info("BeatBlock client stopping: releasing timeline and audio background resources");

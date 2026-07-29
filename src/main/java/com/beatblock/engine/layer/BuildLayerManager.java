@@ -527,6 +527,27 @@ public final class BuildLayerManager {
 		}
 	}
 
+	/** 区块延迟加载后，仅重新应用该区块内应隐藏的图层方块。 */
+	public void applyPersistedWorldStateForChunk(World world, int chunkX, int chunkZ) {
+		if (world == null) return;
+		for (BuildLayer layer : layers.values()) {
+			if (layer.getState() != LayerVisibilityState.FREE_HIDDEN
+				&& layer.getState() != LayerVisibilityState.BOUND_TO_TRACK) {
+				continue;
+			}
+			List<BlockControlExecutor.BlockMutation> mutations = new ArrayList<>();
+			for (BlockPos pos : layer.getStageObject().getBlocks()) {
+				if (pos == null || (pos.getX() >> 4) != chunkX || (pos.getZ() >> 4) != chunkZ) continue;
+				BlockState current = world.getBlockState(pos);
+				if (!current.isAir()) {
+					mutations.add(new BlockControlExecutor.BlockMutation(
+						pos.toImmutable(), current, Blocks.AIR.getDefaultState()));
+				}
+			}
+			applyMutations(world, mutations);
+		}
+	}
+
 	private void applyHiddenBlocks(BuildLayer layer, World world) {
 		List<BlockControlExecutor.BlockMutation> mutations = new ArrayList<>();
 		for (BlockPos pos : layer.getStageObject().getBlocks()) {
