@@ -10,7 +10,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -25,6 +28,11 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		RegisteredTask(AnalysisCancelControl control, Future<?> future) {
 			this.control = control;
 			this.future = future;
+		}
+
+		boolean cancel() {
+			control.cancelRunningProcess();
+			return future.cancel(true);
 		}
 	}
 
@@ -61,7 +69,8 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		Consumer<Beatmap> completeCallback = onComplete != null ? onComplete : beatmap -> {};
 		Consumer<String> errorCallback = onError != null ? onError : error -> {};
 
-		Future<?> delegate = executor.submit(() -> {
+		AtomicReference<RegisteredTask> taskRef = new AtomicReference<>();
+		FutureTask<Void> delegate = new FutureTask<>(() -> {
 			try {
 				if (onStarted != null) {
 					onStarted.run();
@@ -77,18 +86,29 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 				);
 			} finally {
 				if (normalizedTaskId != null) {
-					tasksById.remove(normalizedTaskId);
+					tasksById.remove(normalizedTaskId, taskRef.get());
 				}
 			}
+			return null;
 		});
 
 		Future<?> wrapped = wrapCancelableFuture(delegate, control);
+		RegisteredTask registeredTask = new RegisteredTask(control, wrapped);
+		taskRef.set(registeredTask);
 		if (normalizedTaskId != null) {
-			RegisteredTask previous = tasksById.put(normalizedTaskId, new RegisteredTask(control, wrapped));
+			RegisteredTask previous = tasksById.put(normalizedTaskId, registeredTask);
 			if (previous != null) {
-				previous.control.cancelRunningProcess();
-				previous.future.cancel(true);
+				previous.cancel();
 			}
+		}
+		try {
+			executor.execute(delegate);
+		} catch (RejectedExecutionException error) {
+			if (normalizedTaskId != null) {
+				tasksById.remove(normalizedTaskId, registeredTask);
+			}
+			registeredTask.cancel();
+			throw error;
 		}
 		return wrapped;
 	}
@@ -102,14 +122,12 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		if (task == null) {
 			return false;
 		}
-		task.control.cancelRunningProcess();
-		return task.future.cancel(true);
+		return task.cancel();
 	}
 
 	public void cancelAll() {
 		for (RegisteredTask task : tasksById.values()) {
-			task.control.cancelRunningProcess();
-			task.future.cancel(true);
+			task.cancel();
 		}
 		tasksById.clear();
 	}

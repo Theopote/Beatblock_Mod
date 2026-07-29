@@ -158,4 +158,93 @@ class AudioAnalysisOrchestratorTest {
 			orchestrator.shutdown();
 		}
 	}
+
+	@Test
+	void finishingPreviousTaskMustNotRemoveReplacementTask() throws Exception {
+		CountDownLatch firstStarted = new CountDownLatch(1);
+		CountDownLatch firstExited = new CountDownLatch(1);
+		CountDownLatch secondStarted = new CountDownLatch(1);
+		CountDownLatch releaseSecond = new CountDownLatch(1);
+
+		IAudioAnalyzer analyzer = new IAudioAnalyzer() {
+			@Override public String backendId() { return "replacement-race"; }
+			@Override public boolean isAvailable() { return true; }
+
+			@Override
+			public void analyze(
+				Path audioPath,
+				AnalysisOptions options,
+				AnalysisProgressCallback onProgress,
+				Consumer<Beatmap> onComplete,
+				Consumer<String> onError,
+				Consumer<AnalysisSummary> onSummary,
+				AnalysisCancelControl control
+			) {
+				boolean first = "first.mp3".equals(String.valueOf(audioPath.getFileName()));
+				try {
+					if (first) {
+						firstStarted.countDown();
+						new CountDownLatch(1).await();
+					} else {
+						secondStarted.countDown();
+						releaseSecond.await(5, TimeUnit.SECONDS);
+					}
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				} finally {
+					if (first) firstExited.countDown();
+				}
+			}
+		};
+
+		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(analyzer);
+		try {
+			orchestrator.submit("same-id", Path.of("first.mp3"), AnalysisOptions.withDemucs(false),
+				(step, pct) -> {}, beatmap -> {}, error -> {}, null, null);
+			assertTrue(firstStarted.await(5, TimeUnit.SECONDS));
+
+			orchestrator.submit("same-id", Path.of("second.mp3"), AnalysisOptions.withDemucs(false),
+				(step, pct) -> {}, beatmap -> {}, error -> {}, null, null);
+			assertTrue(firstExited.await(5, TimeUnit.SECONDS));
+			assertTrue(secondStarted.await(5, TimeUnit.SECONDS));
+
+			assertEquals(1, orchestrator.activeTaskCount());
+			assertTrue(orchestrator.cancel("same-id"));
+			assertEquals(0, orchestrator.activeTaskCount());
+		} finally {
+			releaseSecond.countDown();
+			orchestrator.shutdown();
+		}
+	}
+
+	@Test
+	void completedTaskDoesNotRemainRegistered() throws Exception {
+		IAudioAnalyzer immediateAnalyzer = new IAudioAnalyzer() {
+			@Override public String backendId() { return "immediate"; }
+			@Override public boolean isAvailable() { return true; }
+
+			@Override
+			public void analyze(
+				Path audioPath,
+				AnalysisOptions options,
+				AnalysisProgressCallback onProgress,
+				Consumer<Beatmap> onComplete,
+				Consumer<String> onError,
+				Consumer<AnalysisSummary> onSummary,
+				AnalysisCancelControl control
+			) {
+				onComplete.accept(new Beatmap(1, null, List.of(), List.of(), null, null));
+			}
+		};
+
+		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(immediateAnalyzer);
+		try {
+			var future = orchestrator.submit("fast", Path.of("fast.mp3"), AnalysisOptions.withDemucs(false),
+				(step, pct) -> {}, beatmap -> {}, error -> {}, null, null);
+			future.get(5, TimeUnit.SECONDS);
+			assertEquals(0, orchestrator.activeTaskCount());
+		} finally {
+			orchestrator.shutdown();
+		}
+	}
 }
