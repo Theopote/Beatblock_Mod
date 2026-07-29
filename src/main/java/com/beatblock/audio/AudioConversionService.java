@@ -23,6 +23,15 @@ public final class AudioConversionService implements AutoCloseable {
 		t.setDaemon(false);
 		return t;
 	});
+	private final MainThreadDispatcher callbackDispatcher;
+
+	public AudioConversionService() {
+		this(MainThreadDispatcher.immediate());
+	}
+
+	public AudioConversionService(@NonNull MainThreadDispatcher callbackDispatcher) {
+		this.callbackDispatcher = callbackDispatcher;
+	}
 
 	public @NonNull Future<?> convertToMp3Async(
 		@NonNull Path inputAudio,
@@ -43,22 +52,28 @@ public final class AudioConversionService implements AutoCloseable {
 		var outcome = FfmpegService.transcodeToMp3(
 			inputAudio,
 			fallbackDir,
-			onProgress != null ? onProgress::accept : (message, percent) -> {}
+			onProgress != null
+				? (message, percent) -> dispatch(() -> onProgress.accept(message, percent))
+				: (message, percent) -> {}
 		);
 
 		if (outcome instanceof FfmpegTranscodeOutcome.AlreadyMp3 already) {
 			if (onProgress != null) {
-				onProgress.accept("源文件已是 MP3，跳过转换。", 100);
+				dispatch(() -> onProgress.accept("源文件已是 MP3，跳过转换。", 100));
 			}
-			onComplete.accept(already.path());
+			dispatch(() -> onComplete.accept(already.path()));
 		} else if (outcome instanceof FfmpegTranscodeOutcome.Success success) {
 			if (onProgress != null) {
-				onProgress.accept("转换完成。", 100);
+				dispatch(() -> onProgress.accept("转换完成。", 100));
 			}
-			onComplete.accept(success.outputPath());
+			dispatch(() -> onComplete.accept(success.outputPath()));
 		} else if (outcome instanceof FfmpegTranscodeOutcome.Failure failure) {
-			onError.accept(failure.message());
+			dispatch(() -> onError.accept(failure.message()));
 		}
+	}
+
+	private void dispatch(Runnable action) {
+		callbackDispatcher.execute(action);
 	}
 
 	public void shutdown() {

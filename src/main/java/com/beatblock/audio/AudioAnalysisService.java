@@ -24,11 +24,21 @@ public final class AudioAnalysisService {
 	private volatile boolean useDemucs = true;
 
 	public AudioAnalysisService() {
-		this(new PythonEnvironmentDiagnostics());
+		this(new PythonEnvironmentDiagnostics(), MainThreadDispatcher.immediate());
 	}
 
 	public AudioAnalysisService(PythonEnvironmentDiagnostics pythonDiagnostics) {
-		this.orchestrator = new AudioAnalysisOrchestrator(new PythonAudioAnalyzer(pythonDiagnostics));
+		this(pythonDiagnostics, MainThreadDispatcher.immediate());
+	}
+
+	public AudioAnalysisService(
+		PythonEnvironmentDiagnostics pythonDiagnostics,
+		MainThreadDispatcher callbackDispatcher
+	) {
+		this.orchestrator = new AudioAnalysisOrchestrator(
+			new PythonAudioAnalyzer(pythonDiagnostics),
+			callbackDispatcher
+		);
 		this.runtimeHealthMonitor = new PythonRuntimeHealthMonitor(pythonDiagnostics);
 	}
 

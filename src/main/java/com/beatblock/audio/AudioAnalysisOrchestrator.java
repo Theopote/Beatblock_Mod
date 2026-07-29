@@ -38,10 +38,19 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 
 	private final IAudioAnalyzer analyzer;
 	private final ExecutorService executor;
+	private final MainThreadDispatcher callbackDispatcher;
 	private final ConcurrentHashMap<String, RegisteredTask> tasksById = new ConcurrentHashMap<>();
 
 	public AudioAnalysisOrchestrator(@NonNull IAudioAnalyzer analyzer) {
+		this(analyzer, MainThreadDispatcher.immediate());
+	}
+
+	public AudioAnalysisOrchestrator(
+		@NonNull IAudioAnalyzer analyzer,
+		@NonNull MainThreadDispatcher callbackDispatcher
+	) {
 		this.analyzer = analyzer;
+		this.callbackDispatcher = callbackDispatcher;
 		this.executor = Executors.newSingleThreadExecutor(r -> {
 			Thread t = new Thread(r, "beatblock-analyzer");
 			t.setDaemon(false);
@@ -65,15 +74,24 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 	) {
 		AnalysisCancelControl control = new AnalysisCancelControl();
 		@Nullable String normalizedTaskId = normalizeTaskId(taskId);
-		AnalysisProgressCallback progressCallback = onProgress != null ? onProgress : (step, pct) -> {};
-		Consumer<Beatmap> completeCallback = onComplete != null ? onComplete : beatmap -> {};
-		Consumer<String> errorCallback = onError != null ? onError : error -> {};
+		AnalysisProgressCallback progressCallback = onProgress != null
+			? (step, pct) -> dispatch(control, () -> onProgress.onProgress(step, pct))
+			: (step, pct) -> {};
+		Consumer<Beatmap> completeCallback = onComplete != null
+			? beatmap -> dispatch(control, () -> onComplete.accept(beatmap))
+			: beatmap -> {};
+		Consumer<String> errorCallback = onError != null
+			? error -> dispatch(control, () -> onError.accept(error))
+			: error -> {};
+		Consumer<AnalysisSummary> summaryCallback = onSummary != null
+			? summary -> dispatch(control, () -> onSummary.accept(summary))
+			: null;
 
 		AtomicReference<RegisteredTask> taskRef = new AtomicReference<>();
 		FutureTask<Void> delegate = new FutureTask<>(() -> {
 			try {
 				if (onStarted != null) {
-					onStarted.run();
+					dispatch(control, onStarted);
 				}
 				analyzer.analyze(
 					audioPath,
@@ -81,7 +99,7 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 					progressCallback,
 					completeCallback,
 					errorCallback,
-					onSummary,
+					summaryCallback,
 					control
 				);
 			} finally {
@@ -111,6 +129,14 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 			throw error;
 		}
 		return wrapped;
+	}
+
+	private void dispatch(AnalysisCancelControl control, Runnable action) {
+		callbackDispatcher.execute(() -> {
+			if (!control.isCancelled()) {
+				action.run();
+			}
+		});
 	}
 
 	public boolean cancel(@Nullable String taskId) {

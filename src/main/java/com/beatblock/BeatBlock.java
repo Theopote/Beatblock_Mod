@@ -7,6 +7,7 @@ import com.beatblock.audio.StemMixer;
 import com.beatblock.audio.AudioAnalysisService;
 import com.beatblock.timeline.IAudioPlayer;
 import com.beatblock.audio.AudioConversionService;
+import com.beatblock.audio.MainThreadDispatcher;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.stage.StageManager;
 import com.beatblock.timeline.Timeline;
@@ -77,8 +78,12 @@ public class BeatBlock implements ModInitializer {
 		animationEngine.getBuildSequencer().setTimeline(timelineModel);
 
 		AudioAnalysisEngine analysisEngine = new AudioAnalysisEngine();
-		AudioAnalysisService analyzer = new AudioAnalysisService();
-		AudioConversionService conversionService = new AudioConversionService();
+		MainThreadDispatcher callbackDispatcher = com.beatblock.client.export.ClientThreadExecutor::run;
+		AudioAnalysisService analyzer = new AudioAnalysisService(
+			new com.beatblock.audio.python.PythonEnvironmentDiagnostics(),
+			callbackDispatcher
+		);
+		AudioConversionService conversionService = new AudioConversionService(callbackDispatcher);
 		VideoExportService videoExportService = new VideoExportService(com.beatblock.client.export.ClientThreadExecutor::run);
 		context = new BeatBlockContext(
 			loader,

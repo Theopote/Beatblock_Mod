@@ -4,6 +4,7 @@ import com.beatblock.audio.beatmap.Beatmap;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -243,6 +244,52 @@ class AudioAnalysisOrchestratorTest {
 				(step, pct) -> {}, beatmap -> {}, error -> {}, null, null);
 			future.get(5, TimeUnit.SECONDS);
 			assertEquals(0, orchestrator.activeTaskCount());
+		} finally {
+			orchestrator.shutdown();
+		}
+	}
+
+	@Test
+	void dispatchesAllCallbacksThroughConfiguredDispatcher() throws Exception {
+		List<Runnable> queuedCallbacks = new ArrayList<>();
+		List<String> callbackOrder = new ArrayList<>();
+		IAudioAnalyzer callbackAnalyzer = new IAudioAnalyzer() {
+			@Override public String backendId() { return "callbacks"; }
+			@Override public boolean isAvailable() { return true; }
+
+			@Override
+			public void analyze(
+				Path audioPath,
+				AnalysisOptions options,
+				AnalysisProgressCallback onProgress,
+				Consumer<Beatmap> onComplete,
+				Consumer<String> onError,
+				Consumer<AnalysisSummary> onSummary,
+				AnalysisCancelControl control
+			) {
+				onProgress.onProgress("STEP", 50);
+				onSummary.accept(new AnalysisSummary(1, 2, 3, 4, "basic", "test"));
+				onComplete.accept(new Beatmap(1, null, List.of(), List.of(), null, null));
+			}
+		};
+
+		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(callbackAnalyzer, queuedCallbacks::add);
+		try {
+			orchestrator.submit(
+				"callbacks",
+				Path.of("callbacks.mp3"),
+				AnalysisOptions.withDemucs(false),
+				(step, pct) -> callbackOrder.add("progress"),
+				beatmap -> callbackOrder.add("complete"),
+				error -> callbackOrder.add("error"),
+				summary -> callbackOrder.add("summary"),
+				() -> callbackOrder.add("started")
+			).get(5, TimeUnit.SECONDS);
+
+			assertTrue(callbackOrder.isEmpty());
+			assertEquals(4, queuedCallbacks.size());
+			queuedCallbacks.forEach(Runnable::run);
+			assertEquals(List.of("started", "progress", "summary", "complete"), callbackOrder);
 		} finally {
 			orchestrator.shutdown();
 		}
