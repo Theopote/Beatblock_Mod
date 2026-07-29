@@ -1,6 +1,5 @@
 package com.beatblock.ui.preferences;
 
-import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.TimelineActionDispatcher;
 import com.beatblock.ui.presenter.TimelineActionId;
 import imgui.ImGui;
