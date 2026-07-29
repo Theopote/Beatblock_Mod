@@ -92,12 +92,12 @@ public final class TimelineInteractionDeleteSupport {
 	) {
 		if (timeline == null || selectionState == null) return;
 		if (selectionState.getSelectedEvents().isEmpty() && selectionState.getSelectedClips().isEmpty()) {
-			BeatBlockClient.LOGGER.warn("[TimelineInteraction.deleteSelectedEntries] No clips or events to delete");
+			BeatBlockClient.LOGGER.debug("[TimelineInteraction.deleteSelectedEntries] No clips or events to delete");
 			return;
 		}
 
 		List<String> clipIds = new ArrayList<>(selectionState.getSelectedClips());
-		BeatBlockClient.LOGGER.info(String.format(
+		BeatBlockClient.LOGGER.debug(String.format(
 			"[TimelineInteraction.deleteSelectedEntries] Starting: clipIds=%s, eventIds=%s",
 			clipIds, selectionState.getSelectedEvents()
 		));
@@ -111,11 +111,11 @@ public final class TimelineInteractionDeleteSupport {
 					if (clipId == null) continue;
 					Clip clip = track.getClip(clipId);
 					if (clip != null) {
-						BeatBlockClient.LOGGER.info(String.format(
+						BeatBlockClient.LOGGER.debug(String.format(
 							"[TimelineInteraction.deleteSelectedEntries] Removing clip %s from track %s",
 							clipId, track.getId()));
 						if (track.removeClip(clipId)) {
-							BeatBlockClient.LOGGER.info(String.format(
+							BeatBlockClient.LOGGER.debug(String.format(
 								"[TimelineInteraction.deleteSelectedEntries] Clip removed successfully: %s", clipId));
 							selectionState.deselectClip(clipId);
 							timeline.markAnimationEventsDirty(track.getId());
@@ -123,7 +123,7 @@ public final class TimelineInteractionDeleteSupport {
 								onAudioRootClipDeleted(timeline, clipId);
 							}
 						} else {
-							BeatBlockClient.LOGGER.warn(String.format(
+							BeatBlockClient.LOGGER.debug(String.format(
 								"[TimelineInteraction.deleteSelectedEntries] Failed to remove clip: %s", clipId));
 						}
 					} else {

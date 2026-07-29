@@ -15,11 +15,10 @@ import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Supplier;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 时间线渲染入口：按 4 区域绘制（1.时间尺 2.轨道名 3.网格 4.内容/事件/播放头/框选）。
@@ -48,24 +47,14 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		new TimelineRowContentRenderer(eventRenderer, waveformRenderer);
 	private final TimelinePairedFeatureLaneSync pairedFeatureLaneSync = new TimelinePairedFeatureLaneSync();
 
-	/**
-	 * 本帧计算出的音频子轨定义列表（由 TrackRegistry.buildAudioSubTracks 生成）。
-	 * 在 renderTrackArea 开始时更新，drawRowContent 中按槽索引查找。
-	 * 只在 featureTracks keySet 发生变化时重建，避免每帧分配新对象。
-	 */
-	private List<TrackDefinition> currentAudioSubTracks = Collections.emptyList();
-	private List<TrackDefinition> currentAnimationSubTracks = Collections.emptyList();
-	private List<TrackDefinition> currentBuildLayerTracks = Collections.emptyList();
-	/** 上次构建 currentAudioSubTracks 时的 featureTracks key 快照，用于脏检测。 */
-	private AudioSubTrackCacheKey lastAudioSubTrackCacheKey = AudioSubTrackCacheKey.empty();
-	private Set<String> lastAnimationTrackIds = Set.of();
-
 	/** 当前帧音频组是否有拖拽悬停高亮（任意 row 0~4 悬停且有 audio payload 时置 true） */
 	private boolean audioGroupDropHighlight;
 	/** 当前帧建造图层拖放悬停的行索引，-1 表示无。 */
 	private int buildLayerDropHighlightRow = -1;
 	/** 已注册静音回调的 TrackListState 对象（避免重复注册）。 */
 	private TimelineTrackListState registeredMuteListenerFor;
+	/** 静音回调读取的最新轨快照（与本帧 render 一致）。 */
+	private TimelineFrameTrackSnapshot muteListenerSnapshot = TimelineFrameTrackSnapshot.empty();
 	private final Supplier<BeatBlockContext> contextSource;
 
 	public TimelineRenderer() {
@@ -80,14 +69,14 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		return contextSource.get();
 	}
 
-	private record AudioSubTrackCacheKey(
-		boolean hasWaveform,
-		boolean hasStemWaveforms,
-		Set<String> featureKeys
-	) {
-		private static AudioSubTrackCacheKey empty() {
-			return new AudioSubTrackCacheKey(false, false, Set.of());
-		}
+	/**
+	 * 帧前业务副作用（特征回填、分析自动应用）。必须在 {@link #renderTrackArea} 之前、
+	 * 且在布局使用的轨快照构建之前调用，避免渲染路径改写 Timeline。
+	 */
+	public void prepareFrame(@Nullable Timeline timeline) {
+		if (timeline == null) return;
+		denseFeatureApplier.applyPendingUpdates(ctx(), timeline);
+		denseFeatureApplier.tryAutoApplyAnalyzedBeatmap(this, timeline);
 	}
 
 	/**
@@ -117,48 +106,53 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		TimelineLayout layout,
 		TimelineToolbarState toolbarState
 	) {
+		renderTrackArea(
+			timeline, viewState, selectionState, clock, selectionBox, interactionState,
+			trackListState, layout, toolbarState, null);
+	}
+
+	/**
+	 * @param trackSnapshot 本帧轨模型；null 时在内部构建（兼容旧调用）
+	 */
+	public void renderTrackArea(
+		Timeline timeline,
+		TimelineViewState viewState,
+		SelectionState selectionState,
+		TimelineClock clock,
+		SelectionBox selectionBox,
+		InteractionState interactionState,
+		TimelineTrackListState trackListState,
+		TimelineLayout layout,
+		TimelineToolbarState toolbarState,
+		@Nullable TimelineFrameTrackSnapshot trackSnapshot
+	) {
 		if (timeline == null || viewState == null || layout == null) return;
+
+		TimelineFrameTrackSnapshot snapshot = trackSnapshot != null
+			? trackSnapshot
+			: TimelineFrameTrackSnapshot.build(timeline, null);
+		muteListenerSnapshot = snapshot;
+		List<TrackDefinition> audioSubTracks = snapshot.audioSubTracks();
+		List<TrackDefinition> animationSubTracks = snapshot.animationSubTracks();
+		List<TrackDefinition> buildLayerTracks = snapshot.buildLayerTracks();
 
 		// 首次（或 trackListState 更换后）注册静音/独奏变更回调
 		if (registeredMuteListenerFor != trackListState) {
 			registeredMuteListenerFor = trackListState;
 			trackListState.setMuteChangeListener(() ->
-				TimelineStemMuteSync.syncStemMuteState(ctx(), trackListState, currentAudioSubTracks));
+				TimelineStemMuteSync.syncStemMuteState(ctx(), trackListState, muteListenerSnapshot.audioSubTracks()));
 		}
 
-		denseFeatureApplier.applyPendingUpdates(ctx(), timeline);
-		denseFeatureApplier.tryAutoApplyAnalyzedBeatmap(this, timeline);
-
-		// ── 音频子轨定义列表：仅在 featureTracks keySet 变化时重建 ─────────────
-		// TrackRegistry.buildAudioSubTracks 内部每次都分配新 ArrayList + TrackDefinition 对象，
-		// 60fps 下产生持续 GC 压力。轨道定义只在 featureTracks 内容发生变化时才需要重建。
-		AudioSubTrackCacheKey currentAudioCacheKey = new AudioSubTrackCacheKey(
-			timeline.getWaveform() != null,
-			timeline.hasStemWaveforms(),
-			Set.copyOf(timeline.getFeatureTracks().keySet())
-		);
-		if (!lastAudioSubTrackCacheKey.equals(currentAudioCacheKey)) {
-			lastAudioSubTrackCacheKey = currentAudioCacheKey;
-			currentAudioSubTracks  = TrackRegistry.buildAudioSubTracks(timeline);
-		}
-		layout.setActiveAudioSubRowCount(currentAudioSubTracks.size());
-		Set<String> currentAnimationIds = timeline.getTracks().stream()
-			.map(Track::getId)
-			.filter(Timeline::isBlockAnimationFeatureTrackId)
-			.collect(java.util.stream.Collectors.toUnmodifiableSet());
-		if (!lastAnimationTrackIds.equals(currentAnimationIds)) {
-			lastAnimationTrackIds = currentAnimationIds;
-			currentAnimationSubTracks = TrackRegistry.buildBlockAnimationControlTracks(timeline);
-		}
-		pairedFeatureLaneSync.sync(trackListState, currentAudioSubTracks, currentAnimationSubTracks);
-		currentBuildLayerTracks = TrackRegistry.buildBuildLayerTracks(timeline);
-		layout.setActiveBuildLayerRowCount(currentBuildLayerTracks.size());
-		layout.setActiveAnimationSubRowCount(currentAnimationSubTracks.size());
+		// 布局行数应由 Editor 在 attach 时用同一 snapshot 设好；此处兜底对齐
+		layout.setActiveAudioSubRowCount(audioSubTracks.size());
+		layout.setActiveAnimationSubRowCount(animationSubTracks.size());
+		layout.setActiveBuildLayerRowCount(buildLayerTracks.size());
+		pairedFeatureLaneSync.sync(trackListState, audioSubTracks, animationSubTracks);
 		if (trackListState != null) {
-			TimelineStemMuteSync.syncPrimaryPlayerMuteState(ctx(), trackListState, currentAudioSubTracks);
+			TimelineStemMuteSync.syncPrimaryPlayerMuteState(ctx(), trackListState, audioSubTracks);
 		}
 		if (trackListState != null && ctx().stemMixer() != null && Objects.requireNonNull(ctx().stemMixer()).hasStems()) {
-			TimelineStemMuteSync.syncStemMuteState(ctx(), trackListState, currentAudioSubTracks);
+			TimelineStemMuteSync.syncStemMuteState(ctx(), trackListState, audioSubTracks);
 		}
 
 		// 预留轨道区总高度，使子窗口滚动范围正确
@@ -197,17 +191,17 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 			float rowHeight = layout.getRowHeight(i);
 			boolean isGroup = TimelineTrackMeta.isGroupRow(i);
 			String displayName = TimelineRowLabelResolver.resolveDisplayName(
-				i, trackListState, currentAudioSubTracks, currentAnimationSubTracks, currentBuildLayerTracks);
-			boolean canControlPlayback = TimelineStemMuteSync.isPlayableAudioControlRow(i, currentAudioSubTracks);
+				i, trackListState, audioSubTracks, animationSubTracks, buildLayerTracks);
+			boolean canControlPlayback = TimelineStemMuteSync.isPlayableAudioControlRow(i, audioSubTracks);
 			String rowTypeLabel = TimelineRowLabelResolver.resolveTypeLabel(
-				i, currentAudioSubTracks, currentAnimationSubTracks, currentBuildLayerTracks);
+				i, audioSubTracks, animationSubTracks, buildLayerTracks);
 			trackRenderer.drawTrackLabel(rowY, rowHeight, i, displayName, isGroup, trackListState,
 				layout.trackHeaderLeft, layout.trackHeaderWidth, canControlPlayback, rowTypeLabel,
 				timeline, clock);
 			rowContentRenderer.drawRowContent(
 				this, i, rowY, timeline, viewState, selectionState, layout, trackListState,
 				toolbarState, interactionState,
-				currentAudioSubTracks, currentAnimationSubTracks, currentBuildLayerTracks);
+				audioSubTracks, animationSubTracks, buildLayerTracks);
 		}
 
 		// 建造图层拖放：Director 风格整画布 invisibleButton（置于所有轨道绘制之后）
@@ -220,7 +214,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 			interactionState,
 			selectionState,
 			trackListState,
-			currentBuildLayerTracks
+			buildLayerTracks
 		);
 
 		// 音频组拖放高亮（在所有行内容绘制后叠加边框）

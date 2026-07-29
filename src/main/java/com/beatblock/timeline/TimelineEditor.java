@@ -10,13 +10,13 @@ import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import com.beatblock.timeline.interaction.TimelineInteraction;
 import com.beatblock.timeline.interaction.TimelineInteractionClipboard;
 import com.beatblock.timeline.interaction.TimelineInteractionDeleteSupport;
+import com.beatblock.timeline.rendering.TimelineFrameTrackSnapshot;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineRenderer;
 import com.beatblock.timeline.rendering.TimelineAudioDropHandler;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.rendering.TrackDefinition;
-import com.beatblock.timeline.rendering.TrackRegistry;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import com.beatblock.timeline.rendering.TimelineUiStateStore;
 import org.jspecify.annotations.NonNull;
@@ -47,6 +47,8 @@ public final class TimelineEditor {
 	private final TimelineLayout frameLayout = new TimelineLayout();
 	private boolean frameLayoutPrepared;
 	private boolean trackAreaContextAttached;
+	/** 本帧轨模型快照（布局 + 渲染共用）。 */
+	private TimelineFrameTrackSnapshot frameTrackSnapshot = TimelineFrameTrackSnapshot.empty();
 	private final @Nullable IAudioPlayer audioPlayer;
 
 	/** 供 TimelinePanel 绘制贯通竖线：屏幕 X、标尺顶 Y、轨道内容区底 Y（每帧由 render 更新） */
@@ -147,6 +149,14 @@ public final class TimelineEditor {
 		frameLayout.beginFrame(trackListState.getTrackHeaderWidth());
 		frameLayoutPrepared = true;
 		trackAreaContextAttached = false;
+		// 业务副作用先于轨快照，避免渲染中改 Timeline
+		renderer.prepareFrame(timeline);
+		frameTrackSnapshot = TimelineFrameTrackSnapshot.build(timeline, frameTrackSnapshot);
+	}
+
+	/** 本帧轨模型（只读）；供测试与调试。 */
+	public @NonNull TimelineFrameTrackSnapshot getFrameTrackSnapshot() {
+		return frameTrackSnapshot;
 	}
 
 	private TimelineLayout requireFrameLayout() {
@@ -159,9 +169,9 @@ public final class TimelineEditor {
 	private TimelineLayout requireTrackAreaLayout() {
 		TimelineLayout layout = requireFrameLayout();
 		if (!trackAreaContextAttached) {
-			List<TrackDefinition> audioDefs = TrackRegistry.buildAudioSubTracks(timeline);
-			List<TrackDefinition> controlDefs = TrackRegistry.buildBlockAnimationControlTracks(timeline);
-			List<TrackDefinition> buildLayerDefs = TrackRegistry.buildBuildLayerTracks(timeline);
+			List<TrackDefinition> audioDefs = frameTrackSnapshot.audioSubTracks();
+			List<TrackDefinition> controlDefs = frameTrackSnapshot.animationSubTracks();
+			List<TrackDefinition> buildLayerDefs = frameTrackSnapshot.buildLayerTracks();
 			layout.setActiveAudioSubRowCount(audioDefs.size());
 			layout.setActiveAnimationSubRowCount(controlDefs.size());
 			layout.setActiveBuildLayerRowCount(buildLayerDefs.size());
@@ -442,7 +452,8 @@ public final class TimelineEditor {
 			state.getInteractionState(),
 			trackListState,
 			layout,
-			toolbarState
+			toolbarState,
+			frameTrackSnapshot
 		);
 		syncBuildLayerTrackNamesFromUi();
 		uiStateStore.syncAndFlush(timeline, trackListState);

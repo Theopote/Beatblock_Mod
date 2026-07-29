@@ -1052,6 +1052,7 @@
   "beatblock.undo.add_animation": "Add animation event",
   "beatblock.undo.update_animation": "Update animation event",
   "beatblock.undo.move_event": "Move event",
+  "beatblock.undo.move_marker": "Move marker",
   "beatblock.undo.delete_event": "Delete event",
   "beatblock.undo.add_event": "Add event",
   "beatblock.undo.move_clip": "Move clip",

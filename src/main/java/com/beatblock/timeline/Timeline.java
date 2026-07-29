@@ -42,6 +42,8 @@ public class Timeline {
 	private final List<TimelineAnimationEvent> blockAnimationCache = new ArrayList<>();
 	private final List<TimelineAnimationEvent> autoAnimationCache = new ArrayList<>();
 	private final List<TimelineAnimationEvent> buildReverseCache = new ArrayList<>();
+	/** 按 trackId 缓存的事件列表（与 stage 缓存同生命周期，避免渲染每帧临时构建）。 */
+	private final Map<String, List<TimelineAnimationEvent>> animationEventsByTrackId = new HashMap<>();
 	private final List<TimelineAnimationEvent> stageEventsCacheView = Collections.unmodifiableList(stageEventsCache);
 	private final List<TimelineAnimationEvent> blockAnimationCacheView = Collections.unmodifiableList(blockAnimationCache);
 	private final List<TimelineAnimationEvent> autoAnimationCacheView = Collections.unmodifiableList(autoAnimationCache);
@@ -307,12 +309,16 @@ public class Timeline {
 		return trackId.substring(TRACK_ID_ANIMATION_BLOCK_FEATURE_PREFIX.length());
 	}
 
+	/**
+	 * 指定轨上的动画事件（只读缓存视图）。缓存脏时与 {@link #getStageEvents()} 一并重建。
+	 */
 	public List<TimelineAnimationEvent> getAnimationEvents(String trackId) {
-		List<TimelineAnimationEvent> out = new ArrayList<>();
-		Track t = getTrack(trackId);
-		if (t == null) return out;
-		rebuildAnimationCache(trackId, out);
-		return out;
+		if (trackId == null || trackId.isBlank()) {
+			return List.of();
+		}
+		rebuildAnimationEventCachesIfNeeded();
+		List<TimelineAnimationEvent> cached = animationEventsByTrackId.get(trackId);
+		return cached != null ? cached : List.of();
 	}
 
 	public void addAnimationEvent(String trackId, TimelineAnimationEvent e) {
@@ -374,12 +380,16 @@ public class Timeline {
 		blockAnimationCache.clear();
 		autoAnimationCache.clear();
 		buildReverseCache.clear();
+		animationEventsByTrackId.clear();
 
 		List<TimelineAnimationEvent> trackBuffer = new ArrayList<>();
 		for (Track track : tracks) {
 			StageEventBucket bucket = bucketForTrackId(track.getId());
 			if (bucket == null) continue;
 			rebuildAnimationCache(track.getId(), trackBuffer);
+			// 空列表也缓存，避免调用方反复扫轨
+			List<TimelineAnimationEvent> perTrack = List.copyOf(trackBuffer);
+			animationEventsByTrackId.put(track.getId(), perTrack);
 			if (trackBuffer.isEmpty()) continue;
 			switch (bucket) {
 				case BLOCK -> blockAnimationCache.addAll(trackBuffer);

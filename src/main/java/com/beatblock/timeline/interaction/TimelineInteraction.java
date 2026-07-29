@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.command.MoveMarkerCommand;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import com.beatblock.timeline.editing.ClipDragStateSnapshot;
 import com.beatblock.timeline.editor.*;
@@ -127,18 +128,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		}
 
 		if (interactionState.getMode() == InteractionMode.MARKER_DRAG) {
-			String markerId = interactionState.getActiveMarkerId();
-			int markerIndex = timeline.findMarkerIndexById(markerId);
-			if (markerIndex >= 0) {
-				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
-				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
-				timeline.updateMarker(markerId, t, marker.getName());
-				if (clock != null) seekClockAndMusic(clock, t);
-			}
-			if (ImGui.isMouseReleased(0)) {
-				interactionState.setMode(InteractionMode.NONE);
-				interactionState.clearActive();
-			}
+			handleMarkerDrag(timeline, viewState, interactionState, clock, layout, duration, mx);
 			return;
 		}
 		if (toolbarState != null && interactionState.getMode() == InteractionMode.LOOP_OUT_DRAG) {
@@ -322,7 +312,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				popupState.contextTrackId = hit.getTrackId();
 				popupState.contextClipId = hit.getClipId();
 			}
-			BeatBlockClient.LOGGER.info("[TimelineInteraction.handleMouse] Right-click detected: popupState.contextTrackId={}, popupState.contextClipId={}, hitTrackId={}, hitClipId={}, hitEventId={}", popupState.contextTrackId, popupState.contextClipId, hit.getTrackId(), hit.getClipId(), hit.getEventId());
+			BeatBlockClient.LOGGER.debug("[TimelineInteraction.handleMouse] Right-click detected: popupState.contextTrackId={}, popupState.contextClipId={}, hitTrackId={}, hitClipId={}, hitEventId={}", popupState.contextTrackId, popupState.contextClipId, hit.getTrackId(), hit.getClipId(), hit.getEventId());
 			if (Timeline.TRACK_ID_CAMERA.equals(hit.getTrackId())) {
 				if (hit.getClipId() != null) {
 					popupState.contextCameraShowPath.set(CameraPathMetadata.isPathVisible(timeline, hit.getClipId()));
@@ -341,7 +331,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				}
 			} else {
 				if (hit.getClipId() != null && !selectionState.isClipSelected(hit.getClipId())) {
-					BeatBlockClient.LOGGER.info("[TimelineInteraction.handleMouse] Auto-selecting context clip: {}", hit.getClipId());
+					BeatBlockClient.LOGGER.debug("[TimelineInteraction.handleMouse] Auto-selecting context clip: {}", hit.getClipId());
 					selectionState.clearEvents();
 					selectionState.clearClips();
 					selectionState.selectClip(hit.getClipId());
@@ -440,9 +430,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				if (!alt && markerIndex >= 0 && clock != null) {
 					TimelineMarker marker = timeline.getMarkers().get(markerIndex);
 					seekClockAndMusic(clock, marker.getTimeSeconds());
-					interactionState.setMode(InteractionMode.MARKER_DRAG);
-					interactionState.setMouseStart(mx, my);
-					interactionState.setActiveMarkerId(marker.getId());
+					beginMarkerDrag(interactionState, marker, mx, my);
 					return;
 				}
 				if (alt && toolbarState != null) {
@@ -556,18 +544,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		}
 
 		if (interactionState.getMode() == InteractionMode.MARKER_DRAG) {
-			String markerId = interactionState.getActiveMarkerId();
-			int markerIndex = timeline.findMarkerIndexById(markerId);
-			if (markerIndex >= 0) {
-				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
-				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
-				timeline.updateMarker(markerId, t, marker.getName());
-				if (clock != null) seekClockAndMusic(clock, t);
-			}
-			if (ImGui.isMouseReleased(0)) {
-				interactionState.setMode(InteractionMode.NONE);
-				interactionState.clearActive();
-			}
+			handleMarkerDrag(timeline, viewState, interactionState, clock, layout, duration, mx);
 			return;
 		}
 
@@ -666,9 +643,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			if (!alt && markerIndex >= 0 && clock != null) {
 				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
 				seekClockAndMusic(clock, marker.getTimeSeconds());
-				interactionState.setMode(InteractionMode.MARKER_DRAG);
-				interactionState.setMouseStart(mx, my);
-				interactionState.setActiveMarkerId(marker.getId());
+				beginMarkerDrag(interactionState, marker, mx, my);
 				return;
 			}
 			if (alt && toolbarState != null) {
@@ -683,6 +658,46 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			interactionState.setMode(InteractionMode.SCRUB_TIME);
 			interactionState.setMouseStart(mx, my);
 			if (clock != null) seekClockAndMusic(clock, Math.max(0, Math.min(t, duration)));
+		}
+	}
+
+	private static void beginMarkerDrag(InteractionState interactionState, TimelineMarker marker, float mx, float my) {
+		if (interactionState == null || marker == null) return;
+		interactionState.setMode(InteractionMode.MARKER_DRAG);
+		interactionState.setMouseStart(mx, my);
+		interactionState.setActiveMarkerId(marker.getId());
+		interactionState.setMarkerDragStartTimeSeconds(marker.getTimeSeconds());
+		interactionState.setMarkerDragName(marker.getName());
+	}
+
+	private void handleMarkerDrag(
+		Timeline timeline,
+		TimelineViewState viewState,
+		InteractionState interactionState,
+		TimelineClock clock,
+		TimelineLayout layout,
+		double duration,
+		float mx
+	) {
+		String markerId = interactionState.getActiveMarkerId();
+		int markerIndex = timeline.findMarkerIndexById(markerId);
+		double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+		String name = interactionState.getMarkerDragName();
+		if (markerIndex >= 0) {
+			TimelineMarker marker = timeline.getMarkers().get(markerIndex);
+			name = marker.getName();
+			timeline.updateMarker(markerId, t, name);
+			if (clock != null) seekClockAndMusic(clock, t);
+		}
+		if (ImGui.isMouseReleased(0)) {
+			double oldT = interactionState.getMarkerDragStartTimeSeconds();
+			if (markerId != null && Math.abs(t - oldT) > 1e-6 && timelineEditor != null) {
+				// 拖动中已写回 newTime；此处只登记 Undo（再 execute 一次为幂等）
+				timelineEditor.getCommandManager().execute(
+					new MoveMarkerCommand(timeline, markerId, oldT, t, name));
+			}
+			interactionState.setMode(InteractionMode.NONE);
+			interactionState.clearActive();
 		}
 	}
 

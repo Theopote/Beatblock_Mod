@@ -84,7 +84,7 @@ public final class TimelineInteractionPopups {
 			&& (!selectionState.getSelectedEvents().isEmpty() || !selectionState.getSelectedClips().isEmpty());
 		boolean canDeleteSelection = TimelineInteractionDeleteSupport.hasDeletableSelection(timeline, selectionState, trackListState);
 		boolean canDeleteContextClip = host.canDeleteContextClip(timeline, trackListState);
-		BeatBlockClient.LOGGER.info("[TimelineInteraction.renderContextMenu] Menu opened: contextClipId={}, contextTrackId={}, canDeleteSelection={}, canDeleteContextClip={}", state.contextClipId, state.contextTrackId, canDeleteSelection, canDeleteContextClip);
+		BeatBlockClient.LOGGER.debug("[TimelineInteraction.renderContextMenu] Menu opened: contextClipId={}, contextTrackId={}, canDeleteSelection={}, canDeleteContextClip={}", state.contextClipId, state.contextTrackId, canDeleteSelection, canDeleteContextClip);
 		boolean canDeleteAny = canDeleteSelection || canDeleteContextClip;
 		boolean hasClipboard = !host.clipboardEvents().isEmpty();
 		TimelineSelectionRef propertiesTarget = host.resolvePropertiesSelection(timeline, selectionState);

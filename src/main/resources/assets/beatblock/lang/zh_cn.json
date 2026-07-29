@@ -1090,6 +1090,7 @@
   "beatblock.undo.add_animation": "添加动画事件",
   "beatblock.undo.update_animation": "更新动画事件",
   "beatblock.undo.move_event": "移动事件",
+  "beatblock.undo.move_marker": "移动标记",
   "beatblock.undo.delete_event": "删除事件",
   "beatblock.undo.add_event": "添加事件",
   "beatblock.undo.move_clip": "移动片段",

@@ -12,6 +12,9 @@ public class InteractionState {
 	private String activeClipId;
 	private String activeTrackId;
 	private String activeMarkerId;
+	/** MARKER_DRAG 按下时标记的原始时间（松开时提交 Undo）。 */
+	private double markerDragStartTimeSeconds;
+	private String markerDragName = "";
 	private boolean resizeLeft; // RESIZE_CLIP 时 true=左边缘
 	private float resizeStartHeaderWidth; // RESIZE_HEADER 时按下时的轨道头宽度
 	private double[] alignmentGuideTimes = new double[0];
@@ -52,6 +55,12 @@ public class InteractionState {
 	public String getActiveMarkerId() { return activeMarkerId; }
 	public void setActiveMarkerId(String id) { activeMarkerId = id; }
 
+	public double getMarkerDragStartTimeSeconds() { return markerDragStartTimeSeconds; }
+	public void setMarkerDragStartTimeSeconds(double t) { markerDragStartTimeSeconds = t; }
+
+	public String getMarkerDragName() { return markerDragName != null ? markerDragName : ""; }
+	public void setMarkerDragName(String name) { markerDragName = name != null ? name : ""; }
+
 	public boolean isResizeLeft() { return resizeLeft; }
 	public void setResizeLeft(boolean left) { resizeLeft = left; }
 
@@ -63,6 +72,8 @@ public class InteractionState {
 		activeClipId = null;
 		activeTrackId = null;
 		activeMarkerId = null;
+		markerDragStartTimeSeconds = 0;
+		markerDragName = "";
 		clearAlignmentGuideTimes();
 	}
 }
