@@ -87,7 +87,8 @@ public final class BeatmapAnalysisCache {
 		for (Map.Entry<String, String> entry : beatmap.meta.stems().entrySet()) {
 			String relPath = entry.getValue();
 			if (relPath == null || relPath.isBlank()) continue;
-			Path stemPath = parent.resolve(relPath).normalize();
+			Path stemPath = resolveCacheChild(parent, relPath);
+			if (stemPath == null) continue;
 			deleteIfExists(stemPath);
 		}
 	}
@@ -103,7 +104,8 @@ public final class BeatmapAnalysisCache {
 			String stemKey = entry.getKey();
 			String relPath = entry.getValue();
 			if (relPath == null || relPath.isBlank()) return false;
-			Path stemPath = parent.resolve(relPath).normalize();
+			Path stemPath = resolveCacheChild(parent, relPath);
+			if (stemPath == null) return false;
 			try {
 				if (!Files.isRegularFile(stemPath) || Files.size(stemPath) <= 44) {
 					LOGGER.info("BeatBlock AudioAnalysis: demucs cache stale, missing/short stem key={} path={}", stemKey, stemPath);
@@ -117,6 +119,14 @@ public final class BeatmapAnalysisCache {
 			}
 		}
 		return true;
+	}
+
+	private static Path resolveCacheChild(Path parent, String relativePath) {
+		Path root = parent.toAbsolutePath().normalize();
+		Path candidate = Path.of(relativePath);
+		if (candidate.isAbsolute()) return null;
+		Path resolved = root.resolve(candidate).normalize();
+		return resolved.startsWith(root) ? resolved : null;
 	}
 
 	private static int deleteStemCacheForAudio(Path audioPath) {

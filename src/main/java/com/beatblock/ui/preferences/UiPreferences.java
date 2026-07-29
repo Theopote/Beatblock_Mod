@@ -181,6 +181,10 @@ public final class UiPreferences {
 	}
 
 	static Path uiConfigPath() {
+		String overrideDir = System.getProperty("beatblock.test.configDir");
+		if (overrideDir != null && !overrideDir.isBlank()) {
+			return Path.of(overrideDir).resolve("ui.json");
+		}
 		return FabricLoader.getInstance().getGameDir()
 			.resolve("config").resolve("beatblock").resolve("ui.json");
 	}
