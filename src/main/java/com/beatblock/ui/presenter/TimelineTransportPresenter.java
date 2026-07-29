@@ -96,10 +96,12 @@ public final class TimelineTransportPresenter {
 		if (editor == null) {
 			return;
 		}
+		bindPlaybackSession(editor);
 		ensureMusicDurationForPlayback(editor);
 		double duration = resolveDuration(editor);
 		double time = Math.max(0, Math.min(targetSeconds, duration));
 		editor.getPlaybackSession().seek(time);
+		if (isStemPlaybackMode()) syncFullMixTime(time);
 	}
 
 	public void seekBy(TimelineEditor editor, double deltaSeconds) {
@@ -114,7 +116,9 @@ public final class TimelineTransportPresenter {
 		if (currentEditor == null) {
 			return;
 		}
+		bindPlaybackSession(currentEditor);
 		ensureMusicDurationForPlayback(currentEditor);
+		pauseFullMixIfStemMode();
 		// drive 由 session 绑定的 DriveControl 触发；未绑定时在此兜底
 		currentEditor.getPlaybackSession().play();
 		if (!driveControl.isDriving()) {
@@ -125,7 +129,9 @@ public final class TimelineTransportPresenter {
 	public void pause() {
 		TimelineEditor editor = timelineEditor.get();
 		if (editor != null) {
+			bindPlaybackSession(editor);
 			editor.getPlaybackSession().pause();
+			pauseFullMixIfStemMode();
 		} else {
 			IAudioPlayer playback = resolvedPlaybackPlayer();
 			if (playback != null) {
@@ -205,13 +211,17 @@ public final class TimelineTransportPresenter {
 
 	public void setPlaybackSpeed(TimelineEditor editor, double speed) {
 		if (editor != null) {
+			bindPlaybackSession(editor);
 			editor.getPlaybackSession().setPlaybackSpeed(speed);
-			return;
 		}
 		MusicPlayer music = musicPlayer.get();
 		if (music != null) {
 			music.setPlaybackSpeed(speed);
 		}
+	}
+
+	private void bindPlaybackSession(TimelineEditor editor) {
+		editor.getPlaybackSession().setActiveAudioSupplier(this::resolvedPlaybackPlayer);
 	}
 
 	public void setLoopInAt(TimelineToolbarState toolbarState, double nowSeconds, double seekStep) {

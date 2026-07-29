@@ -737,6 +737,7 @@
   "beatblock.track.mid": "Mid",
   "beatblock.track.high": "High",
   "beatblock.track.feature_suffix": " feature",
+  "beatblock.track.control_suffix": " control",
   "beatblock.message.path_empty": "Path cannot be empty",
   "beatblock.message.audio_loader_unavailable": "Audio loader unavailable",
   "beatblock.message.import_failed": "Import failed",

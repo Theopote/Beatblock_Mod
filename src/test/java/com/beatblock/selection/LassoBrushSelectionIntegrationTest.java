@@ -145,7 +145,8 @@ class LassoBrushSelectionIntegrationTest {
 		manager.commitLassoSelection(inside, SelectionOperation.NEW);
 
 		assertEquals(9, manager.getSelectionCount());
-		assertTrue(manager.getLastMessage().contains("套索"));
+		assertTrue(manager.getLastMessage().contains(
+			com.beatblock.ui.i18n.BBTexts.get("beatblock.selection.feedback.new.lasso", 9)));
 	}
 
 	@Test

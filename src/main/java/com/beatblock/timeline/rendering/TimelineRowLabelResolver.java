@@ -1,6 +1,7 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.timeline.Timeline;
+import com.beatblock.ui.i18n.BBTexts;
 
 import java.util.List;
 
@@ -29,7 +30,7 @@ public final class TimelineRowLabelResolver {
 				TrackDefinition td = audioSubTracks.get(slot);
 				if (td.getVisualType() == TrackDefinition.VisualType.IMPULSE) {
 					String key = td.getKey();
-					return TrackRegistry.localizedName(key) + " 特征";
+					return TrackRegistry.localizedName(key) + BBTexts.get("beatblock.track.feature_suffix");
 				}
 				return td.getDisplayName();
 			}
@@ -41,7 +42,7 @@ public final class TimelineRowLabelResolver {
 				String base = !featureKey.isBlank()
 					? TrackRegistry.localizedName(featureKey)
 					: animationSubTracks.get(slot).getDisplayName();
-				return base + " 控制";
+				return base + BBTexts.get("beatblock.track.control_suffix");
 			}
 		}
 		if (TimelineTrackMeta.isBuildLayerSubRow(rowIndex)) {

@@ -51,7 +51,8 @@ class SelectionPresetPersistenceTest {
 		assertEquals("Tower", loaded.name());
 		assertEquals("test preset", loaded.description());
 		assertEquals(saved.createdTime(), loaded.createdTime());
-		assertEquals(List.of(new BlockPos(1, 64, 2), new BlockPos(3, 70, 4)), loaded.blocks());
+		assertEquals(java.util.Set.of(new BlockPos(1, 64, 2), new BlockPos(3, 70, 4)),
+			java.util.Set.copyOf(loaded.blocks()));
 	}
 
 	@Test

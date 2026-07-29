@@ -34,6 +34,7 @@ class QuickStartWizardPresenterTest {
 
 	@BeforeEach
 	void setUp() {
+		com.beatblock.selection.BeatBlockSelectionManager.get().reset();
 		BeatBlock.installContext(BeatBlockTestSupport.minimalContext());
 		var context = BeatBlock.getContext();
 		timeline = context.timeline();
@@ -50,6 +51,7 @@ class QuickStartWizardPresenterTest {
 
 	@AfterEach
 	void tearDown() {
+		com.beatblock.selection.BeatBlockSelectionManager.get().reset();
 		for (AudioAsset asset : new ArrayList<>(manager.getAssets())) {
 			manager.remove(asset.getId());
 		}

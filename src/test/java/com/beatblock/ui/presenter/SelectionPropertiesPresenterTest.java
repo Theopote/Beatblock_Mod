@@ -52,8 +52,10 @@ class SelectionPropertiesPresenterTest {
 
 	@Test
 	void labelHelpersReturnChineseLabels() {
-		assertEquals("加选", SelectionPropertiesPresenter.operationLabel(SelectionOperation.ADD));
-		assertEquals("笔刷", SelectionPropertiesPresenter.modeTitle(SelectionMode.BRUSH));
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.selection_op.add"),
+			SelectionPropertiesPresenter.operationLabel(SelectionOperation.ADD));
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.selection_mode.brush"),
+			SelectionPropertiesPresenter.modeTitle(SelectionMode.BRUSH));
 		assertEquals(2, SelectionPropertiesPresenter.planeFaceIndex(
 			Direction.DOWN,
 			new Direction[] { null, Direction.UP, Direction.DOWN }

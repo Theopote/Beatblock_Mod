@@ -36,7 +36,8 @@ class TimelineRowLabelResolverTest {
 		List<TrackDefinition> audio = List.of(waveform("waveform", "主混音"), impulse("kick"));
 		int kickRow = TimelineTrackMeta.ROW_AUDIO_SUBS_START + 1;
 
-		assertEquals("底鼓 特征", TimelineRowLabelResolver.resolveDisplayName(
+		assertEquals(TrackRegistry.localizedName("kick")
+			+ com.beatblock.ui.i18n.BBTexts.get("beatblock.track.feature_suffix"), TimelineRowLabelResolver.resolveDisplayName(
 			kickRow, null, audio, List.of(), List.of()));
 		assertEquals("节奏特征", TimelineRowLabelResolver.resolveTypeLabel(kickRow, audio, List.of(), List.of()));
 	}
@@ -55,7 +56,9 @@ class TimelineRowLabelResolverTest {
 			animControl("animation_block_feature_kick", "Kick Control"));
 		int row = TimelineTrackMeta.ROW_ANIM_FEATURES_START;
 
-		assertEquals("底鼓 控制", TimelineRowLabelResolver.resolveDisplayName(row, null, List.of(), anim, List.of()));
+		assertEquals(TrackRegistry.localizedName("kick")
+			+ com.beatblock.ui.i18n.BBTexts.get("beatblock.track.control_suffix"),
+			TimelineRowLabelResolver.resolveDisplayName(row, null, List.of(), anim, List.of()));
 		assertEquals("动画控制", TimelineRowLabelResolver.resolveTypeLabel(row, List.of(), anim, List.of()));
 	}
 

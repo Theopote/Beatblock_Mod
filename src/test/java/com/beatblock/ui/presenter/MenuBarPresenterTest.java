@@ -47,7 +47,7 @@ class MenuBarPresenterTest {
 	void importAudioRejectsEmptyPath() {
 		var result = presenter.importAudio("  ");
 		assertFalse(result.ok());
-		assertEquals("路径不能为空", result.messageOrEmpty());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.path_empty"), result.messageOrEmpty());
 	}
 
 	@Test
@@ -55,7 +55,7 @@ class MenuBarPresenterTest {
 		audioLoader.nextResult = false;
 		var result = presenter.importAudio("C:/music/bad.wav");
 		assertFalse(result.ok());
-		assertEquals("导入失败", result.messageOrEmpty());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.import_failed"), result.messageOrEmpty());
 	}
 
 	@Test
@@ -81,7 +81,7 @@ class MenuBarPresenterTest {
 	@Test
 	void saveProjectRejectsEmptyPath() {
 		assertFalse(presenter.saveProject("").ok());
-		assertEquals("路径不能为空", presenter.saveProject("").messageOrEmpty());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.path_empty"), presenter.saveProject("").messageOrEmpty());
 	}
 
 	@Test
@@ -97,7 +97,7 @@ class MenuBarPresenterTest {
 	void openProjectRejectsEmptyPath() {
 		var result = presenter.openProject(" ");
 		assertFalse(result.ok());
-		assertEquals("路径不能为空", result.messageOrEmpty());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.path_empty"), result.messageOrEmpty());
 	}
 
 	@Test

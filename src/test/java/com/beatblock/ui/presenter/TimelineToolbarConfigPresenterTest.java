@@ -58,7 +58,8 @@ class TimelineToolbarConfigPresenterTest {
 	void writeAndReadActionRollbackMode() {
 		presenter.writeActionRollbackMode("persistent");
 		assertEquals("persistent", presenter.readActionRollbackMode());
-		assertEquals("Action: Persistent", presenter.actionRollbackViewState().statusLabel());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.timeline.rollback.status_persistent"),
+			presenter.actionRollbackViewState().statusLabel());
 	}
 
 	@Test

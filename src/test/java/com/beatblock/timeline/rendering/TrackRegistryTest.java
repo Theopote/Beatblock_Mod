@@ -15,8 +15,8 @@ class TrackRegistryTest {
 
 	@Test
 	void localizedNameMapsKnownRhythmKeys() {
-		assertEquals("底鼓", TrackRegistry.localizedName("kick"));
-		assertEquals("军鼓", TrackRegistry.localizedName("SNARE"));
+		assertEquals(com.beatblock.ui.i18n.BBTexts.trackName("kick"), TrackRegistry.localizedName("kick"));
+		assertEquals(com.beatblock.ui.i18n.BBTexts.trackName("SNARE"), TrackRegistry.localizedName("SNARE"));
 		assertEquals("custom_stem", TrackRegistry.localizedName("custom_stem"));
 	}
 

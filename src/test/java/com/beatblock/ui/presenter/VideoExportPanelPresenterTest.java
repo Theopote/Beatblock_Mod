@@ -23,7 +23,8 @@ class VideoExportPanelPresenterTest {
 			.build();
 		VideoExportPanelPresenter presenter = new VideoExportPanelPresenter(
 			() -> context,
-			() -> new VideoExportService(Runnable::run)
+			() -> new VideoExportService(Runnable::run),
+			() -> new VideoExportPanelPresenter.FfmpegStatus(false, null, "not found")
 		);
 
 		var state = presenter.dialogState();

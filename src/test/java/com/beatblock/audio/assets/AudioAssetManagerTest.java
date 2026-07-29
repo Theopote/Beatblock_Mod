@@ -36,7 +36,8 @@ class AudioAssetManagerTest {
 		manager.startAnalysis(asset);
 
 		assertEquals(AudioAssetStatus.FAILED, asset.getStatus());
-		assertTrue(asset.getErrorMessage().contains("未初始化"));
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.audio.analyzer_uninitialized"),
+			asset.getErrorMessage());
 	}
 
 	@Test
@@ -46,7 +47,7 @@ class AudioAssetManagerTest {
 
 		String result = manager.clearCacheAndReanalyze(asset);
 
-		assertEquals("外部音频分析器未初始化", result);
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.audio.analyzer_uninitialized"), result);
 	}
 
 	@Test

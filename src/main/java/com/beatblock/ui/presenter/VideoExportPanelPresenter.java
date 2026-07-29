@@ -41,13 +41,23 @@ public final class VideoExportPanelPresenter {
 
 	private final Supplier<BeatBlockContext> contextSource;
 	private final Supplier<VideoExportService> exportService;
+	private final Supplier<FfmpegStatus> ffmpegStatusProbe;
 
 	public VideoExportPanelPresenter(
 		Supplier<BeatBlockContext> contextSource,
 		Supplier<VideoExportService> exportService
 	) {
+		this(contextSource, exportService, VideoExportPanelPresenter::probeFfmpeg);
+	}
+
+	VideoExportPanelPresenter(
+		Supplier<BeatBlockContext> contextSource,
+		Supplier<VideoExportService> exportService,
+		Supplier<FfmpegStatus> ffmpegStatusProbe
+	) {
 		this.contextSource = contextSource != null ? contextSource : () -> null;
 		this.exportService = exportService;
+		this.ffmpegStatusProbe = ffmpegStatusProbe != null ? ffmpegStatusProbe : VideoExportPanelPresenter::probeFfmpeg;
 	}
 
 	public static int[][] resolutionPresets() {
@@ -62,7 +72,7 @@ public final class VideoExportPanelPresenter {
 		BeatBlockContext ctx = contextSource.get();
 		Timeline timeline = ctx != null ? ctx.timeline() : null;
 		double duration = timeline != null ? Math.max(0.0, timeline.getDurationSeconds()) : 0.0;
-		FfmpegStatus ffmpegStatus = probeFfmpeg();
+		FfmpegStatus ffmpegStatus = ffmpegStatusProbe.get();
 		String blockedReason = exportBlockedReason(duration, ffmpegStatus);
 		return new ExportDialogState(
 			defaultOutputPath(timeline),

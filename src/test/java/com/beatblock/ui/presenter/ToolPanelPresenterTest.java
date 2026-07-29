@@ -116,7 +116,7 @@ class ToolPanelPresenterTest {
 	void fillCornersFromSelectionFailsWithoutSelection() {
 		var outcome = presenter.fillCornersFromSelection();
 		assertFalse(outcome.result().ok());
-		assertEquals("没有可用的方块选区或包围盒。", outcome.result().messageOrEmpty());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.no_selection_bounds"), outcome.result().messageOrEmpty());
 	}
 
 	@Test
@@ -124,7 +124,7 @@ class ToolPanelPresenterTest {
 		var missing = new ToolPanelPresenter(() -> null, () -> stageObjectSystem, () -> null, () -> null);
 		var outcome = missing.fillCornersFromSelection();
 		assertFalse(outcome.result().ok());
-		assertEquals("选择管理器不可用。", outcome.result().messageOrEmpty());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.selection_manager_unavailable"), outcome.result().messageOrEmpty());
 	}
 
 	@Test
@@ -137,7 +137,7 @@ class ToolPanelPresenterTest {
 		);
 		var outcome = missing.setCornerFromCrosshair(false);
 		assertFalse(outcome.result().ok());
-		assertEquals("未命中方块。", outcome.result().messageOrEmpty());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.no_block_hit"), outcome.result().messageOrEmpty());
 	}
 
 	@Test
@@ -159,7 +159,7 @@ class ToolPanelPresenterTest {
 			"Cuboid", false, GroupSortingStrategy.ALL, 0.0));
 
 		assertFalse(outcome.result().ok());
-		assertEquals("当前无世界上下文，无法读取选区。", outcome.result().messageOrEmpty());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.no_world_context"), outcome.result().messageOrEmpty());
 	}
 
 	@Test
@@ -176,7 +176,7 @@ class ToolPanelPresenterTest {
 		var outcome = presenter.createFromSelectionSnapshot(new ToolPanelPresenter.StageObjectCreateRequest(
 			"Empty", false, GroupSortingStrategy.ALL, 0.0));
 		assertFalse(outcome.result().ok());
-		assertEquals("当前没有方块选区。请先使用选择工具。", outcome.result().messageOrEmpty());
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.no_block_selection"), outcome.result().messageOrEmpty());
 	}
 
 	@Test
@@ -269,7 +269,9 @@ class ToolPanelPresenterTest {
 		assertEquals(0.0, ToolPanelPresenter.parseStaggerSeconds("bad"), 1e-9);
 		assertEquals(1.5, ToolPanelPresenter.parseStaggerSeconds(" 1.5 "), 1e-9);
 		assertEquals(GroupSortingStrategy.RADIAL, ToolPanelPresenter.sortingStrategyAtIndex(1));
-		assertEquals("笔刷（球/立方，单击或涂抹）", ToolPanelPresenter.selectionModeLabel(SelectionMode.BRUSH));
-		assertEquals("(未设置)", ToolPanelPresenter.formatPos(null));
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.selection_mode.brush.detail"),
+			ToolPanelPresenter.selectionModeLabel(SelectionMode.BRUSH));
+		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.common.not_set"),
+			ToolPanelPresenter.formatPos(null));
 	}
 }

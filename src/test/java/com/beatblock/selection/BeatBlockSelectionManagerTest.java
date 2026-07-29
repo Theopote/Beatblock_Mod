@@ -118,6 +118,7 @@ class BeatBlockSelectionManagerTest {
 		assertEquals(1, manager.getSelectionCount());
 		assertFalse(manager.getSelectedBlocks().contains(claimed));
 		assertTrue(manager.getSelectedBlocks().contains(free));
-		assertTrue(manager.getLastMessage().contains("跳过"));
+		assertTrue(manager.getLastMessage().contains(
+			com.beatblock.ui.i18n.BBTexts.get("beatblock.selection.feedback.skipped_layers", 1)));
 	}
 }

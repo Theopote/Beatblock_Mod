@@ -758,6 +758,7 @@
   "beatblock.track.mid": "中频",
   "beatblock.track.high": "高频",
   "beatblock.track.feature_suffix": " 特征",
+  "beatblock.track.control_suffix": " 控制",
 
   "beatblock.message.path_empty": "路径不能为空",
   "beatblock.message.audio_loader_unavailable": "音频加载器不可用",
