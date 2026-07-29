@@ -49,8 +49,17 @@ public final class BlockControlExecutor {
 		int scannedBlocks,
 		int loadedBlocks
 	) {
+		public ControlPlan {
+			mutations = mutations != null ? List.copyOf(mutations) : List.of();
+		}
+
+		@Override
+		public List<BlockMutation> mutations() {
+			return List.copyOf(mutations);
+		}
+
 		public boolean hasMutations() {
-			return mutations != null && !mutations.isEmpty();
+			return !mutations.isEmpty();
 		}
 
 		/**

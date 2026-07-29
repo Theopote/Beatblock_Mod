@@ -58,4 +58,9 @@ public record PacingRequest(
 			: DistancePacing.DEFAULT_SECONDS_PER_BLOCK_UNIT;
 		minGapSeconds = minGapSeconds >= 0 ? minGapSeconds : DistancePacing.DEFAULT_MIN_GAP_SECONDS;
 	}
+
+	@Override
+	public double[] referenceBeatTimesSeconds() {
+		return referenceBeatTimesSeconds.clone();
+	}
 }

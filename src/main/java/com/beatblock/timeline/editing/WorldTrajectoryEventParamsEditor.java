@@ -16,7 +16,15 @@ public final class WorldTrajectoryEventParamsEditor {
 	private WorldTrajectoryEventParamsEditor() {}
 
 	public sealed interface MergeResult {
-		record Ok(Map<String, Object> parameters) implements MergeResult {}
+		record Ok(Map<String, Object> parameters) implements MergeResult {
+			public Ok {
+				parameters = parameters != null ? Map.copyOf(parameters) : Map.of();
+			}
+			@Override
+			public Map<String, Object> parameters() {
+				return Map.copyOf(parameters);
+			}
+		}
 		record Err(String message) implements MergeResult {}
 	}
 

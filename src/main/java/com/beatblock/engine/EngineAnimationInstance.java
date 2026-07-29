@@ -1,6 +1,7 @@
 package com.beatblock.engine;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -29,7 +30,9 @@ public final class EngineAnimationInstance {
 		this.startTimeSeconds = startTimeSeconds;
 		this.endTimeSeconds = Math.max(startTimeSeconds, endTimeSeconds);
 		this.energy = Math.max(0f, Math.min(1f, energy));
-		this.extraParams = extraParams != null ? extraParams : Collections.emptyMap();
+		this.extraParams = extraParams != null
+			? Collections.unmodifiableMap(new LinkedHashMap<>(extraParams))
+			: Collections.emptyMap();
 	}
 
 	public AnimationDefinition getDefinition() {
@@ -53,7 +56,7 @@ public final class EngineAnimationInstance {
 	}
 
 	public Map<String, Object> getExtraParams() {
-		return extraParams;
+		return Collections.unmodifiableMap(new LinkedHashMap<>(extraParams));
 	}
 
 	public boolean isActiveAt(double timelineTimeSeconds) {

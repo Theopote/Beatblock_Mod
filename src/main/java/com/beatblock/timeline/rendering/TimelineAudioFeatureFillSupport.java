@@ -14,7 +14,16 @@ import java.util.Map;
 /** 音频拖放/beatmap 回填时的特征轨偏移与路径 key 工具。 */
 public final class TimelineAudioFeatureFillSupport {
 
-	public record SavedFeatureTrack(String label, List<FeatureEvent> events) {}
+	public record SavedFeatureTrack(String label, List<FeatureEvent> events) {
+		public SavedFeatureTrack {
+			events = events != null ? List.copyOf(events) : List.of();
+		}
+
+		@Override
+		public List<FeatureEvent> events() {
+			return List.copyOf(events);
+		}
+	}
 
 	private TimelineAudioFeatureFillSupport() {}
 

@@ -98,7 +98,7 @@ public final class GroupSpec {
 	}
 
 	public Map<String, Object> getSourceParams() {
-		return sourceParams;
+		return Map.copyOf(sourceParams);
 	}
 
 	public GroupSortingStrategy getSortingStrategy() {

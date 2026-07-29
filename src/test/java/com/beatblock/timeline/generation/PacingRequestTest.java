@@ -21,6 +21,9 @@ class PacingRequestTest {
 		var request = new PacingRequest(1, 0, true, beats, 120, 0.5);
 		beats[0] = 99.0;
 		assertEquals(1.0, request.referenceBeatTimesSeconds()[0], 1e-9);
+		double[] returned = request.referenceBeatTimesSeconds();
+		returned[0] = 42.0;
+		assertEquals(1.0, request.referenceBeatTimesSeconds()[0], 1e-9);
 	}
 
 	@Test

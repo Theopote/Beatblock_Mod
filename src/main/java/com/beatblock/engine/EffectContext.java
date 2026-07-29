@@ -3,6 +3,7 @@ package com.beatblock.engine;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -32,7 +33,9 @@ public final class EffectContext {
 		Vec3d cameraForward
 	) {
 		this.stageCenter = stageCenter != null ? stageCenter : Vec3d.ZERO;
-		this.extraParams = extraParams != null ? extraParams : Collections.emptyMap();
+		this.extraParams = extraParams != null
+			? Collections.unmodifiableMap(new LinkedHashMap<>(extraParams))
+			: Collections.emptyMap();
 		this.cameraPosition = cameraPosition;
 		this.cameraForward = cameraForward;
 	}
@@ -42,7 +45,7 @@ public final class EffectContext {
 	}
 
 	public Map<String, Object> getExtraParams() {
-		return extraParams;
+		return Collections.unmodifiableMap(new LinkedHashMap<>(extraParams));
 	}
 
 	public Vec3d getCameraPosition() {

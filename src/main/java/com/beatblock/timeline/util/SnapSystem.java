@@ -24,6 +24,15 @@ public final class SnapSystem {
 	public record SnapResult(double timeSeconds, double[] guideTimes) {
 		private static final double[] EMPTY = new double[0];
 
+		public SnapResult {
+			guideTimes = guideTimes != null ? guideTimes.clone() : EMPTY;
+		}
+
+		@Override
+		public double[] guideTimes() {
+			return guideTimes.clone();
+		}
+
 		public static SnapResult unchanged(double timeSeconds) {
 			return new SnapResult(timeSeconds, EMPTY);
 		}

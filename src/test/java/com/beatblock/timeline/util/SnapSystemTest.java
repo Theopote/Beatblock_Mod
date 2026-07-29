@@ -67,6 +67,9 @@ class SnapSystemTest {
 
 		assertEquals(3.0, result.timeSeconds(), 1e-9);
 		assertArrayEquals(new double[] {3.0}, result.guideTimes(), 1e-9);
+		double[] returned = result.guideTimes();
+		returned[0] = 99.0;
+		assertArrayEquals(new double[] {3.0}, result.guideTimes(), 1e-9);
 	}
 
 	@Test
