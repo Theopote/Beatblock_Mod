@@ -77,11 +77,12 @@ public final class TimelineTransportPresenter {
 		double bpm = currentTimeline != null ? currentTimeline.getBpm() : 0;
 		double seekStep = resolveSeekStep(bpm);
 		double stepSeek = shiftHeld ? 5.0 : seekStep;
-		double currentTime = editor.getClock().getCurrentTimeSeconds();
+		var session = editor.getPlaybackSession();
+		double currentTime = session.currentTimeSeconds();
 		double duration = resolveDuration(editor);
 		boolean hasMusic = music != null && currentTimeline != null && currentTimeline.getDurationSeconds() > 0;
-		IAudioPlayer playback = resolvedPlaybackPlayer();
-		boolean playing = hasMusic && playback != null && playback.isPlaying();
+		// 有音乐时以 session（音频）为准；无音乐测试路径仍可读 clock
+		boolean playing = hasMusic ? session.isPlaying() : session.isPlaying();
 		String positionDisplay = MusicTimeFormatter.formatPositionDisplay(currentTime, duration, bpm);
 		return new TransportViewState(hasMusic, playing, bpm, seekStep, stepSeek,
 			currentTime, duration, positionDisplay);
@@ -95,70 +96,55 @@ public final class TimelineTransportPresenter {
 		if (editor == null) {
 			return;
 		}
+		ensureMusicDurationForPlayback(editor);
 		double duration = resolveDuration(editor);
 		double time = Math.max(0, Math.min(targetSeconds, duration));
-		editor.getClock().seek(time);
-		IAudioPlayer playback = resolvedPlaybackPlayer();
-		if (playback != null) {
-			ensureMusicDurationForPlayback(editor);
-			playback.setCurrentTimeSeconds(time);
-		}
-		pauseFullMixIfStemMode();
-		syncFullMixTime(time);
+		editor.getPlaybackSession().seek(time);
 	}
 
 	public void seekBy(TimelineEditor editor, double deltaSeconds) {
 		if (editor == null) {
 			return;
 		}
-		seekTo(editor, editor.getClock().getCurrentTimeSeconds() + deltaSeconds);
+		seekTo(editor, editor.getPlaybackSession().currentTimeSeconds() + deltaSeconds);
 	}
 
 	public void play(TimelineEditor editor) {
-		ensureMusicDurationForPlayback(editor);
-		pauseFullMixIfStemMode();
-		IAudioPlayer playback = resolvedPlaybackPlayer();
-		if (playback != null) {
-			playback.play();
+		TimelineEditor currentEditor = editor != null ? editor : timelineEditor.get();
+		if (currentEditor == null) {
+			return;
 		}
+		ensureMusicDurationForPlayback(currentEditor);
+		// drive 由 session 绑定的 DriveControl 触发；未绑定时在此兜底
+		currentEditor.getPlaybackSession().play();
 		if (!driveControl.isDriving()) {
 			driveControl.startDriving();
-		}
-		TimelineEditor currentEditor = editor != null ? editor : timelineEditor.get();
-		if (currentEditor != null) {
-			currentEditor.getClock().play();
 		}
 	}
 
 	public void pause() {
-		IAudioPlayer playback = resolvedPlaybackPlayer();
-		if (playback != null) {
-			playback.pause();
-		}
-		pauseFullMixIfStemMode();
 		TimelineEditor editor = timelineEditor.get();
 		if (editor != null) {
-			editor.getClock().pause();
+			editor.getPlaybackSession().pause();
+		} else {
+			IAudioPlayer playback = resolvedPlaybackPlayer();
+			if (playback != null) {
+				playback.pause();
+			}
+			pauseFullMixIfStemMode();
 		}
 	}
 
 	public void stop(TimelineEditor editor) {
-		IAudioPlayer playback = resolvedPlaybackPlayer();
-		if (playback != null) {
-			playback.stop();
-		}
-		if (isStemPlaybackMode()) {
-			MusicPlayer music = musicPlayer.get();
-			if (music != null) {
-				music.pause();
-			}
-		}
 		TimelineEditor currentEditor = editor != null ? editor : timelineEditor.get();
 		if (currentEditor != null) {
-			currentEditor.getClock().pause();
+			// stop 内会 stopDriving + seek(0)；额外再调一次确保 Presenter 绑定的 driveControl 一致
+			currentEditor.getPlaybackSession().stop();
 		}
 		driveControl.stopDriving();
-		seekTo(editor, 0);
+		if (currentEditor != null) {
+			seekTo(currentEditor, 0);
+		}
 	}
 
 	public void jumpToNearbyEvent(TimelineEditor editor, boolean forward) {
@@ -173,7 +159,7 @@ public final class TimelineTransportPresenter {
 		if (marks.isEmpty()) {
 			return;
 		}
-		double current = editor.getClock().getCurrentTimeSeconds();
+		double current = editor.getPlaybackSession().currentTimeSeconds();
 		double eps = 1e-6;
 		double target = current;
 		if (forward) {
@@ -203,23 +189,24 @@ public final class TimelineTransportPresenter {
 		if (currentTimeline == null) {
 			return false;
 		}
-		double time = editor.getClock().getCurrentTimeSeconds();
+		double time = editor.getPlaybackSession().currentTimeSeconds();
 		int markerIndex = currentTimeline.getMarkers().size() + 1;
 		currentTimeline.addMarker(new TimelineMarker(time, "Marker " + markerIndex));
 		return true;
 	}
 
 	public double currentPlaybackSpeed(TimelineEditor editor) {
-		MusicPlayer music = musicPlayer.get();
-		if (music != null) {
-			return music.getPlaybackSpeed();
+		if (editor != null) {
+			return editor.getPlaybackSession().getPlaybackSpeed();
 		}
-		return editor != null ? editor.getClock().getPlaybackSpeed() : 1.0;
+		MusicPlayer music = musicPlayer.get();
+		return music != null ? music.getPlaybackSpeed() : 1.0;
 	}
 
 	public void setPlaybackSpeed(TimelineEditor editor, double speed) {
 		if (editor != null) {
-			editor.getClock().setPlaybackSpeed(speed);
+			editor.getPlaybackSession().setPlaybackSpeed(speed);
+			return;
 		}
 		MusicPlayer music = musicPlayer.get();
 		if (music != null) {

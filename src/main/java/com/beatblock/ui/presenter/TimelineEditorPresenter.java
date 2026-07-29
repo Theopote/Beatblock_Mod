@@ -58,7 +58,8 @@ public final class TimelineEditorPresenter {
 			return false;
 		}
 		double time = Math.max(0.0, timeSeconds);
-		editor.getClock().seek(time);
+		editor.getPlaybackSession().seek(time);
+		// musicSeek 钩子保留：session 已写音频；若注入了额外 seek 回调则再通知一次
 		if (musicSeek != null) {
 			musicSeek.seekToSeconds(time);
 		}

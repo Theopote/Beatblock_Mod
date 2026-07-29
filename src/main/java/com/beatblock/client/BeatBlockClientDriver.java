@@ -212,17 +212,16 @@ public final class BeatBlockClientDriver {
 		stopPlaybackInternal();
 		var editor = ctx().timelineEditor();
 		if (editor != null) {
-			double duration = ctx().timeline() != null ? ctx().timeline().getDurationSeconds() : 0.0;
-			double clamped = duration > 0 ? Math.max(0.0, Math.min(timeSeconds, duration)) : Math.max(0.0, timeSeconds);
-			editor.getClock().setCurrentTimeSeconds(clamped);
-		}
-		var musicPlayer = ctx().musicPlayer();
-		if (musicPlayer != null) {
-			musicPlayer.setCurrentTimeSeconds(timeSeconds);
-		}
-		var stemMixer = ctx().stemMixer();
-		if (stemMixer != null && stemMixer.hasStems()) {
-			stemMixer.setCurrentTimeSeconds(timeSeconds);
+			editor.getPlaybackSession().seek(timeSeconds);
+		} else {
+			var musicPlayer = ctx().musicPlayer();
+			if (musicPlayer != null) {
+				musicPlayer.setCurrentTimeSeconds(timeSeconds);
+			}
+			var stemMixer = ctx().stemMixer();
+			if (stemMixer != null && stemMixer.hasStems()) {
+				stemMixer.setCurrentTimeSeconds(timeSeconds);
+			}
 		}
 		resetTimelineAnimationScheduling();
 		MinecraftClient mc = MinecraftClient.getInstance();
@@ -235,7 +234,7 @@ public final class BeatBlockClientDriver {
 	private double previewTimelineTimeSecondsInternal() {
 		var editor = ctx().timelineEditor();
 		if (editor != null) {
-			return editor.getClock().getCurrentTimeSeconds();
+			return editor.getPlaybackSession().currentTimeSeconds();
 		}
 		var musicPlayer = ctx().musicPlayer();
 		return musicPlayer != null ? musicPlayer.getCurrentTimeSeconds() : 0.0;

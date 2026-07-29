@@ -652,11 +652,7 @@ public final class AnimationPropertyEditor {
 		if (editor == null) {
 			return;
 		}
-		editor.getClock().seek(timeSeconds);
-		var music = runtime().musicPlayer();
-		if (music != null) {
-			music.setCurrentTimeSeconds(timeSeconds);
-		}
+		editor.getPlaybackSession().seek(timeSeconds);
 		if (!BeatBlockClientDriver.isDriving()) {
 			BeatBlockClientDriver.startDriving();
 		}

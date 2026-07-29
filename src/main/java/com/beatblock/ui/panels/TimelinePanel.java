@@ -69,7 +69,7 @@ public class TimelinePanel {
 				PresenterFactories.timelineRecordModePresenter().handleKeyboard(
 					editor,
 					editor.getToolbarState(),
-					editor.getClock().isPlaying()
+					editor.getPlaybackSession().isPlaying()
 				);
 			}
 			String timeDisplay = viewState.positionDisplay();

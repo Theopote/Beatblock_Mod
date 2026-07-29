@@ -10,6 +10,7 @@ import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import com.beatblock.timeline.interaction.TimelineInteraction;
 import com.beatblock.timeline.interaction.TimelineInteractionClipboard;
 import com.beatblock.timeline.interaction.TimelineInteractionDeleteSupport;
+import com.beatblock.timeline.playback.PlaybackSession;
 import com.beatblock.timeline.rendering.TimelineFrameTrackSnapshot;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineRenderer;
@@ -50,6 +51,7 @@ public final class TimelineEditor {
 	/** 本帧轨模型快照（布局 + 渲染共用）。 */
 	private TimelineFrameTrackSnapshot frameTrackSnapshot = TimelineFrameTrackSnapshot.empty();
 	private final @Nullable IAudioPlayer audioPlayer;
+	private final PlaybackSession playbackSession;
 
 	/** 供 TimelinePanel 绘制贯通竖线：屏幕 X、标尺顶 Y、轨道内容区底 Y（每帧由 render 更新） */
 	private float cachedDividerScreenX;
@@ -82,6 +84,13 @@ public final class TimelineEditor {
 		}
 		this.commandManager = new CommandManager();
 		this.uiStateStore.loadTrackListState(timeline, trackListState);
+		this.playbackSession = new PlaybackSession(
+			state.getClock(),
+			timeline,
+			toolbarState,
+			this.musicPlayer,
+			audioPlayer
+		);
 	}
 
 	/** 无音频源时使用（可独立运行和测试）。 */
@@ -99,6 +108,14 @@ public final class TimelineEditor {
 
 	public @NonNull TimelineClock getClock() {
 		return state.getClock();
+	}
+
+	/**
+	 * 统一播放会话：时间读/写、播放/暂停、与音频同步请优先走此门面，
+	 * 避免直接分别操作 Clock 与 MusicPlayer。
+	 */
+	public @NonNull PlaybackSession getPlaybackSession() {
+		return playbackSession;
 	}
 
 	public @NonNull TimelineViewState getViewState() {
@@ -311,7 +328,7 @@ public final class TimelineEditor {
 	public void renderRulerOnly(@Nullable IAudioPlayer activePlaybackPlayer) {
 		if (timeline == null) return;
 		state.syncClockDuration();
-		syncClockDuringPlayback(activePlaybackPlayer);
+		playbackSession.syncFromAudio(activePlaybackPlayer);
 		TimelineLayout layout = requireFrameLayout();
 		cachedDividerScreenX = layout.contentLeft;
 		cachedDividerTopScreenY = layout.rulerTop;
@@ -321,106 +338,6 @@ public final class TimelineEditor {
 			viewState.fitToDuration(duration, layout.contentWidth);
 		}
 		renderer.renderRulerRow(layout, viewState, timeline.getBpm(), toolbarState, timeline);
-	}
-
-	private void syncClockDuringPlayback(@Nullable IAudioPlayer activePlaybackPlayer) {
-		IAudioPlayer playback = activePlaybackPlayer != null ? activePlaybackPlayer : audioPlayer;
-		if (playback == null || !playback.isPlaying()) {
-			return;
-		}
-		boolean segmentedHandled = playback == musicPlayer && syncClockFromSegmentedAudioPlayback();
-		if (segmentedHandled) {
-			return;
-		}
-		double t = playback.getCurrentTimeSeconds();
-		double dur = timeline.getDurationSeconds();
-		if (toolbarState.isLoop()) {
-			double loopIn = Math.max(0, toolbarState.getLoopInSeconds());
-			double loopOut = toolbarState.hasLoopRange() ? toolbarState.getLoopOutSeconds() : dur;
-			if (loopOut <= loopIn) loopOut = dur;
-			if (loopOut > 0) {
-				if (t >= loopOut) {
-					playback.setCurrentTimeSeconds(loopIn);
-					state.getClock().seek(loopIn);
-				} else if (t < loopIn) {
-					playback.setCurrentTimeSeconds(loopIn);
-					state.getClock().seek(loopIn);
-				} else {
-					state.getClock().setCurrentTimeSeconds(t);
-				}
-			} else {
-				state.getClock().setCurrentTimeSeconds(t);
-			}
-		} else {
-			state.getClock().setCurrentTimeSeconds(t);
-		}
-	}
-
-	private boolean syncClockFromSegmentedAudioPlayback() {
-		if (timeline == null || musicPlayer == null || audioPlayer != musicPlayer) return false;
-		Track audioTrack = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
-		if (audioTrack == null || audioTrack.getClips().isEmpty()) return false;
-		boolean segmentedTimeline = false;
-		for (Clip c : audioTrack.getClips()) {
-			if (c == null) continue;
-			Object pathObj = timeline.getMetadata("clipAudioPath_" + c.getId());
-			if (pathObj != null && !pathObj.toString().isBlank()) {
-				segmentedTimeline = true;
-				break;
-			}
-		}
-
-		double clockTime = state.getClock().getCurrentTimeSeconds();
-		Clip active = null;
-		for (Clip c : audioTrack.getClips()) {
-			if (c == null) continue;
-			if (clockTime >= c.getStartTimeSeconds() && clockTime <= c.getEndTimeSeconds()) {
-				active = c;
-				break;
-			}
-		}
-		if (active == null) {
-			if (!segmentedTimeline) return false;
-			if (musicPlayer.isPlaying()) {
-				musicPlayer.pause();
-			}
-			return true;
-		}
-
-		Object pathObj = timeline.getMetadata("clipAudioPath_" + active.getId());
-		if (pathObj == null) return false;
-		String targetPath = pathObj.toString();
-		String loadedPath = musicPlayer.getLoadedAudioPath();
-		if (loadedPath == null || !loadedPath.equals(targetPath)) {
-			musicPlayer.loadAudio(targetPath);
-			musicPlayer.play();
-			double local = Math.max(0.0, Math.min(clockTime - active.getStartTimeSeconds(), active.getDurationSeconds()));
-			musicPlayer.setCurrentTimeSeconds(local);
-		}
-
-		double globalTime = active.getStartTimeSeconds() + musicPlayer.getCurrentTimeSeconds();
-		if (globalTime >= active.getEndTimeSeconds()) {
-			Clip next = null;
-			for (Clip c : audioTrack.getClips()) {
-				if (c != null && c.getStartTimeSeconds() >= active.getEndTimeSeconds()) {
-					if (next == null || c.getStartTimeSeconds() < next.getStartTimeSeconds()) next = c;
-				}
-			}
-			if (next != null) {
-				Object nextPathObj = timeline.getMetadata("clipAudioPath_" + next.getId());
-				if (nextPathObj != null) {
-					String nextPath = nextPathObj.toString();
-					if (!nextPath.equals(musicPlayer.getLoadedAudioPath())) {
-						musicPlayer.loadAudio(nextPath);
-					}
-					musicPlayer.setCurrentTimeSeconds(0);
-					musicPlayer.play();
-					globalTime = next.getStartTimeSeconds();
-				}
-			}
-		}
-		state.getClock().setCurrentTimeSeconds(globalTime);
-		return true;
 	}
 
 	/**

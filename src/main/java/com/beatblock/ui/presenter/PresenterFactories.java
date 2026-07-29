@@ -126,6 +126,27 @@ public final class PresenterFactories {
 	}
 
 	public static TimelineTransportPresenter timelineTransportPresenter(BeatBlockContext context) {
+		// 将活跃音频源与驱动控制注入 PlaybackSession，Transport 经 session 统一读写
+		var editor = context.timelineEditor();
+		if (editor != null) {
+			editor.getPlaybackSession().setActiveAudioSupplier(context::activeAudioPlayer);
+			editor.getPlaybackSession().setDriveControl(new com.beatblock.timeline.playback.PlaybackSession.DriveControl() {
+				@Override
+				public boolean isDriving() {
+					return BeatBlockClientDriver.isDriving();
+				}
+
+				@Override
+				public void startDriving() {
+					BeatBlockClientDriver.startDriving();
+				}
+
+				@Override
+				public void stopDriving() {
+					BeatBlockClientDriver.stopDriving();
+				}
+			});
+		}
 		return new TimelineTransportPresenter(
 			context::timelineEditor,
 			context::timeline,

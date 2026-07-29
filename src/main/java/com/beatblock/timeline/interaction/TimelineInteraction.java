@@ -704,13 +704,11 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 	/** 拖动/点击标尺或播放头时，同时更新时钟和音乐进度 */
 	@Override
 	public void seekClockAndMusic(TimelineClock clock, double timeSeconds) {
-		TimelinePlaybackSeeker.seek(
-			clock,
-			timeSeconds,
-			audioPlayer,
-			musicPlayer,
-			timelineEditor != null ? timelineEditor.getTimeline() : null
-		);
+		if (timelineEditor != null) {
+			timelineEditor.getPlaybackSession().seek(timeSeconds);
+			return;
+		}
+		TimelinePlaybackSeeker.seek(clock, timeSeconds, audioPlayer, musicPlayer, null);
 	}
 
 	@Override

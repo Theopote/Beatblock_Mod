@@ -127,6 +127,10 @@ public final class BeatBlockContext {
 	}
 
 	public double playbackTimeSeconds() {
+		// 优先 PlaybackSession（与时间轴/音频统一）
+		if (timelineEditor != null) {
+			return timelineEditor.getPlaybackSession().currentTimeSeconds();
+		}
 		if (usesStemPlayback() && stemMixer != null) {
 			return stemMixer.getCurrentTimeSeconds();
 		}

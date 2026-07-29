@@ -102,10 +102,9 @@ public final class TimelineCameraController {
 		TimelineEditor editor = ctx().timelineEditor();
 		Timeline timeline = ctx().timeline();
 
-		boolean playing = musicPlayer != null && musicPlayer.isPlaying();
-		if (editor != null && editor.getClock().isPlaying()) {
-			playing = true;
-		}
+		boolean playing = editor != null
+			? editor.getPlaybackSession().isPlaying()
+			: (musicPlayer != null && musicPlayer.isPlaying());
 
 		boolean scrubbing = false;
 		if (editor != null && editor.getInteractionState() != null) {
