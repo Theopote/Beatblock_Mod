@@ -10,6 +10,8 @@ import com.beatblock.ui.panels.*;
 import com.beatblock.ui.preferences.BeatBlockShortcutHandler;
 import com.beatblock.ui.preferences.UiPreferences;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.presenter.TimelineActionDispatcher;
+import com.beatblock.ui.presenter.TimelineActionId;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.ImGuiViewport;
@@ -52,6 +54,7 @@ public class BeatBlockUIManager {
 	private final PerformanceMonitorPanel performanceMonitorPanel;
 	private final PreferencesPanel preferencesPanel;
 	private final VideoExportDialog videoExportDialog;
+	private final TimelineActionDispatcher timelineActions;
 
 	private final BeatBlockPanelVisibility panelVisibility = new BeatBlockPanelVisibility();
 	private boolean firstLayout = true;
@@ -59,6 +62,7 @@ public class BeatBlockUIManager {
 
 	public BeatBlockUIManager(Runnable onCloseRequest) {
 		this.onCloseRequest = onCloseRequest;
+		this.timelineActions = PresenterFactories.timelineActionDispatcher();
 		this.toolPanel = new ToolPanel();
 		this.markerPanel = new MarkerPanel();
 		this.audioAnalysisPanel = new AudioAnalysisPanel();
@@ -113,8 +117,8 @@ public class BeatBlockUIManager {
 	}
 
 	private void generateRhythmDropFromMenu() {
-		var result = PresenterFactories.rhythmDropPanelPresenter().generateFromSelectionWithDefaults();
-		BeatBlockSelectionManager.get().setMessage(result.messageOrEmpty());
+		var result = timelineActions.execute(TimelineActionId.GENERATE_RHYTHM_DROP);
+		BeatBlockSelectionManager.get().setMessage(result.message());
 	}
 
 	private void saveCurrentLayout() {
@@ -154,7 +158,7 @@ public class BeatBlockUIManager {
 	}
 
 	public void render() {
-		BeatBlockShortcutHandler.processGlobalShortcuts(new BeatBlockShortcutHandler.MenuActions() {
+		BeatBlockShortcutHandler.processGlobalShortcuts(timelineActions, new BeatBlockShortcutHandler.MenuActions() {
 			@Override public void openImportMusic() { menuBarPanel.requestImportMusic(); }
 			@Override public void saveProject() { menuBarPanel.requestSaveProject(); }
 			@Override public void openProject() { menuBarPanel.requestOpenProject(); }

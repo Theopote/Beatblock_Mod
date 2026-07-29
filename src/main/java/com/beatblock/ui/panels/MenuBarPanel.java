@@ -5,7 +5,8 @@ import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.timeline.rendering.TimelineBindingEditorPopup;
 import com.beatblock.ui.presenter.MenuBarPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
-import com.beatblock.ui.presenter.TimelineToolbarActionsPresenter;
+import com.beatblock.ui.presenter.TimelineActionDispatcher;
+import com.beatblock.ui.presenter.TimelineActionId;
 import com.beatblock.ui.presenter.TimelineToolbarFeedbackPresenter;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.preferences.BeatBlockShortcutId;
@@ -33,7 +34,7 @@ public class MenuBarPanel {
 	private final Runnable onOpenQuickStartWizard;
 	private final Runnable onOpenEnvironmentSetup;
 	private final Runnable onOpenVideoExport;
-	private final TimelineToolbarActionsPresenter showActions;
+	private final TimelineActionDispatcher timelineActions;
 	private final TimelineToolbarFeedbackPresenter showFeedback;
 	private final TimelineBindingEditorPopup bindingEditorPopup;
 	private boolean showImportDialog;
@@ -69,7 +70,7 @@ public class MenuBarPanel {
 		this.onOpenQuickStartWizard = onOpenQuickStartWizard != null ? onOpenQuickStartWizard : () -> {};
 		this.onOpenEnvironmentSetup = onOpenEnvironmentSetup != null ? onOpenEnvironmentSetup : () -> {};
 		this.onOpenVideoExport = onOpenVideoExport != null ? onOpenVideoExport : () -> {};
-		this.showActions = PresenterFactories.timelineToolbarActionsPresenter();
+		this.timelineActions = PresenterFactories.timelineActionDispatcher();
 		this.showFeedback = PresenterFactories.timelineToolbarFeedbackPresenter();
 		this.bindingEditorPopup = new TimelineBindingEditorPopup(
 			PresenterFactories.timelineBindingEditorPresenter(), showFeedback);
@@ -184,15 +185,15 @@ public class MenuBarPanel {
 				ImGui.separator();
 				if (ImGui.beginMenu(BBTexts.get("beatblock.menu.mapping_and_generation"))) {
 					if (ImGui.menuItem(BBTexts.get("beatblock.menu.generate_from_bindings"))) {
-						showOutcome(showActions.runBindingMap());
+						showOutcome(timelineActions.execute(TimelineActionId.RUN_BINDING_MAP));
 					}
 					if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.binding_map.tooltip"));
 					if (ImGui.menuItem(BBTexts.get("beatblock.timeline.auto_map"))) {
-						showOutcome(showActions.runAutoMap());
+						showOutcome(timelineActions.execute(TimelineActionId.RUN_AUTO_MAP));
 					}
 					if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.auto_map.tooltip"));
 					if (ImGui.menuItem(BBTexts.get("beatblock.menu.bake_step_events"))) {
-						showOutcome(showActions.runBakeStepSequences());
+						showOutcome(timelineActions.execute(TimelineActionId.BAKE_STEP));
 					}
 					if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.bake_step.tooltip"));
 					ImGui.endMenu();
@@ -236,7 +237,7 @@ public class MenuBarPanel {
 		bindingEditorPopup.renderIfOpen();
 	}
 
-	private static void showOutcome(TimelineToolbarActionsPresenter.ActionOutcome outcome) {
+	private static void showOutcome(TimelineActionDispatcher.ActionResult outcome) {
 		if (outcome == null || outcome.message() == null || outcome.message().isBlank()) return;
 		if (outcome.success()) {
 			ToastNotificationSystem.showSuccess(outcome.message());

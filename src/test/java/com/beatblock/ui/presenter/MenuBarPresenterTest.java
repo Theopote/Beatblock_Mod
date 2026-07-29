@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -34,13 +35,7 @@ class MenuBarPresenterTest {
 		editor = new TimelineEditor(timeline);
 		layerManager = new BuildLayerManager(new StageObjectSystem());
 		audioLoader = new RecordingAudioLoader();
-		presenter = new MenuBarPresenter(
-			new TimelineEditorPresenter(() -> editor, time -> {}),
-			() -> timeline,
-			() -> editor,
-			() -> layerManager,
-			() -> audioLoader
-		);
+		presenter = createPresenter(() -> timeline, () -> audioLoader);
 	}
 
 	@Test
@@ -60,13 +55,7 @@ class MenuBarPresenterTest {
 
 	@Test
 	void importAudioFailsWhenLoaderUnavailable() {
-		var missingLoader = new MenuBarPresenter(
-			new TimelineEditorPresenter(() -> editor, time -> {}),
-			() -> timeline,
-			() -> editor,
-			() -> layerManager,
-			() -> null
-		);
+		var missingLoader = createPresenter(() -> timeline, () -> null);
 		assertFalse(missingLoader.importAudio("C:/music/test.wav").ok());
 	}
 
@@ -104,13 +93,7 @@ class MenuBarPresenterTest {
 	void openProjectFailsWhenTimelineMissing(@TempDir Path tempDir) throws Exception {
 		Path file = tempDir.resolve("demo.osc");
 		OscProjectStore.save(file, timeline);
-		var missingTimeline = new MenuBarPresenter(
-			new TimelineEditorPresenter(() -> editor, time -> {}),
-			() -> null,
-			() -> editor,
-			() -> layerManager,
-			() -> audioLoader
-		);
+		var missingTimeline = createPresenter(() -> null, () -> audioLoader);
 		assertFalse(missingTimeline.openProject(file.toString()).ok());
 	}
 
@@ -167,6 +150,27 @@ class MenuBarPresenterTest {
 		assertEquals(com.beatblock.ui.i18n.BBTexts.get(
 			"beatblock.message.project_opened_audio_failed"), result.messageOrEmpty());
 		assertEquals("C:/missing/audio.wav", audioLoader.lastPath);
+	}
+
+	private MenuBarPresenter createPresenter(
+		Supplier<Timeline> timelineSupplier,
+		Supplier<AudioLoader> loaderSupplier
+	) {
+		TimelineEditorPresenter editorPresenter = new TimelineEditorPresenter(() -> editor, time -> {});
+		RhythmDropPanelPresenter rhythmDrop = new RhythmDropPanelPresenter(
+			() -> null, timelineSupplier, () -> editor, () -> null);
+		TimelineToolbarActionsPresenter generatedActions = new TimelineToolbarActionsPresenter(
+			timelineSupplier, () -> editor, () -> net.minecraft.util.math.Vec3d.ZERO, rhythmDrop);
+		TimelineActionDispatcher actions = new TimelineActionDispatcher(
+			editorPresenter, () -> editor, generatedActions);
+		return new MenuBarPresenter(
+			editorPresenter,
+			actions,
+			timelineSupplier,
+			() -> editor,
+			() -> layerManager,
+			loaderSupplier
+		);
 	}
 
 	private static final class RecordingAudioLoader extends AudioLoader {

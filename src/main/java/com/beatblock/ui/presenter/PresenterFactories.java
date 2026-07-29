@@ -5,7 +5,6 @@ import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.selection.BeatBlockSelectionManager;
-import com.beatblock.runtime.BeatBlockContext;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
@@ -114,6 +113,7 @@ public final class PresenterFactories {
 	public static MenuBarPresenter menuBarPresenter(BeatBlockContext context) {
 		return new MenuBarPresenter(
 			timelineEditorPresenter(context),
+			timelineActionDispatcher(context),
 			context::timeline,
 			context::timelineEditor,
 			context::buildLayerManager,
@@ -179,7 +179,20 @@ public final class PresenterFactories {
 		return new TimelineToolbarActionsPresenter(
 			context::timeline,
 			context::timelineEditor,
-			PresenterFactories::currentCameraPositionOrZero
+			PresenterFactories::currentCameraPositionOrZero,
+			rhythmDropPanelPresenter(context)
+		);
+	}
+
+	public static TimelineActionDispatcher timelineActionDispatcher() {
+		return timelineActionDispatcher(ctx());
+	}
+
+	public static TimelineActionDispatcher timelineActionDispatcher(BeatBlockContext context) {
+		return new TimelineActionDispatcher(
+			timelineEditorPresenter(context),
+			context::timelineEditor,
+			timelineToolbarActionsPresenter(context)
 		);
 	}
 

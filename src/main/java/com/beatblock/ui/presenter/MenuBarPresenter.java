@@ -18,6 +18,7 @@ public final class MenuBarPresenter {
 	public record EditViewState(boolean hasSelection, boolean hasClipboard, boolean canDelete) {}
 
 	private final TimelineEditorPresenter editorPresenter;
+	private final TimelineActionDispatcher actions;
 	private final Supplier<Timeline> timeline;
 	private final Supplier<TimelineEditor> timelineEditor;
 	private final Supplier<BuildLayerManager> layerManager;
@@ -25,12 +26,14 @@ public final class MenuBarPresenter {
 
 	public MenuBarPresenter(
 		TimelineEditorPresenter editorPresenter,
+		TimelineActionDispatcher actions,
 		Supplier<Timeline> timeline,
 		Supplier<TimelineEditor> timelineEditor,
 		Supplier<BuildLayerManager> layerManager,
 		Supplier<AudioLoader> audioLoader
 	) {
 		this.editorPresenter = editorPresenter;
+		this.actions = actions;
 		this.timeline = timeline;
 		this.timelineEditor = timelineEditor;
 		this.layerManager = layerManager;
@@ -46,39 +49,32 @@ public final class MenuBarPresenter {
 	}
 
 	public boolean undo() {
-		return editorPresenter.undo();
+		return actions.execute(TimelineActionId.UNDO).success();
 	}
 
 	public boolean redo() {
-		return editorPresenter.redo();
+		return actions.execute(TimelineActionId.REDO).success();
 	}
 
 	public EditViewState editViewState() {
-		TimelineEditor editor = timelineEditor.get();
-		return editor != null
-			? new EditViewState(
-				editor.hasTimelineSelection(), editor.hasClipboardContent(), editor.hasDeletableSelection())
-			: new EditViewState(false, false, false);
+		var state = actions.editState();
+		return new EditViewState(state.hasSelection(), state.hasClipboard(), state.canDelete());
 	}
 
 	public void cutTimelineSelection() {
-		TimelineEditor editor = timelineEditor.get();
-		if (editor != null) editor.cutSelectedEvents();
+		actions.execute(TimelineActionId.CUT);
 	}
 
 	public void copyTimelineSelection() {
-		TimelineEditor editor = timelineEditor.get();
-		if (editor != null) editor.copySelectedEvents();
+		actions.execute(TimelineActionId.COPY);
 	}
 
 	public void pasteTimelineAtPlayhead() {
-		TimelineEditor editor = timelineEditor.get();
-		if (editor != null) editor.pasteClipboardAtPlayhead();
+		actions.execute(TimelineActionId.PASTE_AT_PLAYHEAD);
 	}
 
 	public void deleteTimelineSelection() {
-		TimelineEditor editor = timelineEditor.get();
-		if (editor != null) editor.deleteSelectedEntries();
+		actions.execute(TimelineActionId.DELETE);
 	}
 
 	public String defaultSaveProjectPath() {

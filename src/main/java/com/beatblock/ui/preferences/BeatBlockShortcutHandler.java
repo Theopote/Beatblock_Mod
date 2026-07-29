@@ -1,8 +1,8 @@
 package com.beatblock.ui.preferences;
 
-import com.beatblock.timeline.TimelineEditor;
-import com.beatblock.ui.presenter.MenuBarPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.presenter.TimelineActionDispatcher;
+import com.beatblock.ui.presenter.TimelineActionId;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import org.lwjgl.glfw.GLFW;
@@ -26,17 +26,21 @@ public final class BeatBlockShortcutHandler {
 	private BeatBlockShortcutHandler() {
 	}
 
-	public static void processGlobalShortcuts(MenuActions menuActions) {
+	public static void processGlobalShortcuts(
+		TimelineActionDispatcher actions,
+		MenuActions menuActions
+	) {
 		if (ImGui.getIO() == null || ImGui.getIO().getWantCaptureKeyboard()) {
 			return;
 		}
-		MenuBarPresenter menu = PresenterFactories.menuBarPresenter();
-		TimelineEditor editor = PresenterFactories.timelineEditorPresenter().editorOrNull();
+		if (actions == null) {
+			return;
+		}
 		if (isPressed(BeatBlockShortcutId.UNDO)) {
-			menu.undo();
+			actions.execute(TimelineActionId.UNDO);
 		}
 		if (isPressed(BeatBlockShortcutId.REDO)) {
-			menu.redo();
+			actions.execute(TimelineActionId.REDO);
 		}
 		if (menuActions != null) {
 			if (isPressed(BeatBlockShortcutId.IMPORT_MUSIC)) menuActions.openImportMusic();
@@ -44,20 +48,10 @@ public final class BeatBlockShortcutHandler {
 			if (isPressed(BeatBlockShortcutId.OPEN_PROJECT)) menuActions.openProject();
 			if (isPressed(BeatBlockShortcutId.GENERATE_RHYTHM_DROP)) menuActions.generateRhythmDrop();
 		}
-		if (editor != null) {
-			if (isPressed(BeatBlockShortcutId.COPY)) {
-				editor.copySelectedEvents();
-			}
-			if (isPressed(BeatBlockShortcutId.CUT)) {
-				editor.cutSelectedEvents();
-			}
-			if (isPressed(BeatBlockShortcutId.PASTE)) {
-				editor.pasteClipboardAtPlayhead();
-			}
-			if (isPressed(BeatBlockShortcutId.DELETE)) {
-				editor.deleteSelectedEntries();
-			}
-		}
+		if (isPressed(BeatBlockShortcutId.COPY)) actions.execute(TimelineActionId.COPY);
+		if (isPressed(BeatBlockShortcutId.CUT)) actions.execute(TimelineActionId.CUT);
+		if (isPressed(BeatBlockShortcutId.PASTE)) actions.execute(TimelineActionId.PASTE_AT_PLAYHEAD);
+		if (isPressed(BeatBlockShortcutId.DELETE)) actions.execute(TimelineActionId.DELETE);
 	}
 
 	public static boolean isPressed(BeatBlockShortcutId id) {
