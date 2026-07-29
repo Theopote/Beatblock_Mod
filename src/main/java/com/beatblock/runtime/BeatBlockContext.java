@@ -15,12 +15,18 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.video.VideoExportService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 运行时核心服务容器：构造器注入入口，替代原 {@link com.beatblock.BeatBlock} 静态字段访问。
  * 生产环境在 {@link com.beatblock.BeatBlock#onInitialize()} 中构建；测试可通过 {@link Builder} 注入 mock。
  */
-public final class BeatBlockContext {
+public final class BeatBlockContext implements AutoCloseable {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(BeatBlockContext.class);
 
 	private final @Nullable AudioLoader audioLoader;
 	private final @Nullable MusicPlayer musicPlayer;
@@ -33,6 +39,7 @@ public final class BeatBlockContext {
 	private final @Nullable AudioAnalysisService externalAudioAnalyzer;
 	private final @Nullable AudioConversionService audioConversionService;
 	private final @Nullable VideoExportService videoExportService;
+	private final AtomicBoolean closed = new AtomicBoolean();
 
 	public BeatBlockContext(
 		@Nullable AudioLoader audioLoader,
@@ -146,6 +153,37 @@ public final class BeatBlockContext {
 
 	public @Nullable BuildLayerManager buildLayerManager() {
 		return blockAnimationEngine != null ? blockAnimationEngine.getBuildLayerManager() : null;
+	}
+
+	/** 统一、幂等地释放运行时持有的播放器和后台服务。 */
+	@Override
+	public void close() {
+		if (!closed.compareAndSet(false, true)) {
+			return;
+		}
+		closeStep("music player", () -> {
+			if (musicPlayer != null) musicPlayer.stop();
+		});
+		closeStep("stem mixer", () -> {
+			if (stemMixer != null) stemMixer.stop();
+		});
+		closeStep("timeline editor", () -> {
+			if (timelineEditor != null) timelineEditor.shutdown();
+		});
+		closeStep("audio analysis", () -> {
+			if (externalAudioAnalyzer != null) externalAudioAnalyzer.shutdown();
+		});
+		closeStep("audio conversion", () -> {
+			if (audioConversionService != null) audioConversionService.shutdown();
+		});
+	}
+
+	private static void closeStep(String serviceName, Runnable action) {
+		try {
+			action.run();
+		} catch (Throwable error) {
+			LOGGER.warn("BeatBlock runtime failed to close {}", serviceName, error);
+		}
 	}
 
 	public static final class Builder {

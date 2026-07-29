@@ -53,7 +53,7 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		this.callbackDispatcher = callbackDispatcher;
 		this.executor = Executors.newSingleThreadExecutor(r -> {
 			Thread t = new Thread(r, "beatblock-analyzer");
-			t.setDaemon(false);
+			t.setDaemon(true);
 			return t;
 		});
 	}

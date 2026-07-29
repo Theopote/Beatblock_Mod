@@ -1,11 +1,16 @@
 package com.beatblock.runtime;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.audio.AudioAnalysisService;
+import com.beatblock.audio.AudioConversionService;
 import com.beatblock.audio.MusicPlayer;
 import com.beatblock.audio.StemMixer;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import org.junit.jupiter.api.Test;
+
+import java.nio.file.Path;
+import java.util.concurrent.RejectedExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -62,5 +67,31 @@ class BeatBlockContextTest {
 			.build();
 
 		assertEquals(42.0, context.musicPlayer().getDurationSeconds(), 1e-9);
+	}
+
+	@Test
+	void closeShutsDownOwnedBackgroundServicesAndIsIdempotent() {
+		AudioAnalysisService analysis = new AudioAnalysisService();
+		AudioConversionService conversion = new AudioConversionService();
+		BeatBlockContext context = BeatBlockContext.builder()
+			.externalAudioAnalyzer(analysis)
+			.audioConversionService(conversion)
+			.build();
+
+		context.close();
+		context.close();
+
+		assertThrows(RejectedExecutionException.class, () -> analysis.analyze(
+			Path.of("after-close.mp3"),
+			(step, percent) -> {},
+			beatmap -> {},
+			error -> {}
+		));
+		assertThrows(RejectedExecutionException.class, () -> conversion.convertToMp3Async(
+			Path.of("after-close.wav"),
+			null,
+			path -> {},
+			error -> {}
+		));
 	}
 }

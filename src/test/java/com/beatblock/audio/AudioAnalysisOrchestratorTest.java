@@ -290,6 +290,11 @@ class AudioAnalysisOrchestratorTest {
 			assertEquals(4, queuedCallbacks.size());
 			queuedCallbacks.forEach(Runnable::run);
 			assertEquals(List.of("started", "progress", "summary", "complete"), callbackOrder);
+			Thread worker = Thread.getAllStackTraces().keySet().stream()
+				.filter(thread -> "beatblock-analyzer".equals(thread.getName()))
+				.findFirst()
+				.orElseThrow();
+			assertTrue(worker.isDaemon());
 		} finally {
 			orchestrator.shutdown();
 		}

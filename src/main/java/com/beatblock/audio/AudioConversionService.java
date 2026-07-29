@@ -20,7 +20,7 @@ public final class AudioConversionService implements AutoCloseable {
 
 	private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
 		Thread t = new Thread(r, "beatblock-audio-converter");
-		t.setDaemon(false);
+		t.setDaemon(true);
 		return t;
 	});
 	private final MainThreadDispatcher callbackDispatcher;

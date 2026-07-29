@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AudioConversionServiceTest {
 
@@ -39,6 +40,11 @@ class AudioConversionServiceTest {
 			queuedCallbacks.forEach(Runnable::run);
 			assertEquals(List.of(100), progress);
 			assertEquals(input, completed.get());
+			Thread worker = Thread.getAllStackTraces().keySet().stream()
+				.filter(thread -> "beatblock-audio-converter".equals(thread.getName()))
+				.findFirst()
+				.orElseThrow();
+			assertTrue(worker.isDaemon());
 		} finally {
 			service.shutdown();
 		}
