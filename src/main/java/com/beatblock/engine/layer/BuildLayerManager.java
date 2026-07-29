@@ -314,7 +314,7 @@ public final class BuildLayerManager {
 			return null;
 		}
 		List<String> uniqueLayerIds = layerIds.stream().distinct().toList();
-		if (uniqueLayerIds.size() < 2) return null;
+		if (uniqueLayerIds.isEmpty()) return null;
 		List<BuildLayer> members = new ArrayList<>();
 		Set<String> previousGroupIds = new HashSet<>();
 		for (String layerId : uniqueLayerIds) {
@@ -428,22 +428,19 @@ public final class BuildLayerManager {
 
 		List<BlockPos> mergedBlocks = new ArrayList<>();
 		Map<BlockPos, BlockState> mergedCapture = new LinkedHashMap<>();
-		Set<String> groupIds = new HashSet<>();
 		String commonGroupId = sources.getFirst().getGroupId();
 		boolean allInSameGroup = commonGroupId != null;
 		int mergedColor = 0;
 		for (BuildLayer layer : sources) {
 			mergedBlocks.addAll(layer.getStageObject().getBlocks());
 			mergedCapture.putAll(layer.getCapturedStates());
-			if (layer.getGroupId() != null) {
-				groupIds.add(layer.getGroupId());
-			}
 			allInSameGroup &= java.util.Objects.equals(commonGroupId, layer.getGroupId());
 			if (layer.getColorArgb() != 0) {
 				mergedColor = layer.getColorArgb();
 			}
 		}
 
+		BuildLayerGroup commonGroup = allInSameGroup ? groups.get(commonGroupId) : null;
 		for (BuildLayer layer : sources) {
 			dissolveLayer(layer);
 		}
@@ -457,7 +454,8 @@ public final class BuildLayerManager {
 			id + "_stage", layerName, mergedBlocks, com.beatblock.engine.GroupSortingStrategy.SEQUENTIAL, 0.0);
 		stageObjectSystem.register(stageObject);
 		BuildLayer merged = new BuildLayer(id, layerName, stageObject, state, mergedCapture, null);
-		if (allInSameGroup && groups.containsKey(commonGroupId)) {
+		if (commonGroup != null) {
+			groups.putIfAbsent(commonGroupId, commonGroup);
 			merged.setGroupId(commonGroupId);
 		}
 		merged.setColorArgb(mergedColor);

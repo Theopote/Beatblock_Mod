@@ -123,4 +123,50 @@ class BuildLayerManagerTest {
 		assertEquals(LayerVisibilityState.FREE_VISIBLE, layer.getState());
 		assertFalse(manager.showLayer(layer, null));
 	}
+
+	@Test
+	void regroupingRemovesEmptyPreviousGroup() {
+		BuildLayer first = restoredLayer("first", 0);
+		BuildLayer second = restoredLayer("second", 1);
+		BuildLayer third = restoredLayer("third", 2);
+		BuildLayerGroup oldGroup = manager.createGroup("Old", List.of(first.getId(), second.getId()));
+
+		BuildLayerGroup replacement = manager.createGroup("New", List.of(first.getId(), second.getId()));
+
+		assertNotNull(replacement);
+		assertNull(manager.getGroup(oldGroup.getId()));
+		assertEquals(replacement.getId(), first.getGroupId());
+		assertNull(third.getGroupId());
+	}
+
+	@Test
+	void mergingWholeGroupKeepsValidGroupMembership() {
+		BuildLayer first = restoredLayer("first", 0);
+		BuildLayer second = restoredLayer("second", 1);
+		BuildLayerGroup group = manager.createGroup("Group", List.of(first.getId(), second.getId()));
+
+		BuildLayer merged = manager.mergeLayers(List.of(first.getId(), second.getId()), "Merged");
+
+		assertNotNull(merged);
+		assertNotNull(manager.getGroup(group.getId()));
+		assertEquals(group.getId(), merged.getGroupId());
+		assertEquals(List.of(merged), manager.getLayersInGroup(group.getId()));
+	}
+
+	@Test
+	void groupingDeduplicatesRepeatedLayerIds() {
+		BuildLayer layer = restoredLayer("only", 0);
+		BuildLayerGroup group = manager.createGroup("Valid", List.of(layer.getId(), layer.getId()));
+		assertNotNull(group);
+		assertEquals(List.of(layer), manager.getLayersInGroup(group.getId()));
+	}
+
+	private BuildLayer restoredLayer(String id, int x) {
+		StageObject stage = StageObjectSystem.fromBlocks(
+			"stage-" + id, id, List.of(new BlockPos(x, 64, 0)));
+		BuildLayer layer = new BuildLayer(
+			id, id, stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);
+		manager.registerRestored(layer);
+		return layer;
+	}
 }
