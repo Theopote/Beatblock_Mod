@@ -164,7 +164,8 @@ public final class UiPreferences {
 				root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
 			} else {
 				root = new JsonObject();
-				Files.createDirectories(path.getParent());
+				Path parent = path.getParent();
+				if (parent != null) Files.createDirectories(parent);
 			}
 			root.addProperty(THEME_KEY, theme.id());
 			JsonObject map = new JsonObject();

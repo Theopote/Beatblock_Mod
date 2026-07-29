@@ -46,7 +46,7 @@ public final class AudioAsset {
 	public AudioAsset(@Nullable Path path) {
 		this.id = UUID.randomUUID().toString();
 		this.path = path;
-        this.fileName = path != null ? path.getFileName().toString() : "";
+		this.fileName = fileNameOf(path);
 	}
 
 	public String getId() { return id; }
@@ -54,7 +54,13 @@ public final class AudioAsset {
 	public String getFileName() { return fileName; }
 	public void setPath(@Nullable Path path) {
 		this.path = path;
-        this.fileName = path != null ? path.getFileName().toString() : "";
+		this.fileName = fileNameOf(path);
+	}
+
+	private static String fileNameOf(@Nullable Path path) {
+		if (path == null) return "";
+		Path fileName = path.getFileName();
+		return fileName != null ? fileName.toString() : "";
 	}
 
 	public double getDurationSeconds() { return durationSeconds; }
@@ -99,7 +105,7 @@ public final class AudioAsset {
 		this.analysisPhase = analysisPhase != null ? analysisPhase : AudioAnalysisPhase.PENDING;
 	}
 
-	public EnumSet<AudioAnalysisStep> getFinishedSteps() { return finishedSteps; }
+	public EnumSet<AudioAnalysisStep> getFinishedSteps() { return EnumSet.copyOf(finishedSteps); }
 	public void markStepFinished(AudioAnalysisStep step) {
 		if (step != null) finishedSteps.add(step);
 	}

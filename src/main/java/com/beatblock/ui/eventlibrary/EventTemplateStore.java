@@ -125,7 +125,8 @@ public final class EventTemplateStore {
 				obj.add("parameters", GSON.toJsonTree(template.parameters()));
 				array.add(obj);
 			}
-			Files.createDirectories(path.getParent());
+			Path parent = path.getParent();
+			if (parent != null) Files.createDirectories(parent);
 			Files.writeString(path, GSON.toJson(array), StandardCharsets.UTF_8);
 		} catch (Exception e) {
 			LOGGER.warn("Failed to save event templates to {}", path, e);

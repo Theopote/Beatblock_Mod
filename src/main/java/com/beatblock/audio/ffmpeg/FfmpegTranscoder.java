@@ -44,7 +44,8 @@ public final class FfmpegTranscoder {
 			return new FfmpegTranscodeOutcome.Failure("待转换文件不存在。");
 		}
 
-		String fileName = inputAudio.getFileName() != null ? inputAudio.getFileName().toString() : "";
+		Path inputFileName = inputAudio.getFileName();
+		String fileName = inputFileName != null ? inputFileName.toString() : "";
 		if (fileName.toLowerCase().endsWith(".mp3")) {
 			return new FfmpegTranscodeOutcome.AlreadyMp3(inputAudio);
 		}
@@ -120,7 +121,8 @@ public final class FfmpegTranscoder {
 	}
 
 	static Path resolveMp3OutputPath(Path inputAudio, Path fallbackOutputDir) {
-		String fileName = inputAudio.getFileName() != null ? inputAudio.getFileName().toString() : "audio";
+		Path inputFileName = inputAudio.getFileName();
+		String fileName = inputFileName != null ? inputFileName.toString() : "audio";
 		String baseName = fileName.replaceAll("\\.[^.]+$", "");
 		Path dir = inputAudio.getParent();
 		if (dir == null) {

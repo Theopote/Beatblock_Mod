@@ -48,9 +48,8 @@ public final class BeatmapAnalysisCache {
 	}
 
 	public static Path buildBeatmapPath(Path outputDir, Path audioPath, boolean demucsMode) {
-		String fileName = audioPath != null && audioPath.getFileName() != null
-			? audioPath.getFileName().toString()
-			: "audio";
+		Path audioFileName = audioPath != null ? audioPath.getFileName() : null;
+		String fileName = audioFileName != null ? audioFileName.toString() : "audio";
 		String baseName = sanitizeBeatmapBaseName(fileName.replaceAll("\\.[^.]+$", ""));
 		String normalized = audioPath == null
 			? "audio"

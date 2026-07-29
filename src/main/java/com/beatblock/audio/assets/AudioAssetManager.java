@@ -166,8 +166,10 @@ public final class AudioAssetManager {
 	}
 
 	private boolean isSupportedAudioFile(@Nullable Path path) {
-		if (path == null || path.getFileName() == null) return false;
-		String name = path.getFileName().toString();
+		if (path == null) return false;
+		Path fileName = path.getFileName();
+		if (fileName == null) return false;
+		String name = fileName.toString();
 		int idx = name.lastIndexOf('.');
 		if (idx < 0 || idx == name.length() - 1) return false;
 		String ext = name.substring(idx + 1).toLowerCase(Locale.ROOT);
@@ -201,7 +203,9 @@ public final class AudioAssetManager {
 	}
 
 	public String clearCacheAndReanalyze(AudioAsset asset, AudioAnalysisMode mode) {
-		if (asset == null || asset.getPath() == null) return BBTexts.get("beatblock.audio.invalid_asset");
+		if (asset == null) return BBTexts.get("beatblock.audio.invalid_asset");
+		Path assetPath = asset.getPath();
+		if (assetPath == null) return BBTexts.get("beatblock.audio.invalid_asset");
 		AudioAnalysisService service = externalAnalyzer();
 		if (service == null) return BBTexts.get("beatblock.audio.analyzer_uninitialized");
 
@@ -216,7 +220,7 @@ public final class AudioAssetManager {
 		}
 
 		AudioAnalysisMode resolvedMode = mode != null ? mode : AudioAnalysisMode.BASIC;
-		int removed = service.clearAllAnalysisCacheForAudio(asset.getPath());
+		int removed = service.clearAllAnalysisCacheForAudio(assetPath);
 		startAnalysis(asset, resolvedMode);
 		return BBTexts.get("beatblock.audio.cache_cleared_reanalyze", removed, resolvedMode.label());
 	}
@@ -567,8 +571,10 @@ public final class AudioAssetManager {
 	}
 
 	private static String extensionOf(Path audioPath) {
-		if (audioPath == null || audioPath.getFileName() == null) return "";
-		String name = audioPath.getFileName().toString();
+		if (audioPath == null) return "";
+		Path fileName = audioPath.getFileName();
+		if (fileName == null) return "";
+		String name = fileName.toString();
 		int idx = name.lastIndexOf('.');
 		if (idx < 0 || idx >= name.length() - 1) return "";
 		return name.substring(idx + 1).toLowerCase(Locale.ROOT);
