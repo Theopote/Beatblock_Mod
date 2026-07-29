@@ -110,6 +110,12 @@ public final class BuildLayersPresenter {
 		if (movingLayerId == null || targetLayerId == null || movingLayerId.equals(targetLayerId)) {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.layer_reorder_invalid"));
 		}
+		BuildLayer moving = manager.get(movingLayerId);
+		BuildLayer target = manager.get(targetLayerId);
+		if (moving == null || target == null
+			|| !java.util.Objects.equals(moving.getGroupId(), target.getGroupId())) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.layer_reorder_invalid"));
+		}
 		commands.execute(new ReorderLayerCommand(manager, movingLayerId, targetLayerId));
 		return PresenterResult.success("");
 	}
@@ -288,6 +294,9 @@ public final class BuildLayersPresenter {
 		if (layer == null) {
 			return new DeleteOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.layer_not_found")));
 		}
+		if (!layer.canDelete()) {
+			return new DeleteOutcome(PresenterResult.failure(BBTexts.get("beatblock.layer.cannot_delete_bound")));
+		}
 
 		String layerName = layer.getName();
 		commands.execute(new DeleteLayerCommand(manager, layer.getId()));
@@ -365,7 +374,9 @@ public final class BuildLayersPresenter {
 		if (commands == null || manager == null || manager.get(layerId) == null) {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.layer_not_found"));
 		}
-		commands.execute(new SetLayerColorCommand(manager, layerId, colorArgb));
+		if (manager.get(layerId).getColorArgb() != colorArgb) {
+			commands.execute(new SetLayerColorCommand(manager, layerId, colorArgb));
+		}
 		return PresenterResult.success("");
 	}
 
@@ -375,7 +386,9 @@ public final class BuildLayersPresenter {
 		if (commands == null || manager == null || manager.getGroup(groupId) == null) {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.group_not_found"));
 		}
-		commands.execute(new SetGroupColorCommand(manager, groupId, colorArgb));
+		if (manager.getGroup(groupId).getColorArgb() != colorArgb) {
+			commands.execute(new SetGroupColorCommand(manager, groupId, colorArgb));
+		}
 		return PresenterResult.success("");
 	}
 }

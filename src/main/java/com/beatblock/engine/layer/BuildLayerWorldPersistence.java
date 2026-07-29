@@ -12,8 +12,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 /** 建造图层在世界存档目录中的 JSON 读写（按维度分文件）。 */
 public final class BuildLayerWorldPersistence {
@@ -53,15 +55,40 @@ public final class BuildLayerWorldPersistence {
 		if (parent != null) {
 			Files.createDirectories(parent);
 		}
-		Files.writeString(filePath, GSON.toJson(root), StandardCharsets.UTF_8);
+		Path temporary = filePath.resolveSibling(filePath.getFileName() + ".tmp");
+		Path backup = backupPath(filePath);
+		try {
+			Files.writeString(temporary, GSON.toJson(root), StandardCharsets.UTF_8);
+			if (Files.exists(filePath)) {
+				Files.copy(filePath, backup, StandardCopyOption.REPLACE_EXISTING);
+			}
+			moveReplacing(temporary, filePath);
+		} finally {
+			Files.deleteIfExists(temporary);
+		}
 	}
 
 	public static boolean load(Path filePath, BuildLayerManager manager) throws IOException {
 		if (filePath == null || manager == null || !Files.exists(filePath)) {
 			return false;
 		}
-		String json = Files.readString(filePath, StandardCharsets.UTF_8);
-		JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+		JsonObject root;
+		try {
+			root = readRoot(filePath);
+		} catch (RuntimeException primaryFailure) {
+			Path backup = backupPath(filePath);
+			if (!Files.exists(backup)) {
+				throw new IOException("Invalid build layer file: " + filePath, primaryFailure);
+			}
+			LOGGER.warn("Invalid build layer file {}; loading backup {}", filePath, backup);
+			try {
+				root = readRoot(backup);
+			} catch (RuntimeException backupFailure) {
+				IOException failure = new IOException("Invalid build layer file and backup: " + filePath, primaryFailure);
+				failure.addSuppressed(backupFailure);
+				throw failure;
+			}
+		}
 		int version = root.has("version") ? root.get("version").getAsInt() : 1;
 		if (version > VERSION) {
 			LOGGER.warn("BeatBlock: unsupported build layer world file version {} in {}", version, filePath);
@@ -75,5 +102,22 @@ public final class BuildLayerWorldPersistence {
 		manager.purgeAllLayers();
 		BuildLayerPersistence.loadInto(manager, layers, groups);
 		return true;
+	}
+
+	private static JsonObject readRoot(Path path) throws IOException {
+		String json = Files.readString(path, StandardCharsets.UTF_8);
+		return JsonParser.parseString(json).getAsJsonObject();
+	}
+
+	private static Path backupPath(Path filePath) {
+		return filePath.resolveSibling(filePath.getFileName() + ".bak");
+	}
+
+	private static void moveReplacing(Path source, Path target) throws IOException {
+		try {
+			Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+		} catch (AtomicMoveNotSupportedException ignored) {
+			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+		}
 	}
 }

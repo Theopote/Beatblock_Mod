@@ -51,7 +51,7 @@ public final class BuildLayer {
 	}
 
 	public void setColorArgb(int colorArgb) {
-		this.colorArgb = Math.max(0, colorArgb);
+		this.colorArgb = colorArgb;
 	}
 
 	public String getId() { return id; }

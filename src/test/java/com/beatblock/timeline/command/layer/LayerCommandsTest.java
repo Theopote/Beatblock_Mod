@@ -6,6 +6,7 @@ import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeEach;
@@ -211,5 +212,44 @@ class LayerCommandsTest {
 		DeleteLayerCommand command = new DeleteLayerCommand(layerManager, "layer-bound");
 		command.execute();
 		assertNotNull(layerManager.get("layer-bound"));
+	}
+
+	@Test
+	void consecutiveLayerColorChangesMergeIntoOneUndoStep() {
+		BuildLayer layer = restoredLayer("color-layer", 9);
+		CommandManager commands = new CommandManager();
+
+		commands.execute(new SetLayerColorCommand(layerManager, layer.getId(), 0xFF112233));
+		commands.execute(new SetLayerColorCommand(layerManager, layer.getId(), 0xFF445566));
+
+		assertEquals(1, commands.undoCount());
+		assertEquals(0xFF445566, layer.getColorArgb());
+		commands.undo();
+		assertEquals(0, layer.getColorArgb());
+	}
+
+	@Test
+	void consecutiveGroupColorChangesMergeIntoOneUndoStep() {
+		BuildLayer first = restoredLayer("group-first", 10);
+		BuildLayer second = restoredLayer("group-second", 11);
+		var group = layerManager.createGroup("Colors", List.of(first.getId(), second.getId()));
+		CommandManager commands = new CommandManager();
+
+		commands.execute(new SetGroupColorCommand(layerManager, group.getId(), 0xFF102030));
+		commands.execute(new SetGroupColorCommand(layerManager, group.getId(), 0xFF405060));
+
+		assertEquals(1, commands.undoCount());
+		assertEquals(0xFF405060, group.getColorArgb());
+		commands.undo();
+		assertEquals(0, group.getColorArgb());
+	}
+
+	private BuildLayer restoredLayer(String id, int x) {
+		StageObject stage = StageObjectSystem.fromBlocks(
+			"stage-" + id, id, List.of(new BlockPos(x, 64, 0)));
+		BuildLayer layer = new BuildLayer(
+			id, id, stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);
+		layerManager.registerRestored(layer);
+		return layer;
 	}
 }

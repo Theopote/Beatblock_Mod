@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,5 +76,27 @@ class BuildLayerWorldPersistenceTest {
 		BuildLayerManager manager = new BuildLayerManager(new StageObjectSystem());
 		Path file = tempDir.resolve("missing.json");
 		assertFalse(BuildLayerWorldPersistence.load(file, manager));
+	}
+
+	@Test
+	void loadFallsBackToBackupWhenPrimaryIsCorrupt() throws Exception {
+		BlockPos pos = new BlockPos(4, 64, 5);
+		StageObject stage = StageObjectSystem.fromBlocks("stage-backup", "Backup", List.of(pos));
+		BuildLayerManager manager = new BuildLayerManager(new StageObjectSystem());
+		BuildLayer layer = new BuildLayer(
+			"layer-backup", "Original", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);
+		manager.registerRestored(layer);
+		RegistryKey<World> dimension = RegistryKey.of(
+			RegistryKeys.WORLD, Identifier.of("minecraft", "overworld"));
+		Path file = BuildLayerWorldPersistence.layerFileForDimension(tempDir, dimension);
+
+		BuildLayerWorldPersistence.save(file, dimension, manager);
+		layer.setName("Updated");
+		BuildLayerWorldPersistence.save(file, dimension, manager);
+		Files.writeString(file, "{broken", java.nio.charset.StandardCharsets.UTF_8);
+
+		manager.clear();
+		assertTrue(BuildLayerWorldPersistence.load(file, manager));
+		assertEquals("Original", manager.get("layer-backup").getName());
 	}
 }
