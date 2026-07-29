@@ -13,6 +13,7 @@ import com.beatblock.timeline.Track;
 import com.beatblock.timeline.command.MoveMarkerCommand;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import com.beatblock.timeline.editing.ClipDragStateSnapshot;
+import com.beatblock.timeline.editing.TimelineEditSession;
 import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.rendering.*;
 import imgui.ImGui;
@@ -39,6 +40,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 	private @Nullable IAudioPlayer audioPlayer;
 	private @Nullable MusicPlayer musicPlayer;
 	private @Nullable TimelineEditor timelineEditor;
+	private @Nullable TimelineEditSession editSession;
 	private final List<TimelineInteractionClipboard.ClipboardEvent> clipboardEvents = new ArrayList<>();
 	private final TimelineInteractionPopupState popupState = new TimelineInteractionPopupState();
 
@@ -59,6 +61,10 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 
 	public void bindTimelineEditor(@Nullable TimelineEditor timelineEditor) {
 		this.timelineEditor = timelineEditor;
+	}
+
+	public void bindEditSession(@Nullable TimelineEditSession editSession) {
+		this.editSession = editSession;
 	}
 
 	public TimelineInteraction() {
@@ -724,6 +730,10 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 
 	@Override
 	public void copySelectedEvents(Timeline timeline, SelectionState selectionState) {
+		if (editSession != null) {
+			editSession.copy();
+			return;
+		}
 		TimelineInteractionClipboard.copy(clipboardEvents, timeline, selectionState);
 	}
 
@@ -738,8 +748,8 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 	@Override
 	public void pasteClipboardEvents(Timeline timeline, SelectionState selectionState, double anchorTimeSeconds,
 			TimelineTrackListState trackListState) {
-		if (timelineEditor != null) {
-			timelineEditor.pasteClipboardAt(anchorTimeSeconds);
+		if (editSession != null) {
+			editSession.pasteAt(anchorTimeSeconds);
 			return;
 		}
 		TimelineInteractionClipboard.paste(new TimelineInteractionClipboard.PasteRequest(
@@ -754,13 +764,17 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 	}
 
 	public void cutSelectedEvents(Timeline timeline, SelectionState selectionState, TimelineTrackListState trackListState) {
-		if (timelineEditor != null) {
-			timelineEditor.cutSelectedEvents();
+		if (editSession != null) {
+			editSession.cut();
 		}
 	}
 
 	@Override
 	public void deleteSelectedEntries(Timeline timeline, SelectionState selectionState, TimelineTrackListState trackListState) {
+		if (editSession != null) {
+			editSession.deleteSelection();
+			return;
+		}
 		TimelineInteractionDeleteSupport.deleteSelectedEntries(timeline, selectionState, trackListState);
 	}
 

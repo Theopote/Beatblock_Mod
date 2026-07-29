@@ -38,7 +38,10 @@ public final class TimelineActionDispatcher {
 	public EditState editState() {
 		TimelineEditor editor = timelineEditor.get();
 		return editor != null
-			? new EditState(editor.hasTimelineSelection(), editor.hasClipboardContent(), editor.hasDeletableSelection())
+			? new EditState(
+				editor.getEditSession().hasSelection(),
+				editor.getEditSession().hasClipboardContent(),
+				editor.getEditSession().canDelete())
 			: new EditState(false, false, false);
 	}
 
@@ -48,9 +51,9 @@ public final class TimelineActionDispatcher {
 		return switch (actionId) {
 			case UNDO -> editorPresenter.undoRedoState().canUndo();
 			case REDO -> editorPresenter.undoRedoState().canRedo();
-			case CUT, COPY -> editor != null && editor.hasTimelineSelection();
-			case PASTE_AT_PLAYHEAD -> editor != null && editor.hasClipboardContent();
-			case DELETE -> editor != null && editor.hasDeletableSelection();
+			case CUT, COPY -> editor != null && editor.getEditSession().hasSelection();
+			case PASTE_AT_PLAYHEAD -> editor != null && editor.getEditSession().hasClipboardContent();
+			case DELETE -> editor != null && editor.getEditSession().canDelete();
 			case RUN_BINDING_MAP, RUN_AUTO_MAP, BAKE_STEP, GENERATE_RHYTHM_DROP -> true;
 		};
 	}
@@ -61,10 +64,10 @@ public final class TimelineActionDispatcher {
 		return switch (actionId) {
 			case UNDO -> ActionResult.completed(editorPresenter.undo());
 			case REDO -> ActionResult.completed(editorPresenter.redo());
-			case CUT -> { editor.cutSelectedEvents(); yield ActionResult.completed(true); }
-			case COPY -> { editor.copySelectedEvents(); yield ActionResult.completed(true); }
-			case PASTE_AT_PLAYHEAD -> { editor.pasteClipboardAtPlayhead(); yield ActionResult.completed(true); }
-			case DELETE -> { editor.deleteSelectedEntries(); yield ActionResult.completed(true); }
+			case CUT -> { editor.getEditSession().cut(); yield ActionResult.completed(true); }
+			case COPY -> { editor.getEditSession().copy(); yield ActionResult.completed(true); }
+			case PASTE_AT_PLAYHEAD -> { editor.getEditSession().pasteAtPlayhead(); yield ActionResult.completed(true); }
+			case DELETE -> { editor.getEditSession().deleteSelection(); yield ActionResult.completed(true); }
 			case RUN_BINDING_MAP -> fromOutcome(generatedActions.runBindingMap());
 			case RUN_AUTO_MAP -> fromOutcome(generatedActions.runAutoMap());
 			case BAKE_STEP -> fromOutcome(generatedActions.runBakeStepSequences());

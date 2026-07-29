@@ -3,32 +3,19 @@ package com.beatblock.timeline;
 import com.beatblock.audio.MusicPlayer;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.timeline.command.CommandManager;
-import com.beatblock.timeline.command.CutTimelineEventsCommand;
-import com.beatblock.timeline.command.PasteTimelineEventsCommand;
 import com.beatblock.timeline.editor.*;
-import com.beatblock.timeline.layer.BuildLayerTrackSupport;
+import com.beatblock.timeline.editing.TimelineEditSession;
 import com.beatblock.timeline.interaction.TimelineInteraction;
-import com.beatblock.timeline.interaction.TimelineInteractionClipboard;
-import com.beatblock.timeline.interaction.TimelineInteractionDeleteSupport;
 import com.beatblock.timeline.playback.PlaybackSession;
 import com.beatblock.timeline.rendering.TimelineFrameTrackSnapshot;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineRenderer;
 import com.beatblock.timeline.rendering.TimelineAudioDropHandler;
-import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
-import com.beatblock.timeline.rendering.TrackDefinition;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
-import com.beatblock.timeline.rendering.TimelineUiStateStore;
+import com.beatblock.timeline.view.TimelineViewController;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * ImGui 时间线编辑器入口：协调渲染与交互，UI 与数据分离。
@@ -40,34 +27,22 @@ public final class TimelineEditor {
 	private final TimelineEditorState state;
 	private final TimelineRenderer renderer;
 	private final TimelineInteraction interactionSystem;
-	private final CommandManager commandManager;
+	private final TimelineEditSession editSession;
 	private final @Nullable MusicPlayer musicPlayer;
-	private final TimelineToolbarState toolbarState = new TimelineToolbarState();
-	private final TimelineTrackListState trackListState = new TimelineTrackListState();
-	private final TimelineUiStateStore uiStateStore = new TimelineUiStateStore();
-	private final TimelineLayout frameLayout = new TimelineLayout();
-	private boolean frameLayoutPrepared;
-	private boolean trackAreaContextAttached;
-	/** 本帧轨模型快照（布局 + 渲染共用）。 */
-	private TimelineFrameTrackSnapshot frameTrackSnapshot = TimelineFrameTrackSnapshot.empty();
+	private final TimelineViewController viewController;
 	private final @Nullable IAudioPlayer audioPlayer;
 	private final PlaybackSession playbackSession;
 
-	/** 供 TimelinePanel 绘制贯通竖线：屏幕 X、标尺顶 Y、轨道内容区底 Y（每帧由 render 更新） */
-	private float cachedDividerScreenX;
-	private float cachedDividerTopScreenY;
-	private float cachedDividerContentBottomScreenY;
-
 	public float getCachedDividerScreenX() {
-		return cachedDividerScreenX;
+		return viewController.dividerScreenX();
 	}
 
 	public float getCachedDividerTopScreenY() {
-		return cachedDividerTopScreenY;
+		return viewController.dividerTopScreenY();
 	}
 
 	public float getCachedDividerContentBottomScreenY() {
-		return cachedDividerContentBottomScreenY;
+		return viewController.dividerContentBottomScreenY();
 	}
 
 	public TimelineEditor(@NonNull Timeline timeline, @Nullable IAudioPlayer audioPlayer) {
@@ -75,6 +50,7 @@ public final class TimelineEditor {
 		this.audioPlayer = audioPlayer;
 		this.musicPlayer = audioPlayer instanceof MusicPlayer mp ? mp : null;
 		this.state = new TimelineEditorState(timeline);
+		this.viewController = new TimelineViewController(timeline, state.getViewState());
 		this.renderer = new TimelineRenderer();
 		this.interactionSystem = new TimelineInteraction();
 		this.interactionSystem.setAudioPlayer(audioPlayer);
@@ -82,12 +58,20 @@ public final class TimelineEditor {
 		if (audioPlayer instanceof MusicPlayer musicPlayer) {
 			this.interactionSystem.setMusicPlayer(musicPlayer);
 		}
-		this.commandManager = new CommandManager();
-		this.uiStateStore.loadTrackListState(timeline, trackListState);
+		CommandManager commandManager = new CommandManager();
+		this.editSession = new TimelineEditSession(
+			 timeline,
+			 state.getSelectionState(),
+			viewController.trackListState(),
+			interactionSystem,
+			commandManager,
+			() -> state.getClock().getCurrentTimeSeconds()
+		);
+		this.interactionSystem.bindEditSession(editSession);
 		this.playbackSession = new PlaybackSession(
 			state.getClock(),
 			timeline,
-			toolbarState,
+			viewController.toolbarState(),
 			this.musicPlayer,
 			audioPlayer
 		);
@@ -119,7 +103,11 @@ public final class TimelineEditor {
 	}
 
 	public @NonNull TimelineViewState getViewState() {
-		return state.getViewState();
+		return viewController.viewState();
+	}
+
+	public @NonNull TimelineViewController getViewController() {
+		return viewController;
 	}
 
 	public @NonNull SelectionState getSelectionState() {
@@ -135,12 +123,16 @@ public final class TimelineEditor {
 	}
 
 	public @NonNull CommandManager getCommandManager() {
-		return commandManager;
+		return editSession.commands();
+	}
+
+	public @NonNull TimelineEditSession getEditSession() {
+		return editSession;
 	}
 
 	/** 打开/切换工程后丢弃 Undo/Redo 栈，避免旧命令引用已替换的时间线状态。 */
 	public void clearUndoHistory() {
-		commandManager.clear();
+		editSession.clearHistory();
 	}
 
 	/**
@@ -151,7 +143,7 @@ public final class TimelineEditor {
 	}
 
 	public @NonNull TimelineToolbarState getToolbarState() {
-		return toolbarState;
+		return viewController.toolbarState();
 	}
 
 	public @Nullable IAudioPlayer getAudioPlayer() {
@@ -159,135 +151,24 @@ public final class TimelineEditor {
 	}
 
 	public @NonNull TimelineTrackListState getTrackListState() {
-		return trackListState;
+		return viewController.trackListState();
 	}
 
 	public void beginFrameLayout() {
-		frameLayout.beginFrame(trackListState.getTrackHeaderWidth());
-		frameLayoutPrepared = true;
-		trackAreaContextAttached = false;
-		// 业务副作用先于轨快照，避免渲染中改 Timeline
-		renderer.prepareFrame(timeline);
-		frameTrackSnapshot = TimelineFrameTrackSnapshot.build(timeline, frameTrackSnapshot);
+		viewController.beginFrame(renderer);
 	}
 
 	/** 本帧轨模型（只读）；供测试与调试。 */
 	public @NonNull TimelineFrameTrackSnapshot getFrameTrackSnapshot() {
-		return frameTrackSnapshot;
+		return viewController.frameTrackSnapshot();
 	}
 
 	private TimelineLayout requireFrameLayout() {
-		if (!frameLayoutPrepared) {
-			beginFrameLayout();
-		}
-		return frameLayout;
+		return viewController.frameLayout(renderer);
 	}
 
 	private TimelineLayout requireTrackAreaLayout() {
-		TimelineLayout layout = requireFrameLayout();
-		if (!trackAreaContextAttached) {
-			List<TrackDefinition> audioDefs = frameTrackSnapshot.audioSubTracks();
-			List<TrackDefinition> controlDefs = frameTrackSnapshot.animationSubTracks();
-			List<TrackDefinition> buildLayerDefs = frameTrackSnapshot.buildLayerTracks();
-			layout.setActiveAudioSubRowCount(audioDefs.size());
-			layout.setActiveAnimationSubRowCount(controlDefs.size());
-			layout.setActiveBuildLayerRowCount(buildLayerDefs.size());
-			layout.setCustomRowOrder(buildFeaturePairedRowOrder(audioDefs, controlDefs, buildLayerDefs));
-			layout.setCustomRowParents(buildCustomRowParents(audioDefs, controlDefs));
-			layout.attachTrackAreaContext(trackListState);
-			trackAreaContextAttached = true;
-		}
-		return frameLayout;
-	}
-
-	private List<Integer> buildFeaturePairedRowOrder(
-		List<TrackDefinition> audioDefs,
-		List<TrackDefinition> controlDefs,
-		List<TrackDefinition> buildLayerDefs
-	) {
-		List<Integer> ordered = new ArrayList<>(TimelineLayout.CONTENT_ROW_COUNT);
-		Set<Integer> addedRows = new HashSet<>();
-
-		addRow(ordered, addedRows, TimelineTrackMeta.ROW_AUDIO_GROUP);
-
-		Map<String, Integer> audioFeatureRows = new HashMap<>();
-		for (int slot = 0; slot < audioDefs.size() && slot < TimelineTrackMeta.MAX_AUDIO_SUB_ROWS; slot++) {
-			TrackDefinition td = audioDefs.get(slot);
-			int row = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
-			if (td.getVisualType() == TrackDefinition.VisualType.IMPULSE) {
-				audioFeatureRows.put(td.getKey(), row);
-			} else {
-				addRow(ordered, addedRows, row);
-			}
-		}
-
-		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIMATION_GROUP);
-
-		Map<String, Integer> controlFeatureRows = new HashMap<>();
-		for (int slot = 0; slot < controlDefs.size() && slot < TimelineTrackMeta.MAX_ANIMATION_SUB_ROWS; slot++) {
-			TrackDefinition td = controlDefs.get(slot);
-			String featureKey = Timeline.blockAnimationFeatureKeyFromTrackId(td.getKey());
-			if (featureKey == null || featureKey.isBlank()) continue;
-			controlFeatureRows.put(featureKey, TimelineTrackMeta.ROW_ANIM_FEATURES_START + slot);
-		}
-
-		for (int slot = 0; slot < audioDefs.size() && slot < TimelineTrackMeta.MAX_AUDIO_SUB_ROWS; slot++) {
-			TrackDefinition td = audioDefs.get(slot);
-			if (td.getVisualType() != TrackDefinition.VisualType.IMPULSE) continue;
-			String featureKey = td.getKey();
-			Integer audioRow = audioFeatureRows.get(featureKey);
-			Integer controlRow = controlFeatureRows.get(featureKey);
-			if (audioRow != null) addRow(ordered, addedRows, audioRow);
-			if (controlRow != null) addRow(ordered, addedRows, controlRow);
-		}
-
-		for (int slot = 0; slot < controlDefs.size() && slot < TimelineTrackMeta.MAX_ANIMATION_SUB_ROWS; slot++) {
-			addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_FEATURES_START + slot);
-		}
-
-		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ACTION_GROUP);
-		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_BLOCK);
-		addRow(ordered, addedRows, TimelineTrackMeta.ROW_CAMERA);
-		addRow(ordered, addedRows, TimelineTrackMeta.ROW_ANIM_AUTO);
-		for (int slot = 0; slot < buildLayerDefs.size() && slot < TimelineTrackMeta.MAX_BUILD_LAYER_ROWS; slot++) {
-			addRow(ordered, addedRows, TimelineTrackMeta.ROW_BUILD_LAYER_START + slot);
-		}
-		addRow(ordered, addedRows, TimelineTrackMeta.ROW_GLOBAL_EVENT);
-
-		for (int i = 0; i < TimelineLayout.CONTENT_ROW_COUNT; i++) {
-			addRow(ordered, addedRows, i);
-		}
-
-		return ordered;
-	}
-
-	private Map<Integer, Integer> buildCustomRowParents(List<TrackDefinition> audioDefs, List<TrackDefinition> controlDefs) {
-		Map<Integer, Integer> parents = new HashMap<>();
-		for (int slot = 0; slot < audioDefs.size() && slot < TimelineTrackMeta.MAX_AUDIO_SUB_ROWS; slot++) {
-			TrackDefinition td = audioDefs.get(slot);
-			int row = TimelineTrackMeta.ROW_AUDIO_SUBS_START + slot;
-			if (td.getVisualType() == TrackDefinition.VisualType.WAVEFORM) {
-				parents.put(row, TimelineTrackMeta.ROW_AUDIO_GROUP);
-			} else {
-				parents.put(row, TimelineTrackMeta.ROW_ANIMATION_GROUP);
-			}
-		}
-		for (int slot = 0; slot < controlDefs.size() && slot < TimelineTrackMeta.MAX_ANIMATION_SUB_ROWS; slot++) {
-			parents.put(TimelineTrackMeta.ROW_ANIM_FEATURES_START + slot, TimelineTrackMeta.ROW_ANIMATION_GROUP);
-		}
-		parents.put(TimelineTrackMeta.ROW_ACTION_GROUP, TimelineTrackMeta.NO_PARENT);
-		parents.put(TimelineTrackMeta.ROW_ANIM_BLOCK, TimelineTrackMeta.ROW_ACTION_GROUP);
-		parents.put(TimelineTrackMeta.ROW_CAMERA, TimelineTrackMeta.ROW_ACTION_GROUP);
-		parents.put(TimelineTrackMeta.ROW_ANIM_AUTO, TimelineTrackMeta.ROW_ACTION_GROUP);
-		for (int slot = 0; slot < TimelineTrackMeta.MAX_BUILD_LAYER_ROWS; slot++) {
-			parents.put(TimelineTrackMeta.ROW_BUILD_LAYER_START + slot, TimelineTrackMeta.ROW_ACTION_GROUP);
-		}
-		return parents;
-	}
-
-	private static void addRow(List<Integer> ordered, Set<Integer> addedRows, int row) {
-		if (row < 0 || row >= TimelineLayout.CONTENT_ROW_COUNT) return;
-		if (addedRows.add(row)) ordered.add(row);
+		return viewController.trackAreaLayout(renderer);
 	}
 
 	/**
@@ -296,7 +177,7 @@ public final class TimelineEditor {
 	public void tryBeginTimelineDividerDragOnRuler() {
 		if (timeline == null) return;
 		TimelineLayout l = requireFrameLayout();
-		interactionSystem.tryBeginDividerDragOnRuler(trackListState, getInteractionState(), l);
+		interactionSystem.tryBeginDividerDragOnRuler(getTrackListState(), getInteractionState(), l);
 	}
 
 	/** 在主窗口标尺上下文处理交互（Scrub / Loop Handle / Marker / 右键等）。 */
@@ -310,7 +191,7 @@ public final class TimelineEditor {
 			state.getSelectionState(),
 			state.getClock(),
 			layout,
-			toolbarState
+			getToolbarState()
 		);
 	}
 
@@ -330,14 +211,13 @@ public final class TimelineEditor {
 		state.syncClockDuration();
 		playbackSession.syncFromAudio(activePlaybackPlayer);
 		TimelineLayout layout = requireFrameLayout();
-		cachedDividerScreenX = layout.contentLeft;
-		cachedDividerTopScreenY = layout.rulerTop;
+		viewController.updateRulerDivider(layout);
 		double duration = timeline.getDurationSeconds() > 0 ? timeline.getDurationSeconds() : 60.0;
 		TimelineViewState viewState = state.getViewState();
 		if (viewState.getViewEndTimeSeconds() >= 59 && viewState.getViewEndTimeSeconds() <= 61 && duration > 0 && layout.contentWidth > 0) {
 			viewState.fitToDuration(duration, layout.contentWidth);
 		}
-		renderer.renderRulerRow(layout, viewState, timeline.getBpm(), toolbarState, timeline);
+		renderer.renderRulerRow(layout, viewState, timeline.getBpm(), getToolbarState(), timeline);
 	}
 
 	/**
@@ -346,8 +226,7 @@ public final class TimelineEditor {
 	public void renderTrackArea() {
 		if (timeline == null) return;
 		TimelineLayout layout = requireTrackAreaLayout();
-		cachedDividerScreenX = layout.contentLeft;
-		cachedDividerContentBottomScreenY = layout.contentTop + layout.contentHeight;
+		viewController.updateTrackAreaDivider(layout);
 		TimelineViewState viewState = state.getViewState();
 		interactionSystem.update(
 			timeline,
@@ -356,9 +235,9 @@ public final class TimelineEditor {
 			state.getSelectionState(),
 			state.getClock(),
 			state.getSelectionBox(),
-			trackListState,
+			getTrackListState(),
 			layout,
-			toolbarState
+			getToolbarState()
 		);
 		renderer.renderTrackArea(
 			timeline,
@@ -367,13 +246,12 @@ public final class TimelineEditor {
 			state.getClock(),
 			state.getSelectionBox(),
 			state.getInteractionState(),
-			trackListState,
+			getTrackListState(),
 			layout,
-			toolbarState,
-			frameTrackSnapshot
+			getToolbarState(),
+			getFrameTrackSnapshot()
 		);
-		syncBuildLayerTrackNamesFromUi();
-		uiStateStore.syncAndFlush(timeline, trackListState);
+		viewController.finishTrackAreaFrame();
 	}
 
 	/**
@@ -396,21 +274,6 @@ public final class TimelineEditor {
 	}
 
 	/**
-	 * 将轨道头自定义名称写回建造图层 Track，供 .osc 持久化。
-	 */
-	private void syncBuildLayerTrackNamesFromUi() {
-		if (timeline == null) return;
-		var tracks = BuildLayerTrackSupport.listTracks(timeline);
-		for (int i = 0; i < tracks.size(); i++) {
-			int row = BuildLayerTrackSupport.rowForSlot(i);
-			String custom = trackListState.getCustomNameOrNull(row);
-			if (custom != null) {
-				tracks.get(i).setName(custom);
-			}
-		}
-	}
-
-	/**
 	 * 编辑器生命周期结束时释放后台资源。
 	 */
 	public void shutdown() {
@@ -418,50 +281,34 @@ public final class TimelineEditor {
 	}
 
 	public void copySelectedEvents() {
-		interactionSystem.copySelectedEvents(timeline, state.getSelectionState());
+		editSession.copy();
 	}
 
 	public void pasteClipboardAtPlayhead() {
-		pasteClipboardAt(state.getClock().getCurrentTimeSeconds());
+		editSession.pasteAtPlayhead();
 	}
 
 	public void pasteClipboardAt(double anchorTimeSeconds) {
-		var request = new TimelineInteractionClipboard.PasteRequest(
-			timeline,
-			state.getSelectionState(),
-			interactionSystem.clipboardEvents(),
-			anchorTimeSeconds,
-			interactionSystem.contextTrackIdForClipboard(),
-			interactionSystem.contextClipIdForClipboard(),
-			trackListState
-		);
-		commandManager.execute(new PasteTimelineEventsCommand(request));
+		editSession.pasteAt(anchorTimeSeconds);
 	}
 
 	public void cutSelectedEvents() {
-		commandManager.execute(new CutTimelineEventsCommand(
-			timeline,
-			state.getSelectionState(),
-			trackListState,
-			interactionSystem.clipboardEvents()
-		));
+		editSession.cut();
 	}
 
 	public void deleteSelectedEntries() {
-		interactionSystem.deleteSelectedEntries(timeline, state.getSelectionState(), trackListState);
+		editSession.deleteSelection();
 	}
 
 	public boolean hasDeletableSelection() {
-		return TimelineInteractionDeleteSupport.hasDeletableSelection(
-			timeline, state.getSelectionState(), trackListState);
+		return editSession.canDelete();
 	}
 
 	public boolean hasClipboardContent() {
-		return !interactionSystem.clipboardEvents().isEmpty();
+		return editSession.hasClipboardContent();
 	}
 
 	public boolean hasTimelineSelection() {
-		SelectionState selection = state.getSelectionState();
-		return !selection.getSelectedEvents().isEmpty() || !selection.getSelectedClips().isEmpty();
+		return editSession.hasSelection();
 	}
 }

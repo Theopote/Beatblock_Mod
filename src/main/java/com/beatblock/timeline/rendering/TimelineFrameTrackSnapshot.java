@@ -14,7 +14,8 @@ import java.util.Set;
 /**
  * 单帧时间线轨模型快照：音频子轨 / 动画特征轨 / 建造图层轨定义。
  * <p>
- * 由 {@link TimelineEditor} 每帧构建一次，Renderer 与布局共用，避免双路 {@link TrackRegistry} 分配。
+ * 由 {@link com.beatblock.timeline.view.TimelineViewController} 每帧构建一次，
+ * Renderer 与布局共用，避免双路 {@link TrackRegistry} 分配。
  */
 public final class TimelineFrameTrackSnapshot {
 
