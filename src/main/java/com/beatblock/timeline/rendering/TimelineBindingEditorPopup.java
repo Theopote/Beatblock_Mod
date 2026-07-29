@@ -18,15 +18,15 @@ import java.util.Map;
 /**
  * Binding 规则编辑器弹窗 ImGui 渲染。
  */
-final class TimelineBindingEditorPopup {
+public final class TimelineBindingEditorPopup {
 
-	static final String POPUP_ID = "tlBindingEditor";
+	public static final String POPUP_ID = "tlBindingEditor";
 
 	private final TimelineBindingEditorPresenter binding;
 	private final TimelineToolbarFeedbackPresenter feedback;
 	private final ImInt bindingTemplateComboIndex = new ImInt(0);
 
-	TimelineBindingEditorPopup(
+	public TimelineBindingEditorPopup(
 		TimelineBindingEditorPresenter binding,
 		TimelineToolbarFeedbackPresenter feedback
 	) {
@@ -34,7 +34,7 @@ final class TimelineBindingEditorPopup {
 		this.feedback = feedback;
 	}
 
-	void renderIfOpen() {
+	public void renderIfOpen() {
 		if (!ImGui.beginPopup(POPUP_ID)) return;
 		Timeline timeline = binding.currentTimeline();
 		if (timeline == null) {

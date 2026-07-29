@@ -23,8 +23,6 @@ public final class TimelineToolbar {
 	private final TimelineTransportPresenter transport;
 	private final TimelineToolbarTransportStrip transportStrip;
 	private final TimelineToolbarActionRollbackControls actionRollbackControls;
-	private final TimelineToolbarToolsControls toolsControls;
-	private final TimelineToolbarEditControls editControls;
 	private final TimelineToolbarRecordControls recordControls;
 	private final TimelineToolbarSnapGridControls snapGridControls;
 	private final TimelineToolbarViewControls viewControls;
@@ -51,18 +49,15 @@ public final class TimelineToolbar {
 	) {
 		this.transport = transport;
 		this.transportStrip = new TimelineToolbarTransportStrip(transport);
-		var bindingEditorPopup = new TimelineBindingEditorPopup(binding, feedback);
 		var trackHeightControls = new TimelineToolbarTrackHeightControls();
 		this.actionRollbackControls = new TimelineToolbarActionRollbackControls(config, actionRollbackComboIndex);
-		this.toolsControls = new TimelineToolbarToolsControls(actions, feedback, bindingEditorPopup);
-		this.editControls = new TimelineToolbarEditControls();
 		this.recordControls = new TimelineToolbarRecordControls(PresenterFactories.timelineRecordModePresenter());
 		this.snapGridControls = new TimelineToolbarSnapGridControls();
 		this.viewControls = new TimelineToolbarViewControls(zoomComboIndex, trackHeightControls);
 		this.loopSpeedControls = new TimelineToolbarLoopSpeedControls(transport, speedComboIndex, actionRollbackControls);
 		this.demucsControls = new TimelineDemucsMappingControls(config);
 		this.overflowMenu = new TimelineToolbarOverflowMenu(
-			loopSpeedControls, snapGridControls, viewControls, toolsControls, editControls, recordControls, demucsControls);
+			loopSpeedControls, snapGridControls, viewControls, recordControls, demucsControls);
 	}
 
 	public void render(TimelineEditor editor, TimelineToolbarState toolbarState) {
@@ -84,15 +79,7 @@ public final class TimelineToolbar {
 		viewControls.renderInline(editor);
 		TimelineToolbarImGui.nextGroupOrWrap(0);
 
-		editControls.renderInline(editor);
-		TimelineToolbarImGui.nextGroupOrWrap(0);
-
 		recordControls.renderInline(editor, toolbarState, transportState.playing());
-		TimelineToolbarImGui.nextGroupOrWrap(0);
-
-		toolsControls.renderInline();
-		TimelineToolbarImGui.nextGroupOrWrap(0);
-		demucsControls.render(false, TimelineToolbarImGui::nextItemInGroup);
 
 		TimelineToolbarImGui.nextGroupOrWrap(0);
 		overflowMenu.renderButtonAndPopup(editor, toolbarState, seekStep);

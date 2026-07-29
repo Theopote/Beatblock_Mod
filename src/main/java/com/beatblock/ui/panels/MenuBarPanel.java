@@ -2,8 +2,12 @@ package com.beatblock.ui.panels;
 
 import com.beatblock.ui.BeatBlockPanelVisibility;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.timeline.rendering.TimelineBindingEditorPopup;
 import com.beatblock.ui.presenter.MenuBarPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.presenter.TimelineToolbarActionsPresenter;
+import com.beatblock.ui.presenter.TimelineToolbarFeedbackPresenter;
+import com.beatblock.ui.notification.ToastNotificationSystem;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
@@ -27,10 +31,14 @@ public class MenuBarPanel {
 	private final Runnable onOpenQuickStartWizard;
 	private final Runnable onOpenEnvironmentSetup;
 	private final Runnable onOpenVideoExport;
+	private final TimelineToolbarActionsPresenter showActions;
+	private final TimelineToolbarFeedbackPresenter showFeedback;
+	private final TimelineBindingEditorPopup bindingEditorPopup;
 	private boolean showImportDialog;
 	private boolean showOpenProjectDialog;
 	private boolean showSaveProjectDialog;
 	private boolean showAboutDialog;
+	private boolean requestBindingEditorPopup;
 	private final ImString importPath = new ImString(IMPORT_PATH_CAPACITY);
 	private final ImString openProjectPath = new ImString(IMPORT_PATH_CAPACITY);
 	private final ImString saveProjectPath = new ImString(IMPORT_PATH_CAPACITY);
@@ -58,6 +66,10 @@ public class MenuBarPanel {
 		this.onOpenQuickStartWizard = onOpenQuickStartWizard != null ? onOpenQuickStartWizard : () -> {};
 		this.onOpenEnvironmentSetup = onOpenEnvironmentSetup != null ? onOpenEnvironmentSetup : () -> {};
 		this.onOpenVideoExport = onOpenVideoExport != null ? onOpenVideoExport : () -> {};
+		this.showActions = PresenterFactories.timelineToolbarActionsPresenter();
+		this.showFeedback = PresenterFactories.timelineToolbarFeedbackPresenter();
+		this.bindingEditorPopup = new TimelineBindingEditorPopup(
+			PresenterFactories.timelineBindingEditorPresenter(), showFeedback);
 	}
 
 	public void render() {
@@ -95,6 +107,20 @@ public class MenuBarPanel {
 				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.redo"), "Ctrl+Y", false, undoRedo.canRedo())) {
 					presenter.redo();
+				}
+				ImGui.separator();
+				var editState = presenter.editViewState();
+				if (ImGui.menuItem(BBTexts.get("beatblock.common.cut"), "Ctrl+X", false, editState.hasSelection())) {
+					presenter.cutTimelineSelection();
+				}
+				if (ImGui.menuItem(BBTexts.get("beatblock.common.copy"), "Ctrl+C", false, editState.hasSelection())) {
+					presenter.copyTimelineSelection();
+				}
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.paste_at_playhead"), "Ctrl+V", false, editState.hasClipboard())) {
+					presenter.pasteTimelineAtPlayhead();
+				}
+				if (ImGui.menuItem(BBTexts.get("beatblock.common.delete"), "Delete", false, editState.canDelete())) {
+					presenter.deleteTimelineSelection();
 				}
 				ImGui.endMenu();
 			}
@@ -154,6 +180,26 @@ public class MenuBarPanel {
 				if (ImGui.isItemHovered()) {
 					ImGui.setTooltip(BBTexts.get("beatblock.tooltip.generate_rhythm_drop"));
 				}
+				ImGui.separator();
+				if (ImGui.beginMenu(BBTexts.get("beatblock.menu.mapping_and_generation"))) {
+					if (ImGui.menuItem(BBTexts.get("beatblock.menu.generate_from_bindings"))) {
+						showOutcome(showActions.runBindingMap());
+					}
+					if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.binding_map.tooltip"));
+					if (ImGui.menuItem(BBTexts.get("beatblock.timeline.auto_map"))) {
+						showOutcome(showActions.runAutoMap());
+					}
+					if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.auto_map.tooltip"));
+					if (ImGui.menuItem(BBTexts.get("beatblock.menu.bake_step_events"))) {
+						showOutcome(showActions.runBakeStepSequences());
+					}
+					if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.bake_step.tooltip"));
+					ImGui.endMenu();
+				}
+				if (ImGui.menuItem(BBTexts.get("beatblock.timeline.bindings"))) {
+					requestBindingEditorPopup = true;
+				}
+				if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.binding_editor.tooltip"));
 				ImGui.endMenu();
 			}
 			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.help"))) {
@@ -182,6 +228,20 @@ public class MenuBarPanel {
 		renderOpenProjectDialog();
 		renderSaveProjectDialog();
 		renderAboutDialog();
+		if (requestBindingEditorPopup) {
+			ImGui.openPopup(TimelineBindingEditorPopup.POPUP_ID);
+			requestBindingEditorPopup = false;
+		}
+		bindingEditorPopup.renderIfOpen();
+	}
+
+	private static void showOutcome(TimelineToolbarActionsPresenter.ActionOutcome outcome) {
+		if (outcome == null || outcome.message() == null || outcome.message().isBlank()) return;
+		if (outcome.success()) {
+			ToastNotificationSystem.showSuccess(outcome.message());
+		} else {
+			ToastNotificationSystem.showError(outcome.message());
+		}
 	}
 
 	private static void panelToggleItem(String label, ImBoolean open) {

@@ -15,6 +15,8 @@ import java.util.function.Supplier;
  */
 public final class MenuBarPresenter {
 
+	public record EditViewState(boolean hasSelection, boolean hasClipboard, boolean canDelete) {}
+
 	private final TimelineEditorPresenter editorPresenter;
 	private final Supplier<Timeline> timeline;
 	private final Supplier<TimelineEditor> timelineEditor;
@@ -49,6 +51,34 @@ public final class MenuBarPresenter {
 
 	public boolean redo() {
 		return editorPresenter.redo();
+	}
+
+	public EditViewState editViewState() {
+		TimelineEditor editor = timelineEditor.get();
+		return editor != null
+			? new EditViewState(
+				editor.hasTimelineSelection(), editor.hasClipboardContent(), editor.hasDeletableSelection())
+			: new EditViewState(false, false, false);
+	}
+
+	public void cutTimelineSelection() {
+		TimelineEditor editor = timelineEditor.get();
+		if (editor != null) editor.cutSelectedEvents();
+	}
+
+	public void copyTimelineSelection() {
+		TimelineEditor editor = timelineEditor.get();
+		if (editor != null) editor.copySelectedEvents();
+	}
+
+	public void pasteTimelineAtPlayhead() {
+		TimelineEditor editor = timelineEditor.get();
+		if (editor != null) editor.pasteClipboardAtPlayhead();
+	}
+
+	public void deleteTimelineSelection() {
+		TimelineEditor editor = timelineEditor.get();
+		if (editor != null) editor.deleteSelectedEntries();
 	}
 
 	public String defaultSaveProjectPath() {

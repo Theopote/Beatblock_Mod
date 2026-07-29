@@ -131,6 +131,14 @@ class MenuBarPresenterTest {
 	}
 
 	@Test
+	void editViewStateIsDisabledWithoutTimelineSelection() {
+		var state = presenter.editViewState();
+		assertFalse(state.hasSelection());
+		assertFalse(state.hasClipboard());
+		assertFalse(state.canDelete());
+	}
+
+	@Test
 	void openProjectClearsUndoHistory(@TempDir Path tempDir) throws Exception {
 		Path file = tempDir.resolve("demo.osc");
 		OscProjectStore.save(file, timeline);
