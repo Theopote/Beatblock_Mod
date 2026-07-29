@@ -34,13 +34,21 @@ public class Timeline {
 	private final Map<String, Object> metadata = new ConcurrentHashMap<>();
 	private final List<TimelineMarker> markers = new ArrayList<>();
 	private final List<TimelineMarker> markerView = Collections.unmodifiableList(markers);
+	/**
+	 * 统一舞台事件缓存（block / auto / build / feature 轨合并，按时间升序）。
+	 * 播放器应优先使用 {@link #getStageEvents()}，避免维护多套扫描循环。
+	 */
+	private final List<TimelineAnimationEvent> stageEventsCache = new ArrayList<>();
 	private final List<TimelineAnimationEvent> blockAnimationCache = new ArrayList<>();
 	private final List<TimelineAnimationEvent> autoAnimationCache = new ArrayList<>();
 	private final List<TimelineAnimationEvent> buildReverseCache = new ArrayList<>();
+	private final List<TimelineAnimationEvent> stageEventsCacheView = Collections.unmodifiableList(stageEventsCache);
 	private final List<TimelineAnimationEvent> blockAnimationCacheView = Collections.unmodifiableList(blockAnimationCache);
 	private final List<TimelineAnimationEvent> autoAnimationCacheView = Collections.unmodifiableList(autoAnimationCache);
 	private final List<TimelineAnimationEvent> buildReverseCacheView = Collections.unmodifiableList(buildReverseCache);
 	private volatile boolean animationCachesDirty = true;
+	/** 每次舞台事件缓存重建递增，供播放游标在编辑后回退重扫。 */
+	private int stageEventsGeneration;
 
 	public @NonNull String getName() { return name; }
 	public void setName(@Nullable String name) { this.name = name != null ? name : ""; }
@@ -237,6 +245,24 @@ public class Timeline {
 		return ad != null && ad.hasStemWaveforms();
 	}
 
+	/**
+	 * 全部舞台动画事件（含手动方块轨、特征子轨、自动映射轨、建造还原/图层轨），按时间升序。
+	 * 播放调度的权威列表。
+	 */
+	public @NonNull List<TimelineAnimationEvent> getStageEvents() {
+		rebuildAnimationEventCachesIfNeeded();
+		return stageEventsCacheView;
+	}
+
+	/**
+	 * 舞台事件缓存世代：每次脏重建后递增。播放器可据此在时间轴被编辑后把游标回退到 0 重扫。
+	 */
+	public int getStageEventsGeneration() {
+		rebuildAnimationEventCachesIfNeeded();
+		return stageEventsGeneration;
+	}
+
+	/** 手动方块动画 + 特征子轨事件（UI / 兼容 API）。 */
 	public List<TimelineAnimationEvent> getBlockAnimationEvents() {
 		rebuildAnimationEventCachesIfNeeded();
 		return blockAnimationCacheView;
@@ -244,6 +270,7 @@ public class Timeline {
 	public void addBlockAnimationEvent(TimelineAnimationEvent e) { addAnimationEvent(TRACK_ID_ANIMATION_BLOCK, e); }
 	public void clearBlockAnimationEvents() { clearClips(TRACK_ID_ANIMATION_BLOCK); }
 
+	/** 自动映射轨事件（UI / 兼容 API）。 */
 	public List<TimelineAnimationEvent> getAutoAnimationEvents() {
 		rebuildAnimationEventCachesIfNeeded();
 		return autoAnimationCacheView;
@@ -251,6 +278,7 @@ public class Timeline {
 	public void addAutoAnimationEvent(TimelineAnimationEvent e) { addAnimationEvent(TRACK_ID_ANIMATION_AUTO, e); }
 	public void clearAutoAnimationEvents() { clearClips(TRACK_ID_ANIMATION_AUTO); }
 
+	/** 建造还原 / 建造图层轨事件（UI / 兼容 API）。 */
 	public List<TimelineAnimationEvent> getBuildReverseEvents() {
 		rebuildAnimationEventCachesIfNeeded();
 		return buildReverseCacheView;
@@ -297,6 +325,7 @@ public class Timeline {
 
 	/**
 	 * 按 {@link TimelineEventOrigin} 聚合 block + auto 侧动画事件（单次缓存重建）。
+	 * 不含建造还原轨（与历史语义一致）。
 	 */
 	public List<TimelineAnimationEvent> getAnimationEventsByOrigin(TimelineEventOrigin origin) {
 		rebuildAnimationEventCachesIfNeeded();
@@ -320,24 +349,52 @@ public class Timeline {
 		animationCachesDirty = true;
 	}
 
+	/**
+	 * 舞台事件所属缓存桶：决定兼容 API 的过滤视图，以及统一列表的构成。
+	 */
+	private enum StageEventBucket {
+		BLOCK,
+		AUTO,
+		BUILD
+	}
+
+	private static @Nullable StageEventBucket bucketForTrackId(@Nullable String trackId) {
+		if (trackId == null || trackId.isBlank()) return null;
+		if (TRACK_ID_ANIMATION_AUTO.equals(trackId)) return StageEventBucket.AUTO;
+		if (BuildLayerTrackSupport.isBuildLayerTrackId(trackId)) return StageEventBucket.BUILD;
+		if (TRACK_ID_ANIMATION_BLOCK.equals(trackId) || isBlockAnimationFeatureTrackId(trackId)) {
+			return StageEventBucket.BLOCK;
+		}
+		return null;
+	}
+
 	private void rebuildAnimationEventCachesIfNeeded() {
 		if (!animationCachesDirty) return;
+		stageEventsCache.clear();
 		blockAnimationCache.clear();
 		autoAnimationCache.clear();
 		buildReverseCache.clear();
-		blockAnimationCache.addAll(getAnimationEvents(TRACK_ID_ANIMATION_BLOCK));
+
+		List<TimelineAnimationEvent> trackBuffer = new ArrayList<>();
 		for (Track track : tracks) {
-			if (!isBlockAnimationFeatureTrackId(track.getId())) continue;
-			blockAnimationCache.addAll(getAnimationEvents(track.getId()));
+			StageEventBucket bucket = bucketForTrackId(track.getId());
+			if (bucket == null) continue;
+			rebuildAnimationCache(track.getId(), trackBuffer);
+			if (trackBuffer.isEmpty()) continue;
+			switch (bucket) {
+				case BLOCK -> blockAnimationCache.addAll(trackBuffer);
+				case AUTO -> autoAnimationCache.addAll(trackBuffer);
+				case BUILD -> buildReverseCache.addAll(trackBuffer);
+			}
+			stageEventsCache.addAll(trackBuffer);
 		}
-		blockAnimationCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
-		autoAnimationCache.addAll(getAnimationEvents(TRACK_ID_ANIMATION_AUTO));
-		autoAnimationCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
-		buildReverseCache.addAll(getAnimationEvents(TRACK_ID_BUILD_REVERSE));
-		for (Track track : BuildLayerTrackSupport.listTracks(this)) {
-			buildReverseCache.addAll(getAnimationEvents(track.getId()));
-		}
-		buildReverseCache.sort(Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds));
+
+		Comparator<TimelineAnimationEvent> byTime = Comparator.comparingDouble(TimelineAnimationEvent::getTimeSeconds);
+		blockAnimationCache.sort(byTime);
+		autoAnimationCache.sort(byTime);
+		buildReverseCache.sort(byTime);
+		stageEventsCache.sort(byTime);
+		stageEventsGeneration++;
 		animationCachesDirty = false;
 	}
 

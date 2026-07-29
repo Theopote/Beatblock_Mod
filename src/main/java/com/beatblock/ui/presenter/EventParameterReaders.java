@@ -2,6 +2,8 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.payload.StageEventPayload;
+import com.beatblock.timeline.payload.StageEventPayloadCodec;
 
 import java.util.Map;
 
@@ -16,6 +18,15 @@ public final class EventParameterReaders {
 
 	public static AnimationEventParams animationParams(TimelineAnimationEvent event) {
 		return event.toAnimationEventParams();
+	}
+
+	/** 强类型载荷；优先用于新代码路径。 */
+	public static StageEventPayload stagePayload(Map<String, Object> params) {
+		return StageEventPayloadCodec.decode(params);
+	}
+
+	public static StageEventPayload stagePayload(TimelineAnimationEvent event) {
+		return event.getPayload();
 	}
 
 	public static String stringParam(Map<String, Object> params, String key) {

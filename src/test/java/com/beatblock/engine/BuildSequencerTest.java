@@ -170,4 +170,40 @@ class BuildSequencerTest {
 		assertTrue(frame.getWorldMutations().isEmpty());
 		assertTrue(sequencer.getActiveInstances().isEmpty());
 	}
+
+	@Test
+	void mutationBudgetSpreadsPlacementsAcrossFrames() {
+		BlockPos p0 = new BlockPos(0, 64, 0);
+		BlockPos p1 = new BlockPos(1, 64, 0);
+		BlockPos p2 = new BlockPos(2, 64, 0);
+		BlockState air = Blocks.AIR.getDefaultState();
+		BlockState stone = Blocks.STONE.getDefaultState();
+		BuildSequencer.BuildInstance instance = sequencer.createInstanceForTest(
+			"ev_budget", List.of(p0, p1, p2), stone, null, 0.0, 1.0, false);
+		sequencer.enqueueBuildInstance(instance);
+		sequencer.setMutationBudgetPerTick(1);
+
+		Map<BlockPos, BlockState> world = new HashMap<>();
+		world.put(p0, air);
+		world.put(p1, air);
+		world.put(p2, air);
+		BlockStateLookup lookup = pos -> world.getOrDefault(pos.toImmutable(), air);
+
+		InfluenceFrame frame1 = new InfluenceFrame();
+		sequencer.contributeExistenceMutations(frame1, 1.0, lookup, pos -> true);
+		assertEquals(1, frame1.getWorldMutations().size());
+		assertEquals(1, instance.getPlacedCount());
+		assertEquals(1, sequencer.getActiveInstances().size());
+
+		InfluenceFrame frame2 = new InfluenceFrame();
+		sequencer.contributeExistenceMutations(frame2, 1.0, lookup, pos -> true);
+		assertEquals(1, frame2.getWorldMutations().size());
+		assertEquals(2, instance.getPlacedCount());
+
+		InfluenceFrame frame3 = new InfluenceFrame();
+		sequencer.contributeExistenceMutations(frame3, 1.0, lookup, pos -> true);
+		assertEquals(1, frame3.getWorldMutations().size());
+		assertEquals(3, instance.getPlacedCount());
+		assertTrue(sequencer.getActiveInstances().isEmpty());
+	}
 }

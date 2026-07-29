@@ -60,4 +60,19 @@ class TimelineTest {
 		assertTrue(timeline.getTrack(Timeline.TRACK_ID_CAMERA) != null);
 		assertEquals(6, timeline.getTracks().size());
 	}
+
+	@Test
+	void getStageEventsEqualsSumOfFilteredViews() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addBlockAnimationEvent(new TimelineAnimationEvent(
+			"b", 1.0, 0.5, "pulse", "s", 1f, Map.of()));
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"a", 2.0, 0.5, "jump", "s", 1f, Map.of()));
+		assertEquals(
+			timeline.getBlockAnimationEvents().size()
+				+ timeline.getAutoAnimationEvents().size()
+				+ timeline.getBuildReverseEvents().size(),
+			timeline.getStageEvents().size()
+		);
+	}
 }

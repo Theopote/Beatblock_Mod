@@ -3,19 +3,26 @@ package com.beatblock.timeline.editing;
 import com.beatblock.engine.influence.BlockInfluencePreset;
 import com.beatblock.engine.influence.BlockInfluencePresets;
 import com.beatblock.engine.influence.InfluenceDimension;
-import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
 import com.beatblock.timeline.generation.DistancePacing;
+import com.beatblock.timeline.payload.DispatchModel;
+import com.beatblock.timeline.payload.SingleBlockRef;
+import com.beatblock.timeline.payload.SpatialParams;
+import com.beatblock.timeline.payload.StageEventPayload;
+import com.beatblock.timeline.payload.StageEventPayloadCodec;
+import com.beatblock.timeline.payload.StepParams;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
 /**
  * 动画事件属性校验与参数 patch 构建（无 ImGui 依赖）。
+ * <p>
+ * 写回路径经 {@link StageEventPayload} 编码，避免散落字符串键；
+ * 未建模字段（mappingProfile、轨迹等）从既有 Map 保留。
  */
 public final class AnimationEventPropertiesEditor {
 
@@ -66,51 +73,38 @@ public final class AnimationEventPropertiesEditor {
 			flashBlockId = blockId;
 		}
 
+		// 保留未建模键（mappingProfile、sourceStem、meteor*、layerId 等）
 		Map<String, Object> parameters = new HashMap<>(
 			existingParameters != null ? existingParameters : Map.of()
 		);
 		TimelineEventOrigin eventOrigin = TimelineEventOrigin.fromValue(parameters.get("eventOrigin"));
+		SingleBlockRef singleBlock = SingleBlockRef.fromMap(parameters).orElse(null);
+		String existingLayerId = readLayerId(parameters);
+		String existingBuildMode = stringOr(parameters.get("buildMode"), "wall");
+		boolean existingDissolve = "true".equalsIgnoreCase(String.valueOf(parameters.get("buildDissolve")));
+		String existingBuildPlace = firstNonBlank(
+			stringOr(parameters.get("placeBlock"), ""),
+			stringOr(parameters.get("placeBlockId"), "")
+		);
+
 		clearManagedParameters(parameters);
 
-		new AnimationEventParams(
+		StageEventPayload payload = toPayload(
+			input,
 			mode,
-			input.animationId(),
-			input.targetObjectId(),
-			input.energy(),
-			input.durationSeconds(),
 			eventOrigin,
-			Map.of()
-		).writeCoreInto(parameters);
-		parameters.put("energyThreshold", input.energyThreshold());
-		parameters.put("dispatchModel", input.stepDispatch() ? "STEP" : "BURST");
-
-		if (input.stepDispatch()) {
-			applyStepParameters(parameters, input);
-		}
-
-		parameters.put("inheritGroupSpatial", input.inheritGroupSpatial());
-		if (input.inheritGroupSpatial()) {
-			parameters.remove("spatialMode");
-			parameters.remove("sequentialDelaySeconds");
-		} else {
-			SpatialDispatchMode spatialMode = SpatialDispatchMode.fromValue(input.spatialMode());
-			parameters.put("spatialMode", spatialMode.name());
-			parameters.put("sequentialDelaySeconds", input.spatialDelaySeconds());
-		}
-
-		if (mode == TimelineAnimationActionMode.PLACE) {
-			parameters.put("placeBlock", placeBlockId);
-		} else {
-			parameters.remove("placeBlock");
-			parameters.remove("placeBlockId");
-		}
-
-		parameters.put("vfxEnabled", input.vfxEnabled());
-		if (flashBlockId != null) {
-			parameters.put("flashBlock", flashBlockId);
-		} else {
-			parameters.remove("flashBlock");
-			parameters.remove("flashBlockId");
+			placeBlockId,
+			flashBlockId,
+			singleBlock,
+			existingLayerId,
+			existingBuildMode,
+			existingDissolve,
+			existingBuildPlace
+		);
+		parameters.putAll(payload.toParameterMap());
+		// layerId 仅 BUILD 载荷建模；其它模式下保留历史字段（与旧 MANAGED 列表行为一致）
+		if (mode != TimelineAnimationActionMode.BUILD && existingLayerId != null) {
+			parameters.put("layerId", existingLayerId);
 		}
 
 		double clipStart = input.timeSeconds();
@@ -123,73 +117,150 @@ public final class AnimationEventPropertiesEditor {
 		));
 	}
 
-	private static void applyStepParameters(Map<String, Object> parameters, AnimationEventFormInput input) {
-		parameters.put("pacingMode", input.pacingMode());
-		boolean distancePacing = "DISTANCE".equalsIgnoreCase(input.pacingMode());
-		if (distancePacing) {
-			parameters.put("distancePaceSecondsPerBlock", input.distancePaceSecondsPerBlock());
-			parameters.put("distancePaceMinGapSeconds", input.distancePaceMinGapSeconds());
-			parameters.remove("blocksPerBeat");
-		} else {
-			parameters.put("blocksPerBeat", input.blocksPerBeat());
-			parameters.remove("distancePaceSecondsPerBlock");
-			parameters.remove("distancePaceMinGapSeconds");
+	/**
+	 * 将表单输入编译为强类型载荷（供测试与批量编辑复用）。
+	 */
+	public static StageEventPayload toPayload(
+		AnimationEventFormInput input,
+		TimelineAnimationActionMode mode,
+		TimelineEventOrigin eventOrigin,
+		String placeBlockId,
+		String flashBlockId,
+		SingleBlockRef singleBlock,
+		String layerId,
+		String buildMode,
+		boolean dissolve,
+		String buildPlaceBlockId
+	) {
+		TimelineEventOrigin origin = eventOrigin != null ? eventOrigin : TimelineEventOrigin.MANUAL;
+		String animationType = input.animationId() != null ? input.animationId() : "";
+		String target = input.targetObjectId() != null ? input.targetObjectId() : "";
+		float energy = input.energy();
+		double duration = input.durationSeconds();
+		float threshold = input.energyThreshold();
+
+		return switch (mode) {
+			case PLACE -> new StageEventPayload.Place(
+				animationType,
+				target,
+				energy,
+				duration,
+				origin,
+				threshold,
+				placeBlockId != null ? placeBlockId : "minecraft:diamond_block",
+				Map.of()
+			);
+			case CLEAR -> new StageEventPayload.Clear(
+				animationType,
+				target,
+				energy,
+				duration,
+				origin,
+				threshold,
+				Map.of()
+			);
+			case BUILD -> new StageEventPayload.Build(
+				animationType.isBlank() ? "build" : animationType,
+				target,
+				energy,
+				duration,
+				origin,
+				threshold,
+				buildMode != null && !buildMode.isBlank() ? buildMode : "wall",
+				dissolve,
+				blankToNull(buildPlaceBlockId),
+				blankToNull(layerId),
+				Map.of()
+			);
+			case ANIMATE -> new StageEventPayload.Animate(
+				animationType,
+				target,
+				energy,
+				duration,
+				origin,
+				threshold,
+				input.stepDispatch() ? DispatchModel.STEP : DispatchModel.BURST,
+				spatialFromInput(input),
+				stepFromInput(input),
+				blankToNull(flashBlockId),
+				input.vfxEnabled(),
+				singleBlock,
+				Map.of()
+			);
+		};
+	}
+
+	private static SpatialParams spatialFromInput(AnimationEventFormInput input) {
+		boolean inherit = input.inheritGroupSpatial();
+		SpatialDispatchMode mode = SpatialDispatchMode.fromValue(input.spatialMode());
+		double delay = inherit ? -1.0 : Math.max(0.0, input.spatialDelaySeconds());
+		return new SpatialParams(inherit, mode, delay);
+	}
+
+	private static StepParams stepFromInput(AnimationEventFormInput input) {
+		if (!input.stepDispatch()) {
+			return StepParams.DEFAULT;
 		}
-
-		parameters.put("stepStartMode", input.stepStartMode());
-		parameters.put("stepCompletionMode", input.stepCompletionMode());
-		parameters.put("cameraAdaptiveStep", input.cameraAdaptiveStep());
-		parameters.put("cameraFrustumGating", input.cameraFrustumGating());
-		parameters.put("cameraEdgePriority", Math.max(0.0, Math.min(1.0, input.cameraEdgePriority())));
-
-		parameters.put("usePhaseAnimation", input.usePhaseAnimation());
+		double entry = input.entryDurationPercent();
+		double idle = input.idleDurationPercent();
+		double exit = input.exitDurationPercent();
 		if (input.usePhaseAnimation()) {
-			double entry = input.entryDurationPercent();
-			double idle = input.idleDurationPercent();
-			double exit = input.exitDurationPercent();
 			double total = entry + idle + exit;
 			if (total > 0.1) {
 				entry = (entry / total) * 100.0;
 				idle = (idle / total) * 100.0;
 				exit = (exit / total) * 100.0;
 			}
-			parameters.put("entryDurationPercent", entry);
-			parameters.put("idleDurationPercent", idle);
-			parameters.put("exitDurationPercent", exit);
-		} else {
-			parameters.remove("entryDurationPercent");
-			parameters.remove("idleDurationPercent");
-			parameters.remove("exitDurationPercent");
 		}
-
-		if (input.cameraAdaptiveStep()) {
-			parameters.put("cameraNearDistance", input.cameraNearDistance());
-			parameters.put("cameraFarDistance", input.cameraFarDistance());
-			parameters.put("cameraNearScale", input.cameraNearScale());
-			parameters.put("cameraFarScale", input.cameraFarScale());
-		} else {
-			parameters.remove("cameraNearDistance");
-			parameters.remove("cameraFarDistance");
-			parameters.remove("cameraNearScale");
-			parameters.remove("cameraFarScale");
-		}
+		return new StepParams(
+			input.stepStartMode() != null ? input.stepStartMode() : "NEXT_BEAT",
+			input.stepCompletionMode() != null ? input.stepCompletionMode() : "KEEP",
+			input.pacingMode() != null ? input.pacingMode() : "BEAT_GRID",
+			Math.max(1, input.blocksPerBeat()),
+			input.distancePaceSecondsPerBlock(),
+			input.distancePaceMinGapSeconds(),
+			input.cameraAdaptiveStep(),
+			input.cameraFrustumGating(),
+			input.cameraEdgePriority(),
+			input.usePhaseAnimation(),
+			entry,
+			idle,
+			exit,
+			input.cameraNearDistance(),
+			input.cameraFarDistance(),
+			input.cameraNearScale(),
+			input.cameraFarScale()
+		);
 	}
 
 	private static void clearManagedParameters(Map<String, Object> parameters) {
-		for (String key : MANAGED_PARAMETER_KEYS) {
+		for (String key : StageEventPayloadCodec.KNOWN_KEYS) {
 			parameters.remove(key);
 		}
 	}
 
-	private static final List<String> MANAGED_PARAMETER_KEYS = List.of(
-		"actionMode", "mode", "durationSeconds", "energy", "energyThreshold", "animationType", "targetObject",
-		"dispatchModel", "pacingMode", "distancePaceSecondsPerBlock", "distancePaceMinGapSeconds", "blocksPerBeat",
-		"stepStartMode", "stepCompletionMode", "cameraAdaptiveStep", "cameraFrustumGating", "cameraEdgePriority",
-		"usePhaseAnimation", "entryDurationPercent", "idleDurationPercent", "exitDurationPercent",
-		"cameraNearDistance", "cameraFarDistance", "cameraNearScale", "cameraFarScale",
-		"inheritGroupSpatial", "spatialMode", "sequentialDelaySeconds",
-		"placeBlock", "placeBlockId", "vfxEnabled", "flashBlock", "flashBlockId"
-	);
+	private static String readLayerId(Map<String, Object> parameters) {
+		Object raw = parameters.get("layerId");
+		if (raw == null) return null;
+		String id = String.valueOf(raw).trim();
+		return id.isEmpty() ? null : id;
+	}
+
+	private static String stringOr(Object raw, String fallback) {
+		if (raw == null) return fallback;
+		String s = String.valueOf(raw).trim();
+		return s.isEmpty() ? fallback : s;
+	}
+
+	private static String firstNonBlank(String a, String b) {
+		if (a != null && !a.isBlank()) return a;
+		if (b != null && !b.isBlank()) return b;
+		return "";
+	}
+
+	private static String blankToNull(String s) {
+		return s == null || s.isBlank() ? null : s;
+	}
 
 	public static AnimationEventFormInput parseFormInput(
 		String timeRaw,

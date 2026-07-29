@@ -76,10 +76,13 @@ class StepBurstEventFactoryTest {
 
 	@Test
 	void isStepDispatchRecognizesStepModelCaseInsensitively() {
-		assertFalse(StepBurstEventFactory.isStepDispatch(null));
+		assertFalse(StepBurstEventFactory.isStepDispatch((Map<String, Object>) null));
+		assertFalse(StepBurstEventFactory.isStepDispatch((TimelineAnimationEvent) null));
 		assertFalse(StepBurstEventFactory.isStepDispatch(Map.of("dispatchModel", "BURST")));
 		assertTrue(StepBurstEventFactory.isStepDispatch(Map.of("dispatchModel", " step ")));
 		assertTrue(StepBurstEventFactory.isStepDispatch(Map.of("dispatchModel", "Step")));
+		assertTrue(StepBurstEventFactory.isStepDispatch(new TimelineAnimationEvent(
+			"s", 0, 0.5, "pulse", "t", 1f, Map.of("dispatchModel", "STEP"))));
 	}
 
 	@Test

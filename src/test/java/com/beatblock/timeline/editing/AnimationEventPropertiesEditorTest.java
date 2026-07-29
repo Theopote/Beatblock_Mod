@@ -1,5 +1,8 @@
 package com.beatblock.timeline.editing;
 
+import com.beatblock.timeline.payload.DispatchModel;
+import com.beatblock.timeline.payload.StageEventPayload;
+import com.beatblock.timeline.payload.StageEventPayloadCodec;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -102,5 +105,31 @@ class AnimationEventPropertiesEditorTest {
 		assertEquals("auto-kick", params.get("mappingProfile"));
 		assertEquals("drums", params.get("sourceStem"));
 		assertEquals(1f, params.get("energy"));
+
+		StageEventPayload payload = StageEventPayloadCodec.decode(params);
+		assertInstanceOf(StageEventPayload.Animate.class, payload);
+		assertEquals(DispatchModel.BURST, ((StageEventPayload.Animate) payload).dispatchModel());
+		assertEquals("auto-kick", payload.extensions().get("mappingProfile"));
+	}
+
+	@Test
+	void placeModeProducesPlacePayload() {
+		AnimationEventFormInput input = new AnimationEventFormInput(
+			0.0, 0.2, 1f, 0f,
+			"PLACE", "pulse", "stage-main",
+			true, "ALL", 0.0,
+			false, "NEXT_BEAT", "KEEP", "BEAT_GRID",
+			1, 0.5, 0.1,
+			false, false, 0.0,
+			false, 20, 60, 20,
+			8, 48, 0.6, 1.5,
+			"minecraft:stone", "", true
+		);
+		var result = AnimationEventPropertiesEditor.buildUpdatedSnapshot(
+			input, Map.of(), id -> true, blockId -> blockId.startsWith("minecraft:"));
+		Map<String, Object> params = ((AnimationEventPropertiesEditor.Result.Ok) result).snapshot().parameters();
+		StageEventPayload payload = StageEventPayloadCodec.decode(params);
+		assertInstanceOf(StageEventPayload.Place.class, payload);
+		assertEquals("minecraft:stone", ((StageEventPayload.Place) payload).placeBlockId());
 	}
 }

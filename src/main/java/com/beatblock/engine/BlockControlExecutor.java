@@ -140,11 +140,7 @@ public final class BlockControlExecutor {
 
 	private static BlockState resolvePlacementBlockState(TimelineAnimationEvent event) {
 		if (event == null) return Blocks.DIAMOND_BLOCK.getDefaultState();
-		Object param = event.getParameters().get("placeBlock");
-		if (param == null) param = event.getParameters().get("placeBlockId");
-		if (param == null) return Blocks.DIAMOND_BLOCK.getDefaultState();
-
-		String raw = String.valueOf(param).trim();
+		String raw = event.getPayload().resolvePlaceBlockId().orElse("minecraft:diamond_block");
 		if (raw.isEmpty()) return Blocks.DIAMOND_BLOCK.getDefaultState();
 		Identifier id;
 		try {
@@ -154,6 +150,6 @@ public final class BlockControlExecutor {
 		}
 		if (!Registries.BLOCK.containsId(id)) return Blocks.DIAMOND_BLOCK.getDefaultState();
 		Block block = Registries.BLOCK.get(id);
-        return block.getDefaultState();
+		return block.getDefaultState();
 	}
 }

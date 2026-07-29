@@ -13,6 +13,10 @@ import java.util.Set;
  * 动画时间线事件的强类型核心参数；扩展字段仍通过 {@link #extensions()} 以 Map 承载。
  * <p>
  * 与 {@link TimelineEvent#getParameters()} 的键名保持兼容（持久化 / .osc / 播放器读取）。
+ * <p>
+ * 完整动作参数（STEP / BUILD / 空间调度等）请使用
+ * {@link com.beatblock.timeline.payload.StageEventPayload} /
+ * {@link TimelineAnimationEvent#getPayload()}。
  */
 public record AnimationEventParams(
 	@NonNull TimelineAnimationActionMode actionMode,

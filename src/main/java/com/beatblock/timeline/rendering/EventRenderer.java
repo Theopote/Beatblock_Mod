@@ -163,8 +163,7 @@ public final class EventRenderer {
 
 	private void renderDispatchBadge(float x0, float y0, float x1, float y1, TimelineAnimationEvent event) {
 		if (event == null) return;
-		String model = String.valueOf(event.getParameters().getOrDefault("dispatchModel", "BURST"));
-		boolean step = "STEP".equalsIgnoreCase(model);
+		boolean step = event.getPayload().isStepDispatch();
 		int color = step ? DISPATCH_STEP_BADGE_COLOR : DISPATCH_BURST_BADGE_COLOR;
 		String label = step ? "S" : "B";
 
@@ -188,7 +187,11 @@ public final class EventRenderer {
 
 	private void renderGroupSpatialBadge(float x0, float y0, float x1, float y1, TimelineAnimationEvent event) {
 		if (event == null) return;
-		if (!readBoolean(event.getParameters().get("inheritGroupSpatial"), true)) return;
+		if (event.getPayload() instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate) {
+			if (!animate.spatial().inheritGroupSpatial()) return;
+		} else if (!readBoolean(event.getParameters().get("inheritGroupSpatial"), true)) {
+			return;
+		}
 
 		float bx0 = x0 + 2f;
 		float by0 = y0 + 2f;
@@ -207,9 +210,11 @@ public final class EventRenderer {
 	private void renderFrustumGatingBadge(float x0, float y0, float x1, float y1, TimelineAnimationEvent event) {
 		if (event == null) return;
 		// Only show this badge for STEP mode with frustum gating enabled
-		boolean step = "STEP".equalsIgnoreCase(String.valueOf(event.getParameters().getOrDefault("dispatchModel", "BURST")));
-		if (!step) return;
-		if (!readBoolean(event.getParameters().get("cameraFrustumGating"), false)) return;
+		if (!(event.getPayload() instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate)
+			|| animate.dispatchModel() != com.beatblock.timeline.payload.DispatchModel.STEP
+			|| !animate.step().cameraFrustumGating()) {
+			return;
+		}
 
 		// Position at bottom-right
 		float bx1 = x1 - 2f;
@@ -229,9 +234,11 @@ public final class EventRenderer {
 	private void renderEdgePriorityBadge(float x0, float y0, float x1, float y1, TimelineAnimationEvent event) {
 		if (event == null) return;
 		// Only show for STEP mode with edge priority > 0
-		boolean step = "STEP".equalsIgnoreCase(String.valueOf(event.getParameters().getOrDefault("dispatchModel", "BURST")));
-		if (!step) return;
-		double edgePriority = readDouble(event.getParameters().get("cameraEdgePriority"), 0.0);
+		if (!(event.getPayload() instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate)
+			|| animate.dispatchModel() != com.beatblock.timeline.payload.DispatchModel.STEP) {
+			return;
+		}
+		double edgePriority = animate.step().cameraEdgePriority();
 		if (edgePriority <= 0.0) return;
 
 		// Position at right edge, below the dispatch badge

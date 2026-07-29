@@ -134,7 +134,7 @@ public final class BlockAnimationEngine {
 
 	private void scheduleAnimateEvent(TimelineAnimationEvent event, double[] referenceBeatTimesSeconds, double timelineBpm) {
 		if (event == null) return;
-		if (com.beatblock.timeline.generation.StepBurstEventFactory.isStepDispatch(event.getParameters())) {
+		if (com.beatblock.timeline.generation.StepBurstEventFactory.isStepDispatch(event)) {
 			scheduleExpandedStepSequence(event, referenceBeatTimesSeconds, timelineBpm);
 			return;
 		}
@@ -152,8 +152,13 @@ public final class BlockAnimationEngine {
 		if (def == null || target == null || target.getBlocks().isEmpty()) return;
 
 		Map<String, Object> params = event.getParameters();
-		List<BlockPos> ordered = sortBlocksForSpatialMode(target, resolveSpatialMode(params, target), event);
-		double edgePriority = readDouble(params.get("cameraEdgePriority"), 0.0);
+		List<BlockPos> ordered = sortBlocksForSpatialMode(target, resolveSpatialMode(event, target), event);
+		double edgePriority = 0.0;
+		if (event.getPayload() instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate) {
+			edgePriority = animate.step().cameraEdgePriority();
+		} else {
+			edgePriority = readDouble(params.get("cameraEdgePriority"), 0.0);
+		}
 		if (edgePriority > 0.0 && !ordered.isEmpty()) {
 			ordered = applyEdgePrioritization(ordered, target.getBlocks(), edgePriority, runtimeCameraPosition, target.getCenter());
 		}
@@ -190,6 +195,13 @@ public final class BlockAnimationEngine {
 		if (def == null || target == null) return;
 
 		Map<String, Object> params = event.getParameters();
+		var payload = event.getPayload();
+		if (payload instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate
+			&& animate.singleBlock() != null) {
+			var ref = animate.singleBlock();
+			scheduleSingleBlockBurst(event, target, def, new BlockPos(ref.x(), ref.y(), ref.z()));
+			return;
+		}
 		net.minecraft.util.math.BlockPos singleBlock =
 			com.beatblock.timeline.generation.StepBurstEventFactory.readSingleBlockPos(params);
 		if (singleBlock != null) {
@@ -197,8 +209,8 @@ public final class BlockAnimationEngine {
 			return;
 		}
 
-		SpatialDispatchMode spatialMode = resolveSpatialMode(params, target);
-		double stepDelay = resolveSpatialStepDelay(params, target, spatialMode, event.getDurationSeconds(), target.getBlocks().size());
+		SpatialDispatchMode spatialMode = resolveSpatialMode(event, target);
+		double stepDelay = resolveSpatialStepDelay(event, target, spatialMode, event.getDurationSeconds(), target.getBlocks().size());
 		if (spatialMode == SpatialDispatchMode.ALL || stepDelay <= 0.0 || target.getBlocks().size() <= 1) {
 			double endTime = event.getTimeSeconds() + Math.max(0.01, event.getDurationSeconds());
 			animationPlayer.addInstance(new EngineAnimationInstance(
@@ -243,7 +255,18 @@ public final class BlockAnimationEngine {
 			def, perBlockTarget, event.getTimeSeconds(), endTime, event.getEnergy(), event.getParameters()));
 	}
 
-	private static SpatialDispatchMode resolveSpatialMode(Map<String, Object> params, StageObject target) {
+	private static SpatialDispatchMode resolveSpatialMode(TimelineAnimationEvent event, StageObject target) {
+		if (event != null && event.getPayload() instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate) {
+			var spatial = animate.spatial();
+			if (!spatial.inheritGroupSpatial()) {
+				return spatial.mode();
+			}
+			if (target != null && target.getGroupSpec() != null) {
+				return target.getGroupSpec().getSortingStrategy().toSpatialDispatchMode();
+			}
+			return SpatialDispatchMode.ALL;
+		}
+		Map<String, Object> params = event != null ? event.getParameters() : null;
 		if (params != null && params.containsKey("spatialMode")) {
 			return SpatialDispatchMode.fromValue(params.get("spatialMode"));
 		}
@@ -254,9 +277,27 @@ public final class BlockAnimationEngine {
 		return target.getGroupSpec().getSortingStrategy().toSpatialDispatchMode();
 	}
 
-	private static double resolveSpatialStepDelay(Map<String, Object> params, StageObject target, SpatialDispatchMode mode,
+	private static double resolveSpatialStepDelay(TimelineAnimationEvent event, StageObject target, SpatialDispatchMode mode,
 	                                             double durationSeconds, int blockCount) {
 		if (mode == null || mode == SpatialDispatchMode.ALL || blockCount <= 1) return 0.0;
+		if (event != null && event.getPayload() instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate) {
+			var spatial = animate.spatial();
+			if (spatial.hasExplicitDelay()) {
+				return spatial.sequentialDelaySeconds();
+			}
+			if (!spatial.inheritGroupSpatial()) {
+				double duration = Math.max(0.05, durationSeconds);
+				double byDuration = duration / Math.max(2.0, Math.min(28.0, blockCount * 0.6));
+				return Math.max(0.01, Math.min(0.06, byDuration));
+			}
+			if (target != null && target.getGroupSpec() != null && target.getGroupSpec().getStaggerDelaySeconds() > 0.0) {
+				return target.getGroupSpec().getStaggerDelaySeconds();
+			}
+			double duration = Math.max(0.05, durationSeconds);
+			double byDuration = duration / Math.max(2.0, Math.min(28.0, blockCount * 0.6));
+			return Math.max(0.01, Math.min(0.06, byDuration));
+		}
+		Map<String, Object> params = event != null ? event.getParameters() : null;
 		if (params != null && params.containsKey("sequentialDelaySeconds")) {
 			double explicit = readDouble(params.get("sequentialDelaySeconds"), -1.0);
 			if (explicit >= 0.0) return explicit;

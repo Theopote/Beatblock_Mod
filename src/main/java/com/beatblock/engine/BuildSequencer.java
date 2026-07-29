@@ -15,6 +15,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -35,6 +36,12 @@ public final class BuildSequencer {
 	private final StageObjectSystem stageObjectSystem;
 	private final BuildLayerManager buildLayerManager;
 	private Timeline timeline;  // 可选：用于节拍对齐
+	/**
+	 * 每帧最多产生的世界 mutation 数量。默认无上限；
+	 * 播放路径可由 {@code BeatBlockClientDriver} 注入有限预算，避免单 tick 卡顿。
+	 * 预算耗尽时本帧停止放置，剩余方块留到后续帧（实例保持活跃）。
+	 */
+	private int mutationBudgetPerTick = Integer.MAX_VALUE;
 
 	public BuildSequencer(StageObjectSystem stageObjectSystem, BuildLayerManager buildLayerManager) {
 		this.stageObjectSystem = stageObjectSystem;
@@ -45,6 +52,17 @@ public final class BuildSequencer {
 	/** 注入 Timeline 以启用节拍对齐（卡真实节拍点），否则回退到线性插值。 */
 	public void setTimeline(Timeline timeline) {
 		this.timeline = timeline;
+	}
+
+	/**
+	 * 设置每帧 mutation 预算。{@code <= 0} 视为无上限。
+	 */
+	public void setMutationBudgetPerTick(int budget) {
+		this.mutationBudgetPerTick = budget <= 0 ? Integer.MAX_VALUE : budget;
+	}
+
+	public int getMutationBudgetPerTick() {
+		return mutationBudgetPerTick;
 	}
 
 	/**
@@ -101,8 +119,26 @@ public final class BuildSequencer {
 	public BuildInstance schedule(TimelineAnimationEvent event) {
 		if (event == null) return null;
 
-		Map<String, Object> params = event.getParameters();
-		String layerId = readLayerId(params);
+		var payload = event.getPayload();
+		String layerId = null;
+		String buildModeRaw = "wall";
+		boolean dissolveFlag = false;
+		String placeBlockId = null;
+		if (payload instanceof com.beatblock.timeline.payload.StageEventPayload.Build build) {
+			layerId = build.layerId();
+			buildModeRaw = build.buildMode();
+			dissolveFlag = build.dissolve();
+			placeBlockId = build.placeBlockId();
+		} else {
+			// 兼容：actionMode 尚未标成 BUILD 但 map 里带有建造字段
+			Map<String, Object> params = event.getParameters();
+			layerId = readLayerId(params);
+			buildModeRaw = String.valueOf(params.getOrDefault("buildMode", "wall"));
+			dissolveFlag = "true".equalsIgnoreCase(String.valueOf(params.get("buildDissolve")));
+			Object place = params.get("placeBlock");
+			if (place == null) place = params.get("placeBlockId");
+			if (place != null) placeBlockId = String.valueOf(place).trim();
+		}
 		BuildLayer layer = layerId != null && buildLayerManager != null ? buildLayerManager.get(layerId) : null;
 
 		StageObject target;
@@ -118,11 +154,11 @@ public final class BuildSequencer {
 		}
 		if (target == null || target.getBlocks().isEmpty()) return null;
 
-		BuildSequenceMode mode = BuildSequenceMode.fromValue(params.get("buildMode"));
-		boolean dissolve = !layerReveal && "true".equalsIgnoreCase(String.valueOf(params.get("buildDissolve")));
+		BuildSequenceMode mode = BuildSequenceMode.fromValue(buildModeRaw);
+		boolean dissolve = !layerReveal && dissolveFlag;
 		BlockState toState = dissolve
 			? Blocks.AIR.getDefaultState()
-			: (layerReveal ? Blocks.AIR.getDefaultState() : resolveBuildBlockState(params));
+			: (layerReveal ? Blocks.AIR.getDefaultState() : resolveBuildBlockState(placeBlockId));
 
 		List<BlockPos> ordered = BlockBuildOrder.sortBlocks(target.getBlocks(), mode, target.getCenter(), event, target);
 		if (dissolve) Collections.reverse(ordered);
@@ -163,12 +199,18 @@ public final class BuildSequencer {
 		Predicate<BlockPos> chunkLoaded
 	) {
 		if (frame == null || blockStates == null || chunkLoaded == null || activeInstances.isEmpty()) return;
+		int remainingBudget = mutationBudgetPerTick;
 		Iterator<BuildInstance> it = activeInstances.iterator();
 		while (it.hasNext()) {
+			if (remainingBudget <= 0) {
+				break;
+			}
 			BuildInstance inst = it.next();
 			if (currentTime < inst.startTime) continue;
 			int target = computeTargetCount(inst, currentTime);
-			while (inst.placedCount < target && inst.placedCount < inst.orderedBlocks.size()) {
+			while (inst.placedCount < target
+				&& inst.placedCount < inst.orderedBlocks.size()
+				&& remainingBudget > 0) {
 				BlockPos pos = inst.orderedBlocks.get(inst.placedCount);
 				BlockState desired = inst.resolveTargetState(pos);
 				if (chunkLoaded.test(pos)) {
@@ -185,6 +227,8 @@ public final class BuildSequencer {
 					}
 				}
 				inst.placedCount++;
+				// 按处理方块数计费：含已是目标态/区块未加载的推进，保证每帧工作量有上界
+				remainingBudget--;
 			}
 			if (inst.isFinished()) it.remove();
 		}
@@ -295,12 +339,11 @@ public final class BuildSequencer {
 		);
 	}
 
-	private static BlockState resolveBuildBlockState(Map<String, Object> params) {
-		Object raw = params != null ? params.get("placeBlock") : null;
-		if (raw == null && params != null) raw = params.get("placeBlockId");
-		if (raw == null) return Blocks.DIAMOND_BLOCK.getDefaultState();
-		String str = String.valueOf(raw).trim();
-		if (str.isEmpty()) return Blocks.DIAMOND_BLOCK.getDefaultState();
+	private static BlockState resolveBuildBlockState(@Nullable String placeBlockId) {
+		if (placeBlockId == null || placeBlockId.isBlank()) {
+			return Blocks.DIAMOND_BLOCK.getDefaultState();
+		}
+		String str = placeBlockId.trim();
 		try {
 			Identifier id = Identifier.of(str);
 			if (!Registries.BLOCK.containsId(id)) return Blocks.DIAMOND_BLOCK.getDefaultState();

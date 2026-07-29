@@ -16,6 +16,7 @@ import net.minecraft.world.World;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -46,13 +47,22 @@ public final class BeatBlockClientDriver {
 
 	private volatile long lastTickNanos;
 	private volatile boolean driving;
-	private final Set<String> scheduledTimelineAnimationIds = new HashSet<>();
-	private final Set<String> scheduledAutoAnimationIds = new HashSet<>();
-	private final Set<String> scheduledBuildReverseIds = new HashSet<>();
+	/** 已调度的舞台事件（统一 block / auto / build）。 */
+	private final Set<String> scheduledStageEventIds = new HashSet<>();
+	/**
+	 * 统一事件列表上的双指针游标：指向下一待考察事件下标。
+	 * 时间前进时只向后扫描；回退时通过 {@link #resetTimelineAnimationScheduling()} 归零。
+	 */
+	private int stageEventCursor;
+	/** 与 {@link com.beatblock.timeline.Timeline#getStageEventsGeneration()} 对齐，编辑后重扫。 */
+	private int lastStageEventsGeneration = -1;
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
-	private volatile double lastTimelineAnimationTime;
-	private volatile double lastAutoAnimationTime;
-	private volatile double lastBuildReverseTime;
+	private volatile double lastStageEventTime;
+	/**
+	 * 播放时每帧 BUILD 世界写入上限，避免单 tick 放置海量方块卡顿。
+	 * 预览路径使用 {@link WorldMutationSink#NO_OP}，不受此预算影响。
+	 */
+	private static final int PLAYBACK_MUTATION_BUDGET_PER_TICK = 768;
 	private final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
 	private RegistryKey<World> timelineMutationWorldKey;
 	private volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
@@ -122,9 +132,13 @@ public final class BeatBlockClientDriver {
 	private void tickBlockAnimationEngine(double currentTime, boolean previewOnly, World world) {
 		var engine = ctx().blockAnimationEngine();
 		if (engine == null) return;
-		syncTimelineBlockAnimationEvents(currentTime, previewOnly);
-		syncTimelineAutoAnimationEvents(currentTime, previewOnly);
-		syncTimelineBuildReverseEvents(currentTime, previewOnly);
+		var buildSequencer = engine.getBuildSequencer();
+		if (buildSequencer != null) {
+			// 正式播放限流；预览不写世界，预算保持无上限以免测试/状态机被截断
+			buildSequencer.setMutationBudgetPerTick(
+				previewOnly ? Integer.MAX_VALUE : PLAYBACK_MUTATION_BUDGET_PER_TICK);
+		}
+		syncStageEvents(currentTime, previewOnly);
 		WorldMutationSink sink = previewOnly
 			? WorldMutationSink.NO_OP
 			: BeatBlockAuthoritativeWorldMutator.sinkFor(engine.getBlockControlExecutor(), world);
@@ -227,60 +241,42 @@ public final class BeatBlockClientDriver {
 		return musicPlayer != null ? musicPlayer.getCurrentTimeSeconds() : 0.0;
 	}
 
-	private void syncTimelineBlockAnimationEvents(double currentTime, boolean previewOnly) {
+	/**
+	 * 统一调度全部舞台事件：单一集合 + 双指针游标，O(k) 推进（k 为本帧到期事件数）。
+	 * 回退时间轴时整表重置；时间轴编辑导致缓存世代变化时游标回 0 重扫（已调度 id 去重）。
+	 */
+	private void syncStageEvents(double currentTime, boolean previewOnly) {
 		var timeline = ctx().timeline();
 		var engine = ctx().blockAnimationEngine();
 		if (timeline == null || engine == null) return;
-		if (currentTime + TIMELINE_EVENT_EPSILON < lastTimelineAnimationTime) {
+
+		if (currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime) {
 			resetTimelineAnimationScheduling();
 		}
-		for (TimelineAnimationEvent event : timeline.getBlockAnimationEvents()) {
-			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
-				break;
-			}
-			String scheduleKey = scheduleKey(event);
-			if (!scheduledTimelineAnimationIds.add(scheduleKey)) continue;
-			applyTimelineActionEvent(event, previewOnly);
-		}
-		lastTimelineAnimationTime = currentTime;
-	}
 
-	private void syncTimelineAutoAnimationEvents(double currentTime, boolean previewOnly) {
-		var timeline = ctx().timeline();
-		var engine = ctx().blockAnimationEngine();
-		if (timeline == null || engine == null) return;
-		if (currentTime + TIMELINE_EVENT_EPSILON < lastAutoAnimationTime) {
-			scheduledAutoAnimationIds.clear();
-			lastAutoAnimationTime = 0.0;
+		List<TimelineAnimationEvent> events = timeline.getStageEvents();
+		int generation = timeline.getStageEventsGeneration();
+		if (generation != lastStageEventsGeneration) {
+			// 编辑插入了更早事件时，从列表头重扫；scheduledStageEventIds 防止重复派发
+			stageEventCursor = 0;
+			lastStageEventsGeneration = generation;
 		}
-		for (TimelineAnimationEvent event : timeline.getAutoAnimationEvents()) {
+		if (stageEventCursor < 0 || stageEventCursor > events.size()) {
+			stageEventCursor = 0;
+		}
+
+		while (stageEventCursor < events.size()) {
+			TimelineAnimationEvent event = events.get(stageEventCursor);
 			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
 				break;
 			}
 			String key = scheduleKey(event);
-			if (!scheduledAutoAnimationIds.add(key)) continue;
-			applyTimelineActionEvent(event, previewOnly);
-		}
-		lastAutoAnimationTime = currentTime;
-	}
-
-	private void syncTimelineBuildReverseEvents(double currentTime, boolean previewOnly) {
-		var timeline = ctx().timeline();
-		var engine = ctx().blockAnimationEngine();
-		if (timeline == null || engine == null) return;
-		if (currentTime + TIMELINE_EVENT_EPSILON < lastBuildReverseTime) {
-			scheduledBuildReverseIds.clear();
-			lastBuildReverseTime = 0.0;
-		}
-		for (TimelineAnimationEvent event : timeline.getBuildReverseEvents()) {
-			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
-				break;
+			if (scheduledStageEventIds.add(key)) {
+				applyTimelineActionEvent(event, previewOnly);
 			}
-			String key = scheduleKey(event);
-			if (!scheduledBuildReverseIds.add(key)) continue;
-			applyTimelineActionEvent(event, previewOnly);
+			stageEventCursor++;
 		}
-		lastBuildReverseTime = currentTime;
+		lastStageEventTime = currentTime;
 	}
 
 	private void applyTimelineActionEvent(TimelineAnimationEvent event, boolean previewOnly) {
@@ -360,20 +356,7 @@ public final class BeatBlockClientDriver {
 
 	private boolean passesEnergyThreshold(TimelineAnimationEvent event) {
 		if (event == null) return false;
-		Object raw = event.getParameters().get("energyThreshold");
-		double threshold = 0.0;
-		if (raw instanceof Number n) {
-			threshold = n.doubleValue();
-		} else if (raw != null) {
-			try {
-				threshold = Double.parseDouble(String.valueOf(raw).trim());
-			} catch (NumberFormatException e) {
-				BeatBlock.LOGGER.debug("Invalid energyThreshold parameter: {}", raw, e);
-				threshold = 0.0;
-			}
-		}
-		threshold = Math.max(0.0, Math.min(1.0, threshold));
-		return event.getEnergy() + 1e-6 >= threshold;
+		return event.getPayload().passesEnergyGate();
 	}
 
 	private void captureTimelineMutationOriginalState(World world, BlockPos pos, BlockState currentState) {
@@ -419,15 +402,17 @@ public final class BeatBlockClientDriver {
 
 	private void resetTimelineAnimationScheduling() {
 		restoreTimelineMutationSnapshot();
-		scheduledTimelineAnimationIds.clear();
-		scheduledAutoAnimationIds.clear();
-		scheduledBuildReverseIds.clear();
-		lastTimelineAnimationTime = 0.0;
-		lastAutoAnimationTime = 0.0;
-		lastBuildReverseTime = 0.0;
+		scheduledStageEventIds.clear();
+		stageEventCursor = 0;
+		lastStageEventsGeneration = -1;
+		lastStageEventTime = 0.0;
 		var engine = ctx().blockAnimationEngine();
 		if (engine != null) {
 			engine.clear();
+			var buildSequencer = engine.getBuildSequencer();
+			if (buildSequencer != null) {
+				buildSequencer.setMutationBudgetPerTick(Integer.MAX_VALUE);
+			}
 		}
 	}
 

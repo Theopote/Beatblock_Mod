@@ -27,6 +27,11 @@ import com.beatblock.timeline.editing.TimelineEventEditActions;
 import com.beatblock.timeline.editing.WorldTrajectoryEventParamsEditor;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.generation.DistancePacing;
+import com.beatblock.timeline.payload.DispatchModel;
+import com.beatblock.timeline.payload.SpatialParams;
+import com.beatblock.timeline.payload.StageEventPayload;
+import com.beatblock.timeline.payload.StageEventPayloadCodec;
+import com.beatblock.timeline.payload.StepParams;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.timeline.rendering.TrackDefinition;
 import com.beatblock.timeline.rendering.TrackRegistry;
@@ -628,17 +633,21 @@ public final class EventPropertiesPresenter {
 
 		TimelineEvent event = ref.event();
 		Map<String, Object> params = event.getParameters();
-		AnimationEventParams core = EventParameterReaders.animationParams(params);
-		String animationId = core.animationType();
+		StageEventPayload payload = StageEventPayloadCodec.decode(params);
+		String animationId = payload.animationType();
 		WorldTrajectoryEventParamsEditor.FormInput trajectory = WorldTrajectoryEventParamsEditor.readForm(params, animationId);
-		String placeBlock = EventParameterReaders.stringParam(
-			params, "placeBlock",
-			EventParameterReaders.stringParam(params, "placeBlockId", "minecraft:diamond_block")
-		);
-		String flashBlock = EventParameterReaders.stringParam(
-			params, "flashBlock",
-			EventParameterReaders.stringParam(params, "flashBlockId", "minecraft:gold_block")
-		);
+
+		String placeBlock = payload.resolvePlaceBlockId().orElse("minecraft:diamond_block");
+		String flashBlock = "minecraft:gold_block";
+		SpatialParams spatial = SpatialParams.DEFAULT;
+		StepParams step = StepParams.DEFAULT;
+		if (payload instanceof StageEventPayload.Animate animate) {
+			if (animate.flashBlockId() != null && !animate.flashBlockId().isBlank()) {
+				flashBlock = animate.flashBlockId();
+			}
+			spatial = animate.spatial();
+			step = animate.step();
+		}
 
 		String camSegDuration = "";
 		boolean camSegPathVisible = false;
@@ -672,25 +681,31 @@ public final class EventPropertiesPresenter {
 			camEase = EventParameterReaders.stringParam(params, "ease", "SMOOTH");
 		}
 
+		// 表单缺省与历史 UI 一致：未写入的字段显示默认值而非 0
+		double durationDisplay = params.containsKey("durationSeconds") ? payload.durationSeconds() : 0.25;
+		double energyDisplay = params.containsKey("energy") ? payload.energy() : 1.0;
+		double energyThresholdDisplay = params.containsKey("energyThreshold")
+			? payload.energyThreshold()
+			: 0.15;
+		double sequentialDelay = spatial.hasExplicitDelay() ? spatial.sequentialDelaySeconds() : 0.0;
+
 		return new EventPropertiesFormSnapshot(
 			refKey,
 			"", "",
 			false,
 			UiNumberFormatter.format(event.getTimeSeconds()),
-			UiNumberFormatter.format(params.containsKey("durationSeconds") ? core.durationSeconds() : 0.25),
-			UiNumberFormatter.format(params.containsKey("energy") ? core.energy() : 1.0),
-			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "energyThreshold", 0.15)),
-			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "sequentialDelaySeconds", 0.0)),
-			String.valueOf(Math.max(1, (int) Math.round(EventParameterReaders.numericParam(params, "blocksPerBeat", 1.0)))),
-			UiNumberFormatter.format(EventParameterReaders.numericParam(
-				params, "distancePaceSecondsPerBlock", DistancePacing.DEFAULT_SECONDS_PER_BLOCK_UNIT)),
-			UiNumberFormatter.format(EventParameterReaders.numericParam(
-				params, "distancePaceMinGapSeconds", DistancePacing.DEFAULT_MIN_GAP_SECONDS)),
-			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraNearDistance", 8.0)),
-			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraFarDistance", 48.0)),
-			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraNearScale", 0.6)),
-			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraFarScale", 1.5)),
-			UiNumberFormatter.format(EventParameterReaders.numericParam(params, "cameraEdgePriority", 0.0)),
+			UiNumberFormatter.format(durationDisplay),
+			UiNumberFormatter.format(energyDisplay),
+			UiNumberFormatter.format(energyThresholdDisplay),
+			UiNumberFormatter.format(sequentialDelay),
+			String.valueOf(Math.max(1, step.blocksPerBeat())),
+			UiNumberFormatter.format(step.distancePaceSecondsPerBlock()),
+			UiNumberFormatter.format(step.distancePaceMinGapSeconds()),
+			UiNumberFormatter.format(step.cameraNearDistance()),
+			UiNumberFormatter.format(step.cameraFarDistance()),
+			UiNumberFormatter.format(step.cameraNearScale()),
+			UiNumberFormatter.format(step.cameraFarScale()),
+			UiNumberFormatter.format(step.cameraEdgePriority()),
 			placeBlock,
 			flashBlock,
 			camSegDuration,
@@ -712,27 +727,61 @@ public final class EventPropertiesPresenter {
 	}
 
 	public AnimationEditorViewState readAnimationEditorState(Map<String, Object> params) {
-		AnimationEventParams core = EventParameterReaders.animationParams(params);
 		Map<String, Object> safeParams = params != null ? params : Map.of();
+		StageEventPayload payload = StageEventPayloadCodec.decode(safeParams);
+
+		boolean inheritGroupSpatial = true;
+		boolean stepDispatch = false;
+		boolean cameraAdaptiveStep = false;
+		boolean cameraFrustumGating = false;
+		boolean usePhaseAnimation = false;
+		boolean vfxEnabled = true;
+		String stepStartMode = StepParams.DEFAULT.stepStartMode();
+		String stepCompletionMode = StepParams.DEFAULT.stepCompletionMode();
+		String pacingMode = StepParams.DEFAULT.pacingMode();
+		String spatialMode = SpatialParams.DEFAULT.mode().name();
+
+		if (payload instanceof StageEventPayload.Animate animate) {
+			inheritGroupSpatial = animate.spatial().inheritGroupSpatial();
+			stepDispatch = animate.dispatchModel() == DispatchModel.STEP;
+			StepParams step = animate.step();
+			cameraAdaptiveStep = step.cameraAdaptiveStep();
+			cameraFrustumGating = step.cameraFrustumGating();
+			usePhaseAnimation = step.usePhaseAnimation();
+			vfxEnabled = animate.vfxEnabled();
+			stepStartMode = step.stepStartMode();
+			stepCompletionMode = step.stepCompletionMode();
+			pacingMode = step.pacingMode();
+			spatialMode = animate.spatial().mode().name();
+		}
+
+		Map<String, Object> ext = payload.extensions();
 		return new AnimationEditorViewState(
-			core.animationType(),
-			core.targetObject(),
-			core.actionMode().name(),
-			EventParameterReaders.booleanParam(safeParams, "inheritGroupSpatial", true),
-			"STEP".equalsIgnoreCase(EventParameterReaders.stringParam(safeParams, "dispatchModel", "BURST")),
-			EventParameterReaders.booleanParam(safeParams, "cameraAdaptiveStep", false),
-			EventParameterReaders.booleanParam(safeParams, "cameraFrustumGating", false),
-			EventParameterReaders.booleanParam(safeParams, "usePhaseAnimation", false),
-			EventParameterReaders.booleanParam(safeParams, "vfxEnabled", true),
-			EventParameterReaders.stringParam(safeParams, "stepStartMode", "NEXT_BEAT"),
-			EventParameterReaders.stringParam(safeParams, "stepCompletionMode", "KEEP"),
-			EventParameterReaders.stringParam(safeParams, "pacingMode", "BEAT_GRID"),
-			EventParameterReaders.stringParam(safeParams, "spatialMode", "ALL"),
-			EventParameterReaders.stringParam(safeParams, "mappingProfile", "manual"),
-			EventParameterReaders.stringParam(safeParams, "sourceStem", "-"),
-			EventParameterReaders.stringParam(safeParams, "sourceFeature"),
-			EventParameterReaders.stringParam(safeParams, "generatedBy")
+			payload.animationType(),
+			payload.targetObject(),
+			payload.actionMode().name(),
+			inheritGroupSpatial,
+			stepDispatch,
+			cameraAdaptiveStep,
+			cameraFrustumGating,
+			usePhaseAnimation,
+			vfxEnabled,
+			stepStartMode,
+			stepCompletionMode,
+			pacingMode,
+			spatialMode,
+			stringExt(ext, "mappingProfile", "manual"),
+			stringExt(ext, "sourceStem", "-"),
+			stringExt(ext, "sourceFeature", ""),
+			stringExt(ext, "generatedBy", "")
 		);
+	}
+
+	private static String stringExt(Map<String, Object> ext, String key, String fallback) {
+		if (ext == null || !ext.containsKey(key) || ext.get(key) == null) {
+			return fallback;
+		}
+		return String.valueOf(ext.get(key));
 	}
 
 	private static EventPropertiesFormSnapshot emptyFormSnapshot(String refKey) {
@@ -807,6 +856,13 @@ public final class EventPropertiesPresenter {
 			return null;
 		}
 		for (TimelineEvent event : clip.getEvents()) {
+			StageEventPayload payload = StageEventPayloadCodec.decode(event.getParameters());
+			if (payload instanceof StageEventPayload.Build build
+				&& build.layerId() != null
+				&& !build.layerId().isBlank()) {
+				return build.layerId();
+			}
+			// 兼容：actionMode 尚未标 BUILD 时 map 仍可能带 layerId
 			Object raw = event.getParameters().get("layerId");
 			if (raw != null && !raw.toString().isBlank()) {
 				return raw.toString();

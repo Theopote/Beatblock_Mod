@@ -200,7 +200,34 @@ class EventPropertiesPresenterTest {
 		assertEquals("2.50", snapshot.time());
 		assertEquals("0.75", snapshot.duration());
 		assertEquals("0.50", snapshot.energy());
-		assertEquals("pulse", presenter.readAnimationEditorState(event.getParameters()).animationId());
+		assertEquals("0.15", snapshot.energyThreshold()); // 缺省 UI 值
+		AnimationEditorViewState state = presenter.readAnimationEditorState(event.getParameters());
+		assertEquals("pulse", state.animationId());
+		assertEquals("ANIMATE", state.actionMode());
+		assertFalse(state.stepDispatch());
+	}
+
+	@Test
+	void readAnimationEditorStateReadsStepPayloadFields() {
+		Map<String, Object> params = Map.of(
+			"actionMode", "ANIMATE",
+			"animationType", "BlockJump",
+			"targetObject", "target-1",
+			"dispatchModel", "STEP",
+			"inheritGroupSpatial", false,
+			"spatialMode", "RADIAL",
+			"blocksPerBeat", 3,
+			"cameraFrustumGating", true,
+			"mappingProfile", "kick",
+			"generatedBy", "binding"
+		);
+		AnimationEditorViewState state = presenter.readAnimationEditorState(params);
+		assertTrue(state.stepDispatch());
+		assertEquals("RADIAL", state.spatialMode());
+		assertFalse(state.inheritGroupSpatial());
+		assertTrue(state.cameraFrustumGating());
+		assertEquals("kick", state.mappingProfile());
+		assertEquals("binding", state.generatedBy());
 	}
 
 	@Test

@@ -44,6 +44,12 @@ public final class StepBurstEventFactory {
 		return "STEP".equalsIgnoreCase(String.valueOf(params.get("dispatchModel")).trim());
 	}
 
+	/** 强类型入口：优先读 {@link TimelineAnimationEvent#getPayload()}。 */
+	public static boolean isStepDispatch(TimelineAnimationEvent event) {
+		if (event == null) return false;
+		return event.getPayload().isStepDispatch();
+	}
+
 	public static List<TimelineAnimationEvent> expand(
 		TimelineAnimationEvent stepEvent,
 		StageObject target,
@@ -65,7 +71,7 @@ public final class StepBurstEventFactory {
 		if (stepEvent == null || target == null || target.getBlocks().isEmpty()) {
 			return List.of();
 		}
-		if (!isStepDispatch(stepEvent.getParameters())) {
+		if (!isStepDispatch(stepEvent)) {
 			return List.of();
 		}
 

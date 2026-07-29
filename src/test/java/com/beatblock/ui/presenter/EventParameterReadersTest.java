@@ -53,5 +53,9 @@ class EventParameterReadersTest {
 		var fromEvent = EventParameterReaders.animationParams(event);
 		assertEquals(TimelineAnimationActionMode.ANIMATE, fromEvent.actionMode());
 		assertEquals("pulse", fromEvent.animationType());
+
+		var payload = EventParameterReaders.stagePayload(params);
+		assertEquals(TimelineAnimationActionMode.BUILD, payload.actionMode());
+		assertEquals("stage", payload.targetObject());
 	}
 }
