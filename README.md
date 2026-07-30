@@ -123,7 +123,7 @@ python -c "import demucs.api, torch; print('ok')"
 
 - 仅支持 **Python 3.10–3.12**（3.13+ 可能与 torch  wheels 不兼容）
 - CPU 可运行但较慢；有 NVIDIA GPU 时 torch 会自动使用 CUDA（视 pip 安装的 torch 版本而定）
-- 模组可在分析前**自动尝试** `pip install` 缺失依赖；失败时面板会给出上述手动命令
+- 模组仅在**环境设置向导**中、经你点击"一键安装依赖"后才会尝试安装；不会后台静默安装。默认只安装基础分析依赖，**Demucs 默认不勾选**。
 - 不需要 Demucs 时**不要**安装 `requirements-demucs.txt`，可显著减少磁盘占用
 
 #### 游戏内检测

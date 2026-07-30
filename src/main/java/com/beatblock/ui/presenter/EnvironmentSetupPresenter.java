@@ -3,6 +3,7 @@ package com.beatblock.ui.presenter;
 import com.beatblock.audio.AnalysisCancelControl;
 import com.beatblock.audio.AnalyzerInstaller;
 import com.beatblock.audio.python.PythonEnvironmentDiagnostics;
+import com.beatblock.audio.python.PythonVirtualEnvironment;
 import com.beatblock.ui.preferences.UiPreferences;
 
 import java.nio.file.Path;
@@ -31,7 +32,8 @@ public final class EnvironmentSetupPresenter {
 		String progressStep,
 		int progressPercent,
 		boolean installDemucs,
-		PythonEnvironmentDiagnostics.RuntimeHealthSnapshot health
+		PythonEnvironmentDiagnostics.RuntimeHealthSnapshot health,
+		String venvPath
 	) {
 		public static ViewState checking() {
 			return new ViewState(
@@ -40,7 +42,8 @@ public final class EnvironmentSetupPresenter {
 				"",
 				0,
 				false,
-				PythonEnvironmentDiagnostics.RuntimeHealthSnapshot.empty()
+				PythonEnvironmentDiagnostics.RuntimeHealthSnapshot.empty(),
+				""
 			);
 		}
 	}
@@ -113,7 +116,8 @@ public final class EnvironmentSetupPresenter {
 			viewState.progressStep(),
 			viewState.progressPercent(),
 			installDemucs,
-			viewState.health()
+			viewState.health(),
+			viewState.venvPath()
 		);
 	}
 
@@ -135,7 +139,8 @@ public final class EnvironmentSetupPresenter {
 			"ENV_VENV",
 			0,
 			viewState.installDemucs(),
-			viewState.health()
+			viewState.health(),
+			viewState.venvPath()
 		);
 
 		boolean installDemucs = viewState.installDemucs();
@@ -152,7 +157,8 @@ public final class EnvironmentSetupPresenter {
 						step,
 						percent,
 						installDemucs,
-						viewState.health()
+						viewState.health(),
+						viewState.venvPath()
 					)
 				);
 				if (error != null) {
@@ -199,13 +205,15 @@ public final class EnvironmentSetupPresenter {
 
 				PythonEnvironmentDiagnostics.RuntimeHealthSnapshot health =
 					diagnostics.probeRuntimeHealth(configDir);
+				String venvPath = PythonVirtualEnvironment.venvDirectory(configDir).toString();
 				viewState = new ViewState(
 					viewState.phase(),
 					viewState.statusMessage(),
 					viewState.progressStep(),
 					viewState.progressPercent(),
 					viewState.installDemucs(),
-					health
+					health,
+					venvPath
 				);
 
 				if (isEnvironmentReady(health)) {
@@ -231,13 +239,15 @@ public final class EnvironmentSetupPresenter {
 
 	private void refreshHealthSnapshot(Path configDir) {
 		PythonEnvironmentDiagnostics.RuntimeHealthSnapshot health = diagnostics.probeRuntimeHealth(configDir);
+		String venvPath = PythonVirtualEnvironment.venvDirectory(configDir).toString();
 		viewState = new ViewState(
 			viewState.phase(),
 			viewState.statusMessage(),
 			viewState.progressStep(),
 			viewState.progressPercent(),
 			viewState.installDemucs(),
-			health
+			health,
+			venvPath
 		);
 	}
 
@@ -262,7 +272,8 @@ public final class EnvironmentSetupPresenter {
 			viewState.progressStep(),
 			viewState.progressPercent(),
 			viewState.installDemucs(),
-			viewState.health()
+			viewState.health(),
+			viewState.venvPath()
 		);
 	}
 

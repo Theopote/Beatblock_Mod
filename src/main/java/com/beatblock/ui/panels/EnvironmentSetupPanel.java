@@ -89,6 +89,10 @@ public final class EnvironmentSetupPanel {
 		if (health == null || state.phase() == EnvironmentSetupPresenter.Phase.CHECKING) {
 			return;
 		}
+		if (!state.venvPath().isBlank()) {
+			ImGui.textDisabled(BBTexts.get("beatblock.env_setup.venv_path", state.venvPath()));
+			ImGui.spacing();
+		}
 		renderHealthLine("Python", health.python());
 		renderHealthLine("pip", health.pip());
 		renderHealthLine("librosa", health.librosa());

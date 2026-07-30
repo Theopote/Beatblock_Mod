@@ -1001,6 +1001,7 @@
   "beatblock.env_setup.progress.venv": "Creating Python virtual environment...",
   "beatblock.env_setup.progress.deps": "Installing librosa / numpy and base dependencies...",
   "beatblock.env_setup.progress.demucs": "Installing Demucs / PyTorch...",
+  "beatblock.env_setup.venv_path": "Environment: %s",
   "beatblock.toast.env_setup.complete": "Audio analysis environment installed",
   "beatblock.timeline.edit_tools": "Edit",
 

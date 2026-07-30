@@ -1085,6 +1085,7 @@
   "beatblock.env_setup.progress.venv": "正在创建 Python 虚拟环境...",
   "beatblock.env_setup.progress.deps": "正在安装 librosa / numpy 等基础依赖...",
   "beatblock.env_setup.progress.demucs": "正在安装 Demucs / PyTorch...",
+  "beatblock.env_setup.venv_path": "环境位置：%s",
   "beatblock.toast.env_setup.complete": "音频分析环境安装完成",
 
   "beatblock.timeline.record.section": "录制",
