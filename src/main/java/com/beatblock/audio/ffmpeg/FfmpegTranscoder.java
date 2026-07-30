@@ -31,12 +31,13 @@ public final class FfmpegTranscoder {
 		Path fallbackOutputDir,
 		ProgressListener onProgress
 	) {
-		return transcodeToMp3(inputAudio, fallbackOutputDir, FfmpegLocator::resolveExecutable, onProgress);
+		return transcodeToMp3(inputAudio, fallbackOutputDir, null, FfmpegLocator::resolveExecutable, onProgress);
 	}
 
 	static FfmpegTranscodeOutcome transcodeToMp3(
 		Path inputAudio,
 		Path fallbackOutputDir,
+		com.beatblock.audio.AudioConversionCancelControl control,
 		ExecutableResolver executableResolver,
 		ProgressListener onProgress
 	) {
