@@ -187,10 +187,8 @@ tasks.register('spotbugsMain', JavaExec) {
 		setArgs([
 			'-effort:max',
 			'-medium',
-			'-html',
-			'-output', htmlReport.absolutePath,
 			'-xml',
-			'-outputFile', xmlReport.absolutePath,
+			'-output', xmlReport.absolutePath,
 			'-exclude', excludeFile.absolutePath,
 			'-onlyAnalyze', 'com.beatblock.-',
 			'-auxclasspath', sourceSets.main.compileClasspath.asPath,
@@ -199,7 +197,44 @@ tasks.register('spotbugsMain', JavaExec) {
 	}
 }
 
-check.dependsOn spotbugsMain
+check.dependsOn spotbugsCheck
+
+tasks.register('spotbugsCheck') {
+	group = 'verification'
+	description = 'Ensure SpotBugs bug count does not exceed the baseline in config/spotbugs/baseline.txt'
+	dependsOn spotbugsMain
+
+	def baselineFile = file('config/spotbugs/baseline.txt')
+	def reportFile = file(layout.buildDirectory.file('reports/spotbugs/main/spotbugs.xml'))
+
+	inputs.file reportFile
+	outputs.file layout.buildDirectory.file('reports/spotbugs/spotbugs-check-result.txt')
+
+	doLast {
+		if (!reportFile.exists()) {
+			throw new GradleException("SpotBugs XML report not found: ${reportFile}")
+		}
+		def bugCount = 0
+		reportFile.eachLine { line ->
+			if (line.contains('<BugInstance')) bugCount++
+		}
+		def baseline = 0
+		if (baselineFile.exists()) {
+			baseline = baselineFile.text.trim().toInteger()
+		} else {
+			throw new GradleException("SpotBugs baseline file not found: ${baselineFile}. Run spotbugsMain and set the baseline to the current bug count (${bugCount}).")
+		}
+		def resultFile = layout.buildDirectory.file('reports/spotbugs/spotbugs-check-result.txt').get().asFile
+		resultFile.parentFile.mkdirs()
+		resultFile.text = "SpotBugs bugs: ${bugCount} (baseline: ${baseline})\n"
+		if (bugCount > baseline) {
+			throw new GradleException("SpotBugs bug count ${bugCount} exceeds baseline ${baseline}. Fix or update config/spotbugs/baseline.txt after reviewing the report.")
+		}
+		logger.lifecycle("SpotBugs bug count ${bugCount} is within baseline ${baseline}.")
+	}
+}
+
+check.dependsOn spotbugsCheck
 
 tasks.register('compileNullaway') {
 	group = 'verification'

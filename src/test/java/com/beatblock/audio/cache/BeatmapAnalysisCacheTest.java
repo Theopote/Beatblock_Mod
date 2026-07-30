@@ -34,6 +34,24 @@ class BeatmapAnalysisCacheTest {
 		assertFalse(Files.exists(stem));
 	}
 
+	@Test
+	void sameNameDifferentPathsGetDifferentBeatmapPaths() throws Exception {
+		Path outputDir = Files.createDirectory(tempDir.resolve("out"));
+		Path a = tempDir.resolve("folder-a").resolve("song.mp3");
+		Path b = tempDir.resolve("folder-b").resolve("song.mp3");
+		Files.createDirectories(a.getParent());
+		Files.createDirectories(b.getParent());
+		Files.writeString(a, "a");
+		Files.writeString(b, "b");
+
+		Path basicA = BeatmapAnalysisCache.buildBeatmapPath(outputDir, a, false);
+		Path basicB = BeatmapAnalysisCache.buildBeatmapPath(outputDir, b, false);
+
+		assertFalse(basicA.equals(basicB), "同名不同路径音频不得生成相同缓存文件");
+		assertTrue(basicA.getFileName().toString().startsWith("song-"));
+		assertTrue(basicB.getFileName().toString().startsWith("song-"));
+	}
+
 	private static Beatmap beatmapWithStem(String stemPath) {
 		BeatmapMeta meta = new BeatmapMeta(
 			"song.wav", 1_000, 120, 1, "4/4", 44_100, "", "3.0.0",

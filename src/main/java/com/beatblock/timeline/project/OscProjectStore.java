@@ -75,7 +75,9 @@ public final class OscProjectStore {
 		}
 		root.add("animationTracks", TimelineAnimationPersistence.toJson(timeline));
 
-		Files.writeString(abs, GSON.toJson(root), StandardCharsets.UTF_8);
+		Path temp = abs.resolveSibling(abs.getFileName() + ".tmp");
+		Files.writeString(temp, GSON.toJson(root), StandardCharsets.UTF_8);
+		Files.move(temp, abs, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
 
 		// 回写到 timeline，确保后续 UI 隔离键稳定。
 		timeline.setMetadata("projectId", projectId);

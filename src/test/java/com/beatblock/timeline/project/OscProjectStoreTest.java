@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -184,18 +185,34 @@ class OscProjectStoreTest {
 	}
 
 	@Test
-	void v2ProjectWithoutAnimationTracksStillLoads() throws Exception {
-		Path file = tempDir.resolve("v2.osc");
-		Files.writeString(file, """
-			{"version": 2, "projectId": "v2-id", "timelineName": "V2", "audioPath": "", "markers": []}
-			""");
+	void saveUsesAtomicWriteAndDoesNotLeaveTempFile() throws Exception {
+		Path file = tempDir.resolve("atomic.osc");
+		Timeline timeline = Timeline.createDefault();
+		timeline.setName("First");
+		OscProjectStore.save(file, timeline);
 
-		Timeline restored = Timeline.createDefault();
-		restored.addAutoAnimationEvent(new TimelineAnimationEvent(
-			"old", 1.0, 1.0, "build", "stage", 1f, Map.of()));
-		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file, null, restored);
+		timeline.setName("Second");
+		OscProjectStore.save(file, timeline);
 
-		assertEquals("v2-id", loaded.getProjectId());
-		assertTrue(restored.getAutoAnimationEvents().isEmpty());
+		assertFalse(Files.exists(tempDir.resolve("atomic.osc.tmp")), "原子保存不应残留临时文件");
+		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file);
+		assertEquals("Second", loaded.getTimelineName());
+	}
+
+	@Test
+	void saveFailurePreservesOriginalFile() throws Exception {
+		Path file = tempDir.resolve("preserve.osc");
+		Timeline timeline = Timeline.createDefault();
+		timeline.setName("Original");
+		OscProjectStore.save(file, timeline);
+
+		Timeline broken = new Timeline() {
+			@Override public String getName() { throw new RuntimeException("boom"); }
+		};
+		assertThrows(Exception.class, () -> OscProjectStore.save(file, broken));
+
+		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file);
+		assertEquals("Original", loaded.getTimelineName());
+		assertFalse(Files.exists(tempDir.resolve("preserve.osc.tmp")), "保存失败不应残留临时文件");
 	}
 }
