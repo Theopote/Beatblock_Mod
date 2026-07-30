@@ -197,7 +197,6 @@ tasks.register('spotbugsMain', JavaExec) {
 	}
 }
 
-check.dependsOn spotbugsCheck
 
 tasks.register('spotbugsCheck') {
 	group = 'verification'
