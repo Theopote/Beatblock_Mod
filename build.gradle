@@ -174,6 +174,7 @@ tasks.register('spotbugsMain', JavaExec) {
 	mainClass = 'edu.umd.cs.findbugs.FindBugs2'
 
 	def htmlReport = spotbugsReportDir.get().file('index.html').asFile
+	def xmlReport = spotbugsReportDir.get().file('spotbugs.xml').asFile
 	def excludeFile = file('config/spotbugs/exclude.xml')
 
 	doFirst {
@@ -188,6 +189,8 @@ tasks.register('spotbugsMain', JavaExec) {
 			'-medium',
 			'-html',
 			'-output', htmlReport.absolutePath,
+			'-xml',
+			'-outputFile', xmlReport.absolutePath,
 			'-exclude', excludeFile.absolutePath,
 			'-onlyAnalyze', 'com.beatblock.-',
 			'-auxclasspath', sourceSets.main.compileClasspath.asPath,
