@@ -19,8 +19,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 /**
@@ -207,41 +210,37 @@ public final class PythonAudioAnalyzer implements IAudioAnalyzer {
 
 		int exitCode;
 		try {
-			exitCode = process.waitFor();
+			// 轮询等待：避免 process.waitFor() 无限阻塞，确保取消信号能快速释放工作线程。
+			while (!process.waitFor(500, TimeUnit.MILLISECONDS)) {
+				if (control.isCancelled() || Thread.currentThread().isInterrupted()) {
+					process.destroyForcibly();
+					stdoutTask.cancel(true);
+					stderrTask.cancel(true);
+					stdoutThread.interrupt();
+					stderrThread.interrupt();
+					try { process.getInputStream().close(); } catch (IOException ignored) {}
+					try { process.getErrorStream().close(); } catch (IOException ignored) {}
+					onError.accept("分析被取消");
+					return;
+				}
+			}
+			exitCode = process.exitValue();
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			process.destroyForcibly();
 			stdoutTask.cancel(true);
 			stderrTask.cancel(true);
+			stdoutThread.interrupt();
+			stderrThread.interrupt();
 			onError.accept("分析被中断");
 			return;
 		} finally {
 			control.clearProcess(process);
 		}
 
-		String stderrText;
-		try {
-			stdoutResult = AnalyzerProcessIo.parseStdoutResult(stdoutTask.get());
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			process.destroyForcibly();
-			onError.accept("读取 Python 输出时被中断");
-			return;
-		} catch (ExecutionException e) {
-			onError.accept("读取 Python 输出失败：" + ProcessIo.rootMessage(e));
-			return;
-		}
-
-		try {
-			stderrText = stderrTask.get();
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			process.destroyForcibly();
-			onError.accept("读取 Python 错误输出时被中断");
-			return;
-		} catch (ExecutionException e) {
-			stderrText = "读取 stderr 失败：" + ProcessIo.rootMessage(e);
-		}
+		String stdoutRaw = drainWithTimeout(stdoutTask, stdoutThread, process.getInputStream(), 5, TimeUnit.SECONDS);
+		String stderrText = drainWithTimeout(stderrTask, stderrThread, process.getErrorStream(), 5, TimeUnit.SECONDS);
+		stdoutResult = AnalyzerProcessIo.parseStdoutResult(stdoutRaw);
 
 		if (exitCode != 0) {
 			String detail = ProcessIo.sanitizeProcessOutput(stderrText);
@@ -285,6 +284,33 @@ public final class PythonAudioAnalyzer implements IAudioAnalyzer {
 			onComplete.accept(beatmap);
 		} catch (Exception e) {
 			onError.accept("读取 beatmap 文件失败：" + e.getMessage());
+		}
+	}
+
+	/**
+	 * 限时获取 FutureTask 结果；超时则取消任务、中断线程并关闭流，避免工作线程被阻塞。
+	 */
+	private static String drainWithTimeout(FutureTask<String> task, Thread thread, java.io.InputStream stream,
+		long timeout, TimeUnit unit) {
+		try {
+			return task.get(timeout, unit);
+		} catch (TimeoutException | CancellationException e) {
+			task.cancel(true);
+			thread.interrupt();
+			try { stream.close(); } catch (IOException ignored) {}
+			return "";
+		} catch (InterruptedException e) {
+			task.cancel(true);
+			thread.interrupt();
+			try { stream.close(); } catch (IOException ignored) {}
+			Thread.currentThread().interrupt();
+			return "";
+		} catch (ExecutionException e) {
+			Throwable cause = e.getCause();
+			if (cause instanceof IOException) {
+				return "";
+			}
+			return "";
 		}
 	}
 }

@@ -29,6 +29,14 @@ public final class ProcessIo {
 	 * 若超时，则中断读取线程并关闭输入流，避免阻塞工作线程。
 	 */
 	public static String readProcessOutput(Process process, long timeout, TimeUnit unit) throws IOException {
+		return readProcessOutput(process, timeout, unit, null);
+	}
+
+	/**
+	 * 在指定时限内读取进程输出，并响应外部取消信号。
+	 */
+	public static String readProcessOutput(Process process, long timeout, TimeUnit unit,
+		com.beatblock.audio.AnalysisCancelControl control) throws IOException {
 		FutureTask<String> task = new FutureTask<>(() -> {
 			StringBuilder sb = new StringBuilder();
 			try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
@@ -41,12 +49,33 @@ public final class ProcessIo {
 		reader.setDaemon(true);
 		reader.start();
 		try {
-			return task.get(timeout, unit);
-		} catch (TimeoutException e) {
-			task.cancel(true);
-			reader.interrupt();
-			try { process.getInputStream().close(); } catch (IOException ignored) {}
-			return "";
+			long slice = Math.min(100, unit.toMillis(timeout));
+			long deadline = System.nanoTime() + unit.toNanos(timeout);
+			while (!task.isDone()) {
+				try {
+					return task.get(slice, TimeUnit.MILLISECONDS);
+				} catch (TimeoutException e) {
+					if (control != null && control.isCancelled()) {
+						task.cancel(true);
+						reader.interrupt();
+						try { process.getInputStream().close(); } catch (IOException ignored) {}
+						return "";
+					}
+					if (System.nanoTime() >= deadline) {
+						task.cancel(true);
+						reader.interrupt();
+						try { process.getInputStream().close(); } catch (IOException ignored) {}
+						return "";
+					}
+					if (Thread.currentThread().isInterrupted()) {
+						task.cancel(true);
+						reader.interrupt();
+						try { process.getInputStream().close(); } catch (IOException ignored) {}
+						throw new InterruptedException();
+					}
+				}
+			}
+			return task.get();
 		} catch (InterruptedException e) {
 			task.cancel(true);
 			reader.interrupt();
@@ -61,7 +90,7 @@ public final class ProcessIo {
 
 	public static int waitProcess(Process process) {
 		try {
-			return waitProcess(process, 5, TimeUnit.MINUTES);
+			return waitProcess(process, 5, TimeUnit.MINUTES, null);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			process.destroyForcibly();
@@ -69,13 +98,21 @@ public final class ProcessIo {
 		}
 	}
 
+	public static int waitProcess(Process process, long timeout, TimeUnit unit) throws InterruptedException {
+		return waitProcess(process, timeout, unit, null);
+	}
+
 	/**
 	 * 等待进程退出，但每 100ms 检查一次，避免无限期阻塞。
 	 * 超时后强制 destroy 并再给 5 秒宽限期；若仍未退出则返回 -1。
 	 */
-	public static int waitProcess(Process process, long timeout, TimeUnit unit) throws InterruptedException {
+	public static int waitProcess(Process process, long timeout, TimeUnit unit,
+		com.beatblock.audio.AnalysisCancelControl control) throws InterruptedException {
 		long deadline = System.nanoTime() + unit.toNanos(timeout);
 		while (!process.waitFor(100, TimeUnit.MILLISECONDS)) {
+			if (control != null && control.isCancelled()) {
+				process.destroyForcibly();
+			}
 			if (Thread.currentThread().isInterrupted()) {
 				process.destroyForcibly();
 				throw new InterruptedException();
@@ -88,6 +125,17 @@ public final class ProcessIo {
 			}
 		}
 		return process.exitValue();
+	}
+
+	public static int waitProcessCancellable(Process process, long timeout, TimeUnit unit,
+		com.beatblock.audio.AnalysisCancelControl control) {
+		try {
+			return waitProcess(process, timeout, unit, control);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			process.destroyForcibly();
+			return -1;
+		}
 	}
 
 	public static String sanitizeProcessOutput(String raw) {
