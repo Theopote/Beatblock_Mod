@@ -8,14 +8,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,7 +29,8 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 			this.sequence = sequence;
 			this.taskId = taskId;
 			this.audioPath = audioPath;
-		}
+            delegate = null;
+        }
 
 		boolean cancel() {
 			return cancel(true);
@@ -50,11 +44,9 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 					if (!state.compareAndSet(current, AnalysisTaskState.CANCELLED)) continue;
 					control.cancelRunningProcess();
 					FutureTask<Void> task = delegate;
-					if (task != null) {
-						task.cancel(false);
-						executor.remove(task);
-					}
-					removeRegistration(this);
+                    task.cancel(false);
+                    executor.remove(task);
+                    removeRegistration(this);
 					return true;
 				}
 				// STARTING / RUNNING
@@ -62,7 +54,7 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 				if (!state.compareAndSet(current, AnalysisTaskState.CANCELLING)) continue;
 				control.cancelRunningProcess();
 				FutureTask<Void> task = delegate;
-				if (task != null) task.cancel(true);
+                task.cancel(true);
 				return true;
 			}
 		}
@@ -220,7 +212,7 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 			@Override public boolean isDone() { return registered.delegate.isDone(); }
 			@Override public Object get() throws InterruptedException, ExecutionException { return registered.delegate.get(); }
 			@Override public Object get(long timeout, @NonNull TimeUnit unit)
-				throws InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
+				throws InterruptedException, ExecutionException, TimeoutException {
 				return registered.delegate.get(timeout, unit);
 			}
 		};
