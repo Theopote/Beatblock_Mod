@@ -5,57 +5,78 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-/**
- * 统一调度音频分析任务的生命周期：单线程串行执行、按 ID 取消、关闭时清理。
- */
+/** Serial audio-analysis scheduler with latest-wins replacement and observable task state. */
 public final class AudioAnalysisOrchestrator implements AutoCloseable {
 
-	private static final class RegisteredTask {
-		final AnalysisCancelControl control;
-		final Future<?> future;
+	private final class RegisteredTask {
+		final long sequence;
+		final @Nullable String taskId;
+		final Path audioPath;
+		final AnalysisCancelControl control = new AnalysisCancelControl();
+		final AtomicReference<AnalysisTaskState> state = new AtomicReference<>(AnalysisTaskState.QUEUED);
+		volatile FutureTask<Void> delegate;
 
-		RegisteredTask(AnalysisCancelControl control, Future<?> future) {
-			this.control = control;
-			this.future = future;
+		RegisteredTask(long sequence, @Nullable String taskId, Path audioPath) {
+			this.sequence = sequence;
+			this.taskId = taskId;
+			this.audioPath = audioPath;
 		}
 
 		boolean cancel() {
-			control.cancelRunningProcess();
-			return future.cancel(true);
+			while (true) {
+				AnalysisTaskState current = state.get();
+				if (current.isTerminal() || current == AnalysisTaskState.CANCELLING) return false;
+				AnalysisTaskState next = current == AnalysisTaskState.QUEUED
+					? AnalysisTaskState.CANCELLED : AnalysisTaskState.CANCELLING;
+				if (!state.compareAndSet(current, next)) continue;
+				control.cancelRunningProcess();
+				FutureTask<Void> task = delegate;
+				if (task != null) {
+					task.cancel(true);
+					if (next == AnalysisTaskState.CANCELLED) executor.remove(task);
+				}
+				if (next == AnalysisTaskState.CANCELLED) removeRegistration(this);
+				return true;
+			}
 		}
 	}
 
 	private final IAudioAnalyzer analyzer;
-	private final ExecutorService executor;
+	private final ThreadPoolExecutor executor;
 	private final MainThreadDispatcher callbackDispatcher;
 	private final ConcurrentHashMap<String, RegisteredTask> tasksById = new ConcurrentHashMap<>();
+	private final ConcurrentHashMap<Long, RegisteredTask> activeTasks = new ConcurrentHashMap<>();
+	private final AtomicLong nextSequence = new AtomicLong();
 
 	public AudioAnalysisOrchestrator(@NonNull IAudioAnalyzer analyzer) {
 		this(analyzer, MainThreadDispatcher.immediate());
 	}
 
-	public AudioAnalysisOrchestrator(
-		@NonNull IAudioAnalyzer analyzer,
-		@NonNull MainThreadDispatcher callbackDispatcher
-	) {
+	public AudioAnalysisOrchestrator(@NonNull IAudioAnalyzer analyzer, @NonNull MainThreadDispatcher callbackDispatcher) {
 		this.analyzer = analyzer;
 		this.callbackDispatcher = callbackDispatcher;
-		this.executor = Executors.newSingleThreadExecutor(r -> {
-			Thread t = new Thread(r, "beatblock-analyzer");
-			t.setDaemon(true);
-			return t;
-		});
+		this.executor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+			new LinkedBlockingQueue<>(), runnable -> {
+				Thread thread = new Thread(runnable, "beatblock-analyzer");
+				thread.setDaemon(true);
+				return thread;
+			});
 	}
 
 	public @NonNull IAudioAnalyzer getAnalyzer() {
@@ -72,94 +93,88 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		@Nullable Consumer<AnalysisSummary> onSummary,
 		@Nullable Runnable onStarted
 	) {
-		AnalysisCancelControl control = new AnalysisCancelControl();
-		@Nullable String normalizedTaskId = normalizeTaskId(taskId);
+		String normalizedTaskId = normalizeTaskId(taskId);
+		RegisteredTask registered = new RegisteredTask(nextSequence.incrementAndGet(), normalizedTaskId, audioPath);
+		AtomicBoolean failed = new AtomicBoolean();
 		AnalysisProgressCallback progressCallback = onProgress != null
-			? (step, pct) -> dispatch(control, () -> onProgress.onProgress(step, pct))
-			: (step, pct) -> {};
+			? (step, pct) -> dispatch(registered.control, () -> onProgress.onProgress(step, pct)) : (step, pct) -> {};
 		Consumer<Beatmap> completeCallback = onComplete != null
-			? beatmap -> dispatch(control, () -> onComplete.accept(beatmap))
-			: beatmap -> {};
-		Consumer<String> errorCallback = onError != null
-			? error -> dispatch(control, () -> onError.accept(error))
-			: error -> {};
+			? beatmap -> dispatch(registered.control, () -> onComplete.accept(beatmap)) : beatmap -> {};
+		Consumer<String> errorCallback = error -> {
+			failed.set(true);
+			if (onError != null) dispatch(registered.control, () -> onError.accept(error));
+		};
 		Consumer<AnalysisSummary> summaryCallback = onSummary != null
-			? summary -> dispatch(control, () -> onSummary.accept(summary))
-			: null;
+			? summary -> dispatch(registered.control, () -> onSummary.accept(summary)) : null;
 
-		AtomicReference<RegisteredTask> taskRef = new AtomicReference<>();
 		FutureTask<Void> delegate = new FutureTask<>(() -> {
+			if (!registered.state.compareAndSet(AnalysisTaskState.QUEUED, AnalysisTaskState.STARTING)) return null;
 			try {
-				if (onStarted != null) {
-					dispatch(control, onStarted);
-				}
-				analyzer.analyze(
-					audioPath,
-					options,
-					progressCallback,
-					completeCallback,
-					errorCallback,
-					summaryCallback,
-					control
-				);
+				if (onStarted != null) dispatch(registered.control, onStarted);
+				if (!registered.state.compareAndSet(AnalysisTaskState.STARTING, AnalysisTaskState.RUNNING)) return null;
+				analyzer.analyze(audioPath, options, progressCallback, completeCallback, errorCallback, summaryCallback,
+					registered.control);
+			} catch (RuntimeException | Error error) {
+				failed.set(true);
+				throw error;
 			} finally {
-				if (normalizedTaskId != null) {
-					tasksById.remove(normalizedTaskId, taskRef.get());
-				}
+				AnalysisTaskState current = registered.state.get();
+				AnalysisTaskState terminal = registered.control.isCancelled()
+					|| current == AnalysisTaskState.CANCELLING
+					? AnalysisTaskState.CANCELLED
+					: (failed.get() ? AnalysisTaskState.FAILED : AnalysisTaskState.SUCCEEDED);
+				registered.state.set(terminal);
+				removeRegistration(registered);
 			}
 			return null;
 		});
-
-		Future<?> wrapped = wrapCancelableFuture(delegate, control);
-		RegisteredTask registeredTask = new RegisteredTask(control, wrapped);
-		taskRef.set(registeredTask);
+		registered.delegate = delegate;
+		activeTasks.put(registered.sequence, registered);
 		if (normalizedTaskId != null) {
-			RegisteredTask previous = tasksById.put(normalizedTaskId, registeredTask);
-			if (previous != null) {
-				previous.cancel();
-			}
+			RegisteredTask previous = tasksById.put(normalizedTaskId, registered);
+			if (previous != null) previous.cancel();
 		}
 		try {
 			executor.execute(delegate);
 		} catch (RejectedExecutionException error) {
-			if (normalizedTaskId != null) {
-				tasksById.remove(normalizedTaskId, registeredTask);
-			}
-			registeredTask.cancel();
+			registered.cancel();
 			throw error;
 		}
-		return wrapped;
+		return cancellableFuture(registered);
 	}
 
 	private void dispatch(AnalysisCancelControl control, Runnable action) {
 		callbackDispatcher.execute(() -> {
-			if (!control.isCancelled()) {
-				action.run();
-			}
+			if (!control.isCancelled()) action.run();
 		});
 	}
 
 	public boolean cancel(@Nullable String taskId) {
 		String normalizedTaskId = normalizeTaskId(taskId);
-		if (normalizedTaskId == null) {
-			return false;
-		}
-		RegisteredTask task = tasksById.remove(normalizedTaskId);
-		if (task == null) {
-			return false;
-		}
-		return task.cancel();
+		if (normalizedTaskId == null) return false;
+		RegisteredTask task = tasksById.get(normalizedTaskId);
+		return task != null && task.cancel();
 	}
 
 	public void cancelAll() {
-		for (RegisteredTask task : tasksById.values()) {
-			task.cancel();
-		}
-		tasksById.clear();
+		for (RegisteredTask task : List.copyOf(activeTasks.values())) task.cancel();
 	}
 
 	public int activeTaskCount() {
-		return tasksById.size();
+		return activeTasks.size();
+	}
+
+	public @NonNull List<AnalysisTaskSnapshot> taskSnapshots() {
+		List<RegisteredTask> ordered = new ArrayList<>(activeTasks.values());
+		ordered.sort(Comparator.comparingLong(task -> task.sequence));
+		int queuedPosition = 0;
+		List<AnalysisTaskSnapshot> snapshots = new ArrayList<>(ordered.size());
+		for (RegisteredTask task : ordered) {
+			AnalysisTaskState state = task.state.get();
+			int position = state == AnalysisTaskState.QUEUED ? ++queuedPosition : 0;
+			snapshots.add(new AnalysisTaskSnapshot(task.sequence, task.taskId, task.audioPath, state, position));
+		}
+		return List.copyOf(snapshots);
 	}
 
 	public void shutdown() {
@@ -170,7 +185,7 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 				executor.shutdownNow();
 				executor.awaitTermination(2, TimeUnit.SECONDS);
 			}
-		} catch (InterruptedException e) {
+		} catch (InterruptedException error) {
 			executor.shutdownNow();
 			Thread.currentThread().interrupt();
 		}
@@ -181,41 +196,25 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		shutdown();
 	}
 
-	private static @Nullable String normalizeTaskId(@Nullable String taskId) {
-		if (taskId == null || taskId.isBlank()) {
-			return null;
-		}
-		return taskId;
+	private void removeRegistration(RegisteredTask task) {
+		activeTasks.remove(task.sequence, task);
+		if (task.taskId != null) tasksById.remove(task.taskId, task);
 	}
 
-	private static Future<?> wrapCancelableFuture(Future<?> delegate, AnalysisCancelControl control) {
+	private Future<?> cancellableFuture(RegisteredTask registered) {
 		return new Future<>() {
-			@Override
-			public boolean cancel(boolean mayInterruptIfRunning) {
-				control.cancelRunningProcess();
-				return delegate.cancel(true);
-			}
-
-			@Override
-			public boolean isCancelled() {
-				return delegate.isCancelled();
-			}
-
-			@Override
-			public boolean isDone() {
-				return delegate.isDone();
-			}
-
-			@Override
-			public Object get() throws InterruptedException, ExecutionException {
-				return delegate.get();
-			}
-
-			@Override
-			public Object get(long timeout, @NonNull TimeUnit unit)
+			@Override public boolean cancel(boolean mayInterruptIfRunning) { return registered.cancel(); }
+			@Override public boolean isCancelled() { return registered.delegate.isCancelled(); }
+			@Override public boolean isDone() { return registered.delegate.isDone(); }
+			@Override public Object get() throws InterruptedException, ExecutionException { return registered.delegate.get(); }
+			@Override public Object get(long timeout, @NonNull TimeUnit unit)
 				throws InterruptedException, ExecutionException, java.util.concurrent.TimeoutException {
-				return delegate.get(timeout, unit);
+				return registered.delegate.get(timeout, unit);
 			}
 		};
+	}
+
+	private static @Nullable String normalizeTaskId(@Nullable String taskId) {
+		return taskId == null || taskId.isBlank() ? null : taskId;
 	}
 }

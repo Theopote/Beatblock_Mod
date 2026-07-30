@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.concurrent.Future;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -145,6 +146,10 @@ public final class AudioAnalysisService {
 
 	public int getActiveAnalysisCount() {
 		return orchestrator.activeTaskCount();
+	}
+
+	public @NonNull List<AnalysisTaskSnapshot> getAnalysisTaskSnapshots() {
+		return orchestrator.taskSnapshots();
 	}
 
 	public void shutdown() {
