@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -311,6 +312,104 @@ class AudioAnalysisOrchestratorTest {
 				.orElseThrow();
 			assertTrue(worker.isDaemon());
 		} finally {
+			orchestrator.shutdown();
+		}
+	}
+
+	@Test
+	void futureCancelFalseDoesNotInterruptRunningTask() throws Exception {
+		CountDownLatch started = new CountDownLatch(1);
+		CountDownLatch released = new CountDownLatch(1);
+		AtomicBoolean completed = new AtomicBoolean();
+
+		IAudioAnalyzer analyzer = new IAudioAnalyzer() {
+			@Override public String backendId() { return "cancel-false-running"; }
+			@Override public boolean isAvailable() { return true; }
+			@Override
+			public void analyze(
+				Path audioPath,
+				AnalysisOptions options,
+				AnalysisProgressCallback onProgress,
+				Consumer<Beatmap> onComplete,
+				Consumer<String> onError,
+				Consumer<AnalysisSummary> onSummary,
+				AnalysisCancelControl control
+			) {
+				started.countDown();
+				try {
+					released.await(5, TimeUnit.SECONDS);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return;
+				}
+				onComplete.accept(new Beatmap(1, null, List.of(), List.of(), null, null));
+				completed.set(true);
+			}
+		};
+
+		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(analyzer);
+		try {
+			Future<?> future = orchestrator.submit(
+				"no-interrupt", Path.of("song.mp3"), AnalysisOptions.withDemucs(false),
+				(step, pct) -> {}, beatmap -> {}, error -> {}, null, null);
+			assertTrue(started.await(5, TimeUnit.SECONDS));
+			assertFalse(future.cancel(false));
+			assertEquals(1, orchestrator.activeTaskCount());
+			released.countDown();
+			assertTrue(waitUntil(() -> orchestrator.activeTaskCount() == 0, 2, TimeUnit.SECONDS));
+			assertTrue(completed.get());
+		} finally {
+			orchestrator.shutdown();
+		}
+	}
+
+	@Test
+	void futureCancelFalseRemovesQueuedTask() throws Exception {
+		CountDownLatch firstStarted = new CountDownLatch(1);
+		CountDownLatch releaseFirst = new CountDownLatch(1);
+
+		IAudioAnalyzer analyzer = new IAudioAnalyzer() {
+			@Override public String backendId() { return "cancel-false-queued"; }
+			@Override public boolean isAvailable() { return true; }
+			@Override
+			public void analyze(
+				Path audioPath,
+				AnalysisOptions options,
+				AnalysisProgressCallback onProgress,
+				Consumer<Beatmap> onComplete,
+				Consumer<String> onError,
+				Consumer<AnalysisSummary> onSummary,
+				AnalysisCancelControl control
+			) {
+				try {
+					if ("first.mp3".equals(String.valueOf(audioPath.getFileName()))) {
+						firstStarted.countDown();
+						releaseFirst.await(5, TimeUnit.SECONDS);
+					}
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+				onComplete.accept(new Beatmap(1, null, List.of(), List.of(), null, null));
+			}
+		};
+
+		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(analyzer);
+		try {
+			orchestrator.submit(
+				"task-1", Path.of("first.mp3"), AnalysisOptions.withDemucs(false),
+				(step, pct) -> {}, beatmap -> {}, error -> {}, null, null);
+			assertTrue(firstStarted.await(5, TimeUnit.SECONDS));
+
+			Future<?> queued = orchestrator.submit(
+				"task-2", Path.of("second.mp3"), AnalysisOptions.withDemucs(false),
+				(step, pct) -> {}, beatmap -> {}, error -> {}, null, null);
+			assertEquals(2, orchestrator.activeTaskCount());
+
+			assertTrue(queued.cancel(false));
+			assertTrue(waitUntil(() -> orchestrator.activeTaskCount() == 1, 1, TimeUnit.SECONDS));
+			assertEquals(1, orchestrator.activeTaskCount());
+		} finally {
+			releaseFirst.countDown();
 			orchestrator.shutdown();
 		}
 	}

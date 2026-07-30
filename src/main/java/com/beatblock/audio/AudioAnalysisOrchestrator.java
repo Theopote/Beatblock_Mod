@@ -39,19 +39,30 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		}
 
 		boolean cancel() {
+			return cancel(true);
+		}
+
+		boolean cancel(boolean mayInterruptIfRunning) {
 			while (true) {
 				AnalysisTaskState current = state.get();
 				if (current.isTerminal() || current == AnalysisTaskState.CANCELLING) return false;
-				AnalysisTaskState next = current == AnalysisTaskState.QUEUED
-					? AnalysisTaskState.CANCELLED : AnalysisTaskState.CANCELLING;
-				if (!state.compareAndSet(current, next)) continue;
+				if (current == AnalysisTaskState.QUEUED) {
+					if (!state.compareAndSet(current, AnalysisTaskState.CANCELLED)) continue;
+					control.cancelRunningProcess();
+					FutureTask<Void> task = delegate;
+					if (task != null) {
+						task.cancel(false);
+						executor.remove(task);
+					}
+					removeRegistration(this);
+					return true;
+				}
+				// STARTING / RUNNING
+				if (!mayInterruptIfRunning) return false;
+				if (!state.compareAndSet(current, AnalysisTaskState.CANCELLING)) continue;
 				control.cancelRunningProcess();
 				FutureTask<Void> task = delegate;
-				if (task != null) {
-					task.cancel(true);
-					if (next == AnalysisTaskState.CANCELLED) executor.remove(task);
-				}
-				if (next == AnalysisTaskState.CANCELLED) removeRegistration(this);
+				if (task != null) task.cancel(true);
 				return true;
 			}
 		}
@@ -153,11 +164,12 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		String normalizedTaskId = normalizeTaskId(taskId);
 		if (normalizedTaskId == null) return false;
 		RegisteredTask task = tasksById.get(normalizedTaskId);
-		return task != null && task.cancel();
+		// 外部按 taskId 取消一律强制终止，包括正在运行的 Python 子进程。
+		return task != null && task.cancel(true);
 	}
 
 	public void cancelAll() {
-		for (RegisteredTask task : List.copyOf(activeTasks.values())) task.cancel();
+		for (RegisteredTask task : List.copyOf(activeTasks.values())) task.cancel(true);
 	}
 
 	public int activeTaskCount() {
@@ -203,7 +215,7 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 
 	private Future<?> cancellableFuture(RegisteredTask registered) {
 		return new Future<>() {
-			@Override public boolean cancel(boolean mayInterruptIfRunning) { return registered.cancel(); }
+			@Override public boolean cancel(boolean mayInterruptIfRunning) { return registered.cancel(mayInterruptIfRunning); }
 			@Override public boolean isCancelled() { return registered.delegate.isCancelled(); }
 			@Override public boolean isDone() { return registered.delegate.isDone(); }
 			@Override public Object get() throws InterruptedException, ExecutionException { return registered.delegate.get(); }
