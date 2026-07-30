@@ -37,6 +37,15 @@ public final class FfmpegTranscoder {
 	static FfmpegTranscodeOutcome transcodeToMp3(
 		Path inputAudio,
 		Path fallbackOutputDir,
+		ExecutableResolver executableResolver,
+		ProgressListener onProgress
+	) {
+		return transcodeToMp3(inputAudio, fallbackOutputDir, null, executableResolver, onProgress);
+	}
+
+	static FfmpegTranscodeOutcome transcodeToMp3(
+		Path inputAudio,
+		Path fallbackOutputDir,
 		com.beatblock.audio.AudioConversionCancelControl control,
 		ExecutableResolver executableResolver,
 		ProgressListener onProgress
@@ -67,13 +76,20 @@ public final class FfmpegTranscoder {
 		}
 
 		Path output = resolveMp3OutputPath(inputAudio, fallbackOutputDir);
+		if (control != null) {
+			control.markOutputPath(output);
+		}
 		Process process;
 		try {
 			process = new ProcessBuilder(buildMp3Command(ffmpeg, inputAudio, output))
 				.redirectErrorStream(true)
 				.start();
 		} catch (IOException e) {
+			if (control != null) control.clearOutputPath();
 			return new FfmpegTranscodeOutcome.Failure("无法启动 ffmpeg: " + e.getMessage());
+		}
+		if (control != null) {
+			control.attachProcess(process);
 		}
 
 		StringBuilder out = new StringBuilder();
@@ -81,6 +97,9 @@ public final class FfmpegTranscoder {
 		try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
 			String line;
 			while ((line = br.readLine()) != null) {
+				if (control != null && control.isCancelled()) {
+					break;
+				}
 				out.append(line).append('\n');
 				if (onProgress != null) {
 					FfmpegProgressParser.parseLine(line, totalDurationSec, onProgress::onProgress);
@@ -92,17 +111,42 @@ public final class FfmpegTranscoder {
 
 		int exitCode;
 		try {
-			exitCode = process.waitFor();
+			// 轮询等待，既响应取消也避免无限阻塞。
+			while (!process.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+				if (control != null && control.isCancelled()) {
+					process.destroy();
+					if (!process.waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+						process.destroyForcibly();
+					}
+					break;
+				}
+				if (Thread.currentThread().isInterrupted()) {
+					process.destroyForcibly();
+					Thread.currentThread().interrupt();
+					break;
+				}
+			}
+			exitCode = process.isAlive() ? -1 : process.exitValue();
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			process.destroyForcibly();
-			return new FfmpegTranscodeOutcome.Failure("音频转换被中断。");
+			exitCode = -1;
+		} finally {
+			if (control != null) {
+				control.clearProcess(process);
+			}
 		}
 
+		if (control != null && control.isCancelled()) {
+			return new FfmpegTranscodeOutcome.Failure("音频转换已取消。");
+		}
 		if (exitCode != 0 || !Files.isRegularFile(output)) {
 			return new FfmpegTranscodeOutcome.Failure("ffmpeg 转换失败。" + summarizeProcessOutput(out));
 		}
 
+		if (control != null) {
+			control.clearOutputPath();
+		}
 		return new FfmpegTranscodeOutcome.Success(output);
 	}
 

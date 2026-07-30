@@ -11,10 +11,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
  * 音频转换服务：后台调用 {@link FfmpegService} 将不支持格式转换为 MP3。
+ * <p>
+ * 关闭时会主动取消当前运行的 ffmpeg 子进程并清理未完成的输出文件。
  */
 public final class AudioConversionService implements AutoCloseable {
 
@@ -24,6 +27,7 @@ public final class AudioConversionService implements AutoCloseable {
 		return t;
 	});
 	private final MainThreadDispatcher callbackDispatcher;
+	private final AtomicReference<AudioConversionCancelControl> activeControl = new AtomicReference<>();
 
 	public AudioConversionService() {
 		this(MainThreadDispatcher.immediate());
@@ -48,27 +52,41 @@ public final class AudioConversionService implements AutoCloseable {
 		Consumer<Path> onComplete,
 		Consumer<String> onError
 	) {
-		Path fallbackDir = FabricLoader.getInstance().getGameDir();
-		var outcome = FfmpegService.transcodeToMp3(
-			inputAudio,
-			fallbackDir,
-			onProgress != null
-				? (message, percent) -> dispatch(() -> onProgress.accept(message, percent))
-				: (message, percent) -> {}
-		);
+		AudioConversionCancelControl control = new AudioConversionCancelControl();
+		if (!activeControl.compareAndSet(null, control)) {
+			// 理论上单线程 executor 不会并发，但做防御性处理。
+			onError.accept("已有转换任务正在进行。");
+			return;
+		}
+		try {
+			Path fallbackDir = FabricLoader.getInstance().getGameDir();
+			var outcome = FfmpegService.transcodeToMp3(
+				inputAudio,
+				fallbackDir,
+				control,
+				onProgress != null
+					? (message, percent) -> dispatch(() -> onProgress.accept(message, percent))
+					: (message, percent) -> {}
+			);
 
-		if (outcome instanceof FfmpegTranscodeOutcome.AlreadyMp3 already) {
-			if (onProgress != null) {
-				dispatch(() -> onProgress.accept("源文件已是 MP3，跳过转换。", 100));
+			if (control.isCancelled()) {
+				return;
 			}
-			dispatch(() -> onComplete.accept(already.path()));
-		} else if (outcome instanceof FfmpegTranscodeOutcome.Success success) {
-			if (onProgress != null) {
-				dispatch(() -> onProgress.accept("转换完成。", 100));
+			if (outcome instanceof FfmpegTranscodeOutcome.AlreadyMp3 already) {
+				if (onProgress != null) {
+					dispatch(() -> onProgress.accept("源文件已是 MP3，跳过转换。", 100));
+				}
+				dispatch(() -> onComplete.accept(already.path()));
+			} else if (outcome instanceof FfmpegTranscodeOutcome.Success success) {
+				if (onProgress != null) {
+					dispatch(() -> onProgress.accept("转换完成。", 100));
+				}
+				dispatch(() -> onComplete.accept(success.outputPath()));
+			} else if (outcome instanceof FfmpegTranscodeOutcome.Failure failure) {
+				dispatch(() -> onError.accept(failure.message()));
 			}
-			dispatch(() -> onComplete.accept(success.outputPath()));
-		} else if (outcome instanceof FfmpegTranscodeOutcome.Failure failure) {
-			dispatch(() -> onError.accept(failure.message()));
+		} finally {
+			activeControl.compareAndSet(control, null);
 		}
 	}
 
@@ -77,6 +95,10 @@ public final class AudioConversionService implements AutoCloseable {
 	}
 
 	public void shutdown() {
+		AudioConversionCancelControl control = activeControl.get();
+		if (control != null) {
+			control.cancel();
+		}
 		executor.shutdown();
 		try {
 			if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {

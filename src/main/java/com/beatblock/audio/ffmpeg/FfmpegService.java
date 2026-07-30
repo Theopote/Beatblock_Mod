@@ -1,5 +1,7 @@
 package com.beatblock.audio.ffmpeg;
 
+import com.beatblock.audio.AudioConversionCancelControl;
+
 import java.nio.file.Path;
 import java.util.List;
 
@@ -28,7 +30,16 @@ public final class FfmpegService {
 		Path fallbackOutputDir,
 		FfmpegTranscoder.ProgressListener onProgress
 	) {
-		return FfmpegTranscoder.transcodeToMp3(inputAudio, fallbackOutputDir, onProgress);
+		return transcodeToMp3(inputAudio, fallbackOutputDir, null, onProgress);
+	}
+
+	public static FfmpegTranscodeOutcome transcodeToMp3(
+		Path inputAudio,
+		Path fallbackOutputDir,
+		AudioConversionCancelControl control,
+		FfmpegTranscoder.ProgressListener onProgress
+	) {
+		return FfmpegTranscoder.transcodeToMp3(inputAudio, fallbackOutputDir, control, FfmpegLocator::resolveExecutable, onProgress);
 	}
 
 	public static List<String> describeSearchLocations() {
