@@ -3,6 +3,7 @@ package com.beatblock.timeline.playback;
 import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.Track;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -18,7 +19,7 @@ public final class TimelineCompiler {
 
 	public static CompiledTimelineSnapshot compile(Timeline document) {
 		if (document == null) {
-			return new CompiledTimelineSnapshot(List.of(), new double[0], 120.0, true, -1);
+			return new CompiledTimelineSnapshot(List.of(), new CompiledCameraTrack(List.of()), new double[0], 120.0, true, -1);
 		}
 		List<TimelineAnimationEvent> events = new ArrayList<>();
 		for (TimelineAnimationEvent event : document.getStageEvents()) {
@@ -30,11 +31,30 @@ public final class TimelineCompiler {
 		double bpm = document.getBpm() > 0 ? document.getBpm() : 120.0;
 		return new CompiledTimelineSnapshot(
 			events,
+			compileCameraTrack(document.getTrack(Timeline.TRACK_ID_CAMERA)),
 			ReferenceBeatResolver.resolveBeatTimesSeconds(document),
 			bpm,
 			shouldRestoreWorldMutations(document),
 			document.getStageEventsGeneration()
 		);
+	}
+
+	private static CompiledCameraTrack compileCameraTrack(Track track) {
+		if (track == null || !track.isEnabled()) return new CompiledCameraTrack(List.of());
+		List<CompiledCameraTrack.CameraClip> clips = new ArrayList<>();
+		for (var clip : track.getClips()) {
+			List<CompiledCameraTrack.CameraEvent> cameraEvents = new ArrayList<>();
+			for (var event : clip.getEvents()) {
+				cameraEvents.add(new CompiledCameraTrack.CameraEvent(
+					event.getId(), event.getTimeSeconds(), event.getType(), freezeMap(event.getParameters())));
+			}
+			cameraEvents.sort(Comparator.comparingDouble(CompiledCameraTrack.CameraEvent::timeSeconds)
+				.thenComparing(CompiledCameraTrack.CameraEvent::id));
+			clips.add(new CompiledCameraTrack.CameraClip(
+				clip.getStartTimeSeconds(), clip.getEndTimeSeconds(), cameraEvents));
+		}
+		clips.sort(Comparator.comparingDouble(CompiledCameraTrack.CameraClip::startTimeSeconds));
+		return new CompiledCameraTrack(clips);
 	}
 
 	private static TimelineAnimationEvent copyEvent(TimelineAnimationEvent event) {

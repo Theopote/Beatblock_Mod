@@ -2,6 +2,8 @@ package com.beatblock.timeline.playback;
 
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.EventType;
+import com.beatblock.timeline.TimelineOperations;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -47,6 +49,27 @@ class TimelineCompilerTest {
 		assertNotSame(first, second);
 		assertEquals(128.0, snapshot.bpm(), 1e-9);
 		assertTrue(!snapshot.restoreWorldMutations());
+	}
+
+	@Test
+	void cameraTrackIsSortedAndIsolatedFromLaterEdits() {
+		Timeline timeline = Timeline.createDefault();
+		var cameraTrack = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		var later = TimelineOperations.addClip(cameraTrack, 5.0, 7.0);
+		var earlier = TimelineOperations.addClip(cameraTrack, 1.0, 3.0);
+		var sourceEvent = TimelineOperations.addEvent(earlier, 1.0, EventType.CAMERA_KEYFRAME,
+			Map.of("x", 2.0, "tags", new ArrayList<>(List.of("original"))));
+
+		CompiledTimelineSnapshot snapshot = TimelineCompiler.compile(timeline);
+		sourceEvent.setParameter("x", 99.0);
+		TimelineOperations.addClip(cameraTrack, 0.0, 0.5);
+
+		assertEquals(List.of(1.0, 5.0), snapshot.cameraTrack().clips().stream()
+			.map(CompiledCameraTrack.CameraClip::startTimeSeconds).toList());
+		var compiledEvent = snapshot.cameraTrack().clips().getFirst().events().getFirst();
+		assertEquals(2.0, compiledEvent.parameters().get("x"));
+		assertThrows(UnsupportedOperationException.class,
+			() -> compiledEvent.parameters().put("x", 3.0));
 	}
 
 	private static TimelineAnimationEvent event(String id, double time, Map<String, Object> params) {

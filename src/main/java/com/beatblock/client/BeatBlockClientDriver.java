@@ -88,6 +88,10 @@ public final class BeatBlockClientDriver {
 		return instance != null ? instance.compiledPlayback : null;
 	}
 
+	public static @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlayback() {
+		return instance != null ? instance.compiledPlayback : null;
+	}
+
 	private static BeatBlockClientDriver requireInstance() {
 		if (instance == null) {
 			install(BeatBlock::getContext);

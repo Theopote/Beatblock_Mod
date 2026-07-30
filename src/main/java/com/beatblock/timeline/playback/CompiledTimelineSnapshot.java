@@ -10,6 +10,7 @@ import java.util.List;
 public final class CompiledTimelineSnapshot {
 
 	private final List<TimelineAnimationEvent> stageEvents;
+	private final CompiledCameraTrack cameraTrack;
 	private final double[] referenceBeatTimesSeconds;
 	private final double bpm;
 	private final boolean restoreWorldMutations;
@@ -17,12 +18,14 @@ public final class CompiledTimelineSnapshot {
 
 	CompiledTimelineSnapshot(
 		List<TimelineAnimationEvent> stageEvents,
+		CompiledCameraTrack cameraTrack,
 		double[] referenceBeatTimesSeconds,
 		double bpm,
 		boolean restoreWorldMutations,
 		int sourceGeneration
 	) {
 		this.stageEvents = List.copyOf(stageEvents);
+		this.cameraTrack = cameraTrack;
 		this.referenceBeatTimesSeconds = referenceBeatTimesSeconds.clone();
 		this.bpm = bpm;
 		this.restoreWorldMutations = restoreWorldMutations;
@@ -30,6 +33,7 @@ public final class CompiledTimelineSnapshot {
 	}
 
 	public List<TimelineAnimationEvent> stageEvents() { return stageEvents; }
+	public CompiledCameraTrack cameraTrack() { return cameraTrack; }
 	public double[] referenceBeatTimesSeconds() { return referenceBeatTimesSeconds.clone(); }
 	public double bpm() { return bpm; }
 	public boolean restoreWorldMutations() { return restoreWorldMutations; }

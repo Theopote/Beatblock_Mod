@@ -8,6 +8,7 @@ import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.camera.CameraSegmentKind;
 import com.beatblock.timeline.camera.CameraTrackFactory;
+import com.beatblock.timeline.playback.CompiledCameraTrack;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
@@ -42,6 +43,137 @@ public final class TimelineCameraEvaluator {
 			if (legacy != null) return legacy;
 		}
 		return evaluateGlobalKeyframes(cam, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+	}
+
+	public static CameraSample evaluate(CompiledCameraTrack track, double bpm, double timeSeconds,
+		Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		if (track == null || track.isEmpty()) return null;
+		CompiledCameraTrack.CameraClip active = findActiveClip(track, timeSeconds);
+		if (active != null) {
+			CompiledCameraTrack.CameraEvent segment = findSegmentHeadEvent(active);
+			if (segment != null) {
+				CameraSegmentKind kind = CameraSegmentKind.fromParam(segment.parameters().get("kind"));
+				CameraSample sample = evaluateSegment(
+					active, segment, kind, bpm, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+				if (sample != null) return sample;
+			}
+			CameraSample legacy = evaluateKeyframeHoldInClip(active, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+			if (legacy != null) return legacy;
+		}
+		return evaluateGlobalKeyframes(track, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+	}
+
+	private static CompiledCameraTrack.CameraClip findActiveClip(CompiledCameraTrack track, double timeSeconds) {
+		CompiledCameraTrack.CameraClip best = null;
+		double bestStart = -1;
+		for (var clip : track.clips()) {
+			if (timeSeconds + 1e-6 < clip.startTimeSeconds() || timeSeconds > clip.endTimeSeconds() + 1e-6) continue;
+			if (clip.startTimeSeconds() > bestStart) {
+				bestStart = clip.startTimeSeconds();
+				best = clip;
+			}
+		}
+		return best;
+	}
+
+	private static CompiledCameraTrack.CameraEvent findSegmentHeadEvent(CompiledCameraTrack.CameraClip clip) {
+		for (var event : clip.events()) {
+			if (event.type() == EventType.CAMERA_SEGMENT) return event;
+		}
+		return null;
+	}
+
+	private static CameraSample evaluateSegment(CompiledCameraTrack.CameraClip clip,
+		CompiledCameraTrack.CameraEvent segment, CameraSegmentKind kind, double bpm, double timeSeconds,
+		Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		double duration = Math.max(1e-3, clip.endTimeSeconds() - clip.startTimeSeconds());
+		double u = Math.max(0.0, Math.min(1.0, (timeSeconds - clip.startTimeSeconds()) / duration));
+		return switch (kind) {
+			case PATH -> evaluatePath(clip, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+			case DOLLY -> evaluateDolly(segment.parameters(), u, anchor, fallbackYaw, fallbackPitch);
+			case ORBIT -> evaluateOrbit(segment.parameters(), u, anchor, fallbackYaw, fallbackPitch);
+			case CRANE -> evaluateCrane(segment.parameters(), u, anchor, fallbackYaw, fallbackPitch);
+			case SHAKE -> evaluateShake(segment.parameters(), timeSeconds, anchor, fallbackYaw, fallbackPitch, bpm);
+		};
+	}
+
+	private static CameraSample evaluatePath(CompiledCameraTrack.CameraClip clip, double timeSeconds,
+		Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		List<CompiledCameraTrack.CameraEvent> keyframes = cameraKeyframes(clip.events());
+		if (keyframes.isEmpty()) return new CameraSample(anchor, fallbackYaw, fallbackPitch);
+		if (keyframes.size() == 1 || timeSeconds <= keyframes.getFirst().timeSeconds() + 1e-6)
+			return sampleKeyframe(keyframes.getFirst(), anchor, fallbackYaw, fallbackPitch);
+		if (timeSeconds >= keyframes.getLast().timeSeconds() - 1e-6)
+			return sampleKeyframe(keyframes.getLast(), anchor, fallbackYaw, fallbackPitch);
+		for (int i = 0; i < keyframes.size() - 1; i++) {
+			var a = keyframes.get(i);
+			var b = keyframes.get(i + 1);
+			if (timeSeconds < a.timeSeconds() - 1e-6 || timeSeconds > b.timeSeconds() + 1e-6) continue;
+			double t = (timeSeconds - a.timeSeconds()) / Math.max(1e-6, b.timeSeconds() - a.timeSeconds());
+			double weight = "LINEAR".equalsIgnoreCase(stringParam(a.parameters(), "ease", "SMOOTH"))
+				? t : smoothstep(t);
+			return blendKeyframes(a, b, weight, anchor, fallbackYaw, fallbackPitch);
+		}
+		return sampleKeyframe(keyframes.getFirst(), anchor, fallbackYaw, fallbackPitch);
+	}
+
+	private static CameraSample evaluateKeyframeHoldInClip(CompiledCameraTrack.CameraClip clip, double timeSeconds,
+		Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		List<CompiledCameraTrack.CameraEvent> keyframes = cameraKeyframes(clip.events());
+		if (keyframes.isEmpty()) return null;
+		var selected = keyframes.getFirst();
+		for (var event : keyframes) {
+			if (event.timeSeconds() <= timeSeconds + 1e-6) selected = event;
+			else break;
+		}
+		return sampleKeyframe(selected, anchor, fallbackYaw, fallbackPitch);
+	}
+
+	private static CameraSample evaluateGlobalKeyframes(CompiledCameraTrack track, double timeSeconds,
+		Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		List<CompiledCameraTrack.CameraEvent> keyframes = new ArrayList<>();
+		for (var clip : track.clips()) keyframes.addAll(cameraKeyframes(clip.events()));
+		keyframes.sort(Comparator.comparingDouble(CompiledCameraTrack.CameraEvent::timeSeconds));
+		if (keyframes.isEmpty()) return null;
+		if (timeSeconds <= keyframes.getFirst().timeSeconds() + 1e-6)
+			return sampleKeyframe(keyframes.getFirst(), anchor, fallbackYaw, fallbackPitch);
+		if (timeSeconds >= keyframes.getLast().timeSeconds() - 1e-6)
+			return sampleKeyframe(keyframes.getLast(), anchor, fallbackYaw, fallbackPitch);
+		for (int i = 0; i < keyframes.size() - 1; i++) {
+			var a = keyframes.get(i);
+			var b = keyframes.get(i + 1);
+			if (timeSeconds < a.timeSeconds() - 1e-6 || timeSeconds > b.timeSeconds() + 1e-6) continue;
+			double t = (timeSeconds - a.timeSeconds()) / Math.max(1e-6, b.timeSeconds() - a.timeSeconds());
+			double weight = "LINEAR".equalsIgnoreCase(stringParam(a.parameters(), "ease", "LINEAR"))
+				? t : smoothstep(t);
+			return blendKeyframes(a, b, weight, anchor, fallbackYaw, fallbackPitch);
+		}
+		return sampleKeyframe(keyframes.getFirst(), anchor, fallbackYaw, fallbackPitch);
+	}
+
+	private static List<CompiledCameraTrack.CameraEvent> cameraKeyframes(
+		List<CompiledCameraTrack.CameraEvent> events) {
+		List<CompiledCameraTrack.CameraEvent> result = new ArrayList<>();
+		for (var event : events) if (event.type() == EventType.CAMERA_KEYFRAME) result.add(event);
+		return result;
+	}
+
+	private static CameraSample blendKeyframes(CompiledCameraTrack.CameraEvent a,
+		CompiledCameraTrack.CameraEvent b, double weight, Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		CameraSample start = sampleKeyframe(a, anchor, fallbackYaw, fallbackPitch);
+		CameraSample end = sampleKeyframe(b, anchor, fallbackYaw, fallbackPitch);
+		return new CameraSample(start.position().lerp(end.position(), weight),
+			lerpAngleDeg(start.yawDeg(), end.yawDeg(), weight),
+			(float) lerp(start.pitchDeg(), end.pitchDeg(), weight));
+	}
+
+	private static CameraSample sampleKeyframe(CompiledCameraTrack.CameraEvent event,
+		Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		Map<String, Object> parameters = event.parameters();
+		return new CameraSample(new Vec3d(
+			num(parameters, "x", anchor.x), num(parameters, "y", anchor.y), num(parameters, "z", anchor.z)),
+			(float) num(parameters, "yawDeg", fallbackYaw),
+			(float) num(parameters, "pitchDeg", fallbackPitch));
 	}
 
 	public static CameraSample evaluateClip(Clip clip, Timeline timeline, double timeSeconds, Vec3d anchor, float fallbackYaw, float fallbackPitch) {

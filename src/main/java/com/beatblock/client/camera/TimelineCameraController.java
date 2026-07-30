@@ -126,7 +126,10 @@ public final class TimelineCameraController {
 		CameraRuntime runtime = CameraRuntime.getInstance();
 
 		boolean hasCameraTrackClips = false;
-		if (timeline != null) {
+		var compiledPlayback = BeatBlockClientDriver.compiledPlayback();
+		if (playing && compiledPlayback != null) {
+			hasCameraTrackClips = !compiledPlayback.cameraTrack().isEmpty();
+		} else if (timeline != null) {
 			var track = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
 			if (track != null && !track.getClips().isEmpty()) {
 				hasCameraTrackClips = true;
@@ -153,8 +156,10 @@ public final class TimelineCameraController {
 				float fallbackYaw = client.player != null ? client.player.getYaw() : 0f;
 				float fallbackPitch = client.player != null ? client.player.getPitch() : 0f;
 
-				TimelineCameraEvaluator.CameraSample sample = TimelineCameraEvaluator.evaluate(
-					timeline, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+				TimelineCameraEvaluator.CameraSample sample = playing && compiledPlayback != null
+					? TimelineCameraEvaluator.evaluate(compiledPlayback.cameraTrack(), compiledPlayback.bpm(),
+						timeSeconds, anchor, fallbackYaw, fallbackPitch)
+					: TimelineCameraEvaluator.evaluate(timeline, timeSeconds, anchor, fallbackYaw, fallbackPitch);
 
 				if (sample != null) {
 					runtime.applyTimelineSample(sample);
