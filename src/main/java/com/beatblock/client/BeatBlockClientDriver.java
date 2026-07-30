@@ -9,6 +9,7 @@ import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
+import com.beatblock.timeline.playback.CompiledStageEvent;
 import com.beatblock.timeline.playback.TimelineCompiler;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
@@ -174,7 +175,7 @@ public final class BeatBlockClientDriver {
 	private void startDrivingInternal() {
 		lastTickNanos = 0;
 		resetTimelineAnimationScheduling();
-		compiledPlayback = TimelineCompiler.compile(ctx().timeline());
+		compiledPlayback = TimelineCompiler.compile(ctx().timeline(), ctx().blockAnimationEngine());
 		driving = true;
 	}
 
@@ -319,7 +320,12 @@ public final class BeatBlockClientDriver {
 			return;
 		}
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
-			engine.scheduleTimelineEvent(event, referenceBeats, bpm);
+			var compiled = compiledStageEvent(event);
+			if (!previewOnly && compiled != null) {
+				engine.scheduleTimelineEvent(compiled, referenceBeats, bpm);
+			} else {
+				engine.scheduleTimelineEvent(event, referenceBeats, bpm);
+			}
 			recordActionReport(event, 0, "ANIMATE", "scheduled");
 			return;
 		}
@@ -356,6 +362,15 @@ public final class BeatBlockClientDriver {
 			engine.getBlockControlExecutor(), world);
 		engine.applyControlMutations(mutations, sink);
 		recordActionReport(event, mutations.size(), "APPLIED", "ok");
+	}
+
+	private @org.jspecify.annotations.Nullable CompiledStageEvent compiledStageEvent(
+		TimelineAnimationEvent event) {
+		if (compiledPlayback == null || event == null) return null;
+		for (var compiled : compiledPlayback.compiledStageEvents()) {
+			if (compiled.event() == event || compiled.event().getEventId().equals(event.getEventId())) return compiled;
+		}
+		return null;
 	}
 
 	private void recordActionReport(TimelineAnimationEvent event, int mutationCount, String status, String detail) {

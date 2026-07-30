@@ -4,6 +4,8 @@ import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.Track;
+import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.engine.StageObject;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -19,7 +21,7 @@ public final class TimelineCompiler {
 
 	public static CompiledTimelineSnapshot compile(Timeline document) {
 		if (document == null) {
-			return new CompiledTimelineSnapshot(List.of(), new CompiledCameraTrack(List.of()), new double[0], 120.0, true, -1);
+			return new CompiledTimelineSnapshot(List.of(), List.of(), new CompiledCameraTrack(List.of()), new double[0], 120.0, true, -1);
 		}
 		List<TimelineAnimationEvent> events = new ArrayList<>();
 		for (TimelineAnimationEvent event : document.getStageEvents()) {
@@ -31,12 +33,34 @@ public final class TimelineCompiler {
 		double bpm = document.getBpm() > 0 ? document.getBpm() : 120.0;
 		return new CompiledTimelineSnapshot(
 			events,
+			compileStageEvents(events, null),
 			compileCameraTrack(document.getTrack(Timeline.TRACK_ID_CAMERA)),
 			ReferenceBeatResolver.resolveBeatTimesSeconds(document),
 			bpm,
 			shouldRestoreWorldMutations(document),
 			document.getStageEventsGeneration()
 		);
+	}
+
+	public static CompiledTimelineSnapshot compile(Timeline document, BlockAnimationEngine engine) {
+		CompiledTimelineSnapshot base = compile(document);
+		return new CompiledTimelineSnapshot(
+			base.stageEvents(), compileStageEvents(base.stageEvents(), engine), base.cameraTrack(),
+			base.referenceBeatTimesSeconds(), base.bpm(), base.restoreWorldMutations(), base.sourceGeneration());
+	}
+
+	private static List<CompiledStageEvent> compileStageEvents(
+		List<TimelineAnimationEvent> events, BlockAnimationEngine engine) {
+		List<CompiledStageEvent> compiled = new ArrayList<>(events.size());
+		for (TimelineAnimationEvent event : events) {
+			var definition = engine != null ? engine.getAnimationLibrary().get(event.getAnimationTypeId()) : null;
+			StageObject source = engine != null
+				? engine.getStageObjectSystem().get(event.getTargetObjectId()) : null;
+			StageObject target = source != null ? new StageObject(
+				source.getId(), source.getName(), source.getBlocks(), source.getCenter(), source.getGroupSpec()) : null;
+			compiled.add(new CompiledStageEvent(event, definition, target));
+		}
+		return List.copyOf(compiled);
 	}
 
 	private static CompiledCameraTrack compileCameraTrack(Track track) {

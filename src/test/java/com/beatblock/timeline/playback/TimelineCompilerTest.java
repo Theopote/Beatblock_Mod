@@ -4,6 +4,9 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.TimelineOperations;
+import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.engine.StageObjectSystem;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -70,6 +73,27 @@ class TimelineCompilerTest {
 		assertEquals(2.0, compiledEvent.parameters().get("x"));
 		assertThrows(UnsupportedOperationException.class,
 			() -> compiledEvent.parameters().put("x", 3.0));
+	}
+
+	@Test
+	void compiledAnimateEventKeepsResolvedTargetAfterRuntimeRegistryChanges() {
+		Timeline timeline = Timeline.createDefault();
+		BlockAnimationEngine engine = new BlockAnimationEngine();
+		String animationId = engine.getAnimationLibrary().getAll().keySet().iterator().next();
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"stage", "Original", List.of(new BlockPos(1, 2, 3))));
+		timeline.addAutoAnimationEvent(event(animationId, 1.0, Map.of()));
+
+		CompiledTimelineSnapshot snapshot = TimelineCompiler.compile(timeline, engine);
+		engine.getStageObjectSystem().clear();
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"stage", "Replacement", List.of(new BlockPos(9, 9, 9))));
+		CompiledStageEvent compiled = snapshot.compiledStageEvents().getFirst();
+		engine.scheduleTimelineEvent(compiled, new double[0], snapshot.bpm());
+
+		assertEquals(List.of(new BlockPos(1, 2, 3)), compiled.target().getBlocks());
+		assertEquals("Original", engine.getAnimationPlayer().getActiveInstances().getFirst().getTarget().getName());
+		assertEquals(animationId, compiled.animationDefinition().getId());
 	}
 
 	private static TimelineAnimationEvent event(String id, double time, Map<String, Object> params) {

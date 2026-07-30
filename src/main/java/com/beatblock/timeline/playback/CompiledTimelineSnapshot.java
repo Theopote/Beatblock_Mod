@@ -10,6 +10,7 @@ import java.util.List;
 public final class CompiledTimelineSnapshot {
 
 	private final List<TimelineAnimationEvent> stageEvents;
+	private final List<CompiledStageEvent> compiledStageEvents;
 	private final CompiledCameraTrack cameraTrack;
 	private final double[] referenceBeatTimesSeconds;
 	private final double bpm;
@@ -18,6 +19,7 @@ public final class CompiledTimelineSnapshot {
 
 	CompiledTimelineSnapshot(
 		List<TimelineAnimationEvent> stageEvents,
+		List<CompiledStageEvent> compiledStageEvents,
 		CompiledCameraTrack cameraTrack,
 		double[] referenceBeatTimesSeconds,
 		double bpm,
@@ -25,6 +27,7 @@ public final class CompiledTimelineSnapshot {
 		int sourceGeneration
 	) {
 		this.stageEvents = List.copyOf(stageEvents);
+		this.compiledStageEvents = List.copyOf(compiledStageEvents);
 		this.cameraTrack = cameraTrack;
 		this.referenceBeatTimesSeconds = referenceBeatTimesSeconds.clone();
 		this.bpm = bpm;
@@ -33,6 +36,7 @@ public final class CompiledTimelineSnapshot {
 	}
 
 	public List<TimelineAnimationEvent> stageEvents() { return stageEvents; }
+	public List<CompiledStageEvent> compiledStageEvents() { return compiledStageEvents; }
 	public CompiledCameraTrack cameraTrack() { return cameraTrack; }
 	public double[] referenceBeatTimesSeconds() { return referenceBeatTimesSeconds.clone(); }
 	public double bpm() { return bpm; }

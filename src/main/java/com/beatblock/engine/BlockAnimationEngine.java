@@ -132,23 +132,42 @@ public final class BlockAnimationEngine {
 		}
 	}
 
+	public void scheduleTimelineEvent(
+		com.beatblock.timeline.playback.CompiledStageEvent compiled,
+		double[] referenceBeatTimesSeconds,
+		double timelineBpm
+	) {
+		if (compiled == null || compiled.event() == null) return;
+		TimelineAnimationEvent event = compiled.event();
+		if (event.getActionMode() == TimelineAnimationActionMode.ANIMATE) {
+			scheduleAnimateEvent(event, compiled.animationDefinition(), compiled.target(),
+				referenceBeatTimesSeconds, timelineBpm);
+		}
+	}
+
 	private void scheduleAnimateEvent(TimelineAnimationEvent event, double[] referenceBeatTimesSeconds, double timelineBpm) {
 		if (event == null) return;
+		scheduleAnimateEvent(event, animationLibrary.get(event.getAnimationTypeId()),
+			stageObjectSystem.get(event.getTargetObjectId()), referenceBeatTimesSeconds, timelineBpm);
+	}
+
+	private void scheduleAnimateEvent(TimelineAnimationEvent event, AnimationDefinition definition,
+		StageObject target, double[] referenceBeatTimesSeconds, double timelineBpm) {
 		if (com.beatblock.timeline.generation.StepBurstEventFactory.isStepDispatch(event)) {
-			scheduleExpandedStepSequence(event, referenceBeatTimesSeconds, timelineBpm);
+			scheduleExpandedStepSequence(event, definition, target, referenceBeatTimesSeconds, timelineBpm);
 			return;
 		}
-		scheduleFromTimelineEventWithSpatial(event);
+		scheduleFromTimelineEventWithSpatial(event, definition, target);
 	}
 
 	private void scheduleExpandedStepSequence(
 		TimelineAnimationEvent event,
+		AnimationDefinition def,
+		StageObject target,
 		double[] referenceBeatTimesSeconds,
 		double timelineBpm
 	) {
 		if (event == null) return;
-		AnimationDefinition def = animationLibrary.get(event.getAnimationTypeId());
-		StageObject target = stageObjectSystem.get(event.getTargetObjectId());
 		if (def == null || target == null || target.getBlocks().isEmpty()) return;
 
 		Map<String, Object> params = event.getParameters();
@@ -188,10 +207,9 @@ public final class BlockAnimationEngine {
 		}
 	}
 
-	private void scheduleFromTimelineEventWithSpatial(TimelineAnimationEvent event) {
+	private void scheduleFromTimelineEventWithSpatial(TimelineAnimationEvent event,
+		AnimationDefinition def, StageObject target) {
 		if (event == null) return;
-		AnimationDefinition def = animationLibrary.get(event.getAnimationTypeId());
-		StageObject target = stageObjectSystem.get(event.getTargetObjectId());
 		if (def == null || target == null) return;
 
 		Map<String, Object> params = event.getParameters();
