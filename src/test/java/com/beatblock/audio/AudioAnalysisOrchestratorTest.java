@@ -16,7 +16,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.function.BooleanSupplier;
+
 class AudioAnalysisOrchestratorTest {
+
+	private static boolean waitUntil(BooleanSupplier condition, long timeout, TimeUnit unit) throws InterruptedException {
+		long deadline = System.nanoTime() + unit.toNanos(timeout);
+		while (!condition.getAsBoolean()) {
+			if (System.nanoTime() >= deadline) return false;
+			Thread.sleep(10);
+		}
+		return true;
+	}
 
 	@Test
 	void runsTasksSequentiallyOnSingleWorker() throws Exception {
@@ -153,6 +164,8 @@ class AudioAnalysisOrchestratorTest {
 			assertTrue(started.await(5, TimeUnit.SECONDS));
 			assertEquals(1, orchestrator.activeTaskCount());
 			assertTrue(orchestrator.cancel("cancel-me"));
+			assertTrue(waitUntil(() -> orchestrator.activeTaskCount() == 0, 1, TimeUnit.SECONDS),
+				"取消后任务应在短时间内从调度器中移除");
 			assertEquals(0, orchestrator.activeTaskCount());
 			assertFalse(completed.get());
 		} finally {
@@ -211,6 +224,8 @@ class AudioAnalysisOrchestratorTest {
 
 			assertEquals(1, orchestrator.activeTaskCount());
 			assertTrue(orchestrator.cancel("same-id"));
+			assertTrue(waitUntil(() -> orchestrator.activeTaskCount() == 0, 1, TimeUnit.SECONDS),
+				"取消后替换任务应在短时间内从调度器中移除");
 			assertEquals(0, orchestrator.activeTaskCount());
 		} finally {
 			releaseSecond.countDown();

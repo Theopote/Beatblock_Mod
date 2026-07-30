@@ -264,8 +264,8 @@ public final class PythonEnvironmentDiagnostics {
 				"import numpy, librosa, soundfile, scipy"
 			).redirectErrorStream(true).start();
 			control.attachProcess(check);
-			String checkOut = ProcessIo.readProcessOutput(check);
-			int checkCode = ProcessIo.waitProcess(check);
+			String checkOut = ProcessIo.readProcessOutput(check, 5, TimeUnit.MINUTES, control);
+			int checkCode = ProcessIo.waitProcessCancellable(check, 5, TimeUnit.MINUTES, control);
 			control.clearProcess(check);
 			if (control.isCancelled()) return "分析被取消";
 			if (checkCode != 0) {
@@ -296,8 +296,8 @@ public final class PythonEnvironmentDiagnostics {
 					"import demucs.api, torch"
 				).redirectErrorStream(true).start();
 				control.attachProcess(demucsCheck);
-				String demucsCheckOut = ProcessIo.readProcessOutput(demucsCheck);
-				int demucsCheckCode = ProcessIo.waitProcess(demucsCheck);
+				String demucsCheckOut = ProcessIo.readProcessOutput(demucsCheck, 5, TimeUnit.MINUTES, control);
+				int demucsCheckCode = ProcessIo.waitProcessCancellable(demucsCheck, 5, TimeUnit.MINUTES, control);
 				control.clearProcess(demucsCheck);
 				if (control.isCancelled()) return "分析被取消";
 
@@ -319,8 +319,8 @@ public final class PythonEnvironmentDiagnostics {
 					}
 					Process demucsInstall = new ProcessBuilder(demucsInstallCmd).redirectErrorStream(true).start();
 					control.attachProcess(demucsInstall);
-					String demucsInstallOut = ProcessIo.readProcessOutput(demucsInstall);
-					int demucsInstallCode = ProcessIo.waitProcess(demucsInstall);
+					String demucsInstallOut = ProcessIo.readProcessOutput(demucsInstall, 5, TimeUnit.MINUTES, control);
+					int demucsInstallCode = ProcessIo.waitProcessCancellable(demucsInstall, 5, TimeUnit.MINUTES, control);
 					control.clearProcess(demucsInstall);
 					if (control.isCancelled()) return "分析被取消";
 
@@ -602,8 +602,8 @@ public final class PythonEnvironmentDiagnostics {
 	private @Nullable String runPipCommand(List<String> cmd, AnalysisCancelControl control) throws IOException {
 		Process install = new ProcessBuilder(cmd).redirectErrorStream(true).start();
 		control.attachProcess(install);
-		String installOut = ProcessIo.readProcessOutput(install);
-		int installCode = ProcessIo.waitProcess(install);
+		String installOut = ProcessIo.readProcessOutput(install, 5, TimeUnit.MINUTES, control);
+		int installCode = ProcessIo.waitProcessCancellable(install, 5, TimeUnit.MINUTES, control);
 		control.clearProcess(install);
 		if (installCode == 0) {
 			return null;
