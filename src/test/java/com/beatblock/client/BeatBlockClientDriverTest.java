@@ -4,9 +4,12 @@ import com.beatblock.audio.MusicPlayer;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
+import com.beatblock.timeline.TimelineAnimationEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -62,5 +65,19 @@ class BeatBlockClientDriverTest {
 		BeatBlockClientDriver.stopPlayback();
 		assertFalse(BeatBlockClientDriver.isDriving());
 		assertFalse(musicPlayer.isPlaying());
+	}
+
+	@Test
+	void drivingKeepsCompiledSnapshotStableWhileDocumentChanges() {
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"before-play", 1.0, 1.0, "pulse", "stage", 1f, Map.of()));
+		BeatBlockClientDriver.startDriving();
+		var snapshot = BeatBlockClientDriver.compiledPlaybackForTests();
+		assertEquals(1, snapshot.stageEvents().size());
+
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"during-play", 2.0, 1.0, "pulse", "stage", 1f, Map.of()));
+		assertEquals(1, snapshot.stageEvents().size());
+		assertEquals("pulse", snapshot.stageEvents().getFirst().getAnimationTypeId());
 	}
 }

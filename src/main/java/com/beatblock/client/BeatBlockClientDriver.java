@@ -8,6 +8,8 @@ import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
+import com.beatblock.timeline.playback.TimelineCompiler;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.RegistryKey;
@@ -54,8 +56,9 @@ public final class BeatBlockClientDriver {
 	 * 时间前进时只向后扫描；回退时通过 {@link #resetTimelineAnimationScheduling()} 归零。
 	 */
 	private int stageEventCursor;
-	/** 与 {@link com.beatblock.timeline.Timeline#getStageEventsGeneration()} 对齐，编辑后重扫。 */
+	/** 实时预览时与 Timeline generation 对齐；正式播放固定使用 compiledPlayback。 */
 	private int lastStageEventsGeneration = -1;
+	private @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlayback;
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
 	private volatile double lastStageEventTime;
 	/**
@@ -79,6 +82,10 @@ public final class BeatBlockClientDriver {
 
 	static void resetForTests() {
 		instance = null;
+	}
+
+	static @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlaybackForTests() {
+		return instance != null ? instance.compiledPlayback : null;
 	}
 
 	private static BeatBlockClientDriver requireInstance() {
@@ -163,6 +170,7 @@ public final class BeatBlockClientDriver {
 	private void startDrivingInternal() {
 		lastTickNanos = 0;
 		resetTimelineAnimationScheduling();
+		compiledPlayback = TimelineCompiler.compile(ctx().timeline());
 		driving = true;
 	}
 
@@ -173,6 +181,7 @@ public final class BeatBlockClientDriver {
 	private void stopDrivingInternal() {
 		driving = false;
 		resetTimelineAnimationScheduling();
+		compiledPlayback = null;
 	}
 
 	public static boolean isDriving() {
@@ -253,12 +262,23 @@ public final class BeatBlockClientDriver {
 			resetTimelineAnimationScheduling();
 		}
 
-		List<TimelineAnimationEvent> events = timeline.getStageEvents();
-		int generation = timeline.getStageEventsGeneration();
-		if (generation != lastStageEventsGeneration) {
-			// 编辑插入了更早事件时，从列表头重扫；scheduledStageEventIds 防止重复派发
-			stageEventCursor = 0;
-			lastStageEventsGeneration = generation;
+		CompiledTimelineSnapshot playback = previewOnly ? null : compiledPlayback;
+		if (!previewOnly && playback == null) {
+			playback = TimelineCompiler.compile(timeline);
+			compiledPlayback = playback;
+		}
+		List<TimelineAnimationEvent> events = playback != null ? playback.stageEvents() : timeline.getStageEvents();
+		double[] referenceBeats = playback != null
+			? playback.referenceBeatTimesSeconds()
+			: readReferenceBeatTimes();
+		double bpm = playback != null ? playback.bpm() : (timeline.getBpm() > 0 ? timeline.getBpm() : 120.0);
+		if (previewOnly) {
+			int generation = timeline.getStageEventsGeneration();
+			if (generation != lastStageEventsGeneration) {
+				// 编辑预览保持实时：变更后从列表头重扫，ID 集合防止重复派发
+				stageEventCursor = 0;
+				lastStageEventsGeneration = generation;
+			}
 		}
 		if (stageEventCursor < 0 || stageEventCursor > events.size()) {
 			stageEventCursor = 0;
@@ -271,14 +291,19 @@ public final class BeatBlockClientDriver {
 			}
 			String key = scheduleKey(event);
 			if (scheduledStageEventIds.add(key)) {
-				applyTimelineActionEvent(event, previewOnly);
+				applyTimelineActionEvent(event, previewOnly, referenceBeats, bpm);
 			}
 			stageEventCursor++;
 		}
 		lastStageEventTime = currentTime;
 	}
 
-	private void applyTimelineActionEvent(TimelineAnimationEvent event, boolean previewOnly) {
+	private void applyTimelineActionEvent(
+		TimelineAnimationEvent event,
+		boolean previewOnly,
+		double[] referenceBeats,
+		double bpm
+	) {
 		var engine = ctx().blockAnimationEngine();
 		if (event == null || engine == null) return;
 		if (!passesEnergyThreshold(event)) {
@@ -290,10 +315,7 @@ public final class BeatBlockClientDriver {
 			return;
 		}
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
-			double[] beats = readReferenceBeatTimes();
-			var timeline = ctx().timeline();
-			double bpm = timeline != null ? timeline.getBpm() : 120.0;
-			engine.scheduleTimelineEvent(event, beats, bpm > 0 ? bpm : 120.0);
+			engine.scheduleTimelineEvent(event, referenceBeats, bpm);
 			recordActionReport(event, 0, "ANIMATE", "scheduled");
 			return;
 		}
@@ -391,6 +413,8 @@ public final class BeatBlockClientDriver {
 	}
 
 	private boolean shouldRestoreTimelineMutations() {
+		CompiledTimelineSnapshot playback = compiledPlayback;
+		if (playback != null) return playback.restoreWorldMutations();
 		var timeline = ctx().timeline();
 		if (timeline == null) return true;
 		Object raw = timeline.getMetadata("timelineActionRollbackMode");
