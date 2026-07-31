@@ -91,7 +91,7 @@ class TimelineCompilerTest {
 		CompiledStageEvent compiled = snapshot.compiledStageEvents().getFirst();
 		engine.scheduleTimelineEvent(compiled, new double[0], snapshot.bpm());
 
-		assertEquals(List.of(new BlockPos(1, 2, 3)), compiled.target().getBlocks());
+		assertEquals(List.of(new BlockPos(1, 2, 3)), compiled.target().blocks());
 		assertEquals("Original", engine.getAnimationPlayer().getActiveInstances().getFirst().getTarget().getName());
 		assertEquals(animationId, compiled.animationDefinition().getId());
 	}

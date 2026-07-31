@@ -57,8 +57,17 @@ public final class TimelineCompiler {
 			var definition = engine != null ? engine.getAnimationLibrary().get(event.getAnimationTypeId()) : null;
 			StageObject source = engine != null
 				? engine.getStageObjectSystem().get(event.getTargetObjectId()) : null;
-			StageObject target = source != null ? new StageObject(
-				source.getId(), source.getName(), source.getBlocks(), source.getCenter(), source.getGroupSpec()) : null;
+			CompiledStageTarget target = null;
+			if (source != null) {
+				target = new CompiledStageTarget(
+					source.getId(),
+					source.getName(),
+					source.getBlocks(),
+					source.getCenter(),
+					source.getGroupSpec().getSortingStrategy(),
+					source.getGroupSpec().getStaggerDelaySeconds()
+				);
+			}
 			compiled.add(new CompiledStageEvent(event, definition, target));
 		}
 		return List.copyOf(compiled);

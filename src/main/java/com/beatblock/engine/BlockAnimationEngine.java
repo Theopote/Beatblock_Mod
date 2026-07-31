@@ -4,6 +4,9 @@ import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
+import com.beatblock.timeline.playback.CompiledStageEvent;
+import com.beatblock.timeline.playback.CompiledStageTarget;
+import com.beatblock.engine.GroupSortingStrategy;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
@@ -145,14 +148,27 @@ public final class BlockAnimationEngine {
 		}
 	}
 
+	private static CompiledStageTarget toCompiledStageTarget(StageObject source) {
+		if (source == null) return null;
+		var groupSpec = source.getGroupSpec();
+		return new CompiledStageTarget(
+			source.getId(),
+			source.getName(),
+			source.getBlocks(),
+			source.getCenter(),
+			groupSpec != null ? groupSpec.getSortingStrategy() : GroupSortingStrategy.SEQUENTIAL,
+			groupSpec != null ? groupSpec.getStaggerDelaySeconds() : 0.0
+		);
+	}
+
 	private void scheduleAnimateEvent(TimelineAnimationEvent event, double[] referenceBeatTimesSeconds, double timelineBpm) {
 		if (event == null) return;
 		scheduleAnimateEvent(event, animationLibrary.get(event.getAnimationTypeId()),
-			stageObjectSystem.get(event.getTargetObjectId()), referenceBeatTimesSeconds, timelineBpm);
+			toCompiledStageTarget(stageObjectSystem.get(event.getTargetObjectId())), referenceBeatTimesSeconds, timelineBpm);
 	}
 
 	private void scheduleAnimateEvent(TimelineAnimationEvent event, AnimationDefinition definition,
-		StageObject target, double[] referenceBeatTimesSeconds, double timelineBpm) {
+		CompiledStageTarget target, double[] referenceBeatTimesSeconds, double timelineBpm) {
 		if (com.beatblock.timeline.generation.StepBurstEventFactory.isStepDispatch(event)) {
 			scheduleExpandedStepSequence(event, definition, target, referenceBeatTimesSeconds, timelineBpm);
 			return;
@@ -163,12 +179,12 @@ public final class BlockAnimationEngine {
 	private void scheduleExpandedStepSequence(
 		TimelineAnimationEvent event,
 		AnimationDefinition def,
-		StageObject target,
+		CompiledStageTarget target,
 		double[] referenceBeatTimesSeconds,
 		double timelineBpm
 	) {
 		if (event == null) return;
-		if (def == null || target == null || target.getBlocks().isEmpty()) return;
+		if (def == null || target == null || target.blocks().isEmpty()) return;
 
 		Map<String, Object> params = event.getParameters();
 		List<BlockPos> ordered = sortBlocksForSpatialMode(target, resolveSpatialMode(event, target), event);
@@ -179,7 +195,7 @@ public final class BlockAnimationEngine {
 			edgePriority = readDouble(params.get("cameraEdgePriority"), 0.0);
 		}
 		if (edgePriority > 0.0 && !ordered.isEmpty()) {
-			ordered = applyEdgePrioritization(ordered, target.getBlocks(), edgePriority, runtimeCameraPosition, target.getCenter());
+			ordered = applyEdgePrioritization(ordered, target.blocks(), edgePriority, runtimeCameraPosition, target.center());
 		}
 		ordered = com.beatblock.timeline.generation.CameraStepModulation.reorderForFrustumGating(
 			ordered, runtimeCameraPosition, runtimeCameraForward, params);
@@ -191,15 +207,15 @@ public final class BlockAnimationEngine {
 			planned, ordered, runtimeCameraPosition, params);
 		double duration = Math.max(0.01, event.getDurationSeconds());
 		float energy = event.getEnergy();
-		Vec3d center = target.getCenter();
+		Vec3d center = target.center();
 		for (int i = 0; i < planned.size(); i++) {
 			var step = planned.get(i);
 			StageObject perBlockTarget = new StageObject(
-				target.getId() + "#step#" + i,
-				target.getName(),
+				target.id() + "#step#" + i,
+				target.name(),
 				List.of(step.block()),
 				center,
-				target.getGroupSpec()
+				GroupSpec.fromSelectionSnapshot(List.of(step.block()), target.sorting(), target.staggerDelaySeconds())
 			);
 			double end = step.startTimeSeconds() + duration;
 			animationPlayer.addInstance(new EngineAnimationInstance(
@@ -208,7 +224,7 @@ public final class BlockAnimationEngine {
 	}
 
 	private void scheduleFromTimelineEventWithSpatial(TimelineAnimationEvent event,
-		AnimationDefinition def, StageObject target) {
+		AnimationDefinition def, CompiledStageTarget target) {
 		if (event == null) return;
 		if (def == null || target == null) return;
 
@@ -229,16 +245,23 @@ public final class BlockAnimationEngine {
 		}
 
 		SpatialDispatchMode spatialMode = resolveSpatialMode(event, target);
-		double stepDelay = resolveSpatialStepDelay(event, target, spatialMode, event.getDurationSeconds(), target.getBlocks().size());
-		if (spatialMode == SpatialDispatchMode.ALL || stepDelay <= 0.0 || target.getBlocks().size() <= 1) {
+		double stepDelay = resolveSpatialStepDelay(event, target, spatialMode, event.getDurationSeconds(), target.blocks().size());
+		if (spatialMode == SpatialDispatchMode.ALL || stepDelay <= 0.0 || target.blocks().size() <= 1) {
 			double endTime = event.getTimeSeconds() + Math.max(0.01, event.getDurationSeconds());
+			StageObject allBlocksTarget = new StageObject(
+				target.id(),
+				target.name(),
+				target.blocks(),
+				target.center(),
+				new GroupSpec("manual_snapshot", Map.of(), target.sorting(), target.staggerDelaySeconds())
+			);
 			animationPlayer.addInstance(new EngineAnimationInstance(
-				def, target, event.getTimeSeconds(), endTime, event.getEnergy(), params));
+				def, allBlocksTarget, event.getTimeSeconds(), endTime, event.getEnergy(), params));
 			return;
 		}
 
 		List<BlockPos> ordered = sortBlocksForSpatialMode(target, spatialMode, event);
-		Vec3d center = target.getCenter();
+		Vec3d center = target.center();
 		double baseStart = event.getTimeSeconds();
 		double duration = Math.max(0.01, event.getDurationSeconds());
 		float energy = event.getEnergy();
@@ -247,10 +270,11 @@ public final class BlockAnimationEngine {
 			double start = baseStart + i * stepDelay;
 			double end = start + duration;
 			StageObject perBlockTarget = new StageObject(
-				target.getId() + "#" + i,
-				target.getName(),
+				target.id() + "#" + i,
+				target.name(),
 				List.of(block),
-				center
+				center,
+				new GroupSpec("manual_snapshot", Map.of(), target.sorting(), target.staggerDelaySeconds())
 			);
 			animationPlayer.addInstance(new EngineAnimationInstance(def, perBlockTarget, start, end, energy, params));
 		}
@@ -258,30 +282,30 @@ public final class BlockAnimationEngine {
 
 	private void scheduleSingleBlockBurst(
 		TimelineAnimationEvent event,
-		StageObject target,
+		CompiledStageTarget target,
 		AnimationDefinition def,
 		net.minecraft.util.math.BlockPos block
 	) {
 		StageObject perBlockTarget = new StageObject(
-			target.getId() + "#block",
-			target.getName(),
+			target.id() + "#block",
+			target.name(),
 			List.of(block),
-			target.getCenter(),
-			target.getGroupSpec()
+			target.center(),
+			new GroupSpec("manual_snapshot", Map.of(), target.sorting(), target.staggerDelaySeconds())
 		);
 		double endTime = event.getTimeSeconds() + Math.max(0.01, event.getDurationSeconds());
 		animationPlayer.addInstance(new EngineAnimationInstance(
 			def, perBlockTarget, event.getTimeSeconds(), endTime, event.getEnergy(), event.getParameters()));
 	}
 
-	private static SpatialDispatchMode resolveSpatialMode(TimelineAnimationEvent event, StageObject target) {
+	private static SpatialDispatchMode resolveSpatialMode(TimelineAnimationEvent event, CompiledStageTarget target) {
 		if (event != null && event.getPayload() instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate) {
 			var spatial = animate.spatial();
 			if (!spatial.inheritGroupSpatial()) {
 				return spatial.mode();
 			}
-			if (target != null && target.getGroupSpec() != null) {
-				return target.getGroupSpec().getSortingStrategy().toSpatialDispatchMode();
+			if (target != null && target.sorting() != null) {
+				return target.sorting().toSpatialDispatchMode();
 			}
 			return SpatialDispatchMode.ALL;
 		}
@@ -292,11 +316,11 @@ public final class BlockAnimationEngine {
 		if (!readBoolean(params != null ? params.get("inheritGroupSpatial") : null, true)) {
 			return SpatialDispatchMode.ALL;
 		}
-		if (target == null || target.getGroupSpec() == null) return SpatialDispatchMode.ALL;
-		return target.getGroupSpec().getSortingStrategy().toSpatialDispatchMode();
+		if (target == null || target.sorting() == null) return SpatialDispatchMode.ALL;
+		return target.sorting().toSpatialDispatchMode();
 	}
 
-	private static double resolveSpatialStepDelay(TimelineAnimationEvent event, StageObject target, SpatialDispatchMode mode,
+	private static double resolveSpatialStepDelay(TimelineAnimationEvent event, CompiledStageTarget target, SpatialDispatchMode mode,
 	                                             double durationSeconds, int blockCount) {
 		if (mode == null || mode == SpatialDispatchMode.ALL || blockCount <= 1) return 0.0;
 		if (event != null && event.getPayload() instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate) {
@@ -309,8 +333,8 @@ public final class BlockAnimationEngine {
 				double byDuration = duration / Math.max(2.0, Math.min(28.0, blockCount * 0.6));
 				return Math.max(0.01, Math.min(0.06, byDuration));
 			}
-			if (target != null && target.getGroupSpec() != null && target.getGroupSpec().getStaggerDelaySeconds() > 0.0) {
-				return target.getGroupSpec().getStaggerDelaySeconds();
+			if (target != null && target.staggerDelaySeconds() > 0.0) {
+				return target.staggerDelaySeconds();
 			}
 			double duration = Math.max(0.05, durationSeconds);
 			double byDuration = duration / Math.max(2.0, Math.min(28.0, blockCount * 0.6));
@@ -326,8 +350,8 @@ public final class BlockAnimationEngine {
 			double byDuration = duration / Math.max(2.0, Math.min(28.0, blockCount * 0.6));
 			return Math.max(0.01, Math.min(0.06, byDuration));
 		}
-		if (target != null && target.getGroupSpec() != null && target.getGroupSpec().getStaggerDelaySeconds() > 0.0) {
-			return target.getGroupSpec().getStaggerDelaySeconds();
+		if (target != null && target.staggerDelaySeconds() > 0.0) {
+			return target.staggerDelaySeconds();
 		}
 
 		double duration = Math.max(0.05, durationSeconds);
@@ -425,10 +449,10 @@ public final class BlockAnimationEngine {
 		return result;
 	}
 
-	private List<BlockPos> sortBlocksForSpatialMode(StageObject target, SpatialDispatchMode mode, TimelineAnimationEvent event) {
-		List<BlockPos> blocks = new ArrayList<>(target.getBlocks());
+	private List<BlockPos> sortBlocksForSpatialMode(CompiledStageTarget target, SpatialDispatchMode mode, TimelineAnimationEvent event) {
+		List<BlockPos> blocks = new ArrayList<>(target.blocks());
 		if (blocks.size() <= 1 || mode == SpatialDispatchMode.ALL) return blocks;
-		Vec3d center = target.getCenter();
+		Vec3d center = target.center();
 		long seed = spatialSeed(event, target);
 
 		switch (mode) {
@@ -463,10 +487,10 @@ public final class BlockAnimationEngine {
 		return angle;
 	}
 
-	private static long spatialSeed(TimelineAnimationEvent event, StageObject target) {
+	private static long spatialSeed(TimelineAnimationEvent event, CompiledStageTarget target) {
 		long t = Double.doubleToLongBits(event.getTimeSeconds());
 		long id = Objects.hashCode(event.getEventId());
-		long targetId = Objects.hashCode(target.getId());
+		long targetId = Objects.hashCode(target.id());
 		return (t ^ (id * 31L) ^ (targetId * 131L));
 	}
 
