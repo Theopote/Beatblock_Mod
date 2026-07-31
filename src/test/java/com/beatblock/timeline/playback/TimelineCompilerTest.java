@@ -99,4 +99,14 @@ class TimelineCompilerTest {
 	private static TimelineAnimationEvent event(String id, double time, Map<String, Object> params) {
 		return new TimelineAnimationEvent(id, time, 1.0, id, "stage", 1f, params);
 	}
+
+	@Test
+	void unsupportedMutableParameterTypeFailsCompilationEarly() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(event("bad", 1.0, Map.of("custom", new Object())));
+
+		var ex = assertThrows(TimelineCompilationException.class, () -> TimelineCompiler.compile(timeline));
+		assertTrue(ex.getMessage().contains("Unsupported mutable parameter type"));
+		assertTrue(ex.getMessage().contains("java.lang.Object"));
+	}
 }

@@ -4,6 +4,7 @@ import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.payload.StageEventPayload;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.StageObject;
 
@@ -82,14 +83,17 @@ public final class TimelineCompiler {
 	}
 
 	private static TimelineAnimationEvent copyEvent(TimelineAnimationEvent event) {
+		// 先通过 StageEventPayload 做一次强类型验证，再冻结回参数表。
+		// 这样播放快照不再依赖“猜如何深复制任意 Map”，而是只保留已知可序列化的基础类型。
+		StageEventPayload payload = event.getPayload();
 		return new TimelineAnimationEvent(
 			event.getEventId(),
 			event.getTimeSeconds(),
-			event.getDurationSeconds(),
-			event.getAnimationTypeId(),
-			event.getTargetObjectId(),
-			event.getEnergy(),
-			freezeMap(event.getParameters())
+			payload.durationSeconds(),
+			payload.animationType(),
+			payload.targetObject(),
+			payload.energy(),
+			freezeMap(payload.toParameterMap())
 		);
 	}
 
@@ -120,7 +124,8 @@ public final class TimelineCompiler {
 			for (int i = 0; i < Array.getLength(value); i++) frozen.add(freezeValue(Array.get(value, i)));
 			return List.copyOf(frozen);
 		}
-		return value;
+		throw new TimelineCompilationException(
+			"Unsupported mutable parameter type: " + value.getClass().getName());
 	}
 
 	private static boolean shouldRestoreWorldMutations(Timeline timeline) {
