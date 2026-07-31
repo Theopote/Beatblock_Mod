@@ -24,6 +24,8 @@ import com.beatblock.ui.presenter.EventPropertiesRef;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
 import com.beatblock.timeline.rendering.TrackRegistry;
+import com.beatblock.ui.properties.editors.WorldTrajectorySection;
+import com.beatblock.ui.properties.editors.StepSequenceSection;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
@@ -41,33 +43,35 @@ public final class AnimationPropertyEditor {
 	private static final int INPUT_BUFFER_SIZE = 128;
 
 	private String boundRefKey;
-	private final ImString timeBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString durationBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString energyBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString energyThresholdBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString spatialDelayBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString blocksPerBeatBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString distancePaceSecondsBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString distancePaceMinGapBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString cameraNearDistanceBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString cameraFarDistanceBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString cameraNearScaleBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString cameraFarScaleBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString cameraEdgePriorityBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString entryDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString idleDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString exitDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString placeBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString flashBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString singleBlockXBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString singleBlockYBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString singleBlockZBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString meteorHeightBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString meteorScatterBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private final ImString impactThresholdBuffer = new ImString(INPUT_BUFFER_SIZE);
-	private String validationError;
+	final ImString timeBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString durationBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString energyBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString energyThresholdBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString spatialDelayBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString blocksPerBeatBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString distancePaceSecondsBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString distancePaceMinGapBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString cameraNearDistanceBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString cameraFarDistanceBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString cameraNearScaleBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString cameraFarScaleBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString cameraEdgePriorityBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString entryDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString idleDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString exitDurationBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString placeBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString flashBlockBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString singleBlockXBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString singleBlockYBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString singleBlockZBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString meteorHeightBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString meteorScatterBuffer = new ImString(INPUT_BUFFER_SIZE);
+	final ImString impactThresholdBuffer = new ImString(INPUT_BUFFER_SIZE);
+	String validationError;
 	private String batchMessage;
 	private String animationPreviewPresetId;
+	private final EventPropertySection worldTrajectorySection = new WorldTrajectorySection();
+	private final EventPropertySection stepSequenceSection = new StepSequenceSection();
 	private final EventPropertiesPresenter presenter;
 	private final Supplier<BeatBlockContext> context;
 	private final ImString batchEnergyBuffer = new ImString(16);
@@ -109,7 +113,7 @@ public final class AnimationPropertyEditor {
 			"beatblock.event.spatial.spiral"
 		);
 	}
-	private static final String[] SPATIAL_MODE_VALUES = {
+	static final String[] SPATIAL_MODE_VALUES = {
 		"ALL",
 		"SEQUENTIAL",
 		"RADIAL",
@@ -122,7 +126,7 @@ public final class AnimationPropertyEditor {
 			"beatblock.event.step_start.immediate"
 		);
 	}
-	private static final String[] STEP_START_MODE_VALUES = {
+	static final String[] STEP_START_MODE_VALUES = {
 		"NEXT_BEAT",
 		"IMMEDIATE"
 	};
@@ -132,7 +136,7 @@ public final class AnimationPropertyEditor {
 			"beatblock.event.step_completion.loop"
 		);
 	}
-	private static final String[] STEP_COMPLETION_VALUES = {
+	static final String[] STEP_COMPLETION_VALUES = {
 		"KEEP",
 		"LOOP"
 	};
@@ -143,7 +147,7 @@ public final class AnimationPropertyEditor {
 			"beatblock.event.pacing.distance"
 		);
 	}
-	private static final String[] PACING_MODE_VALUES = {
+	static final String[] PACING_MODE_VALUES = {
 		"BEAT_GRID",
 		"FIXED_INTERVAL",
 		"DISTANCE"
@@ -378,25 +382,24 @@ public final class AnimationPropertyEditor {
 		List<EventPropertiesOption> animationOptions = presenter.animationOptions();
 		List<EventPropertiesOption> targetOptions = presenter.targetOptions();
 
-		ImInt stepStartModeIndex = new ImInt(indexOfValue(STEP_START_MODE_VALUES, viewState.stepStartMode()));
-		ImInt stepCompletionIndex = new ImInt(indexOfValue(STEP_COMPLETION_VALUES, viewState.stepCompletionMode()));
-		ImInt pacingModeIndex = new ImInt(indexOfValue(PACING_MODE_VALUES, viewState.pacingMode()));
-		if (pacingModeIndex.get() < 0 || pacingModeIndex.get() >= PACING_MODE_VALUES.length) pacingModeIndex.set(0);
-		ImInt actionIndex = new ImInt(indexOfOption(actionOptions, viewState.actionMode()));
-		ImInt animationIndex = new ImInt(indexOfOption(animationOptions, viewState.animationId()));
-		ImInt targetIndex = new ImInt(indexOfOption(targetOptions, viewState.targetId()));
-		ImInt spatialModeIndex = new ImInt(indexOfValue(SPATIAL_MODE_VALUES, viewState.spatialMode()));
-		if (spatialModeIndex.get() < 0 || spatialModeIndex.get() >= SPATIAL_MODE_VALUES.length) spatialModeIndex.set(0);
-		ImBoolean inheritGroupSpatial = new ImBoolean(viewState.inheritGroupSpatial());
-		ImBoolean stepDispatch = new ImBoolean(viewState.stepDispatch());
-		ImBoolean cameraAdaptiveStep = new ImBoolean(viewState.cameraAdaptiveStep());
-		ImBoolean cameraFrustumGating = new ImBoolean(viewState.cameraFrustumGating());
-		ImBoolean usePhaseAnimation = new ImBoolean(viewState.usePhaseAnimation());
-		ImBoolean vfxEnabled = new ImBoolean(viewState.vfxEnabled());
-
 		String[] actionLabels = optionLabels(actionOptions);
 		String[] animationLabels = optionLabels(animationOptions);
 		String[] targetLabels = optionLabels(targetOptions);
+
+		EventEditContext ctx = new EventEditContext(
+			ref,
+			timeline,
+			editor,
+			presenter,
+			viewState,
+			actionOptions,
+			animationOptions,
+			targetOptions,
+			actionLabels,
+			animationLabels,
+			targetLabels,
+			this
+		);
 
 		if (batchCount > 1) {
 			ImGui.textDisabled(BBTexts.get("beatblock.event.batch.primary_hint", batchCount));
@@ -405,18 +408,17 @@ public final class AnimationPropertyEditor {
 
 		if (ImGui.beginTabBar("##eventPropTabs")) {
 			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.basic"))) {
-				renderBasicTab(animationOptions, actionIndex, animationIndex, targetIndex,
-					actionLabels, animationLabels, targetLabels, vfxEnabled);
+				renderBasicTab(ctx);
 				ImGui.endTabItem();
 			}
 			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.spatial"))) {
-				renderSpatialTab(actionOptions, actionIndex, animationOptions, animationIndex,
-					inheritGroupSpatial, spatialModeIndex);
+				renderSpatialTab(ctx);
 				ImGui.endTabItem();
 			}
 			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.advanced"))) {
-				renderAdvancedTab(stepDispatch, stepStartModeIndex, stepCompletionIndex, pacingModeIndex,
-					cameraAdaptiveStep, cameraFrustumGating, usePhaseAnimation);
+				if (stepSequenceSection.supports(ctx)) {
+					stepSequenceSection.render(ctx);
+				}
 				ImGui.endTabItem();
 			}
 			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.info"))) {
@@ -450,20 +452,7 @@ public final class AnimationPropertyEditor {
 		boolean reset = ImGui.button(BBTexts.get("beatblock.common.reset") + "##eventPropertiesReset", 120f, 0f);
 
 		if (applied) {
-			applyAnimationChanges(ref, timeline,
-				actionOptions.get(actionIndex.get()).id(),
-				animationOptions.get(animationIndex.get()).id(),
-				targetOptions.get(targetIndex.get()).id(),
-				inheritGroupSpatial.get(),
-				SPATIAL_MODE_VALUES[Math.max(0, Math.min(spatialModeIndex.get(), SPATIAL_MODE_VALUES.length - 1))],
-				stepDispatch.get(),
-				STEP_START_MODE_VALUES[Math.max(0, Math.min(stepStartModeIndex.get(), STEP_START_MODE_VALUES.length - 1))],
-				STEP_COMPLETION_VALUES[Math.max(0, Math.min(stepCompletionIndex.get(), STEP_COMPLETION_VALUES.length - 1))],
-				PACING_MODE_VALUES[Math.max(0, Math.min(pacingModeIndex.get(), PACING_MODE_VALUES.length - 1))],
-				cameraAdaptiveStep.get(),
-				cameraFrustumGating.get(),
-				usePhaseAnimation.get(),
-				vfxEnabled.get());
+			applyAnimationChanges(ctx);
 		}
 		if (reset) {
 			bindBuffers(ref);
@@ -471,16 +460,7 @@ public final class AnimationPropertyEditor {
 		renderAnimationPreviewPopup();
 	}
 
-	private void renderBasicTab(
-		List<EventPropertiesOption> animationOptions,
-		ImInt actionIndex,
-		ImInt animationIndex,
-		ImInt targetIndex,
-		String[] actionLabels,
-		String[] animationLabels,
-		String[] targetLabels,
-		ImBoolean vfxEnabled
-	) {
+	private void renderBasicTab(EventEditContext ctx) {
 		ImGui.text(BBTexts.get("beatblock.event.timing"));
 		ImGui.setNextItemWidth(-1f);
 		ImGui.inputText(BBTexts.get("beatblock.event.start_time") + "##eventTime", timeBuffer);
@@ -497,22 +477,22 @@ public final class AnimationPropertyEditor {
 
 		ImGui.spacing();
 		ImGui.text(BBTexts.get("beatblock.event.binding"));
-		if (ImGui.combo(BBTexts.get("beatblock.event.action_mode_combo") + "##eventActionMode", actionIndex, actionLabels)) {
+		if (ImGui.combo(BBTexts.get("beatblock.event.action_mode_combo") + "##eventActionMode", ctx.actionIndex, ctx.actionLabels())) {
 			validationError = null;
 		}
 		trackLivePreviewEdit();
-		if (ImGui.combo(BBTexts.get("beatblock.event.animation_preset") + "##eventAnimation", animationIndex, animationLabels)) {
+		if (ImGui.combo(BBTexts.get("beatblock.event.animation_preset") + "##eventAnimation", ctx.animationIndex, ctx.animationLabels())) {
 			validationError = null;
 		}
 		trackLivePreviewEdit();
-		String selectedAnimationId = animationOptions.get(animationIndex.get()).id();
+		String selectedAnimationId = ctx.selectedAnimationId();
 		renderPresetChannelPreview(selectedAnimationId);
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.event.preview_animation") + "##eventAnimPreview")) {
 			animationPreviewPresetId = selectedAnimationId;
 			ImGui.openPopup("##eventAnimPreviewPopup");
 		}
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.vfx") + "##eventVfxEnabled", vfxEnabled)) {
+		if (ImGui.checkbox(BBTexts.get("beatblock.event.vfx") + "##eventVfxEnabled", ctx.vfxEnabled)) {
 			validationError = null;
 		}
 		BlockInfluencePreset selectedPreset = BlockInfluencePresets.get(selectedAnimationId);
@@ -523,32 +503,26 @@ public final class AnimationPropertyEditor {
 				ImGui.setTooltip(BBTexts.get("beatblock.event.vfx.tooltip"));
 			}
 		}
-		if (ImGui.combo(BBTexts.get("beatblock.event.target") + "##eventTarget", targetIndex, targetLabels)) {
+		if (ImGui.combo(BBTexts.get("beatblock.event.target") + "##eventTarget", ctx.targetIndex, ctx.targetLabels())) {
 			validationError = null;
 		}
 	}
 
-	private void renderSpatialTab(
-		List<EventPropertiesOption> actionOptions,
-		ImInt actionIndex,
-		List<EventPropertiesOption> animationOptions,
-		ImInt animationIndex,
-		ImBoolean inheritGroupSpatial,
-		ImInt spatialModeIndex
-	) {
-		String selectedAnimationId = animationOptions.get(animationIndex.get()).id();
-		renderWorldTrajectoryParams(selectedAnimationId);
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.inherit_spatial") + "##eventInheritGroupSpatial", inheritGroupSpatial)) {
+	private void renderSpatialTab(EventEditContext ctx) {
+		if (worldTrajectorySection.supports(ctx)) {
+			worldTrajectorySection.render(ctx);
+		}
+		if (ImGui.checkbox(BBTexts.get("beatblock.event.inherit_spatial") + "##eventInheritGroupSpatial", ctx.inheritGroupSpatial)) {
 			validationError = null;
 		}
-		if (!inheritGroupSpatial.get()) {
-			if (ImGui.combo(BBTexts.get("beatblock.event.spatial_mode") + "##eventSpatialMode", spatialModeIndex, spatialModeLabels())) {
+		if (!ctx.inheritGroupSpatial.get()) {
+			if (ImGui.combo(BBTexts.get("beatblock.event.spatial_mode") + "##eventSpatialMode", ctx.spatialModeIndex, spatialModeLabels())) {
 				validationError = null;
 			}
 			ImGui.setNextItemWidth(-1f);
 			ImGui.inputText(BBTexts.get("beatblock.event.spatial_delay") + "##eventSpatialDelay", spatialDelayBuffer);
 		}
-		TimelineAnimationActionMode selectedActionMode = TimelineAnimationActionMode.fromValue(actionOptions.get(actionIndex.get()).id());
+		TimelineAnimationActionMode selectedActionMode = ctx.selectedActionMode();
 		if (selectedActionMode == TimelineAnimationActionMode.PLACE) {
 			ImGui.setNextItemWidth(-1f);
 			ImGui.inputText(BBTexts.get("beatblock.event.place_block") + "##eventPlaceBlock", placeBlockBuffer);
@@ -558,78 +532,9 @@ public final class AnimationPropertyEditor {
 		}
 	}
 
-	private void renderAdvancedTab(
-		ImBoolean stepDispatch,
-		ImInt stepStartModeIndex,
-		ImInt stepCompletionIndex,
-		ImInt pacingModeIndex,
-		ImBoolean cameraAdaptiveStep,
-		ImBoolean cameraFrustumGating,
-		ImBoolean usePhaseAnimation
-	) {
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.step_dispatch") + "##eventDispatchStep", stepDispatch)) {
-			validationError = null;
-		}
-		if (!stepDispatch.get()) {
-			return;
-		}
-		if (ImGui.combo(BBTexts.get("beatblock.event.pacing_mode") + "##eventPacingMode", pacingModeIndex, pacingModeLabels())) {
-			validationError = null;
-		}
-		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(BBTexts.get("beatblock.event.pacing_mode.tooltip"));
-		}
-		boolean distancePacing = "DISTANCE".equals(PACING_MODE_VALUES[pacingModeIndex.get()]);
-		if (!distancePacing) {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.blocks_per_beat") + "##eventBlocksPerBeat", blocksPerBeatBuffer);
-		}
-		if (distancePacing) {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.distance_pace") + "##eventDistancePaceSeconds", distancePaceSecondsBuffer);
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.min_gap") + "##eventDistancePaceMinGap", distancePaceMinGapBuffer);
-		}
-		if (ImGui.combo(BBTexts.get("beatblock.event.step_start") + "##eventStepStartMode", stepStartModeIndex, stepStartModeLabels())) {
-			validationError = null;
-		}
-		if (ImGui.combo(BBTexts.get("beatblock.event.step_completion") + "##eventStepCompletionMode", stepCompletionIndex, stepCompletionLabels())) {
-			validationError = null;
-		}
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.camera_adaptive") + "##eventCameraAdaptiveStep", cameraAdaptiveStep)) {
-			validationError = null;
-		}
-		if (cameraAdaptiveStep.get()) {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.near_distance") + "##eventCameraNearDistance", cameraNearDistanceBuffer);
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.far_distance") + "##eventCameraFarDistance", cameraFarDistanceBuffer);
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.near_scale") + "##eventCameraNearScale", cameraNearScaleBuffer);
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.far_scale") + "##eventCameraFarScale", cameraFarScaleBuffer);
-		}
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.frustum_gating") + "##eventCameraFrustumGating", cameraFrustumGating)) {
-			validationError = null;
-		}
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.event.edge_priority") + "##eventCameraEdgePriority", cameraEdgePriorityBuffer);
-		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(BBTexts.get("beatblock.event.edge_priority.tooltip"));
-		}
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.phase_animation") + "##eventUsePhaseAnimation", usePhaseAnimation)) {
-			validationError = null;
-		}
-		if (usePhaseAnimation.get()) {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.entry_phase") + "##eventEntryDuration", entryDurationBuffer);
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.idle_phase") + "##eventIdleDuration", idleDurationBuffer);
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.exit_phase") + "##eventExitDuration", exitDurationBuffer);
-			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(BBTexts.get("beatblock.event.phase.tooltip"));
-			}
+	private void renderAdvancedTab(EventEditContext ctx) {
+		if (stepSequenceSection.supports(ctx)) {
+			stepSequenceSection.render(ctx);
 		}
 	}
 
@@ -692,16 +597,25 @@ public final class AnimationPropertyEditor {
 		}
 	}
 
-	private void applyAnimationChanges(EventPropertiesRef ref, Timeline timeline, String actionMode, String animationId,
-	                                  String targetObjectId, boolean inheritGroupSpatial, String spatialMode,
-	                                  boolean stepDispatch, String stepStartMode, String stepCompletionMode,
-	                                  String pacingMode, boolean cameraAdaptiveStep, boolean cameraFrustumGating,
-	                                  boolean usePhaseAnimation, boolean vfxEnabled) {
+	private void applyAnimationChanges(EventEditContext ctx) {
 		TimelineEditor editor = runtime().timelineEditor();
 		if (editor == null) {
 			validationError = BBTexts.get("beatblock.common.timeline_editor_not_initialized");
 			return;
 		}
+		String actionMode = ctx.selectedActionId();
+		String animationId = ctx.selectedAnimationId();
+		String targetObjectId = ctx.selectedTargetId();
+		boolean inheritGroupSpatial = ctx.inheritGroupSpatial.get();
+		String spatialMode = SPATIAL_MODE_VALUES[Math.max(0, Math.min(ctx.spatialModeIndex.get(), SPATIAL_MODE_VALUES.length - 1))];
+		boolean stepDispatch = ctx.stepDispatch.get();
+		String stepStartMode = STEP_START_MODE_VALUES[Math.max(0, Math.min(ctx.stepStartModeIndex.get(), STEP_START_MODE_VALUES.length - 1))];
+		String stepCompletionMode = STEP_COMPLETION_VALUES[Math.max(0, Math.min(ctx.stepCompletionIndex.get(), STEP_COMPLETION_VALUES.length - 1))];
+		String pacingMode = PACING_MODE_VALUES[Math.max(0, Math.min(ctx.pacingModeIndex.get(), PACING_MODE_VALUES.length - 1))];
+		boolean cameraAdaptiveStep = ctx.cameraAdaptiveStep.get();
+		boolean cameraFrustumGating = ctx.cameraFrustumGating.get();
+		boolean usePhaseAnimation = ctx.usePhaseAnimation.get();
+		boolean vfxEnabled = ctx.vfxEnabled.get();
 		try {
 			AnimationEventFormInput input = AnimationEventPropertiesEditor.parseFormInput(
 				valueOf(timeBuffer),
@@ -737,8 +651,8 @@ public final class AnimationPropertyEditor {
 				vfxEnabled
 			);
 			var result = presenter.applyAnimationEvent(
-				ref,
-				timeline,
+				ctx.ref(),
+				ctx.timeline(),
 				editor.getCommandManager(),
 				input,
 				buildTrajectoryFormInput(animationId)
@@ -752,7 +666,7 @@ public final class AnimationPropertyEditor {
 				previewEventAtTime(input.timeSeconds());
 			}
 			ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.toast.event_applied"));
-			bindBuffers(ref);
+			bindBuffers(ctx.ref());
 		} catch (NumberFormatException ex) {
 			validationError = BBTexts.get("beatblock.event.invalid_number");
 		}
@@ -788,38 +702,6 @@ public final class AnimationPropertyEditor {
 		impactThresholdBuffer.set(snap.impactThreshold());
 	}
 
-	private void renderWorldTrajectoryParams(String animationId) {
-		if (!WorldTrajectoryEventParamsEditor.supports(animationId)) {
-			return;
-		}
-		boolean rhythmDrop = WorldTrajectoryEventParamsEditor.RHYTHM_DROP_ANIMATION_ID.equalsIgnoreCase(animationId);
-		ImGui.spacing();
-		ImGui.textDisabled(rhythmDrop ? BBTexts.get("beatblock.event.rhythm_drop") : BBTexts.get("beatblock.event.meteor"));
-		ImGui.textWrapped(rhythmDrop
-			? BBTexts.get("beatblock.event.rhythm_drop.hint")
-			: BBTexts.get("beatblock.event.meteor.hint"));
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.event.landing_x") + "##eventSingleBlockX", singleBlockXBuffer);
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.event.landing_y") + "##eventSingleBlockY", singleBlockYBuffer);
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.event.landing_z") + "##eventSingleBlockZ", singleBlockZBuffer);
-		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(BBTexts.get("beatblock.event.landing.tooltip"));
-		}
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.event.fall_height") + "##eventMeteorHeight", meteorHeightBuffer);
-        ImGui.setNextItemWidth(-1f);
-        if (rhythmDrop) {
-            ImGui.inputText(BBTexts.get("beatblock.event.impact_threshold") + "##eventImpactThreshold", impactThresholdBuffer);
-			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(BBTexts.get("beatblock.event.impact_threshold.tooltip"));
-			}
-		} else {
-            ImGui.inputText(BBTexts.get("beatblock.event.scatter") + "##eventMeteorScatter", meteorScatterBuffer);
-		}
-	}
-
 	private WorldTrajectoryEventParamsEditor.FormInput buildTrajectoryFormInput(String animationId) {
 		if (!WorldTrajectoryEventParamsEditor.supports(animationId)) {
 			return null;
@@ -838,7 +720,7 @@ public final class AnimationPropertyEditor {
 		PresetChannelPreview.renderCollapsible(BBTexts.get("beatblock.event.preset_channels") + "##eventPresetChannels", BlockInfluencePresets.get(presetId));
 	}
 
-	private static int indexOfOption(List<EventPropertiesOption> options, String id) {
+	static int indexOfOption(List<EventPropertiesOption> options, String id) {
 		for (int i = 0; i < options.size(); i++) {
 			if (options.get(i).id().equals(id)) {
 				return i;
@@ -847,7 +729,7 @@ public final class AnimationPropertyEditor {
 		return 0;
 	}
 
-	private static String[] optionLabels(List<EventPropertiesOption> options) {
+	static String[] optionLabels(List<EventPropertiesOption> options) {
 		String[] labels = new String[options.size()];
 		for (int i = 0; i < options.size(); i++) {
 			labels[i] = options.get(i).label();
@@ -855,7 +737,7 @@ public final class AnimationPropertyEditor {
 		return labels;
 	}
 
-	private static int indexOfValue(String[] values, String target) {
+	static int indexOfValue(String[] values, String target) {
 		if (values == null || values.length == 0) return 0;
 		if (target == null) return 0;
 		for (int i = 0; i < values.length; i++) {
