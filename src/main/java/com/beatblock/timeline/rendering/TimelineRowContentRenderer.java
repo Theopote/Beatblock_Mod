@@ -98,11 +98,15 @@ public final class TimelineRowContentRenderer {
 		ImGui.pushClipRect(layout.contentLeft, rowScreenY, layout.contentLeft + layout.contentWidth,
 			rowScreenY + rowHeight, true);
 		if (rowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK) {
-			TimelineAudioDropHandler.renderAnimationTrackDropTarget(dropHost, rowIndex, rowHeight, timeline, layout);
+			TimelineAudioDropHandler.renderAnimationTrackDropTarget(
+				dropHost, rowIndex, rowHeight, timeline, layout,
+				viewState, toolbarState, interactionState, selectionState);
 			eventRenderer.renderAnimationEventBlocks(
 				rowY, timeline.getBlockAnimationEvents(), layout, viewState, selectionState);
 		} else if (rowIndex == TimelineTrackMeta.ROW_ANIM_AUTO) {
-			TimelineAudioDropHandler.renderAnimationTrackDropTarget(dropHost, rowIndex, rowHeight, timeline, layout);
+			TimelineAudioDropHandler.renderAnimationTrackDropTarget(
+				dropHost, rowIndex, rowHeight, timeline, layout,
+				viewState, toolbarState, interactionState, selectionState);
 			eventRenderer.renderAnimationEventBlocks(
 				rowY, timeline.getAutoAnimationEvents(), layout, viewState, selectionState);
 		} else if (TimelineTrackMeta.isBuildLayerSubRow(rowIndex)) {

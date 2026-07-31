@@ -3,11 +3,25 @@ package com.beatblock.timeline.rendering;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.assets.AudioAssetStatus;
+import com.beatblock.engine.influence.BlockInfluencePreset;
+import com.beatblock.engine.influence.BlockInfluencePresets;
+import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineAnimationActionMode;
+import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.editor.InteractionState;
+import com.beatblock.timeline.editor.SelectionState;
+import com.beatblock.timeline.editor.TimelineViewState;
+import com.beatblock.timeline.generation.TimelineDraftWriter;
+import com.beatblock.timeline.interaction.DragController;
+import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.notification.ToastNotificationSystem;
 import imgui.ImGui;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,10 +36,17 @@ import static com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport.r
 import static com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport.saveFeatureEvents;
 import static com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport.shiftFeatureEventsByOffset;
 
-/** 音频资产拖放到时间线：ImGui 目标区与 beatmap/特征轨回填。 */
+/**
+ * 音频资产与动画预设拖放到时间线：ImGui 目标区与 beatmap/特征轨回填。
+ * <p>
+ * 动画轨道（block / auto）同时接收 {@value #ANIMATION_PRESET_PAYLOAD_TYPE} 载荷，
+ * 把 {@link BlockInfluencePreset} 直接实例化为新的动画事件。
+ */
 public final class TimelineAudioDropHandler {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TimelineAudioDropHandler.class);
+
+	public static final String ANIMATION_PRESET_PAYLOAD_TYPE = "BB_ANIMATION_PRESET_ID";
 
 	private TimelineAudioDropHandler() {}
 
@@ -52,33 +73,207 @@ public final class TimelineAudioDropHandler {
 		}
 	}
 
+	private static void acceptAudioAssetDrop(TimelineAudioDropHost host, Timeline timeline, int dropTargetRowIndex) {
+		if (!ImGui.beginDragDropTarget()) {
+			return;
+		}
+		try {
+			byte[] payload = ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID");
+			if (payload == null) {
+				return;
+			}
+			String assetId = new String(payload, StandardCharsets.UTF_8).trim();
+			AudioAsset asset = AudioAssetManager.getInstance().findById(assetId);
+			if (asset == null) {
+				asset = AudioAssetManager.getInstance().getCurrentDragAsset();
+			}
+			handleDroppedAudioAsset(host, timeline, asset, dropTargetRowIndex);
+		} finally {
+			ImGui.endDragDropTarget();
+		}
+	}
+
 	public static void renderAnimationTrackDropTarget(
 		TimelineAudioDropHost host,
 		int rowIndex,
 		float rowHeight,
 		Timeline timeline,
-		TimelineLayout layout
+		TimelineLayout layout,
+		TimelineViewState viewState,
+		TimelineToolbarState toolbarState,
+		InteractionState interactionState,
+		SelectionState selectionState
 	) {
 		float screenY = layout.getRowScreenY(rowIndex);
 		if (screenY < 0) return;
 		ImGui.setCursorScreenPos(layout.contentLeft, screenY);
 		ImGui.invisibleButton("##AnimDropTarget_" + rowIndex, layout.contentWidth, rowHeight);
-		acceptAudioAssetDrop(host, timeline, rowIndex);
+		acceptDrops(host, timeline, rowIndex, layout, viewState, toolbarState, interactionState, selectionState);
 	}
 
-	private static void acceptAudioAssetDrop(TimelineAudioDropHost host, Timeline timeline, int dropTargetRowIndex) {
-		if (ImGui.beginDragDropTarget()) {
-			byte[] payload = ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID");
-			if (payload != null) {
-				String assetId = new String(payload, StandardCharsets.UTF_8).trim();
-				AudioAsset asset = AudioAssetManager.getInstance().findById(assetId);
-				if (asset == null) {
-					asset = AudioAssetManager.getInstance().getCurrentDragAsset();
-				}
-				handleDroppedAudioAsset(host, timeline, asset, dropTargetRowIndex);
-			}
-			ImGui.endDragDropTarget();
+	private static void acceptDrops(
+		TimelineAudioDropHost host,
+		Timeline timeline,
+		int dropTargetRowIndex,
+		TimelineLayout layout,
+		TimelineViewState viewState,
+		TimelineToolbarState toolbarState,
+		InteractionState interactionState,
+		SelectionState selectionState
+	) {
+		if (!ImGui.beginDragDropTarget()) {
+			return;
 		}
+		byte[] audioPayload = ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID");
+		if (audioPayload != null) {
+			String assetId = new String(audioPayload, StandardCharsets.UTF_8).trim();
+			AudioAsset asset = AudioAssetManager.getInstance().findById(assetId);
+			if (asset == null) {
+				asset = AudioAssetManager.getInstance().getCurrentDragAsset();
+			}
+			handleDroppedAudioAsset(host, timeline, asset, dropTargetRowIndex);
+		} else {
+			Object presetPayload = ImGui.acceptDragDropPayload(ANIMATION_PRESET_PAYLOAD_TYPE);
+			String presetId = decodeStringPayload(presetPayload);
+			if (!presetId.isBlank()) {
+				handleDroppedAnimationPreset(
+					host,
+					timeline,
+					dropTargetRowIndex,
+					layout,
+					viewState,
+					toolbarState,
+					interactionState,
+					selectionState,
+					presetId
+				);
+			}
+		}
+		ImGui.endDragDropTarget();
+	}
+
+	private static void handleDroppedAnimationPreset(
+		TimelineAudioDropHost host,
+		Timeline timeline,
+		int dropTargetRowIndex,
+		TimelineLayout layout,
+		TimelineViewState viewState,
+		TimelineToolbarState toolbarState,
+		InteractionState interactionState,
+		SelectionState selectionState,
+		String presetId
+	) {
+		if (host == null || timeline == null || presetId == null || presetId.isBlank()) {
+			return;
+		}
+		BlockInfluencePreset preset = BlockInfluencePresets.get(presetId);
+		if (preset == null) {
+			ToastNotificationSystem.showError(BBTexts.get("beatblock.animation_library.preset_missing"));
+			return;
+		}
+		String trackId = resolveTrackIdForRow(dropTargetRowIndex);
+		if (trackId == null) {
+			return;
+		}
+		String targetObjectId = resolveTargetObjectId(selectionState, timeline, host);
+		if (targetObjectId == null || targetObjectId.isBlank()) {
+			ToastNotificationSystem.showError(BBTexts.get("beatblock.timeline.record.no_stage_object"));
+			return;
+		}
+		float mouseX = ImGui.getMousePosX();
+		double rawTime = viewState.screenToTime(mouseX - layout.contentLeft);
+		double dropTime = DragController.snapTime(rawTime, null, timeline, toolbarState, viewState, interactionState);
+		dropTime = Math.max(0.0, dropTime);
+
+		double duration = preset.getDefaultDurationSeconds();
+		AnimationEventParams params = new AnimationEventParams(
+			TimelineAnimationActionMode.ANIMATE,
+			presetId,
+			targetObjectId,
+			1.0f,
+			duration,
+			TimelineEventOrigin.MANUAL,
+			Map.of()
+		);
+		TimelineAnimationEvent event = new TimelineAnimationEvent(
+			"",
+			dropTime,
+			duration,
+			presetId,
+			targetObjectId,
+			1.0f,
+			params.toParameterMap()
+		);
+		if (TimelineDraftWriter.writeEvent(timeline, trackId, event, TimelineEventOrigin.MANUAL)) {
+			timeline.sortAll();
+			host.syncClockDuration();
+			ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.animation_library.dropped", preset.getDisplayName()));
+		} else {
+			ToastNotificationSystem.showError(BBTexts.get("beatblock.animation_library.drop_failed"));
+		}
+	}
+
+	private static @Nullable String resolveTrackIdForRow(int rowIndex) {
+		if (rowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK) {
+			return Timeline.TRACK_ID_ANIMATION_BLOCK;
+		}
+		if (rowIndex == TimelineTrackMeta.ROW_ANIM_AUTO) {
+			return Timeline.TRACK_ID_ANIMATION_AUTO;
+		}
+		return null;
+	}
+
+	private static @Nullable String resolveTargetObjectId(
+		SelectionState selectionState,
+		Timeline timeline,
+		TimelineAudioDropHost host
+	) {
+		if (selectionState != null && !selectionState.getSelectedEvents().isEmpty()) {
+			for (String eventId : selectionState.getSelectedEvents()) {
+				TimelineAnimationEvent event = findAnimationEvent(timeline, eventId);
+				if (event != null) {
+					String target = event.getTargetObjectId();
+					if (target != null && !target.isBlank()) {
+						return target;
+					}
+				}
+			}
+		}
+		if (host != null) {
+			String fallback = host.resolveDefaultTargetObjectId();
+			if (fallback != null && !fallback.isBlank()) {
+				return fallback;
+			}
+		}
+		return null;
+	}
+
+	private static @Nullable TimelineAnimationEvent findAnimationEvent(Timeline timeline, String eventId) {
+		if (timeline == null || eventId == null || eventId.isBlank()) {
+			return null;
+		}
+		for (TimelineAnimationEvent event : timeline.getStageEvents()) {
+			if (eventId.equals(event.getEventId())) {
+				return event;
+			}
+		}
+		return null;
+	}
+
+	private static String decodeStringPayload(@Nullable Object payload) {
+		if (payload instanceof String s) {
+			String trimmed = s.trim();
+			if (!trimmed.isBlank()) {
+				return trimmed;
+			}
+		}
+		if (payload instanceof byte[] raw) {
+			String decoded = new String(raw, StandardCharsets.UTF_8).trim();
+			if (!decoded.isBlank()) {
+				return decoded;
+			}
+		}
+		return "";
 	}
 
 	public static void handleDroppedAudioAsset(
@@ -122,9 +317,11 @@ public final class TimelineAudioDropHandler {
 				"BeatBlock Timeline: dropped asset not completed yet, using feature timeline temporarily path={} status={}",
 				asset.getPath(), asset.getStatus());
 			double prevDuration = timeline.getDurationSeconds();
+			var savedFeatureEvents = saveFeatureEvents(timeline);
 			host.context().audioAnalysisEngine().fillTimelineFromFeature(
 				timeline, asset.getFeatureTimeline(), asset.getSampleRate());
 			shiftFeatureEventsByOffset(timeline, startOffset);
+			restoreFeatureEvents(timeline, savedFeatureEvents);
 			timeline.setDurationSeconds(prevDuration);
 		} else {
 			timeline.setMetadata("awaitingAnalyzedBeatmap", droppedAudioKey);

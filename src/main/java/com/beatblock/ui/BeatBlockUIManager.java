@@ -75,7 +75,7 @@ public class BeatBlockUIManager {
 		this.timelinePropertiesPanel = new TimelinePropertiesPanel();
 		TimelinePanelVisibility.bind(panelVisibility);
 		this.timelinePanel = new TimelinePanel();
-		this.animationLibraryPanel = new AnimationLibraryPanel();
+ 		this.animationLibraryPanel = new AnimationLibraryPanel(PresenterFactories.animationLibraryPanelPresenter());
 		this.selectionPropertiesPanel = new SelectionPropertiesPanel();
 		this.layerPanel = new LayerPanel();
 		this.rhythmDropPanel = new RhythmDropPanel();

@@ -297,6 +297,18 @@ public final class PresenterFactories {
 		);
 	}
 
+	public static AnimationLibraryPanelPresenter animationLibraryPanelPresenter() {
+		return animationLibraryPanelPresenter(ctx());
+	}
+
+	public static AnimationLibraryPanelPresenter animationLibraryPanelPresenter(BeatBlockContext context) {
+		return new AnimationLibraryPanelPresenter(
+			eventPropertiesPresenter(context),
+			context::timeline,
+			context::timelineEditor
+		);
+	}
+
 	public static ProjectTemplatePresenter projectTemplatePresenter() {
 		return projectTemplatePresenter(ctx());
 	}
