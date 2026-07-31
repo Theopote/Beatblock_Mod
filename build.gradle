@@ -198,38 +198,83 @@ tasks.register('spotbugsMain', JavaExec) {
 }
 
 
-tasks.register('spotbugsCheck') {
+tasks.register('spotbugsUpdateBaseline') {
 	group = 'verification'
-	description = 'Ensure SpotBugs bug count does not exceed the baseline in config/spotbugs/baseline.txt'
+	description = 'Regenerate SpotBugs fingerprint baseline from the current report'
 	dependsOn spotbugsMain
 
-	def baselineFile = file('config/spotbugs/baseline.txt')
 	def reportFile = file(layout.buildDirectory.file('reports/spotbugs/main/spotbugs.xml'))
+	def countFile = file('config/spotbugs/baseline.txt')
+	def fingerprintsFile = file('config/spotbugs/baseline_fingerprints.txt')
 
 	inputs.file reportFile
-	outputs.file layout.buildDirectory.file('reports/spotbugs/spotbugs-check-result.txt')
+	outputs.files countFile, fingerprintsFile
 
 	doLast {
 		if (!reportFile.exists()) {
 			throw new GradleException("SpotBugs XML report not found: ${reportFile}")
 		}
-		def bugCount = 0
-		reportFile.eachLine { line ->
-			if (line.contains('<BugInstance')) bugCount++
+		def root = new groovy.xml.XmlParser().parse(reportFile)
+		def fingerprints = root.BugInstance.collect { bug ->
+			def type = bug.@type
+			def clazz = bug.Class[0]?.'@classname' ?: ''
+			def method = bug.Method.find { it.'@role' != 'METHOD_CALLED' }?.'@name' ?: bug.Method[0]?.'@name' ?: ''
+			def line = bug.SourceLine.find { it.'@role' == 'SOURCE_LINE_DEREF' }?.'@start' ?: bug.SourceLine[0]?.'@start' ?: '0'
+			String.valueOf(type) + '|' + String.valueOf(clazz) + '|' + String.valueOf(method) + '|' + String.valueOf(line)
+		}.toSorted()
+		countFile.text = "${fingerprints.size()}\n"
+		fingerprintsFile.text = fingerprints.join('\n') + '\n'
+		logger.lifecycle("SpotBugs baseline regenerated: ${fingerprints.size()} fingerprints")
+	}
+}
+
+tasks.register('spotbugsCheck') {
+	group = 'verification'
+	description = 'Ensure SpotBugs does not introduce new findings and total count does not exceed baseline'
+	dependsOn spotbugsMain
+
+	def reportFile = file(layout.buildDirectory.file('reports/spotbugs/main/spotbugs.xml'))
+	def countFile = file('config/spotbugs/baseline.txt')
+	def fingerprintsFile = file('config/spotbugs/baseline_fingerprints.txt')
+	def resultFile = layout.buildDirectory.file('reports/spotbugs/spotbugs-check-result.txt')
+
+	inputs.files reportFile, countFile, fingerprintsFile
+	outputs.file resultFile
+
+	doLast {
+		if (!reportFile.exists()) {
+			throw new GradleException("SpotBugs XML report not found: ${reportFile}")
 		}
-		def baseline = 0
-		if (baselineFile.exists()) {
-			baseline = baselineFile.text.trim().toInteger()
-		} else {
-			throw new GradleException("SpotBugs baseline file not found: ${baselineFile}. Run spotbugsMain and set the baseline to the current bug count (${bugCount}).")
+		if (!countFile.exists()) {
+			throw new GradleException("SpotBugs count baseline file not found: ${countFile}. Run ./gradlew spotbugsUpdateBaseline.")
 		}
-		def resultFile = layout.buildDirectory.file('reports/spotbugs/spotbugs-check-result.txt').get().asFile
-		resultFile.parentFile.mkdirs()
-		resultFile.text = "SpotBugs bugs: ${bugCount} (baseline: ${baseline})\n"
-		if (bugCount > baseline) {
-			throw new GradleException("SpotBugs bug count ${bugCount} exceeds baseline ${baseline}. Fix or update config/spotbugs/baseline.txt after reviewing the report.")
+		if (!fingerprintsFile.exists()) {
+			throw new GradleException("SpotBugs fingerprint baseline file not found: ${fingerprintsFile}. Run ./gradlew spotbugsUpdateBaseline.")
 		}
-		logger.lifecycle("SpotBugs bug count ${bugCount} is within baseline ${baseline}.")
+		def baselineCount = countFile.text.trim().toInteger()
+		def baselineFingerprints = fingerprintsFile.readLines().toSet()
+
+		def root = new groovy.xml.XmlParser().parse(reportFile)
+		def current = root.BugInstance.collect { bug ->
+			def type = bug.@type
+			def clazz = bug.Class[0]?.'@classname' ?: ''
+			def method = bug.Method.find { it.'@role' != 'METHOD_CALLED' }?.'@name' ?: bug.Method[0]?.'@name' ?: ''
+			def line = bug.SourceLine.find { it.'@role' == 'SOURCE_LINE_DEREF' }?.'@start' ?: bug.SourceLine[0]?.'@start' ?: '0'
+			String.valueOf(type) + '|' + String.valueOf(clazz) + '|' + String.valueOf(method) + '|' + String.valueOf(line)
+		}
+		def bugCount = current.size()
+		def newFindings = current.findAll { !baselineFingerprints.contains(it) }
+
+		def resultFileObj = resultFile.get().asFile
+		resultFileObj.parentFile.mkdirs()
+		resultFileObj.text = "SpotBugs bugs: ${bugCount} (baseline count: ${baselineCount}, new findings: ${newFindings.size()})\n"
+		if (!newFindings.isEmpty()) {
+			throw new GradleException("SpotBugs introduced ${newFindings.size()} new finding(s):\n" + newFindings.join('\n') + "\nFix the new findings or run ./gradlew spotbugsUpdateBaseline after reviewing.")
+		}
+		if (bugCount > baselineCount) {
+			throw new GradleException("SpotBugs bug count ${bugCount} exceeds baseline count ${baselineCount}. Fix or run ./gradlew spotbugsUpdateBaseline.")
+		}
+		logger.lifecycle("SpotBugs: ${bugCount} bugs, ${newFindings.size()} new, within baseline count ${baselineCount}.")
 	}
 }
 
