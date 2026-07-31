@@ -48,9 +48,9 @@ public final class BPMDetector {
 	 *
 	 * @param beats 按时间排序的节拍
 	 * @return 估计的 BPM，若无足够节拍则返回 120
-	 * @deprecated 使用 {@link #estimateBPMWithConfidence(List)} 获取置信度
+	 * @deprecated 使用 {@link #estimateBPMWithConfidence(List)} 获取置信度，并据此决定是否信任 BPM。
 	 */
-	@Deprecated
+	@Deprecated(forRemoval = true)
 	public static float estimateBPM(List<DetectedBeat> beats) {
 		return estimateBPMWithConfidence(beats).getBpm();
 	}

@@ -10,7 +10,9 @@ import com.beatblock.engine.GroupSortingStrategy;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Objects;
 
 import net.minecraft.util.math.BlockPos;
@@ -39,6 +41,17 @@ public final class BlockAnimationEngine {
 		new com.beatblock.engine.influence.BlockInfluenceOrchestrator();
 	private Vec3d runtimeCameraPosition = Vec3d.ZERO;
 	private Vec3d runtimeCameraForward = new Vec3d(0, 0, 1);
+
+	/** 同一帧/同一事件内 spatial 排序结果缓存，避免每次调度重复排序。LRU 防止编辑阶段对象变化时泄漏。 */
+	private static final int SPATIAL_SORT_CACHE_LIMIT = 256;
+	private final Map<SpatialSortKey, List<BlockPos>> spatialSortCache =
+		Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+			@Override
+			protected boolean removeEldestEntry(Map.Entry<SpatialSortKey, List<BlockPos>> eldest) {
+				return size() > SPATIAL_SORT_CACHE_LIMIT;
+			}
+		});
+	private record SpatialSortKey(CompiledStageTarget target, SpatialDispatchMode mode, long seed) {}
 
 	public void setRuntimeCameraPosition(Vec3d cameraPosition) {
 		if (cameraPosition == null) return;
@@ -450,26 +463,32 @@ public final class BlockAnimationEngine {
 	}
 
 	private List<BlockPos> sortBlocksForSpatialMode(CompiledStageTarget target, SpatialDispatchMode mode, TimelineAnimationEvent event) {
-		List<BlockPos> blocks = new ArrayList<>(target.blocks());
+		List<BlockPos> blocks = target.blocks();
 		if (blocks.size() <= 1 || mode == SpatialDispatchMode.ALL) return blocks;
-		Vec3d center = target.center();
 		long seed = spatialSeed(event, target);
+		SpatialSortKey key = new SpatialSortKey(target, mode, seed);
+		List<BlockPos> cached = spatialSortCache.get(key);
+		if (cached != null) return cached;
 
+		List<BlockPos> sorted = new ArrayList<>(blocks);
+		Vec3d center = target.center();
 		switch (mode) {
-			case SEQUENTIAL -> blocks.sort(Comparator
+			case SEQUENTIAL -> sorted.sort(Comparator
 				.comparingInt(BlockPos::getX)
 				.thenComparingInt(BlockPos::getZ)
 				.thenComparingInt(BlockPos::getY));
-			case RADIAL -> blocks.sort(Comparator
+			case RADIAL -> sorted.sort(Comparator
 				.comparingDouble((BlockPos p) -> distanceSqToCenter(p, center))
 				.thenComparingInt(BlockPos::getY));
-			case SPIRAL -> blocks.sort(Comparator
+			case SPIRAL -> sorted.sort(Comparator
 				.comparingDouble((BlockPos p) -> angleAroundCenter(p, center))
 				.thenComparingDouble(p -> distanceSqToCenter(p, center)));
-			case RANDOM -> blocks.sort(Comparator.comparingLong(p -> mixedHash(seed, p)));
+			case RANDOM -> sorted.sort(Comparator.comparingLong(p -> mixedHash(seed, p)));
 			default -> { }
 		}
-		return blocks;
+		List<BlockPos> result = Collections.unmodifiableList(sorted);
+		spatialSortCache.put(key, result);
+		return result;
 	}
 
 	private static double distanceSqToCenter(BlockPos pos, Vec3d center) {

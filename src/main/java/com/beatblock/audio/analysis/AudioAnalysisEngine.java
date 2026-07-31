@@ -92,14 +92,15 @@ public final class AudioAnalysisEngine {
 		List<FrequencyBands> bands = fftResult.getBands();
 		List<EnergyFrame> energyFrames = energyAnalyzer.analyze(buffer);
 		List<DetectedBeat> beats = beatDetector.detect(buffer);
-		float bpm = BPMDetector.estimateBPM(beats);
+		BPMDetector.BPMEstimate bpmEstimate = BPMDetector.estimateBPMWithConfidence(beats);
+		float bpm = bpmEstimate.getBpm();
 		BeatGrid beatGrid = new BeatGrid(bpm, duration);
 
 		lastFeatureTimeline = new AudioFeatureTimeline(
 			duration, beats, energyFrames, bands, waveformFrames, bpm, beatGrid
 		);
-		LOGGER.info("BeatBlock AudioAnalysis: duration={}s, beats={}, bpm={}, bands={}",
-			duration, beats.size(), bpm, bands.size());
+		LOGGER.info("BeatBlock AudioAnalysis: duration={}s, beats={}, bpm={}, confidence={}, bands={}",
+			duration, beats.size(), bpm, bpmEstimate.getConfidence(), bands.size());
 		return lastFeatureTimeline;
 	}
 

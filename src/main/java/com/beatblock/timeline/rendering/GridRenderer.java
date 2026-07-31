@@ -116,8 +116,10 @@ public final class GridRenderer {
 		double viewStart = view.getViewStartTimeSeconds();
 		double viewEnd   = view.getViewEndTimeSeconds();
 		double step = TimeUtils.gridStep(viewStart, viewEnd, view.getZoom());
-		double t0 = Math.floor(viewStart / step) * step;
-		for (double t = t0; t <= viewEnd + 0.001; t += step) {
+		int startIndex = (int) Math.floor(viewStart / step);
+		int endIndex = (int) Math.ceil(viewEnd / step);
+		for (int i = startIndex; i <= endIndex; i++) {
+			double t = i * step;
 			float x = view.timeToScreen(t);
 			if (x >= 0 && x <= layout.contentWidth) {
 				ImGui.getWindowDrawList().addLine(
@@ -249,8 +251,10 @@ public final class GridRenderer {
 		float barPx  = (float) (secondsPerBar  * view.getZoom());
 
 		// 小节主刻度：蓝色线 + mm:ss 标签 + 小节号
-		double t0bar = Math.floor(viewStart / secondsPerBar) * secondsPerBar;
-		for (double t = t0bar; t <= viewEnd + 0.001; t += secondsPerBar) {
+		int barStartIndex = (int) Math.floor(viewStart / secondsPerBar);
+		int barEndIndex = (int) Math.ceil(viewEnd / secondsPerBar);
+		for (int barIndex = barStartIndex; barIndex <= barEndIndex; barIndex++) {
+			double t = barIndex * secondsPerBar;
 			float xOff = view.timeToScreen(t);
 			if (xOff < -2 || xOff > layout.contentWidth + 2) continue;
 			float sx = rLeft + xOff;
@@ -263,9 +267,12 @@ public final class GridRenderer {
 
 		// 拍副刻度（排除小节边界）
 		if (beatPx >= 8) {
-			double t0bt = Math.floor(viewStart / secondsPerBeat) * secondsPerBeat;
-			for (double t = t0bt; t <= viewEnd + 0.001; t += secondsPerBeat) {
-				if (Math.abs(t % secondsPerBar) < secondsPerBeat * 0.01) continue;
+			int beatsPerBar = (int) Math.round(secondsPerBar / secondsPerBeat);
+			int beatStartIndex = (int) Math.floor(viewStart / secondsPerBeat);
+			int beatEndIndex = (int) Math.ceil(viewEnd / secondsPerBeat);
+			for (int beatIndex = beatStartIndex; beatIndex <= beatEndIndex; beatIndex++) {
+				if (beatsPerBar > 0 && beatIndex % beatsPerBar == 0) continue;
+				double t = beatIndex * secondsPerBeat;
 				float xOff = view.timeToScreen(t);
 				if (xOff < -2 || xOff > layout.contentWidth + 2) continue;
 				float sx = rLeft + xOff;
@@ -282,9 +289,11 @@ public final class GridRenderer {
 		// 1/4 拍细分（拍宽 ≥ 60px）
 		if (beatPx >= 60) {
 			double subStep = secondsPerBeat / 4.0;
-			double t0sub   = Math.floor(viewStart / subStep) * subStep;
-			for (double t = t0sub; t <= viewEnd + 0.001; t += subStep) {
-				if (Math.abs(t % secondsPerBeat) < subStep * 0.01) continue;
+			int subStartIndex = (int) Math.floor(viewStart / subStep);
+			int subEndIndex = (int) Math.ceil(viewEnd / subStep);
+			for (int subIndex = subStartIndex; subIndex <= subEndIndex; subIndex++) {
+				if (subIndex % 4 == 0) continue;
+				double t = subIndex * subStep;
 				float xOff = view.timeToScreen(t);
 				if (xOff < -2 || xOff > layout.contentWidth + 2) continue;
 				float sx = rLeft + xOff;
