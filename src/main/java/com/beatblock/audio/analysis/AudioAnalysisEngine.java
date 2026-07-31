@@ -105,8 +105,7 @@ public final class AudioAnalysisEngine {
 	}
 
 	private void fillTimelineInternal(Timeline timeline, AudioFeatureTimeline ft, int sampleRate) {
-		if (timeline == null || ft == null) return;
-		timeline.setDurationSeconds(ft.getDurationSeconds());
+        timeline.setDurationSeconds(ft.getDurationSeconds());
 
 		// 波形：转为 Timeline 的 WaveformData（peaks 归一化）
 		WaveformExtractor.WaveformFrame[] wf = ft.getWaveformFrames();

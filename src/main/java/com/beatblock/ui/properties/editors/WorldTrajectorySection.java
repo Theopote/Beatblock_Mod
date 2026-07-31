@@ -1,6 +1,5 @@
 package com.beatblock.ui.properties.editors;
 
-import com.beatblock.engine.influence.BlockInfluencePresets;
 import com.beatblock.timeline.editing.WorldTrajectoryEventParamsEditor;
 import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;

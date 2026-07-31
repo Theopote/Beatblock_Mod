@@ -318,19 +318,18 @@ public final class GridRenderer {
 
 		float xIn = rLeft + view.timeToScreen(loopIn);
 		float xOut = rLeft + view.timeToScreen(loopOut);
-		float clipLeft = rLeft;
-		float clipRight = rLeft + layout.rulerWidth;
-		float fillLeft = Math.max(clipLeft, Math.min(xIn, xOut));
+        float clipRight = rLeft + layout.rulerWidth;
+		float fillLeft = Math.max(rLeft, Math.min(xIn, xOut));
 		float fillRight = Math.min(clipRight, Math.max(xIn, xOut));
 		if (fillRight > fillLeft) {
 			ImGui.getWindowDrawList().addRectFilled(fillLeft, rTop + 1, fillRight, rBot - 1, LOOP_RANGE_FILL);
 		}
 
-		if (xIn >= clipLeft - 2 && xIn <= clipRight + 2) {
+		if (xIn >= rLeft - 2 && xIn <= clipRight + 2) {
 			ImGui.getWindowDrawList().addLine(xIn, rTop, xIn, rBot, LOOP_IN_COLOR, 2f);
 			ImGui.getWindowDrawList().addText(xIn + 3, rTop + 2, LABEL_LOOP_COLOR, "IN");
 		}
-		if (xOut >= clipLeft - 2 && xOut <= clipRight + 2) {
+		if (xOut >= rLeft - 2 && xOut <= clipRight + 2) {
 			ImGui.getWindowDrawList().addLine(xOut, rTop, xOut, rBot, LOOP_OUT_COLOR, 2f);
 			ImGui.getWindowDrawList().addText(xOut + 3, rTop + 12, LABEL_LOOP_COLOR, "OUT");
 		}
@@ -345,14 +344,13 @@ public final class GridRenderer {
 		float rLeft
 	) {
 		if (view == null || layout == null || timeline == null || timeline.getMarkers().isEmpty()) return;
-		float clipLeft = rLeft;
-		float clipRight = rLeft + layout.rulerWidth;
+        float clipRight = rLeft + layout.rulerWidth;
 		float[] rowRightEdges = new float[MARKER_LABEL_ROWS];
 		for (TimelineMarker marker : timeline.getMarkers()) {
 			if (marker == null) continue;
 			int markerColor = marker.getType().getColorAbgr();
 			float x = rLeft + view.timeToScreen(marker.getTimeSeconds());
-			if (x < clipLeft - 6 || x > clipRight + 6) continue;
+			if (x < rLeft - 6 || x > clipRight + 6) continue;
 			ImGui.getWindowDrawList().addLine(x, rTop + 2, x, rBot - 2, markerColor, 1.5f);
 			ImGui.getWindowDrawList().addTriangleFilled(
 				x - 4, rTop + 2,

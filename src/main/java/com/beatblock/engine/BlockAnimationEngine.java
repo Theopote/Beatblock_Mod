@@ -4,9 +4,7 @@ import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
-import com.beatblock.timeline.playback.CompiledStageEvent;
 import com.beatblock.timeline.playback.CompiledStageTarget;
-import com.beatblock.engine.GroupSortingStrategy;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
@@ -18,9 +16,8 @@ import java.util.Objects;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 第 3 层 — 舞台播放器门面：整合 StageObjectSystem、AnimationLibrary、AnimationPlayer。
@@ -29,7 +26,6 @@ import org.slf4j.LoggerFactory;
  * 由 {@link com.beatblock.client.BeatBlockClientDriver} 按时间轴时钟派发。
  */
 public final class BlockAnimationEngine {
-	private static final Logger LOGGER = LoggerFactory.getLogger(BlockAnimationEngine.class);
 
 	private final StageObjectSystem stageObjectSystem = new StageObjectSystem();
 	private final AnimationLibrary animationLibrary = new AnimationLibrary();
@@ -391,7 +387,7 @@ public final class BlockAnimationEngine {
 			}
 			
 			@Override
-			public int compareTo(EdgeBlockScore other) {
+			public int compareTo(@NotNull EdgeBlockScore other) {
 				// Higher exposed faces = higher priority
 				if (this.exposedFaces != other.exposedFaces) {
 					return Integer.compare(other.exposedFaces, this.exposedFaces);

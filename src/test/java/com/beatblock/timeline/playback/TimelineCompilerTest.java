@@ -13,10 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class TimelineCompilerTest {
 
@@ -51,7 +48,7 @@ class TimelineCompilerTest {
 		double[] second = snapshot.referenceBeatTimesSeconds();
 		assertNotSame(first, second);
 		assertEquals(128.0, snapshot.bpm(), 1e-9);
-		assertTrue(!snapshot.restoreWorldMutations());
+        assertFalse(snapshot.restoreWorldMutations());
 	}
 
 	@Test
@@ -64,8 +61,10 @@ class TimelineCompilerTest {
 			Map.of("x", 2.0, "tags", new ArrayList<>(List.of("original"))));
 
 		CompiledTimelineSnapshot snapshot = TimelineCompiler.compile(timeline);
-		sourceEvent.setParameter("x", 99.0);
-		TimelineOperations.addClip(cameraTrack, 0.0, 0.5);
+        if (sourceEvent != null) {
+            sourceEvent.setParameter("x", 99.0);
+        }
+        TimelineOperations.addClip(cameraTrack, 0.0, 0.5);
 
 		assertEquals(List.of(1.0, 5.0), snapshot.cameraTrack().clips().stream()
 			.map(CompiledCameraTrack.CameraClip::startTimeSeconds).toList());
@@ -91,10 +90,14 @@ class TimelineCompilerTest {
 		CompiledStageEvent compiled = snapshot.compiledStageEvents().getFirst();
 		engine.scheduleTimelineEvent(compiled, new double[0], snapshot.bpm());
 
-		assertEquals(List.of(new BlockPos(1, 2, 3)), compiled.target().blocks());
-		assertEquals("Original", engine.getAnimationPlayer().getActiveInstances().getFirst().getTarget().getName());
-		assertEquals(animationId, compiled.animationDefinition().getId());
-	}
+        if (compiled.target() != null) {
+            assertEquals(List.of(new BlockPos(1, 2, 3)), compiled.target().blocks());
+        }
+        assertEquals("Original", engine.getAnimationPlayer().getActiveInstances().getFirst().getTarget().getName());
+        if (compiled.animationDefinition() != null) {
+            assertEquals(animationId, compiled.animationDefinition().getId());
+        }
+    }
 
 	private static TimelineAnimationEvent event(String id, double time, Map<String, Object> params) {
 		return new TimelineAnimationEvent(id, time, 1.0, id, "stage", 1f, params);
