@@ -2,6 +2,7 @@ package com.beatblock.timeline.command.layer;
 
 import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
+import org.jspecify.annotations.Nullable;
 
 /** 重命名图层组。 */
 public final class RenameGroupCommand implements com.beatblock.timeline.command.Command {
@@ -9,7 +10,7 @@ public final class RenameGroupCommand implements com.beatblock.timeline.command.
 	private final BuildLayerManager manager;
 	private final String groupId;
 	private final String newName;
-	private String previousName;
+	private @Nullable String previousName;
 
 	public RenameGroupCommand(BuildLayerManager manager, String groupId, String newName) {
 		this.manager = manager;

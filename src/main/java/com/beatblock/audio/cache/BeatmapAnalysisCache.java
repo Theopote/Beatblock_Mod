@@ -4,6 +4,7 @@ import com.beatblock.audio.AnalyzerInstaller;
 import com.beatblock.audio.beatmap.Beatmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.jspecify.annotations.Nullable;
 
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
@@ -120,7 +121,7 @@ public final class BeatmapAnalysisCache {
 		return true;
 	}
 
-	private static Path resolveCacheChild(Path parent, String relativePath) {
+	private static @Nullable Path resolveCacheChild(Path parent, String relativePath) {
 		Path root = parent.toAbsolutePath().normalize();
 		Path candidate = Path.of(relativePath);
 		if (candidate.isAbsolute()) return null;

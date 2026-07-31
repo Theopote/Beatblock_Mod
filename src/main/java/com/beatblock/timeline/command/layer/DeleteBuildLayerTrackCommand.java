@@ -4,13 +4,14 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.TrackType;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
+import org.jspecify.annotations.Nullable;
 
 /** 删除空的建造图层轨道。 */
 public final class DeleteBuildLayerTrackCommand implements com.beatblock.timeline.command.Command {
 
 	private final Timeline timeline;
 	private final String trackId;
-	private Track removedTrackSnapshot;
+	private @Nullable Track removedTrackSnapshot;
 
 	public DeleteBuildLayerTrackCommand(Timeline timeline, String trackId) {
 		this.timeline = timeline;

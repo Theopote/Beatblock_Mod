@@ -29,7 +29,7 @@ public final class BindLayerToTrackCommand implements com.beatblock.timeline.com
 	private final Timeline timeline;
 	private final BuildLayerManager layerManager;
 	private final String layerId;
-	private final String targetTrackId;
+	private final @Nullable String targetTrackId;
 	private final double clipStartSeconds;
 	private final double clipDurationSeconds;
 

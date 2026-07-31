@@ -5,18 +5,20 @@ import com.beatblock.timeline.Track;
 import com.beatblock.timeline.TrackType;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 
+import org.jspecify.annotations.Nullable;
+
 /** 新建一条空的建造图层轨道。 */
 public final class CreateBuildLayerTrackCommand implements com.beatblock.timeline.command.Command {
 
 	private final Timeline timeline;
-	private String createdTrackId;
-	private String createdTrackName;
+	private @Nullable String createdTrackId;
+	private @Nullable String createdTrackName;
 
 	public CreateBuildLayerTrackCommand(Timeline timeline) {
 		this(timeline, null);
 	}
 
-	public CreateBuildLayerTrackCommand(Timeline timeline, String requestedName) {
+	public CreateBuildLayerTrackCommand(Timeline timeline, @Nullable String requestedName) {
 		this.timeline = timeline;
 		this.createdTrackName = requestedName;
 	}
@@ -44,7 +46,7 @@ public final class CreateBuildLayerTrackCommand implements com.beatblock.timelin
 		createdTrackId = null;
 	}
 
-	public String getCreatedTrackId() {
+	public @Nullable String getCreatedTrackId() {
 		return createdTrackId;
 	}
 }

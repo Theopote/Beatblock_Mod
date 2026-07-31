@@ -2,6 +2,7 @@ package com.beatblock.timeline.editing;
 
 import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.ui.i18n.BBTexts;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,7 +54,7 @@ public final class GlobalEventPropertiesEditor {
 		}
 	}
 
-	public static String validateTimeRange(double clipStart, double clipEnd) {
+	public static @Nullable String validateTimeRange(double clipStart, double clipEnd) {
 		if (clipEnd <= clipStart) {
 			return BBTexts.get("beatblock.properties.clip.end_must_be_after_start");
 		}

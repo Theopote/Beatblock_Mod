@@ -7,6 +7,7 @@ import com.beatblock.timeline.Track;
 import com.beatblock.timeline.payload.StageEventPayload;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.StageObject;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -51,7 +52,7 @@ public final class TimelineCompiler {
 	}
 
 	private static List<CompiledStageEvent> compileStageEvents(
-		List<TimelineAnimationEvent> events, BlockAnimationEngine engine) {
+		List<TimelineAnimationEvent> events, @Nullable BlockAnimationEngine engine) {
 		List<CompiledStageEvent> compiled = new ArrayList<>(events.size());
 		for (TimelineAnimationEvent event : events) {
 			var definition = engine != null ? engine.getAnimationLibrary().get(event.getAnimationTypeId()) : null;
@@ -73,7 +74,7 @@ public final class TimelineCompiler {
 		return List.copyOf(compiled);
 	}
 
-	private static CompiledCameraTrack compileCameraTrack(Track track) {
+	private static CompiledCameraTrack compileCameraTrack(@Nullable Track track) {
 		if (track == null || !track.isEnabled()) return new CompiledCameraTrack(List.of());
 		List<CompiledCameraTrack.CameraClip> clips = new ArrayList<>();
 		for (var clip : track.getClips()) {

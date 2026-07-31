@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.Objects;
 
 /** Serial audio-analysis scheduler with latest-wins replacement and observable task state. */
 public final class AudioAnalysisOrchestrator implements AutoCloseable {
@@ -23,14 +24,13 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		final Path audioPath;
 		final AnalysisCancelControl control = new AnalysisCancelControl();
 		final AtomicReference<AnalysisTaskState> state = new AtomicReference<>(AnalysisTaskState.QUEUED);
-		volatile FutureTask<Void> delegate;
+		volatile @Nullable FutureTask<Void> delegate;
 
 		RegisteredTask(long sequence, @Nullable String taskId, Path audioPath) {
 			this.sequence = sequence;
 			this.taskId = taskId;
 			this.audioPath = audioPath;
-            delegate = null;
-        }
+		}
 
 		boolean cancel() {
 			return cancel(true);
@@ -39,13 +39,15 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		boolean cancel(boolean mayInterruptIfRunning) {
 			while (true) {
 				AnalysisTaskState current = state.get();
-				if (current.isTerminal() || current == AnalysisTaskState.CANCELLING) return false;
+				if (current == null || current.isTerminal() || current == AnalysisTaskState.CANCELLING) return false;
 				if (current == AnalysisTaskState.QUEUED) {
 					if (!state.compareAndSet(current, AnalysisTaskState.CANCELLED)) continue;
 					control.cancelRunningProcess();
 					FutureTask<Void> task = delegate;
-                    task.cancel(false);
-                    executor.remove(task);
+                    if (task != null) {
+                        task.cancel(false);
+                        executor.remove(task);
+                    }
                     removeRegistration(this);
 					return true;
 				}
@@ -54,7 +56,7 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 				if (!state.compareAndSet(current, AnalysisTaskState.CANCELLING)) continue;
 				control.cancelRunningProcess();
 				FutureTask<Void> task = delegate;
-                task.cancel(true);
+                if (task != null) task.cancel(true);
 				return true;
 			}
 		}
@@ -175,6 +177,7 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 		List<AnalysisTaskSnapshot> snapshots = new ArrayList<>(ordered.size());
 		for (RegisteredTask task : ordered) {
 			AnalysisTaskState state = task.state.get();
+			if (state == null) continue;
 			int position = state == AnalysisTaskState.QUEUED ? ++queuedPosition : 0;
 			snapshots.add(new AnalysisTaskSnapshot(task.sequence, task.taskId, task.audioPath, state, position));
 		}
@@ -206,14 +209,15 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 	}
 
 	private Future<?> cancellableFuture(RegisteredTask registered) {
+		FutureTask<Void> delegate = Objects.requireNonNull(registered.delegate, "delegate must be set before returning future");
 		return new Future<>() {
 			@Override public boolean cancel(boolean mayInterruptIfRunning) { return registered.cancel(mayInterruptIfRunning); }
-			@Override public boolean isCancelled() { return registered.delegate.isCancelled(); }
-			@Override public boolean isDone() { return registered.delegate.isDone(); }
-			@Override public Object get() throws InterruptedException, ExecutionException { return registered.delegate.get(); }
+			@Override public boolean isCancelled() { return delegate.isCancelled(); }
+			@Override public boolean isDone() { return delegate.isDone(); }
+			@Override public Object get() throws InterruptedException, ExecutionException { return delegate.get(); }
 			@Override public Object get(long timeout, @NonNull TimeUnit unit)
 				throws InterruptedException, ExecutionException, TimeoutException {
-				return registered.delegate.get(timeout, unit);
+				return delegate.get(timeout, unit);
 			}
 		};
 	}

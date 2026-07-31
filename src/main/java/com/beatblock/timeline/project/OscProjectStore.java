@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * .osc 项目文件读写（轻量版）。
@@ -39,7 +40,7 @@ public final class OscProjectStore {
 		save(filePath, timeline, null);
 	}
 
-	public static void save(Path filePath, Timeline timeline, BuildLayerManager layerManager) throws IOException {
+	public static void save(Path filePath, Timeline timeline, @Nullable BuildLayerManager layerManager) throws IOException {
 		if (filePath == null) throw new IOException("保存失败：文件路径为空");
 		if (timeline == null) throw new IOException("保存失败：Timeline 为空");
 
@@ -89,11 +90,11 @@ public final class OscProjectStore {
 		return load(filePath, null);
 	}
 
-	public static LoadedProject load(Path filePath, BuildLayerManager layerManager) throws IOException {
+	public static LoadedProject load(Path filePath, @Nullable BuildLayerManager layerManager) throws IOException {
 		return load(filePath, layerManager, null);
 	}
 
-	public static LoadedProject load(Path filePath, BuildLayerManager layerManager, Timeline timeline) throws IOException {
+	public static LoadedProject load(Path filePath, @Nullable BuildLayerManager layerManager, @Nullable Timeline timeline) throws IOException {
 		if (filePath == null) throw new IOException("打开失败：文件路径为空");
 		Path abs = filePath.toAbsolutePath().normalize();
 		if (!Files.exists(abs)) throw new IOException("打开失败：文件不存在 " + abs);

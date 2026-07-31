@@ -13,6 +13,7 @@ import com.beatblock.timeline.payload.SpatialParams;
 import com.beatblock.timeline.payload.StageEventPayload;
 import com.beatblock.timeline.payload.StageEventPayloadCodec;
 import com.beatblock.timeline.payload.StepParams;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -124,10 +125,10 @@ public final class AnimationEventPropertiesEditor {
 		AnimationEventFormInput input,
 		TimelineAnimationActionMode mode,
 		TimelineEventOrigin eventOrigin,
-		String placeBlockId,
-		String flashBlockId,
-		SingleBlockRef singleBlock,
-		String layerId,
+		@Nullable String placeBlockId,
+		@Nullable String flashBlockId,
+		@Nullable SingleBlockRef singleBlock,
+		@Nullable String layerId,
 		String buildMode,
 		boolean dissolve,
 		String buildPlaceBlockId
@@ -239,26 +240,26 @@ public final class AnimationEventPropertiesEditor {
 		}
 	}
 
-	private static String readLayerId(Map<String, Object> parameters) {
+	private static @Nullable String readLayerId(Map<String, Object> parameters) {
 		Object raw = parameters.get("layerId");
 		if (raw == null) return null;
 		String id = String.valueOf(raw).trim();
 		return id.isEmpty() ? null : id;
 	}
 
-	private static String stringOr(Object raw, String fallback) {
+	private static String stringOr(@Nullable Object raw, String fallback) {
 		if (raw == null) return fallback;
 		String s = String.valueOf(raw).trim();
 		return s.isEmpty() ? fallback : s;
 	}
 
-	private static String firstNonBlank(String a, String b) {
+	private static String firstNonBlank(@Nullable String a, @Nullable String b) {
 		if (a != null && !a.isBlank()) return a;
 		if (b != null && !b.isBlank()) return b;
 		return "";
 	}
 
-	private static String blankToNull(String s) {
+	private static @Nullable String blankToNull(@Nullable String s) {
 		return s == null || s.isBlank() ? null : s;
 	}
 

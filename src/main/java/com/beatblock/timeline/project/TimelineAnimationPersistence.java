@@ -10,6 +10,7 @@ import com.beatblock.timeline.Track;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.List;
@@ -40,7 +41,7 @@ public final class TimelineAnimationPersistence {
 		return tracksArr;
 	}
 
-	public static void loadInto(Timeline timeline, JsonArray arr) {
+	public static void loadInto(Timeline timeline, @Nullable JsonArray arr) {
 		if (timeline == null) return;
 		for (String trackId : collectPersistedTrackIds(timeline)) {
 			clearTrack(timeline, trackId);
@@ -130,7 +131,7 @@ public final class TimelineAnimationPersistence {
 		timeline.markAnimationEventsDirty(trackId);
 	}
 
-	private static Track ensureTrack(Timeline timeline, String trackId) {
+	private static @Nullable Track ensureTrack(Timeline timeline, String trackId) {
 		if (timeline == null || trackId == null) return null;
 		Track existing = timeline.getTrack(trackId);
 		if (existing != null) return existing;
@@ -165,7 +166,7 @@ public final class TimelineAnimationPersistence {
 		}
 	}
 
-	private static TimelineEvent eventFromJson(JsonObject root) {
+	private static @Nullable TimelineEvent eventFromJson(JsonObject root) {
 		if (root == null) return null;
 		String id = root.has("id") ? root.get("id").getAsString() : "";
 		double time = root.has("timeSeconds") ? root.get("timeSeconds").getAsDouble() : 0;
@@ -198,7 +199,7 @@ public final class TimelineAnimationPersistence {
 		return root;
 	}
 
-	private static Map<String, Object> paramsFromJson(JsonElement element) {
+	private static Map<String, Object> paramsFromJson(@Nullable JsonElement element) {
 		Map<String, Object> out = new HashMap<>();
 		if (element == null || element.isJsonNull() || !element.isJsonObject()) return out;
 		JsonObject obj = element.getAsJsonObject();
