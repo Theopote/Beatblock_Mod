@@ -84,6 +84,8 @@ jobs:
       - name: make gradle wrapper executable
         if: runner.os != 'Windows'
         run: chmod +x ./gradlew
+      - name: verify ImGui native binding loads
+        run: ./gradlew test --tests "com.beatblock.imgui.ImGuiNativesTest"
       - name: run pure Java tests
         run: ./gradlew test
       - name: verify bundled natives
