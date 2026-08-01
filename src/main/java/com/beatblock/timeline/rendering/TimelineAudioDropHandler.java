@@ -175,6 +175,10 @@ public final class TimelineAudioDropHandler {
 		if (trackId == null) {
 			return;
 		}
+		// Target 语义：Preset + Target + Time = StageEvent。
+		// 当前仍为「选中事件 target → host 默认 → 失败」；设计目标是
+		// 世界选中 StageObject 优先、多选需确认、无选中允许 UNBOUND（后补绑定）。
+		// 见 docs/animation-library-drag-ux.md — 在统一 resolver 前勿再加拖拽功能入口。
 		String targetObjectId = resolveTargetObjectId(selectionState, timeline, host);
 		if (targetObjectId == null || targetObjectId.isBlank()) {
 			ToastNotificationSystem.showError(BBTexts.get("beatblock.timeline.record.no_stage_object"));
