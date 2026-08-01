@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport.buildAudioAssetKey;
 import static com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport.computeNextClipStartOffset;
@@ -317,7 +318,7 @@ public final class TimelineAudioDropHandler {
 			timeline.setMetadata("awaitingAnalyzedBeatmap", null);
 			double prevDuration = timeline.getDurationSeconds();
 			var savedFeatureEvents = saveFeatureEvents(timeline);
-			host.context().audioAnalysisEngine().fillTimelineFromBeatmap(timeline, asset.getBeatmap());
+			Objects.requireNonNull(host.context().audioAnalysisEngine()).fillTimelineFromBeatmap(timeline, asset.getBeatmap());
 			shiftFeatureEventsByOffset(timeline, startOffset);
 			restoreFeatureEvents(timeline, savedFeatureEvents);
 			timeline.setDurationSeconds(prevDuration);
@@ -330,7 +331,7 @@ public final class TimelineAudioDropHandler {
 				asset.getPath(), asset.getStatus());
 			double prevDuration = timeline.getDurationSeconds();
 			var savedFeatureEvents = saveFeatureEvents(timeline);
-			host.context().audioAnalysisEngine().fillTimelineFromFeature(
+			Objects.requireNonNull(host.context().audioAnalysisEngine()).fillTimelineFromFeature(
 				timeline, asset.getFeatureTimeline(), asset.getSampleRate());
 			shiftFeatureEventsByOffset(timeline, startOffset);
 			restoreFeatureEvents(timeline, savedFeatureEvents);
@@ -389,17 +390,20 @@ public final class TimelineAudioDropHandler {
 	}
 
 	private static void bindDroppedAudioToPlayback(TimelineAudioDropHost host, Timeline timeline, AudioAsset asset) {
-		String audioPath = asset.getPath().toAbsolutePath().normalize().toString();
-		timeline.setMetadata("audioPath", audioPath);
+        String audioPath = null;
+        if (asset.getPath() != null) {
+            audioPath = asset.getPath().toAbsolutePath().normalize().toString();
+        }
+        timeline.setMetadata("audioPath", audioPath);
 		if (host.context().musicPlayer() != null) {
-			boolean loaded = host.context().musicPlayer().loadAudio(audioPath);
-			host.context().musicPlayer().setCurrentTimeSeconds(0);
+			boolean loaded = Objects.requireNonNull(host.context().musicPlayer()).loadAudio(audioPath);
+			Objects.requireNonNull(host.context().musicPlayer()).setCurrentTimeSeconds(0);
 			if (loaded) {
 				LOGGER.info("BeatBlock Timeline: dropped audio asset bound to playback path={}", audioPath);
 			} else {
 				LOGGER.warn(
 					"BeatBlock Timeline: dropped audio asset failed to bind path={} reason={}",
-					audioPath, host.context().musicPlayer().getLastLoadError());
+					audioPath, Objects.requireNonNull(host.context().musicPlayer()).getLastLoadError());
 			}
 		} else {
 			LOGGER.warn("BeatBlock Timeline: dropped audio asset has no MusicPlayer instance path={}", audioPath);
@@ -425,9 +429,15 @@ public final class TimelineAudioDropHandler {
 			timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), end));
 			timeline.setMetadata("audioRootClipId", rootClip.getId());
 			timeline.setMetadata("audioAssetId", asset.getId());
-			String fn = asset.getPath().getFileName().toString();
-			int dot = fn.lastIndexOf('.');
-			if (dot > 0) fn = fn.substring(0, dot);
+            String fn = null;
+            if (asset.getPath() != null) {
+                fn = asset.getPath().getFileName().toString();
+            }
+            int dot = 0;
+            if (fn != null) {
+                dot = fn.lastIndexOf('.');
+            }
+            if (dot > 0) fn = fn.substring(0, dot);
 			timeline.setMetadata("clipLabel_" + rootClip.getId(), fn);
 			timeline.setMetadata("clipAudioPath_" + rootClip.getId(), asset.getPath().toAbsolutePath().normalize().toString());
 			String clipAudioKey = buildAudioAssetKey(asset);
