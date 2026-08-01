@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,6 +31,12 @@ public final class BuildLayerManager {
 	private final Map<String, BuildLayerGroup> groups = new LinkedHashMap<>();
 	/** 方块 → 所属图层 id，保证同一 BlockPos 只能归属一个图层。 */
 	private final Map<BlockPos, String> blockOwnerByPos = new HashMap<>();
+	/**
+	 * UI layer selection (shared with Animation Library drop target resolution).
+	 * Order is insertion/selection order; invalid ids are pruned on read.
+	 */
+	private final LinkedHashSet<String> selectedLayerIds = new LinkedHashSet<>();
+	private String selectionAnchorLayerId;
 
 	public BuildLayerManager(StageObjectSystem stageObjectSystem) {
 		this.stageObjectSystem = stageObjectSystem;
@@ -124,6 +131,98 @@ public final class BuildLayerManager {
 
 	public BuildLayer get(String id) {
 		return id != null ? layers.get(id) : null;
+	}
+
+	// ── Layer selection (preferred StageObject targets for animation drops) ──
+
+	public Set<String> getSelectedLayerIds() {
+		pruneMissingSelection();
+		return Set.copyOf(selectedLayerIds);
+	}
+
+	public boolean isLayerSelected(String layerId) {
+		return layerId != null && selectedLayerIds.contains(layerId);
+	}
+
+	public void selectLayer(String layerId, boolean ctrl, boolean shift, List<String> displayOrder) {
+		if (layerId == null || layerId.isBlank() || !layers.containsKey(layerId)) {
+			return;
+		}
+		if (shift && selectionAnchorLayerId != null && displayOrder != null && !displayOrder.isEmpty()) {
+			int anchorIndex = displayOrder.indexOf(selectionAnchorLayerId);
+			int targetIndex = displayOrder.indexOf(layerId);
+			if (anchorIndex >= 0 && targetIndex >= 0) {
+				if (!ctrl) {
+					selectedLayerIds.clear();
+				}
+				int from = Math.min(anchorIndex, targetIndex);
+				int to = Math.max(anchorIndex, targetIndex);
+				for (int i = from; i <= to; i++) {
+					String id = displayOrder.get(i);
+					if (id != null && layers.containsKey(id)) {
+						selectedLayerIds.add(id);
+					}
+				}
+				return;
+			}
+		}
+		if (!ctrl && !shift) {
+			selectedLayerIds.clear();
+		}
+		if (ctrl && selectedLayerIds.contains(layerId)) {
+			selectedLayerIds.remove(layerId);
+		} else {
+			selectedLayerIds.add(layerId);
+		}
+		selectionAnchorLayerId = layerId;
+	}
+
+	/** Replace selection with a single layer (e.g. after create/merge). */
+	public void setSelectionTo(String layerId) {
+		selectedLayerIds.clear();
+		selectionAnchorLayerId = null;
+		if (layerId != null && layers.containsKey(layerId)) {
+			selectedLayerIds.add(layerId);
+			selectionAnchorLayerId = layerId;
+		}
+	}
+
+	public void removeFromSelection(String layerId) {
+		if (layerId == null) return;
+		selectedLayerIds.remove(layerId);
+		if (layerId.equals(selectionAnchorLayerId)) {
+			selectionAnchorLayerId = selectedLayerIds.isEmpty() ? null : selectedLayerIds.iterator().next();
+		}
+	}
+
+	public void clearSelection() {
+		selectedLayerIds.clear();
+		selectionAnchorLayerId = null;
+	}
+
+	/**
+	 * StageObject ids for currently selected layers — preferred targets for
+	 * {@code AnimationDropTargetResolver} (Preset + Target + Time).
+	 */
+	public List<String> getSelectedStageObjectIds() {
+		pruneMissingSelection();
+		LinkedHashSet<String> stageIds = new LinkedHashSet<>();
+		for (String layerId : selectedLayerIds) {
+			BuildLayer layer = layers.get(layerId);
+			if (layer == null) continue;
+			String stageId = layer.getStageObjectId();
+			if (stageId != null && !stageId.isBlank()) {
+				stageIds.add(stageId);
+			}
+		}
+		return new ArrayList<>(stageIds);
+	}
+
+	private void pruneMissingSelection() {
+		selectedLayerIds.removeIf(id -> id == null || !layers.containsKey(id));
+		if (selectionAnchorLayerId != null && !layers.containsKey(selectionAnchorLayerId)) {
+			selectionAnchorLayerId = selectedLayerIds.isEmpty() ? null : selectedLayerIds.iterator().next();
+		}
 	}
 
 	public BuildLayer getByClipId(String clipId) {
@@ -269,7 +368,9 @@ public final class BuildLayerManager {
 		if (layer.getState() == LayerVisibilityState.FREE_HIDDEN && world != null) {
 			showLayer(layer, world);
 		}
-		layers.remove(layer.getId());
+		String id = layer.getId();
+		layers.remove(id);
+		removeFromSelection(id);
 		releaseBlocks(layer);
 		stageObjectSystem.remove(layer.getStageObjectId());
 		return true;
@@ -307,6 +408,7 @@ public final class BuildLayerManager {
 		for (BuildLayer layer : snapshot) {
 			dissolveLayer(layer);
 		}
+		clearSelection();
 	}
 
 	public BuildLayerGroup createGroup(String name, List<String> layerIds) {
@@ -475,7 +577,9 @@ public final class BuildLayerManager {
 			return;
 		}
 		String groupId = layer.getGroupId();
-		layers.remove(layer.getId());
+		String id = layer.getId();
+		layers.remove(id);
+		removeFromSelection(id);
 		releaseBlocks(layer);
 		stageObjectSystem.remove(layer.getStageObjectId());
 		if (groupId != null) {

@@ -2,6 +2,7 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.engine.StageObject;
 import com.beatblock.engine.StageObjectSystem;
+import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
@@ -36,6 +37,7 @@ public final class EventLibraryPanelPresenter {
 	private final Supplier<Timeline> timeline;
 	private final Supplier<TimelineEditor> timelineEditor;
 	private final Supplier<StageObjectSystem> stageObjectSystem;
+	private final Supplier<BuildLayerManager> layerManager;
 
 	private String statusMessage = "";
 
@@ -45,10 +47,21 @@ public final class EventLibraryPanelPresenter {
 		Supplier<TimelineEditor> timelineEditor,
 		Supplier<StageObjectSystem> stageObjectSystem
 	) {
+		this(eventPropertiesPresenter, timeline, timelineEditor, stageObjectSystem, () -> null);
+	}
+
+	public EventLibraryPanelPresenter(
+		EventPropertiesPresenter eventPropertiesPresenter,
+		Supplier<Timeline> timeline,
+		Supplier<TimelineEditor> timelineEditor,
+		Supplier<StageObjectSystem> stageObjectSystem,
+		Supplier<BuildLayerManager> layerManager
+	) {
 		this.eventPropertiesPresenter = eventPropertiesPresenter;
 		this.timeline = timeline;
 		this.timelineEditor = timelineEditor;
 		this.stageObjectSystem = stageObjectSystem;
+		this.layerManager = layerManager != null ? layerManager : () -> null;
 	}
 
 	public ViewState viewState() {
@@ -134,6 +147,11 @@ public final class EventLibraryPanelPresenter {
 		@Nullable SelectionState selection,
 		Timeline timeline
 	) {
+		List<String> preferred = List.of();
+		BuildLayerManager layers = layerManager.get();
+		if (layers != null) {
+			preferred = layers.getSelectedStageObjectIds();
+		}
 		List<String> fromEvents = new ArrayList<>();
 		if (selection != null) {
 			for (String eventId : selection.getSelectedEvents()) {
@@ -152,7 +170,7 @@ public final class EventLibraryPanelPresenter {
 				}
 			}
 		}
-		return AnimationDropTargetResolver.resolve(List.of(), fromEvents, registered);
+		return AnimationDropTargetResolver.resolve(preferred, fromEvents, registered);
 	}
 
 	private static @Nullable TimelineAnimationEvent findAnimationEvent(Timeline timeline, String eventId) {

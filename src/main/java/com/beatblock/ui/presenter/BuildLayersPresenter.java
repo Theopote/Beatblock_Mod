@@ -21,7 +21,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -47,8 +46,6 @@ public final class BuildLayersPresenter {
 
 	private final Supplier<CommandManager> commandManager;
 	private final Supplier<BuildLayerManager> layerManager;
-	private final LinkedHashSet<String> selectedLayerIds = new LinkedHashSet<>();
-	private String selectionAnchorLayerId;
 
 	public BuildLayersPresenter(
 		Supplier<CommandManager> commandManager,
@@ -59,46 +56,28 @@ public final class BuildLayersPresenter {
 	}
 
 	public Set<String> selectedLayerIds() {
-		return Set.copyOf(selectedLayerIds);
+		BuildLayerManager manager = layerManager.get();
+		return manager != null ? manager.getSelectedLayerIds() : Set.of();
 	}
 
 	public boolean isLayerSelected(String layerId) {
-		return layerId != null && selectedLayerIds.contains(layerId);
+		BuildLayerManager manager = layerManager.get();
+		return manager != null && manager.isLayerSelected(layerId);
 	}
 
 	public void selectLayer(String layerId, boolean ctrl, boolean shift, List<String> displayOrder) {
-		if (layerId == null || layerId.isBlank()) {
+		BuildLayerManager manager = layerManager.get();
+		if (manager == null) {
 			return;
 		}
-		if (shift && selectionAnchorLayerId != null && displayOrder != null && !displayOrder.isEmpty()) {
-			int anchorIndex = displayOrder.indexOf(selectionAnchorLayerId);
-			int targetIndex = displayOrder.indexOf(layerId);
-			if (anchorIndex >= 0 && targetIndex >= 0) {
-				if (!ctrl) {
-					selectedLayerIds.clear();
-				}
-				int from = Math.min(anchorIndex, targetIndex);
-				int to = Math.max(anchorIndex, targetIndex);
-				for (int i = from; i <= to; i++) {
-					selectedLayerIds.add(displayOrder.get(i));
-				}
-				return;
-			}
-		}
-		if (!ctrl && !shift) {
-			selectedLayerIds.clear();
-		}
-		if (ctrl && selectedLayerIds.contains(layerId)) {
-			selectedLayerIds.remove(layerId);
-		} else {
-			selectedLayerIds.add(layerId);
-		}
-		selectionAnchorLayerId = layerId;
+		manager.selectLayer(layerId, ctrl, shift, displayOrder);
 	}
 
 	public void clearSelection() {
-		selectedLayerIds.clear();
-		selectionAnchorLayerId = null;
+		BuildLayerManager manager = layerManager.get();
+		if (manager != null) {
+			manager.clearSelection();
+		}
 	}
 
 	public PresenterResult reorderLayerBefore(String movingLayerId, String targetLayerId) {
@@ -229,8 +208,7 @@ public final class BuildLayersPresenter {
 		String message = claimed > 0
 			? BBTexts.get("beatblock.message.layer_created_skipped", created.getName(), claimed)
 			: BBTexts.get("beatblock.message.layer_created_hidden", created.getName());
-		selectedLayerIds.clear();
-		selectedLayerIds.add(created.getId());
+		manager.setSelectionTo(created.getId());
 		return new CreateOutcome(
 			PresenterResult.success(message),
 			created.getId(),
@@ -300,7 +278,7 @@ public final class BuildLayersPresenter {
 
 		String layerName = layer.getName();
 		commands.execute(new DeleteLayerCommand(manager, layer.getId()));
-		selectedLayerIds.remove(layerId);
+		// Selection pruned inside BuildLayerManager.deleteLayer / dissolveLayer
 		return new DeleteOutcome(PresenterResult.success(BBTexts.get("beatblock.message.layer_deleted", layerName)));
 	}
 
@@ -310,11 +288,12 @@ public final class BuildLayersPresenter {
 		if (commands == null || manager == null) {
 			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.editor_unavailable")), null);
 		}
-		if (selectedLayerIds.size() < 2) {
+		Set<String> selected = manager.getSelectedLayerIds();
+		if (selected.size() < 2) {
 			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.group_need_two_layers")), null);
 		}
 		String name = rawName != null && !rawName.isBlank() ? rawName.trim() : "group";
-		var cmd = new GroupLayersCommand(manager, name, List.copyOf(selectedLayerIds));
+		var cmd = new GroupLayersCommand(manager, name, List.copyOf(selected));
 		commands.execute(cmd);
 		BuildLayerGroup group = cmd.getCreatedGroup();
 		if (group == null) {
@@ -332,10 +311,11 @@ public final class BuildLayersPresenter {
 		if (commands == null || manager == null) {
 			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.editor_unavailable")), null);
 		}
-		if (selectedLayerIds.isEmpty()) {
+		Set<String> selected = manager.getSelectedLayerIds();
+		if (selected.isEmpty()) {
 			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.select_layers_first")), null);
 		}
-		commands.execute(new UngroupLayersCommand(manager, List.copyOf(selectedLayerIds)));
+		commands.execute(new UngroupLayersCommand(manager, List.copyOf(selected)));
 		return new LayerActionOutcome(PresenterResult.success(BBTexts.get("beatblock.message.ungrouped")), null);
 	}
 
@@ -345,23 +325,23 @@ public final class BuildLayersPresenter {
 		if (commands == null || manager == null) {
 			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.editor_unavailable")), null);
 		}
-		if (selectedLayerIds.size() < 2) {
+		Set<String> selected = manager.getSelectedLayerIds();
+		if (selected.size() < 2) {
 			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.merge_need_two_layers")), null);
 		}
-		for (String layerId : selectedLayerIds) {
+		for (String layerId : selected) {
 			BuildLayer layer = manager.get(layerId);
 			if (layer == null || !layer.canDelete()) {
 				return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.merge_not_allowed")), null);
 			}
 		}
-		var cmd = new MergeLayersCommand(manager, List.copyOf(selectedLayerIds), rawName);
+		var cmd = new MergeLayersCommand(manager, List.copyOf(selected), rawName);
 		commands.execute(cmd);
 		BuildLayer merged = cmd.getMergedLayer();
 		if (merged == null) {
 			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.merge_failed")), null);
 		}
-		selectedLayerIds.clear();
-		selectedLayerIds.add(merged.getId());
+		manager.setSelectionTo(merged.getId());
 		return new LayerActionOutcome(
 			PresenterResult.success(BBTexts.get("beatblock.message.layers_merged", merged.getName())),
 			merged.getId()

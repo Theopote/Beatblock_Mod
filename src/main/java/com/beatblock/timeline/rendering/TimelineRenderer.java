@@ -342,6 +342,16 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	}
 
 	@Override
+	public List<String> resolvePreferredStageObjectIds() {
+		// Layer panel selection → StageObject ids (Animation Library drop preferred targets)
+		var layers = ctx().buildLayerManager();
+		if (layers == null) {
+			return List.of();
+		}
+		return layers.getSelectedStageObjectIds();
+	}
+
+	@Override
 	public List<String> resolveRegisteredStageObjectIds() {
 		if (ctx().blockAnimationEngine() == null) {
 			return List.of();

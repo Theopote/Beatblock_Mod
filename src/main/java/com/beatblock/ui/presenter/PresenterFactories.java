@@ -293,7 +293,8 @@ public final class PresenterFactories {
 			() -> {
 				var engine = context.blockAnimationEngine();
 				return engine != null ? engine.getStageObjectSystem() : null;
-			}
+			},
+			context::buildLayerManager
 		);
 	}
 
