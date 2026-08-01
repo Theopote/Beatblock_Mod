@@ -10,6 +10,16 @@ import imgui.ImGui;
 public final class WorldTrajectorySection implements EventPropertySection {
 
 	@Override
+	public Tab tab() {
+		return Tab.SPATIAL;
+	}
+
+	@Override
+	public int order() {
+		return 10;
+	}
+
+	@Override
 	public boolean supports(EventEditContext context) {
 		return WorldTrajectoryEventParamsEditor.supports(context.selectedAnimationId());
 	}

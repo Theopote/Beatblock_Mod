@@ -3,17 +3,40 @@ package com.beatblock.ui.properties.editors;
 /**
  * 动画事件属性编辑器的可插拔能力块。
  * <p>
- * 未来插件动画可注册自定义 Section，扩展属性面板而不修改主编辑器。
+ * 主编辑器按 {@link Tab} 分组渲染；插件可 {@link EventPropertySectionRegistry#register} 扩展面板，
+ * 无需修改 {@link AnimationPropertyEditor}。
  */
 public interface EventPropertySection {
 
+	/** Property panel tab the section belongs to. */
+	enum Tab {
+		BASIC,
+		SPATIAL,
+		ADVANCED,
+		INFO
+	}
+
 	/**
-	 * 判断当前事件是否应由本 Section 渲染。
+	 * Tab this section renders under. Default {@link Tab#BASIC}.
+	 */
+	default Tab tab() {
+		return Tab.BASIC;
+	}
+
+	/**
+	 * Sort key within a tab (lower first). Default 100.
+	 */
+	default int order() {
+		return 100;
+	}
+
+	/**
+	 * Whether this section should render for the current event/context.
 	 */
 	boolean supports(EventEditContext context);
 
 	/**
-	 * 在属性面板中渲染本 Section 的控件。
+	 * Render ImGui controls for this section.
 	 */
 	void render(EventEditContext context);
 }

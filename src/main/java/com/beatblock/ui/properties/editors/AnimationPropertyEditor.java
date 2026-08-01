@@ -4,8 +4,6 @@ import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.engine.influence.BlockInfluencePreset;
 import com.beatblock.engine.influence.BlockInfluencePresets;
-import com.beatblock.engine.influence.InfluenceDimension;
-import com.beatblock.ui.imgui.PresetChannelPreview;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationActionMode;
@@ -14,6 +12,7 @@ import com.beatblock.timeline.editing.AnimationEventFormInput;
 import com.beatblock.timeline.editing.AnimationEventPropertiesEditor;
 import com.beatblock.timeline.editing.WorldTrajectoryEventParamsEditor;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.imgui.PresetChannelPreview;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.presenter.AnimationEditorViewState;
 import com.beatblock.ui.presenter.EventPropertiesFormSnapshot;
@@ -22,7 +21,6 @@ import com.beatblock.ui.presenter.EventPropertiesPresenter;
 import com.beatblock.ui.presenter.EventPropertiesRef;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
-import com.beatblock.timeline.rendering.TrackRegistry;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
@@ -33,11 +31,26 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * 方块动画事件属性编辑器。
+ * 方块动画事件属性编辑器：编排 {@link EventPropertySection}，自身只保留
+ * 缓冲字段、批量编辑、Apply/Reset 与预览弹窗。
+ * <p>
+ * 单事件 UI 结构：
+ * <pre>
+ *   for (Tab tab : tabs) {
+ *     for (EventPropertySection section : registry.forTab(tab)) {
+ *       if (section.supports(ctx)) section.render(ctx);
+ *     }
+ *   }
+ * </pre>
+ * 插件通过 {@link #sectionRegistry()}{@code .register(...)} 扩展。
  */
 public final class AnimationPropertyEditor {
 
 	private static final int INPUT_BUFFER_SIZE = 128;
+
+	private final EventPropertySectionRegistry sectionRegistry;
+	private final EventPropertiesPresenter presenter;
+	private final Supplier<BeatBlockContext> context;
 
 	private String boundRefKey;
 	final ImString timeBuffer = new ImString(INPUT_BUFFER_SIZE);
@@ -67,10 +80,7 @@ public final class AnimationPropertyEditor {
 	String validationError;
 	private String batchMessage;
 	private String animationPreviewPresetId;
-	private final EventPropertySection worldTrajectorySection = new WorldTrajectorySection();
-	private final EventPropertySection stepSequenceSection = new StepSequenceSection();
-	private final EventPropertiesPresenter presenter;
-	private final Supplier<BeatBlockContext> context;
+
 	private final ImString batchEnergyBuffer = new ImString(16);
 	private final ImString batchTimeOffsetBuffer = new ImString(16);
 	private final ImInt batchAnimationIndex = new ImInt(0);
@@ -93,23 +103,30 @@ public final class AnimationPropertyEditor {
 	}
 
 	AnimationPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
+		this(presenter, context, EventPropertySectionRegistry.createDefault());
+	}
+
+	AnimationPropertyEditor(
+		EventPropertiesPresenter presenter,
+		Supplier<BeatBlockContext> context,
+		EventPropertySectionRegistry sectionRegistry
+	) {
 		this.presenter = presenter;
 		this.context = context;
+		this.sectionRegistry = sectionRegistry != null
+			? sectionRegistry
+			: EventPropertySectionRegistry.createDefault();
+	}
+
+	/** Plugin / test access to register extra property sections. */
+	public EventPropertySectionRegistry sectionRegistry() {
+		return sectionRegistry;
 	}
 
 	private BeatBlockContext runtime() {
 		return context.get();
 	}
 
-	private static String[] spatialModeLabels() {
-		return BBTexts.labels(
-			"beatblock.event.spatial.all",
-			"beatblock.event.spatial.sequential",
-			"beatblock.event.spatial.radial",
-			"beatblock.event.spatial.random",
-			"beatblock.event.spatial.spiral"
-		);
-	}
 	static final String[] SPATIAL_MODE_VALUES = {
 		"ALL",
 		"SEQUENTIAL",
@@ -117,33 +134,14 @@ public final class AnimationPropertyEditor {
 		"RANDOM",
 		"SPIRAL"
 	};
-	private static String[] stepStartModeLabels() {
-		return BBTexts.labels(
-			"beatblock.event.step_start.next_beat",
-			"beatblock.event.step_start.immediate"
-		);
-	}
 	static final String[] STEP_START_MODE_VALUES = {
 		"NEXT_BEAT",
 		"IMMEDIATE"
 	};
-	private static String[] stepCompletionLabels() {
-		return BBTexts.labels(
-			"beatblock.event.step_completion.keep",
-			"beatblock.event.step_completion.loop"
-		);
-	}
 	static final String[] STEP_COMPLETION_VALUES = {
 		"KEEP",
 		"LOOP"
 	};
-	private static String[] pacingModeLabels() {
-		return BBTexts.labels(
-			"beatblock.event.pacing.beat_grid",
-			"beatblock.event.pacing.fixed_interval",
-			"beatblock.event.pacing.distance"
-		);
-	}
 	static final String[] PACING_MODE_VALUES = {
 		"BEAT_GRID",
 		"FIXED_INTERVAL",
@@ -189,37 +187,6 @@ public final class AnimationPropertyEditor {
 		if (trackLocked) {
 			ImGui.endDisabled();
 		}
-	}
-
-	private void renderEventSummary(EventPropertiesRef ref, Timeline timeline) {
-		ImGui.textDisabled(BBTexts.get("beatblock.event.track"));
-		ImGui.sameLine();
-		ImGui.text(ref.track().getName().isBlank() ? ref.track().getId() : ref.track().getName());
-		Map<String, Object> params = ref.event().getParameters();
-		AnimationEditorViewState viewState = presenter.readAnimationEditorState(params);
-		ImGui.textDisabled(BBTexts.get("beatblock.event.event_id"));
-		ImGui.sameLine();
-		ImGui.text(ref.event().getId());
-		if (Timeline.isBlockAnimationFeatureTrackId(ref.track().getId())) {
-			ImGui.textDisabled(BBTexts.get("beatblock.event.feature_lane"));
-			ImGui.sameLine();
-			ImGui.text(TrackRegistry.localizedName(Timeline.blockAnimationFeatureKeyFromTrackId(ref.track().getId())));
-		}
-		String sourceFeature = viewState.sourceFeature();
-		if (!sourceFeature.isBlank()) {
-			ImGui.textDisabled(BBTexts.get("beatblock.event.source_feature"));
-			ImGui.sameLine();
-			ImGui.text(TrackRegistry.localizedName(sourceFeature));
-		}
-		String generatedBy = viewState.generatedBy();
-		if (!generatedBy.isBlank()) {
-			ImGui.textDisabled(BBTexts.get("beatblock.event.generated_by"));
-			ImGui.sameLine();
-			ImGui.text(generatedBy);
-		}
-		ImGui.textDisabled(BBTexts.get("beatblock.event.action_mode"));
-		ImGui.sameLine();
-		ImGui.text(TimelineAnimationActionMode.fromValue(viewState.actionMode()).name());
 	}
 
 	private void renderBatchEditor(Timeline timeline, TimelineEditor editor, int batchCount) {
@@ -304,7 +271,7 @@ public final class AnimationPropertyEditor {
 		}
 		String animationId = null;
 		if (batchApplyAnimation.get() && batchAnimationIndex.get() >= 0
-				&& batchAnimationIndex.get() < animationOptions.size()) {
+			&& batchAnimationIndex.get() < animationOptions.size()) {
 			animationId = animationOptions.get(batchAnimationIndex.get()).id();
 		}
 		Double timeOffset = null;
@@ -318,7 +285,7 @@ public final class AnimationPropertyEditor {
 		}
 		TimelineAnimationActionMode actionMode = null;
 		if (batchApplyActionMode.get() && batchActionModeIndex.get() >= 0
-				&& batchActionModeIndex.get() < presenter.actionOptions().size()) {
+			&& batchActionModeIndex.get() < presenter.actionOptions().size()) {
 			String modeId = presenter.actionOptions().get(batchActionModeIndex.get()).id();
 			actionMode = TimelineAnimationActionMode.fromValue(modeId);
 		}
@@ -340,11 +307,11 @@ public final class AnimationPropertyEditor {
 				return;
 			}
 		}
-		java.util.Map<String, Object> customParameters = null;
+		Map<String, Object> customParameters = null;
 		if (batchApplyPlaceBlock.get()) {
 			String placeBlock = batchPlaceBlockBuffer.get().trim();
 			if (!placeBlock.isBlank()) {
-				customParameters = java.util.Map.of("placeBlock", placeBlock);
+				customParameters = Map.of("placeBlock", placeBlock);
 			}
 		}
 		var outcome = presenter.applyBatchAnimationEdit(
@@ -379,10 +346,6 @@ public final class AnimationPropertyEditor {
 		List<EventPropertiesOption> animationOptions = presenter.animationOptions();
 		List<EventPropertiesOption> targetOptions = presenter.targetOptions();
 
-		String[] actionLabels = optionLabels(actionOptions);
-		String[] animationLabels = optionLabels(animationOptions);
-		String[] targetLabels = optionLabels(targetOptions);
-
 		EventEditContext ctx = new EventEditContext(
 			ref,
 			timeline,
@@ -392,9 +355,9 @@ public final class AnimationPropertyEditor {
 			actionOptions,
 			animationOptions,
 			targetOptions,
-			actionLabels,
-			animationLabels,
-			targetLabels,
+			optionLabels(actionOptions),
+			optionLabels(animationOptions),
+			optionLabels(targetOptions),
 			this
 		);
 
@@ -412,26 +375,19 @@ public final class AnimationPropertyEditor {
 
 		if (ImGui.beginTabBar("##eventPropTabs")) {
 			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.basic"))) {
-				renderBasicTab(ctx);
+				sectionRegistry.renderTab(EventPropertySection.Tab.BASIC, ctx);
 				ImGui.endTabItem();
 			}
 			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.spatial"))) {
-				renderSpatialTab(ctx);
+				sectionRegistry.renderTab(EventPropertySection.Tab.SPATIAL, ctx);
 				ImGui.endTabItem();
 			}
 			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.advanced"))) {
-				if (stepSequenceSection.supports(ctx)) {
-					stepSequenceSection.render(ctx);
-				}
+				sectionRegistry.renderTab(EventPropertySection.Tab.ADVANCED, ctx);
 				ImGui.endTabItem();
 			}
 			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.info"))) {
-				renderEventSummary(ref, timeline);
-				ImGui.spacing();
-				ImGui.text(BBTexts.get("beatblock.event.metadata"));
-				ImGui.textDisabled(BBTexts.get("beatblock.event.mapping", viewState.mappingProfile()));
-				ImGui.textDisabled(BBTexts.get("beatblock.event.source_stem", viewState.sourceStem()));
-				renderRuntimeStatus(ref);
+				sectionRegistry.renderTab(EventPropertySection.Tab.INFO, ctx);
 				ImGui.endTabItem();
 			}
 			ImGui.endTabBar();
@@ -464,82 +420,10 @@ public final class AnimationPropertyEditor {
 		renderAnimationPreviewPopup();
 	}
 
-	private void renderBasicTab(EventEditContext ctx) {
-		ImGui.text(BBTexts.get("beatblock.event.timing"));
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.event.start_time") + "##eventTime", timeBuffer);
-		trackLivePreviewEdit();
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.event.duration") + "##eventDuration", durationBuffer);
-		trackLivePreviewEdit();
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.event.energy") + "##eventEnergy", energyBuffer);
-		trackLivePreviewEdit();
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.event.energy_threshold") + "##eventEnergyThreshold", energyThresholdBuffer);
-		trackLivePreviewEdit();
-
-		ImGui.spacing();
-		ImGui.text(BBTexts.get("beatblock.event.binding"));
-		if (ImGui.combo(BBTexts.get("beatblock.event.action_mode_combo") + "##eventActionMode", ctx.actionIndex, ctx.actionLabels())) {
-			validationError = null;
-		}
-		trackLivePreviewEdit();
-		if (ImGui.combo(BBTexts.get("beatblock.event.animation_preset") + "##eventAnimation", ctx.animationIndex, ctx.animationLabels())) {
-			validationError = null;
-		}
-		trackLivePreviewEdit();
-		String selectedAnimationId = ctx.selectedAnimationId();
-		renderPresetChannelPreview(selectedAnimationId);
-		ImGui.sameLine();
-		if (ImGui.button(BBTexts.get("beatblock.event.preview_animation") + "##eventAnimPreview")) {
-			animationPreviewPresetId = selectedAnimationId;
-			ImGui.openPopup("##eventAnimPreviewPopup");
-		}
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.vfx") + "##eventVfxEnabled", ctx.vfxEnabled)) {
-			validationError = null;
-		}
-		BlockInfluencePreset selectedPreset = BlockInfluencePresets.get(selectedAnimationId);
-		if (selectedPreset != null && !selectedPreset.channelsFor(InfluenceDimension.APPEARANCE).isEmpty()) {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.flash_block") + "##eventFlashBlock", flashBlockBuffer);
-			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(BBTexts.get("beatblock.event.vfx.tooltip"));
-			}
-		}
-		if (ImGui.combo(BBTexts.get("beatblock.event.target") + "##eventTarget", ctx.targetIndex, ctx.targetLabels())) {
-			validationError = null;
-		}
-	}
-
-	private void renderSpatialTab(EventEditContext ctx) {
-		if (worldTrajectorySection.supports(ctx)) {
-			worldTrajectorySection.render(ctx);
-		}
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.inherit_spatial") + "##eventInheritGroupSpatial", ctx.inheritGroupSpatial)) {
-			validationError = null;
-		}
-		if (!ctx.inheritGroupSpatial.get()) {
-			if (ImGui.combo(BBTexts.get("beatblock.event.spatial_mode") + "##eventSpatialMode", ctx.spatialModeIndex, spatialModeLabels())) {
-				validationError = null;
-			}
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.spatial_delay") + "##eventSpatialDelay", spatialDelayBuffer);
-		}
-		TimelineAnimationActionMode selectedActionMode = ctx.selectedActionMode();
-		if (selectedActionMode == TimelineAnimationActionMode.PLACE) {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.place_block") + "##eventPlaceBlock", placeBlockBuffer);
-			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(BBTexts.get("beatblock.event.place_block.tooltip"));
-			}
-		}
-	}
-
-	private void renderAdvancedTab(EventEditContext ctx) {
-		if (stepSequenceSection.supports(ctx)) {
-			stepSequenceSection.render(ctx);
-		}
+	/** Called by {@link PresetSection} when the user opens the preset preview popup. */
+	void openAnimationPreview(String presetId) {
+		animationPreviewPresetId = presetId;
+		ImGui.openPopup("##eventAnimPreviewPopup");
 	}
 
 	private void renderAnimationPreviewPopup() {
@@ -567,7 +451,8 @@ public final class AnimationPropertyEditor {
 		}
 	}
 
-	private void trackLivePreviewEdit() {
+	/** Package-visible for sections that need live-preview seek on edit. */
+	void trackLivePreviewEdit() {
 		if (ImGui.isItemDeactivatedAfterEdit()) {
 			pendingLivePreview = true;
 		}
@@ -581,23 +466,6 @@ public final class AnimationPropertyEditor {
 		try {
 			previewEventAtTime(Double.parseDouble(timeBuffer.get().trim()));
 		} catch (NumberFormatException ignored) {
-		}
-	}
-
-	private void renderRuntimeStatus(EventPropertiesRef ref) {
-		String eventId = ref != null && ref.event() != null ? ref.event().getId() : "";
-		if (eventId.isBlank()) return;
-		BeatBlockClientDriver.TimelineActionExecutionReport report = BeatBlockClientDriver.getTimelineActionExecutionReport(eventId);
-		if (report == null) return;
-
-		long ageMs = Math.max(0L, System.currentTimeMillis() - report.timestampMs());
-		ImGui.textDisabled(BBTexts.get("beatblock.event.runtime_status",
-			report.actionMode().name(),
-			report.status(),
-			report.mutationCount(),
-			ageMs));
-		if (report.detail() != null && !report.detail().isBlank()) {
-			ImGui.textDisabled(BBTexts.get("beatblock.event.runtime_detail", report.detail()));
 		}
 	}
 
@@ -718,10 +586,6 @@ public final class AnimationPropertyEditor {
 			valueOf(meteorScatterBuffer),
 			valueOf(impactThresholdBuffer)
 		);
-	}
-
-	private void renderPresetChannelPreview(String presetId) {
-		PresetChannelPreview.renderCollapsible(BBTexts.get("beatblock.event.preset_channels") + "##eventPresetChannels", BlockInfluencePresets.get(presetId));
 	}
 
 	static int indexOfOption(List<EventPropertiesOption> options, String id) {

@@ -1,10 +1,11 @@
 package com.beatblock.ui.properties.editors;
 
+import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 
 /**
- * Step 序列 Section：Step Dispatch、Pacing 模式、Camera Adaptive、Phase Animation 等高级参数。
+ * Step 序列 Section：Step Dispatch、Pacing 模式、Camera Adaptive 等（不含 Phase，见 {@link PhaseAnimationSection}）。
  */
 public final class StepSequenceSection implements EventPropertySection {
 
@@ -31,10 +32,19 @@ public final class StepSequenceSection implements EventPropertySection {
 	}
 
 	@Override
+	public Tab tab() {
+		return Tab.ADVANCED;
+	}
+
+	@Override
+	public int order() {
+		return 10;
+	}
+
+	@Override
 	public boolean supports(EventEditContext context) {
-		// Step 序列对所有 ANIMATE 动作可选；PLACE/BUILD/CLEAR 无需 step 分发。
-		return context.selectedActionMode() == com.beatblock.timeline.TimelineAnimationActionMode.ANIMATE
-			|| context.selectedActionMode() == com.beatblock.timeline.TimelineAnimationActionMode.BUILD;
+		TimelineAnimationActionMode mode = context.selectedActionMode();
+		return mode == TimelineAnimationActionMode.ANIMATE || mode == TimelineAnimationActionMode.BUILD;
 	}
 
 	@Override
@@ -97,21 +107,6 @@ public final class StepSequenceSection implements EventPropertySection {
 		ImGui.inputText(BBTexts.get("beatblock.event.edge_priority") + "##eventCameraEdgePriority", host.cameraEdgePriorityBuffer);
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip(BBTexts.get("beatblock.event.edge_priority.tooltip"));
-		}
-
-		if (ImGui.checkbox(BBTexts.get("beatblock.event.phase_animation") + "##eventUsePhaseAnimation", context.usePhaseAnimation)) {
-			host.validationError = null;
-		}
-		if (context.usePhaseAnimation.get()) {
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.entry_phase") + "##eventEntryDuration", host.entryDurationBuffer);
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.idle_phase") + "##eventIdleDuration", host.idleDurationBuffer);
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText(BBTexts.get("beatblock.event.exit_phase") + "##eventExitDuration", host.exitDurationBuffer);
-			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(BBTexts.get("beatblock.event.phase.tooltip"));
-			}
 		}
 	}
 }

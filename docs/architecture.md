@@ -24,6 +24,11 @@
 
 禁止把「拖 preset」理解成只带 Time、Target 靠静默猜测。无选中对象时应允许 **UNBOUND** 事件后补绑定，而不是硬拒绝。详见 [Animation Library 拖拽 UX](animation-library-drag-ux.md)。
 
+事件属性面板（`AnimationPropertyEditor`）按可插拔 **Section** 组织：
+`EventTiming` / `EventBinding` / `Preset` / `Target` / `SpatialDispatch` / `WorldTrajectory` /
+`StepSequence` / `PhaseAnimation` / `Vfx` / `EventDiagnostics`，经 `EventPropertySectionRegistry` 注册。
+未来自定义动画可 `registry.register(new CustomSection())` 扩展属性 UI，无需改主编辑器。
+
 播放器内部，「动作」进一步统一为 **对方块的影响维度 + 插值曲线 + 派发策略**（存在性 / 空间变换 / 外观 / 独立 VFX），三种演出是同一系统的参数预设，而非三套实现。详见 [方块影响维度](block-influence-dimensions.md)。
 
 ## 三层模型（信息只能单向流动）
