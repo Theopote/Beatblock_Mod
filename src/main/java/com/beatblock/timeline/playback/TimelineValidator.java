@@ -73,6 +73,113 @@ public final class TimelineValidator {
 		int markerCount = document.getMarkers() != null ? document.getMarkers().size() : 0;
 
 		double duration = document.getDurationSeconds();
+		if (!isFinite(duration)) {
+			issues.add(TimelineDiagnostic.error(
+				"non_finite_timeline_duration",
+				"Timeline duration is not finite: " + duration,
+				null,
+				Double.NaN
+			));
+		}
+
+		// Validate BPM
+		Object bpmVal = document.getMetadata("bpm");
+		if (bpmVal instanceof Number) {
+			double val = ((Number) bpmVal).doubleValue();
+			if (!isFinite(val) || val <= 0) {
+				issues.add(TimelineDiagnostic.error(
+					"invalid_bpm",
+					"Timeline has invalid BPM value: " + val,
+					null,
+					Double.NaN
+				));
+			}
+		}
+
+		// Validate reference beat times
+		try {
+			double[] beats = com.beatblock.timeline.ReferenceBeatResolver.resolveBeatTimesSeconds(document);
+			if (beats != null) {
+				for (double beat : beats) {
+					if (!isFinite(beat)) {
+						issues.add(TimelineDiagnostic.error(
+							"non_finite_beat_time",
+							"Reference beat time is not finite: " + beat,
+							null,
+							Double.NaN
+						));
+						break;
+					}
+				}
+			}
+		} catch (Exception ignored) {}
+
+		// Validate all tracks, clips, and clip events
+		for (Track track : document.getTracks()) {
+			if (track == null) continue;
+			for (var clip : track.getClips()) {
+				if (clip == null) continue;
+				double start = clip.getStartTimeSeconds();
+				double end = clip.getEndTimeSeconds();
+				if (!isFinite(start) || !isFinite(end) || start > end) {
+					issues.add(TimelineDiagnostic.error(
+						"invalid_clip_range",
+						"Track \"" + track.getName() + "\" has invalid clip range: [" + start + ", " + end + "]",
+						null,
+						Double.NaN
+					));
+				}
+				for (var event : clip.getEvents()) {
+					if (event == null) continue;
+					double eventTime = event.getTimeSeconds();
+					if (!isFinite(eventTime)) {
+						String rule = "non_finite_event_time";
+						if (Timeline.TRACK_ID_CAMERA.equals(track.getId())) {
+							rule = "non_finite_camera_time";
+						} else if (Timeline.TRACK_ID_GLOBAL.equals(track.getId())) {
+							rule = "non_finite_global_time";
+						}
+						issues.add(TimelineDiagnostic.error(
+							rule,
+							"Event in track \"" + track.getName() + "\" has non-finite time: " + eventTime,
+							event.getId(),
+							eventTime
+						));
+					}
+				}
+			}
+		}
+
+		// Validate markers
+		if (document.getMarkers() != null) {
+			for (var marker : document.getMarkers()) {
+				if (marker == null) continue;
+				if (!isFinite(marker.getTimeSeconds())) {
+					issues.add(TimelineDiagnostic.error(
+						"non_finite_marker_time",
+						"Marker \"" + marker.getName() + "\" has non-finite time: " + marker.getTimeSeconds(),
+						marker.getId(),
+						marker.getTimeSeconds()
+					));
+				}
+			}
+		}
+
+		// Validate global events list
+		if (document.getGlobalEvents() != null) {
+			for (var ge : document.getGlobalEvents()) {
+				if (ge == null) continue;
+				if (!isFinite(ge.getTimeSeconds())) {
+					issues.add(TimelineDiagnostic.error(
+						"non_finite_global_time",
+						"Global event \"" + ge.getName() + "\" has non-finite time: " + ge.getTimeSeconds(),
+						null,
+						ge.getTimeSeconds()
+					));
+				}
+			}
+		}
+
 		Set<String> seenIds = new HashSet<>();
 
 		if (stageEvents != null) {

@@ -49,4 +49,23 @@ public record TimelineDiagnostic(
 	public boolean hasTime() {
 		return !Double.isNaN(timeSeconds);
 	}
+
+	/**
+	 * Returns true if this diagnostic is a fatal/blocking error that cannot be bypassed.
+	 */
+	public boolean isFatal() {
+		return "unsupported_payload".equals(ruleId)
+			|| "unsupported_parameter_type".equals(ruleId)
+			|| "non_finite_event_time".equals(ruleId)
+			|| "non_finite_timeline_duration".equals(ruleId)
+			|| "non_finite_camera_time".equals(ruleId)
+			|| "non_finite_marker_time".equals(ruleId)
+			|| "non_finite_global_time".equals(ruleId)
+			|| "invalid_clip_range".equals(ruleId)
+			|| "invalid_bpm".equals(ruleId)
+			|| "compiler_internal_error".equals(ruleId)
+			|| "duplicate_event_id".equals(ruleId)
+			|| "null_timeline".equals(ruleId);
+	}
 }
+

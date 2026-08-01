@@ -147,18 +147,23 @@ public final class PerformanceCheckDialog {
 		ImGui.spacing();
 
 		if (report.hasErrors()) {
-			ImGui.textWrapped(BBTexts.get("beatblock.performance_check.blocked"));
-			ImGui.spacing();
-			if (PerformanceCheckController.hasBlockedPlayAction()) {
-				if (ImGui.button(BBTexts.get("beatblock.performance_check.force_play") + "##pcForce", 160f, 0f)) {
-					PerformanceCheckController.forcePlayDespiteErrors();
-					ImGui.closeCurrentPopup();
+			if (report.hasFatalErrors()) {
+				ImGui.textWrapped(BBTexts.get("beatblock.performance_check.blocked_fatal"));
+			} else {
+				ImGui.textWrapped(BBTexts.get("beatblock.performance_check.blocked"));
+				ImGui.spacing();
+				if (PerformanceCheckController.hasBlockedPlayAction()) {
+					if (ImGui.button(BBTexts.get("beatblock.performance_check.force_play") + "##pcForce", 160f, 0f)) {
+						PerformanceCheckController.forcePlayDespiteErrors();
+						ImGui.closeCurrentPopup();
+					}
+					if (ImGui.isItemHovered()) {
+						ImGui.setTooltip(BBTexts.get("beatblock.performance_check.force_play.tooltip"));
+					}
+					ImGui.sameLine();
 				}
-				if (ImGui.isItemHovered()) {
-					ImGui.setTooltip(BBTexts.get("beatblock.performance_check.force_play.tooltip"));
-				}
-				ImGui.sameLine();
 			}
+			ImGui.spacing();
 		}
 
 		if (ImGui.button(BBTexts.get("beatblock.common.close") + "##pcClose", 120f, 0f)) {

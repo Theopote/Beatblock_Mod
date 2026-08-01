@@ -67,6 +67,15 @@ public final class TimelineValidationReport {
 		return errorCount() > 0;
 	}
 
+	public boolean hasFatalErrors() {
+		for (TimelineDiagnostic d : diagnostics) {
+			if (d.severity() == TimelineDiagnosticSeverity.ERROR && d.isFatal()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public boolean hasWarnings() {
 		return warningCount() > 0;
 	}

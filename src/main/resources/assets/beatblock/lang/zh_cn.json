@@ -1166,6 +1166,7 @@
   "beatblock.performance_check.hide_problems": "隐藏问题",
   "beatblock.performance_check.no_problems": "无问题条目。",
   "beatblock.performance_check.blocked": "存在错误，已阻止正式播放。请修复后重试，或强制播放。",
+  "beatblock.performance_check.blocked_fatal": "存在严重错误，已阻止正式播放。请修复严重错误后再试。",
   "beatblock.performance_check.force_play": "强制播放",
   "beatblock.performance_check.force_play.tooltip": "忽略错误开始播放（部分事件可能无效）",
   "beatblock.performance_check.play_blocked_toast": "演出检查失败：{0} 个错误（已打开报告）",

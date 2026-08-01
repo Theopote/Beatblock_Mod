@@ -89,7 +89,7 @@ public final class PerformanceCheckController {
 		lastReport = report;
 
 		if (report.hasErrors()) {
-			blockedPlayAction = onAllowed;
+			blockedPlayAction = report.hasFatalErrors() ? null : onAllowed;
 			showProblemsExpanded = true;
 			openDialogRequested = true;
 			return report;

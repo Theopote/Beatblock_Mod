@@ -8,5 +8,29 @@ import org.jspecify.annotations.Nullable;
 public record CompiledStageEvent(
 	TimelineAnimationEvent event,
 	@Nullable AnimationDefinition animationDefinition,
-	@Nullable CompiledStageTarget target
-) {}
+	@Nullable CompiledStageTarget target,
+	long stableSequence
+) {
+	public CompiledStageEvent(
+		TimelineAnimationEvent event,
+		@Nullable AnimationDefinition animationDefinition,
+		@Nullable CompiledStageTarget target
+	) {
+		this(event, animationDefinition, target, 0L);
+	}
+
+	public PlaybackSemantics semantics() {
+		if (event == null) {
+			return PlaybackSemantics.TRANSIENT;
+		}
+		var mode = event.getActionMode();
+		if (mode == com.beatblock.timeline.TimelineAnimationActionMode.PLACE
+			|| mode == com.beatblock.timeline.TimelineAnimationActionMode.CLEAR) {
+			return PlaybackSemantics.IDEMPOTENT;
+		} else if (mode == com.beatblock.timeline.TimelineAnimationActionMode.BUILD) {
+			return PlaybackSemantics.STATEFUL;
+		} else {
+			return PlaybackSemantics.TRANSIENT;
+		}
+	}
+}

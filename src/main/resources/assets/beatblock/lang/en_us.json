@@ -1128,6 +1128,7 @@
   "beatblock.performance_check.hide_problems": "Hide Problems",
   "beatblock.performance_check.no_problems": "No problem entries.",
   "beatblock.performance_check.blocked": "Errors block formal play. Fix them, or force play.",
+  "beatblock.performance_check.blocked_fatal": "Fatal errors block formal play. Fix them to play.",
   "beatblock.performance_check.force_play": "Force Play",
   "beatblock.performance_check.force_play.tooltip": "Start playback despite errors (some events may no-op)",
   "beatblock.performance_check.play_blocked_toast": "Performance check failed: {0} error(s) — report opened",

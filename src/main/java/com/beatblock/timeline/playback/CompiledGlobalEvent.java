@@ -1,5 +1,7 @@
 package com.beatblock.timeline.playback;
 
+import java.util.Objects;
+
 /**
  * Immutable global / VFX cue snapshot (Phase C).
  * Covers the timeline global track (lighting, special, stage cues).
@@ -7,15 +9,32 @@ package com.beatblock.timeline.playback;
 public record CompiledGlobalEvent(
 	String id,
 	double timeSeconds,
-	String typeName,
-	String name
+	GlobalEventPayload payload
 ) {
 	public CompiledGlobalEvent {
 		id = id != null ? id : "";
-		typeName = typeName != null && !typeName.isBlank() ? typeName : "SPECIAL";
-		name = name != null ? name : "";
+		Objects.requireNonNull(payload, "payload");
 		if (timeSeconds < 0) {
 			timeSeconds = 0;
 		}
+	}
+
+	public String typeName() {
+		if (payload instanceof GlobalEventPayload.Generic g) {
+			return g.typeName();
+		}
+		if (payload instanceof GlobalEventPayload.Lighting) return "LIGHTING";
+		if (payload instanceof GlobalEventPayload.Weather) return "WEATHER";
+		if (payload instanceof GlobalEventPayload.ParticleBurst) return "PARTICLE";
+		if (payload instanceof GlobalEventPayload.ScreenFlash) return "SCREEN_FLASH";
+		if (payload instanceof GlobalEventPayload.AudioMix) return "AUDIO_MIX";
+		return "SPECIAL";
+	}
+
+	public String name() {
+		if (payload instanceof GlobalEventPayload.Generic g) {
+			return g.name();
+		}
+		return "";
 	}
 }
