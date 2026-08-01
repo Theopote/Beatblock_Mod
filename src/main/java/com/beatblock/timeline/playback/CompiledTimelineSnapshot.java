@@ -8,9 +8,9 @@ import java.util.List;
 /**
  * Immutable compiled performance program for one formal play session.
  * <p>
- * Phase B expands the Phase A stage/camera freeze into a fuller
- * {@code CompiledPerformance}-style snapshot: build layers, audio, markers,
- * and the {@link TimelineValidationReport} produced at compile time.
+ * Phase B/C: full {@code CompiledPerformance}-style snapshot for
+ * {@link PlaybackEngine}: stage, camera, build layers, audio, markers,
+ * global/VFX cues, and compile-time {@link TimelineValidationReport}.
  * Editing the live {@code Timeline} after compile does not affect this object.
  */
 public final class CompiledTimelineSnapshot {
@@ -20,6 +20,7 @@ public final class CompiledTimelineSnapshot {
 	private final CompiledCameraTrack cameraTrack;
 	private final List<CompiledBuildLayer> buildLayers;
 	private final List<CompiledMarker> markers;
+	private final List<CompiledGlobalEvent> globalEvents;
 	private final CompiledAudioReference audio;
 	private final double[] referenceBeatTimesSeconds;
 	private final double bpm;
@@ -34,6 +35,7 @@ public final class CompiledTimelineSnapshot {
 		CompiledCameraTrack cameraTrack,
 		List<CompiledBuildLayer> buildLayers,
 		List<CompiledMarker> markers,
+		List<CompiledGlobalEvent> globalEvents,
 		CompiledAudioReference audio,
 		double[] referenceBeatTimesSeconds,
 		double bpm,
@@ -47,6 +49,7 @@ public final class CompiledTimelineSnapshot {
 		this.cameraTrack = cameraTrack != null ? cameraTrack : new CompiledCameraTrack(List.of());
 		this.buildLayers = List.copyOf(buildLayers != null ? buildLayers : List.of());
 		this.markers = List.copyOf(markers != null ? markers : List.of());
+		this.globalEvents = List.copyOf(globalEvents != null ? globalEvents : List.of());
 		this.audio = audio != null ? audio : CompiledAudioReference.empty();
 		this.referenceBeatTimesSeconds = referenceBeatTimesSeconds != null
 			? referenceBeatTimesSeconds.clone()
@@ -64,6 +67,7 @@ public final class CompiledTimelineSnapshot {
 			List.of(),
 			List.of(),
 			new CompiledCameraTrack(List.of()),
+			List.of(),
 			List.of(),
 			List.of(),
 			CompiledAudioReference.empty(),
@@ -94,6 +98,11 @@ public final class CompiledTimelineSnapshot {
 
 	public List<CompiledMarker> markers() {
 		return markers;
+	}
+
+	/** Global track cues (lighting / special / stage) for formal playback. */
+	public List<CompiledGlobalEvent> globalEvents() {
+		return globalEvents;
 	}
 
 	public CompiledAudioReference audio() {

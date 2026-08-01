@@ -167,6 +167,51 @@ public final class TimelineTransportPresenter {
 		);
 	}
 
+	/**
+	 * Apply pending jump from Performance check problem list (seek + center view).
+	 * Call once per UI frame while the editor is open.
+	 */
+	public void consumePerformanceCheckJump(TimelineEditor editor) {
+		if (editor == null) {
+			editor = timelineEditor.get();
+		}
+		Double time = PerformanceCheckController.consumePendingSeekTime();
+		String eventId = PerformanceCheckController.consumePendingSeekEventId();
+		if (time == null && eventId == null) {
+			return;
+		}
+		if (editor == null) {
+			return;
+		}
+		double seek = time != null ? time : 0;
+		// If only event id known, try resolve time from timeline
+		if (time == null && eventId != null) {
+			Timeline tl = timeline.get();
+			if (tl != null) {
+				for (var ev : tl.getStageEvents()) {
+					if (ev != null && eventId.equals(ev.getEventId())) {
+						seek = ev.getTimeSeconds();
+						break;
+					}
+				}
+			}
+		}
+		seekTo(editor, seek);
+		// Center view around jump time
+		var view = editor.getViewState();
+		if (view != null) {
+			double span = Math.max(2.0, view.getViewEndTimeSeconds() - view.getViewStartTimeSeconds());
+			double start = Math.max(0, seek - span * 0.35);
+			view.setViewStartTimeSeconds(start);
+			view.setViewEndTimeSeconds(start + span);
+		}
+		// Select event if id present
+		if (eventId != null && !eventId.isBlank()) {
+			editor.getSelectionState().clearAll();
+			editor.getSelectionState().selectEvent(eventId);
+		}
+	}
+
 	private void startPlayInternal(TimelineEditor currentEditor) {
 		bindPlaybackSession(currentEditor);
 		ensureMusicDurationForPlayback(currentEditor);

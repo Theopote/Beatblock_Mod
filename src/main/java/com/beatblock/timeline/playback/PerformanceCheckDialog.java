@@ -83,16 +83,19 @@ public final class PerformanceCheckDialog {
 
 		if (PerformanceCheckController.showProblemsExpanded()) {
 			ImGui.separator();
-			ImGui.beginChild("##pcProblems", 0f, 180f, true);
+			ImGui.beginChild("##pcProblems", 0f, 200f, true);
+			int row = 0;
 			for (TimelineDiagnostic d : report.problems()) {
 				boolean err = d.severity() == TimelineDiagnosticSeverity.ERROR;
+				String prefix = err ? "✕ " : "⚠ ";
 				if (err) {
-					ImGui.textColored(1f, 0.45f, 0.45f, 1f, "✕ " + d.message());
+					ImGui.textColored(1f, 0.45f, 0.45f, 1f, prefix + d.message());
 				} else {
-					ImGui.textColored(1f, 0.85f, 0.3f, 1f, "⚠ " + d.message());
+					ImGui.textColored(1f, 0.85f, 0.3f, 1f, prefix + d.message());
 				}
-				if (d.eventId() != null || d.hasTime()) {
-					StringBuilder meta = new StringBuilder("    ");
+				boolean canJump = d.hasTime() || d.eventId() != null;
+				if (canJump) {
+					StringBuilder meta = new StringBuilder();
 					if (d.eventId() != null) {
 						meta.append(d.eventId());
 					}
@@ -102,8 +105,16 @@ public final class PerformanceCheckDialog {
 						}
 						meta.append(String.format("%.2fs", d.timeSeconds()));
 					}
-					ImGui.textDisabled(meta.toString());
+					ImGui.sameLine();
+					if (ImGui.smallButton(BBTexts.get("beatblock.performance_check.jump") + "##pcJump" + row)) {
+						PerformanceCheckController.requestJumpTo(d.eventId(), d.hasTime() ? d.timeSeconds() : 0);
+					}
+					if (ImGui.isItemHovered()) {
+						ImGui.setTooltip(BBTexts.get("beatblock.performance_check.jump.tooltip") + "\n" + meta);
+					}
+					ImGui.textDisabled("    " + meta);
 				}
+				row++;
 			}
 			if (report.problems().isEmpty()) {
 				ImGui.textDisabled(BBTexts.get("beatblock.performance_check.no_problems"));

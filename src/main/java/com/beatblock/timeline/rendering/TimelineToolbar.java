@@ -63,6 +63,9 @@ public final class TimelineToolbar {
 	public void render(TimelineEditor editor, TimelineToolbarState toolbarState) {
 		if (editor == null) return;
 
+		// Performance check problem list → jump to event/time
+		transport.consumePerformanceCheckJump(editor);
+
 		boolean shiftHeld = ImGui.getIO().getKeyShift();
 		var transportState = transport.viewState(editor, shiftHeld);
 		double seekStep = transportState.seekStep();

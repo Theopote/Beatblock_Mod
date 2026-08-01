@@ -16,6 +16,9 @@ public final class PerformanceCheckController {
 	private static boolean showProblemsExpanded;
 	/** Play action deferred when blocked by errors; used by Force Play. */
 	private static @Nullable Runnable blockedPlayAction;
+	/** Seek request from problem list (seconds); consumed by transport/UI. */
+	private static @Nullable Double pendingSeekTimeSeconds;
+	private static @Nullable String pendingSeekEventId;
 
 	private PerformanceCheckController() {}
 
@@ -28,6 +31,8 @@ public final class PerformanceCheckController {
 		openDialogRequested = false;
 		showProblemsExpanded = false;
 		blockedPlayAction = null;
+		pendingSeekTimeSeconds = null;
+		pendingSeekEventId = null;
 	}
 
 	/**
@@ -114,5 +119,33 @@ public final class PerformanceCheckController {
 
 	public static boolean hasBlockedPlayAction() {
 		return blockedPlayAction != null;
+	}
+
+	/**
+	 * Request playhead/view jump to a diagnostic location (problem list click).
+	 */
+	public static void requestJumpTo(@Nullable String eventId, double timeSeconds) {
+		if (!Double.isNaN(timeSeconds) && timeSeconds >= 0) {
+			pendingSeekTimeSeconds = timeSeconds;
+		} else {
+			pendingSeekTimeSeconds = null;
+		}
+		pendingSeekEventId = eventId != null && !eventId.isBlank() ? eventId : null;
+	}
+
+	public static @Nullable Double consumePendingSeekTime() {
+		Double t = pendingSeekTimeSeconds;
+		pendingSeekTimeSeconds = null;
+		return t;
+	}
+
+	public static @Nullable String consumePendingSeekEventId() {
+		String id = pendingSeekEventId;
+		pendingSeekEventId = null;
+		return id;
+	}
+
+	public static boolean hasPendingJump() {
+		return pendingSeekTimeSeconds != null || pendingSeekEventId != null;
 	}
 }

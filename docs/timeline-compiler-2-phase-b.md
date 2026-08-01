@@ -53,8 +53,6 @@ TimelineCompiler.compile(timeline, engine, layerManager); // preferred on Play
 - Build layer block lists are copied at compile; live manager dissolve does not shrink snapshot
 - Audio path existence checked once at compile (not every tick)
 
-## Phase C (next)
+## Phase C
 
-- Dedicated `PlaybackEngine` consuming only `CompiledTimelineSnapshot`
-- Optional VFX event track compile
-- Problem list jump-to-event from Performance check UI
+See [timeline-compiler-2-phase-c.md](timeline-compiler-2-phase-c.md).

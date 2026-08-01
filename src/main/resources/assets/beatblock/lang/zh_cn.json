@@ -1171,6 +1171,8 @@
   "beatblock.performance_check.play_blocked_toast": "演出检查失败：{0} 个错误（已打开报告）",
   "beatblock.performance_check.play_warnings_toast": "演出检查：{0} 个警告（已打开报告）",
   "beatblock.performance_check.toolbar_tooltip": "演出检查（编译前校验）",
+  "beatblock.performance_check.jump": "跳转",
+  "beatblock.performance_check.jump.tooltip": "定位到该问题对应的时间 / 事件",
   "beatblock.toast.wizard.music_imported": "音乐已导入并分析",
   "beatblock.toast.event_applied": "事件属性已应用",
 

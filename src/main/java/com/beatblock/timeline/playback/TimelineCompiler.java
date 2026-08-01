@@ -4,6 +4,8 @@ import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.StageObject;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
+import com.beatblock.timeline.EventType;
+import com.beatblock.timeline.GlobalEvent;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.Timeline;
@@ -73,6 +75,7 @@ public final class TimelineCompiler {
 			compileCameraTrack(document.getTrack(Timeline.TRACK_ID_CAMERA)),
 			compileBuildLayers(layerManager),
 			compileMarkers(document),
+			compileGlobalEvents(document),
 			compileAudio(document),
 			ReferenceBeatResolver.resolveBeatTimesSeconds(document),
 			bpm,
@@ -183,6 +186,40 @@ public final class TimelineCompiler {
 		out.sort(Comparator
 			.comparingDouble(CompiledMarker::timeSeconds)
 			.thenComparing(CompiledMarker::id));
+		return List.copyOf(out);
+	}
+
+	/** Global track → immutable VFX/cue list (sorted by time). Prefer track events for stable ids. */
+	private static List<CompiledGlobalEvent> compileGlobalEvents(Timeline document) {
+		List<CompiledGlobalEvent> out = new ArrayList<>();
+		int index = 0;
+		Track globalTrack = document.getTrack(Timeline.TRACK_ID_GLOBAL);
+		if (globalTrack != null) {
+			for (var clip : globalTrack.getClips()) {
+				if (clip == null) continue;
+				for (var event : clip.getEvents()) {
+					if (event == null || event.getType() != EventType.GLOBAL) continue;
+					String typeName = String.valueOf(event.getParameters().getOrDefault("type", "SPECIAL"));
+					String name = String.valueOf(event.getParameters().getOrDefault("name", ""));
+					String id = event.getId() != null && !event.getId().isBlank()
+						? event.getId()
+						: PlaybackEngine.syntheticGlobalId(event.getTimeSeconds(), typeName, name, index++);
+					out.add(new CompiledGlobalEvent(id, event.getTimeSeconds(), typeName, name));
+				}
+			}
+		}
+		if (out.isEmpty()) {
+			// Fallback: high-level GlobalEvent API
+			for (GlobalEvent ge : document.getGlobalEvents()) {
+				if (ge == null) continue;
+				String typeName = ge.getType() != null ? ge.getType().name() : "SPECIAL";
+				String id = PlaybackEngine.syntheticGlobalId(ge.getTimeSeconds(), typeName, ge.getName(), index++);
+				out.add(new CompiledGlobalEvent(id, ge.getTimeSeconds(), typeName, ge.getName()));
+			}
+		}
+		out.sort(Comparator
+			.comparingDouble(CompiledGlobalEvent::timeSeconds)
+			.thenComparing(CompiledGlobalEvent::id));
 		return List.copyOf(out);
 	}
 

@@ -8,8 +8,10 @@ import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.playback.CompiledGlobalEvent;
 import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
 import com.beatblock.timeline.playback.CompiledStageEvent;
+import com.beatblock.timeline.playback.PlaybackEngine;
 import com.beatblock.timeline.playback.TimelineCompiler;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
@@ -50,16 +52,18 @@ public final class BeatBlockClientDriver {
 
 	private volatile long lastTickNanos;
 	private volatile boolean driving;
-	/** 已调度的舞台事件（统一 block / auto / build）。 */
+	/** 已调度的舞台事件（预览路径使用；正式播放由 {@link PlaybackEngine} 去重）。 */
 	private final Set<String> scheduledStageEventIds = new HashSet<>();
 	/**
-	 * 统一事件列表上的双指针游标：指向下一待考察事件下标。
-	 * 时间前进时只向后扫描；回退时通过 {@link #resetTimelineAnimationScheduling()} 归零。
+	 * 预览路径：统一事件列表上的双指针游标。
+	 * 正式播放使用 {@link #playbackEngine}。
 	 */
 	private int stageEventCursor;
 	/** 实时预览时与 Timeline generation 对齐；正式播放固定使用 compiledPlayback。 */
 	private int lastStageEventsGeneration = -1;
 	private @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlayback;
+	/** Phase C: formal play advances only over the compiled program. */
+	private final PlaybackEngine playbackEngine = new PlaybackEngine();
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
 	private volatile double lastStageEventTime;
 	/**
@@ -175,12 +179,13 @@ public final class BeatBlockClientDriver {
 	private void startDrivingInternal() {
 		lastTickNanos = 0;
 		resetTimelineAnimationScheduling();
-		// Phase B: full compile with layers + validation report attached
+		// Phase B/C: full compile → load into PlaybackEngine
 		compiledPlayback = TimelineCompiler.compile(
 			ctx().timeline(),
 			ctx().blockAnimationEngine(),
 			ctx().buildLayerManager()
 		);
+		playbackEngine.load(compiledPlayback);
 		driving = true;
 	}
 
@@ -191,6 +196,7 @@ public final class BeatBlockClientDriver {
 	private void stopDrivingInternal() {
 		driving = false;
 		resetTimelineAnimationScheduling();
+		playbackEngine.reset();
 		compiledPlayback = null;
 	}
 
@@ -260,40 +266,63 @@ public final class BeatBlockClientDriver {
 	}
 
 	/**
-	 * 统一调度全部舞台事件：单一集合 + 双指针游标，O(k) 推进（k 为本帧到期事件数）。
-	 * 回退时间轴时整表重置；时间轴编辑导致缓存世代变化时游标回 0 重扫（已调度 id 去重）。
+	 * 调度舞台事件：
+	 * <ul>
+	 *   <li>正式播放：{@link PlaybackEngine} 只消费 {@link CompiledTimelineSnapshot}</li>
+	 *   <li>预览：仍扫可编辑 Timeline，世代变化时回退游标</li>
+	 * </ul>
 	 */
 	private void syncStageEvents(double currentTime, boolean previewOnly) {
 		var timeline = ctx().timeline();
 		var engine = ctx().blockAnimationEngine();
 		if (timeline == null || engine == null) return;
 
+		if (previewOnly) {
+			syncStageEventsPreview(currentTime, timeline, engine);
+			return;
+		}
+
+		// Formal play — PlaybackEngine only
+		if (currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime) {
+			// Rewind: engine clears its own cursors on advance; still restore world mutations
+			restoreTimelineMutationSnapshot();
+			var buildSequencer = engine.getBuildSequencer();
+			if (buildSequencer != null) {
+				buildSequencer.setMutationBudgetPerTick(PLAYBACK_MUTATION_BUDGET_PER_TICK);
+			}
+		}
+		CompiledTimelineSnapshot playback = compiledPlayback;
+		if (playback == null) {
+			playback = TimelineCompiler.compile(timeline, engine, ctx().buildLayerManager());
+			compiledPlayback = playback;
+			playbackEngine.load(playback);
+		}
+		double[] referenceBeats = playback.referenceBeatTimesSeconds();
+		double bpm = playback.bpm();
+		playbackEngine.advance(
+			currentTime,
+			(compiled, event) -> applyTimelineActionEvent(event, compiled, false, referenceBeats, bpm),
+			this::onCompiledGlobalEvent
+		);
+		lastStageEventTime = currentTime;
+	}
+
+	private void syncStageEventsPreview(double currentTime, com.beatblock.timeline.Timeline timeline,
+		com.beatblock.engine.BlockAnimationEngine engine) {
 		if (currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime) {
 			resetTimelineAnimationScheduling();
 		}
-
-		CompiledTimelineSnapshot playback = previewOnly ? null : compiledPlayback;
-		if (!previewOnly && playback == null) {
-			playback = TimelineCompiler.compile(timeline, engine, ctx().buildLayerManager());
-			compiledPlayback = playback;
-		}
-		List<TimelineAnimationEvent> events = playback != null ? playback.stageEvents() : timeline.getStageEvents();
-		double[] referenceBeats = playback != null
-			? playback.referenceBeatTimesSeconds()
-			: readReferenceBeatTimes();
-		double bpm = playback != null ? playback.bpm() : (timeline.getBpm() > 0 ? timeline.getBpm() : 120.0);
-		if (previewOnly) {
-			int generation = timeline.getStageEventsGeneration();
-			if (generation != lastStageEventsGeneration) {
-				// 编辑预览保持实时：变更后从列表头重扫，ID 集合防止重复派发
-				stageEventCursor = 0;
-				lastStageEventsGeneration = generation;
-			}
+		List<TimelineAnimationEvent> events = timeline.getStageEvents();
+		double[] referenceBeats = readReferenceBeatTimes();
+		double bpm = timeline.getBpm() > 0 ? timeline.getBpm() : 120.0;
+		int generation = timeline.getStageEventsGeneration();
+		if (generation != lastStageEventsGeneration) {
+			stageEventCursor = 0;
+			lastStageEventsGeneration = generation;
 		}
 		if (stageEventCursor < 0 || stageEventCursor > events.size()) {
 			stageEventCursor = 0;
 		}
-
 		while (stageEventCursor < events.size()) {
 			TimelineAnimationEvent event = events.get(stageEventCursor);
 			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
@@ -301,15 +330,35 @@ public final class BeatBlockClientDriver {
 			}
 			String key = scheduleKey(event);
 			if (scheduledStageEventIds.add(key)) {
-				applyTimelineActionEvent(event, previewOnly, referenceBeats, bpm);
+				applyTimelineActionEvent(event, null, true, referenceBeats, bpm);
 			}
 			stageEventCursor++;
 		}
 		lastStageEventTime = currentTime;
 	}
 
+	private void onCompiledGlobalEvent(CompiledGlobalEvent event) {
+		// Phase C: formal global/VFX cues are frozen; dispatch is intentionally light
+		// (lighting/special hooks can subscribe here later without re-reading the document).
+		if (event == null) {
+			return;
+		}
+		// Keep last report style diagnostics for tools
+		TimelineActionExecutionReport report = new TimelineActionExecutionReport(
+			System.currentTimeMillis(),
+			event.id(),
+			"",
+			TimelineAnimationActionMode.ANIMATE,
+			0,
+			"GLOBAL",
+			event.typeName() + ":" + event.name()
+		);
+		lastTimelineActionExecutionReport = report;
+	}
+
 	private void applyTimelineActionEvent(
 		TimelineAnimationEvent event,
+		@org.jspecify.annotations.Nullable CompiledStageEvent compiledHint,
 		boolean previewOnly,
 		double[] referenceBeats,
 		double bpm
@@ -325,7 +374,7 @@ public final class BeatBlockClientDriver {
 			return;
 		}
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
-			var compiled = compiledStageEvent(event);
+			var compiled = compiledHint != null ? compiledHint : compiledStageEvent(event);
 			if (!previewOnly && compiled != null) {
 				engine.scheduleTimelineEvent(compiled, referenceBeats, bpm);
 			} else {
@@ -371,9 +420,19 @@ public final class BeatBlockClientDriver {
 
 	private @org.jspecify.annotations.Nullable CompiledStageEvent compiledStageEvent(
 		TimelineAnimationEvent event) {
-		if (compiledPlayback == null || event == null) return null;
+		if (event == null) return null;
+		String id = event.getEventId();
+		if (id != null && !id.isBlank()) {
+			var fromEngine = playbackEngine.findCompiledStage(id);
+			if (fromEngine != null) {
+				return fromEngine;
+			}
+		}
+		if (compiledPlayback == null) return null;
 		for (var compiled : compiledPlayback.compiledStageEvents()) {
-			if (compiled.event() == event || compiled.event().getEventId().equals(event.getEventId())) return compiled;
+			if (compiled.event() == event || compiled.event().getEventId().equals(event.getEventId())) {
+				return compiled;
+			}
 		}
 		return null;
 	}
@@ -453,6 +512,11 @@ public final class BeatBlockClientDriver {
 		stageEventCursor = 0;
 		lastStageEventsGeneration = -1;
 		lastStageEventTime = 0.0;
+		// Keep loaded program; only clear engine scheduling state on hard stop via playbackEngine.reset()
+		if (playbackEngine.isLoaded()) {
+			// Soft rewind path: re-load same program to clear engine cursors without dropping snapshot
+			playbackEngine.load(compiledPlayback);
+		}
 		var engine = ctx().blockAnimationEngine();
 		if (engine != null) {
 			engine.clear();
