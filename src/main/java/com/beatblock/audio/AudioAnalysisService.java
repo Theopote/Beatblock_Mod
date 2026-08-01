@@ -68,16 +68,16 @@ public final class AudioAnalysisService {
 		@NonNull PythonEnvironmentDiagnostics pythonDiagnostics,
 		@NonNull MainThreadDispatcher callbackDispatcher
 	) {
-		this.orchestrator = new AudioAnalysisOrchestrator(
+		this.orchestrator = AudioAnalysisOrchestrator.createForClient(
 			new PythonAudioAnalyzer(pythonDiagnostics),
 			callbackDispatcher
 		);
 		this.runtimeHealthMonitor = new PythonRuntimeHealthMonitor(pythonDiagnostics);
 	}
 
-	/** 包内测试：注入 stub {@link IAudioAnalyzer}（orchestrator 默认 immediate dispatcher）。 */
+	/** 包内测试：注入 stub {@link IAudioAnalyzer}（orchestrator 使用 testing/immediate dispatcher）。 */
 	AudioAnalysisService(IAudioAnalyzer analyzer, PythonEnvironmentDiagnostics pythonDiagnostics) {
-		this.orchestrator = new AudioAnalysisOrchestrator(analyzer);
+		this.orchestrator = AudioAnalysisOrchestrator.createForTesting(analyzer);
 		this.runtimeHealthMonitor = new PythonRuntimeHealthMonitor(pythonDiagnostics);
 	}
 

@@ -18,6 +18,9 @@ import java.util.function.Consumer;
  * 音频转换服务：后台调用 {@link FfmpegService} 将不支持格式转换为 MP3。
  * <p>
  * 关闭时会主动取消当前运行的 ffmpeg 子进程并清理未完成的输出文件。
+ *
+ * <p>生产必须通过 {@link #createForClient} 注入主线程 {@link MainThreadDispatcher}；
+ * 测试使用 {@link #createForTesting()}。禁止无参构造默默使用 immediate dispatcher。
  */
 public final class AudioConversionService implements AutoCloseable {
 
@@ -29,11 +32,26 @@ public final class AudioConversionService implements AutoCloseable {
 	private final MainThreadDispatcher callbackDispatcher;
 	private final AtomicReference<AudioConversionCancelControl> activeControl = new AtomicReference<>();
 
-	public AudioConversionService() {
-		this(MainThreadDispatcher.immediate());
+	/**
+	 * 客户端生产入口：进度/完成/错误回调必须调度到主线程。
+	 */
+	public static @NonNull AudioConversionService createForClient(
+		@NonNull MainThreadDispatcher callbackDispatcher
+	) {
+		if (callbackDispatcher == null) {
+			throw new IllegalArgumentException("callbackDispatcher must not be null");
+		}
+		return new AudioConversionService(callbackDispatcher);
 	}
 
-	public AudioConversionService(@NonNull MainThreadDispatcher callbackDispatcher) {
+	/**
+	 * 测试入口：使用 {@link MainThreadDispatcher#immediate()}。请勿在生产路径调用。
+	 */
+	public static @NonNull AudioConversionService createForTesting() {
+		return new AudioConversionService(MainThreadDispatcher.immediate());
+	}
+
+	private AudioConversionService(@NonNull MainThreadDispatcher callbackDispatcher) {
 		this.callbackDispatcher = callbackDispatcher;
 	}
 

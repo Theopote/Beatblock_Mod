@@ -15,11 +15,32 @@ import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.function.BooleanSupplier;
 
 class AudioAnalysisOrchestratorTest {
+
+	@Test
+	void createForClientRejectsNullDispatcher() {
+		IAudioAnalyzer analyzer = new IAudioAnalyzer() {
+			@Override public String backendId() { return "x"; }
+			@Override public boolean isAvailable() { return true; }
+			@Override
+			public void analyze(
+				Path audioPath,
+				AnalysisOptions options,
+				AnalysisProgressCallback onProgress,
+				Consumer<Beatmap> onComplete,
+				Consumer<String> onError,
+				Consumer<AnalysisSummary> onSummary,
+				AnalysisCancelControl control
+			) {}
+		};
+		assertThrows(IllegalArgumentException.class, () ->
+			AudioAnalysisOrchestrator.createForClient(analyzer, null));
+	}
 
 	private static boolean waitUntil(BooleanSupplier condition, long timeout, TimeUnit unit) throws InterruptedException {
 		long deadline = System.nanoTime() + unit.toNanos(timeout);
@@ -78,7 +99,7 @@ class AudioAnalysisOrchestratorTest {
 			}
 		};
 
-		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(blockingAnalyzer);
+		AudioAnalysisOrchestrator orchestrator = AudioAnalysisOrchestrator.createForTesting(blockingAnalyzer);
 		try {
 			orchestrator.submit(
 				"task-1",
@@ -150,7 +171,7 @@ class AudioAnalysisOrchestratorTest {
 			}
 		};
 
-		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(longRunningAnalyzer);
+		AudioAnalysisOrchestrator orchestrator = AudioAnalysisOrchestrator.createForTesting(longRunningAnalyzer);
 		try {
 			orchestrator.submit(
 				"cancel-me",
@@ -212,7 +233,7 @@ class AudioAnalysisOrchestratorTest {
 			}
 		};
 
-		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(analyzer);
+		AudioAnalysisOrchestrator orchestrator = AudioAnalysisOrchestrator.createForTesting(analyzer);
 		try {
 			orchestrator.submit("same-id", Path.of("first.mp3"), AnalysisOptions.withDemucs(false),
 				(step, pct) -> {}, beatmap -> {}, error -> {}, null, null);
@@ -254,7 +275,7 @@ class AudioAnalysisOrchestratorTest {
 			}
 		};
 
-		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(immediateAnalyzer);
+		AudioAnalysisOrchestrator orchestrator = AudioAnalysisOrchestrator.createForTesting(immediateAnalyzer);
 		try {
 			var future = orchestrator.submit("fast", Path.of("fast.mp3"), AnalysisOptions.withDemucs(false),
 				(step, pct) -> {}, beatmap -> {}, error -> {}, null, null);
@@ -289,7 +310,7 @@ class AudioAnalysisOrchestratorTest {
 			}
 		};
 
-		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(callbackAnalyzer, queuedCallbacks::add);
+		AudioAnalysisOrchestrator orchestrator = AudioAnalysisOrchestrator.createForClient(callbackAnalyzer, queuedCallbacks::add);
 		try {
 			orchestrator.submit(
 				"callbacks",
@@ -347,7 +368,7 @@ class AudioAnalysisOrchestratorTest {
 			}
 		};
 
-		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(analyzer);
+		AudioAnalysisOrchestrator orchestrator = AudioAnalysisOrchestrator.createForTesting(analyzer);
 		try {
 			Future<?> future = orchestrator.submit(
 				"no-interrupt", Path.of("song.mp3"), AnalysisOptions.withDemucs(false),
@@ -393,7 +414,7 @@ class AudioAnalysisOrchestratorTest {
 			}
 		};
 
-		AudioAnalysisOrchestrator orchestrator = new AudioAnalysisOrchestrator(analyzer);
+		AudioAnalysisOrchestrator orchestrator = AudioAnalysisOrchestrator.createForTesting(analyzer);
 		try {
 			orchestrator.submit(
 				"task-1", Path.of("first.mp3"), AnalysisOptions.withDemucs(false),

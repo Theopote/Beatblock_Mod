@@ -11,7 +11,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AudioConversionServiceTest {
@@ -20,13 +22,29 @@ class AudioConversionServiceTest {
 	Path tempDir;
 
 	@Test
+	void createForClientRejectsNullDispatcher() {
+		assertThrows(IllegalArgumentException.class, () ->
+			AudioConversionService.createForClient(null));
+	}
+
+	@Test
+	void createForTestingBuildsServiceWithoutClientDispatcher() {
+		AudioConversionService service = AudioConversionService.createForTesting();
+		try {
+			assertNotNull(service);
+		} finally {
+			service.shutdown();
+		}
+	}
+
+	@Test
 	void dispatchesProgressAndCompletionThroughConfiguredDispatcher() throws Exception {
 		Path input = Files.writeString(tempDir.resolve("ready.mp3"), "audio");
 		List<Runnable> queuedCallbacks = new ArrayList<>();
 		List<Integer> progress = new ArrayList<>();
 		AtomicReference<Path> completed = new AtomicReference<>();
 
-		AudioConversionService service = new AudioConversionService(queuedCallbacks::add);
+		AudioConversionService service = AudioConversionService.createForClient(queuedCallbacks::add);
 		try {
 			service.convertToMp3Async(
 				input,

@@ -15,7 +15,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.Objects;
 
-/** Serial audio-analysis scheduler with latest-wins replacement and observable task state. */
+/**
+ * Serial audio-analysis scheduler with latest-wins replacement and observable task state.
+ *
+ * <p>生产必须通过 {@link #createForClient} 注入主线程 {@link MainThreadDispatcher}；
+ * 测试使用 {@link #createForTesting}。禁止单参数构造默默使用 immediate dispatcher。
+ */
 public final class AudioAnalysisOrchestrator implements AutoCloseable {
 
 	private final class RegisteredTask {
@@ -69,11 +74,36 @@ public final class AudioAnalysisOrchestrator implements AutoCloseable {
 	private final ConcurrentHashMap<Long, RegisteredTask> activeTasks = new ConcurrentHashMap<>();
 	private final AtomicLong nextSequence = new AtomicLong();
 
-	public AudioAnalysisOrchestrator(@NonNull IAudioAnalyzer analyzer) {
-		this(analyzer, MainThreadDispatcher.immediate());
+	/**
+	 * 客户端生产入口：分析进度/完成回调必须调度到主线程。
+	 */
+	public static @NonNull AudioAnalysisOrchestrator createForClient(
+		@NonNull IAudioAnalyzer analyzer,
+		@NonNull MainThreadDispatcher callbackDispatcher
+	) {
+		if (analyzer == null) {
+			throw new IllegalArgumentException("analyzer must not be null");
+		}
+		if (callbackDispatcher == null) {
+			throw new IllegalArgumentException("callbackDispatcher must not be null");
+		}
+		return new AudioAnalysisOrchestrator(analyzer, callbackDispatcher);
 	}
 
-	public AudioAnalysisOrchestrator(@NonNull IAudioAnalyzer analyzer, @NonNull MainThreadDispatcher callbackDispatcher) {
+	/**
+	 * 测试入口：使用 {@link MainThreadDispatcher#immediate()}。请勿在生产路径调用。
+	 */
+	public static @NonNull AudioAnalysisOrchestrator createForTesting(@NonNull IAudioAnalyzer analyzer) {
+		if (analyzer == null) {
+			throw new IllegalArgumentException("analyzer must not be null");
+		}
+		return new AudioAnalysisOrchestrator(analyzer, MainThreadDispatcher.immediate());
+	}
+
+	private AudioAnalysisOrchestrator(
+		@NonNull IAudioAnalyzer analyzer,
+		@NonNull MainThreadDispatcher callbackDispatcher
+	) {
 		this.analyzer = analyzer;
 		this.callbackDispatcher = callbackDispatcher;
 		this.executor = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,

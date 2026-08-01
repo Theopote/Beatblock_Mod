@@ -83,8 +83,10 @@ public class BeatBlock implements ModInitializer {
 			new com.beatblock.audio.python.PythonEnvironmentDiagnostics(),
 			callbackDispatcher
 		);
-		AudioConversionService conversionService = new AudioConversionService(callbackDispatcher);
-		VideoExportService videoExportService = new VideoExportService(com.beatblock.client.export.ClientThreadExecutor::run);
+		AudioConversionService conversionService = AudioConversionService.createForClient(callbackDispatcher);
+		VideoExportService videoExportService = VideoExportService.createForClient(
+			com.beatblock.client.export.ClientThreadExecutor::run
+		);
 		context = new BeatBlockContext(
 			loader,
 			player,
