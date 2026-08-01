@@ -1135,6 +1135,9 @@
   "beatblock.performance_check.toolbar_tooltip": "Performance check (pre-play validation)",
   "beatblock.performance_check.jump": "Jump",
   "beatblock.performance_check.jump.tooltip": "Seek playhead and view to this problem",
+  "beatblock.performance_check.filter_all": "All",
+  "beatblock.performance_check.filter_errors": "Errors",
+  "beatblock.performance_check.filter_warnings": "Warnings",
   "beatblock.toast.wizard.music_imported": "Music imported and analyzed",
   "beatblock.toast.event_applied": "Event properties applied",
 

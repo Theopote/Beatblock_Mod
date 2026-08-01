@@ -19,8 +19,14 @@ public final class PerformanceCheckController {
 	/** Seek request from problem list (seconds); consumed by transport/UI. */
 	private static @Nullable Double pendingSeekTimeSeconds;
 	private static @Nullable String pendingSeekEventId;
+	/** Problem list filter: 0=all, 1=errors only, 2=warnings only. */
+	private static int problemFilterMode;
 
 	private PerformanceCheckController() {}
+
+	public static final int FILTER_ALL = 0;
+	public static final int FILTER_ERRORS = 1;
+	public static final int FILTER_WARNINGS = 2;
 
 	public static @Nullable TimelineValidationReport lastReport() {
 		return lastReport;
@@ -33,6 +39,39 @@ public final class PerformanceCheckController {
 		blockedPlayAction = null;
 		pendingSeekTimeSeconds = null;
 		pendingSeekEventId = null;
+		problemFilterMode = FILTER_ALL;
+	}
+
+	public static int problemFilterMode() {
+		return problemFilterMode;
+	}
+
+	public static void setProblemFilterMode(int mode) {
+		if (mode < FILTER_ALL || mode > FILTER_WARNINGS) {
+			mode = FILTER_ALL;
+		}
+		problemFilterMode = mode;
+	}
+
+	/** Problems filtered by {@link #problemFilterMode()}. */
+	public static java.util.List<TimelineDiagnostic> filteredProblems() {
+		TimelineValidationReport report = lastReport;
+		if (report == null) {
+			return java.util.List.of();
+		}
+		java.util.List<TimelineDiagnostic> out = new java.util.ArrayList<>();
+		for (TimelineDiagnostic d : report.problems()) {
+			if (problemFilterMode == FILTER_ERRORS
+				&& d.severity() != TimelineDiagnosticSeverity.ERROR) {
+				continue;
+			}
+			if (problemFilterMode == FILTER_WARNINGS
+				&& d.severity() != TimelineDiagnosticSeverity.WARNING) {
+				continue;
+			}
+			out.add(d);
+		}
+		return out;
 	}
 
 	/**

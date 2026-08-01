@@ -64,7 +64,7 @@ public final class TimelineCameraController {
 		LOGGER.debug("[TimelineCameraController] UI 关闭，释放摄像机控制权");
 	}
 
-	/** 视频导出：在指定时间采样镜头并应用到 CameraRuntime。 */
+	/** 视频导出：在指定时间采样镜头并应用到 CameraRuntime（优先编译快照，隔离 live 编辑）。 */
 	public void sampleAtExportTime(double timeSeconds) {
 		Timeline timeline = ctx().timeline();
 		if (timeline == null) {
@@ -74,13 +74,35 @@ public final class TimelineCameraController {
 		Vec3d anchor = client != null && client.player != null ? client.player.getEyePos() : Vec3d.ZERO;
 		float fallbackYaw = client != null && client.player != null ? client.player.getYaw() : 0f;
 		float fallbackPitch = client != null && client.player != null ? client.player.getPitch() : 0f;
-		TimelineCameraEvaluator.CameraSample sample = TimelineCameraEvaluator.evaluate(
-			timeline,
-			timeSeconds,
-			anchor,
-			fallbackYaw,
-			fallbackPitch
-		);
+
+		TimelineCameraEvaluator.CameraSample sample = null;
+		var compiled = BeatBlockClientDriver.compiledPlayback();
+		if (compiled != null) {
+			sample = TimelineCameraEvaluator.evaluate(
+				compiled.cameraTrack(),
+				compiled.bpm(),
+				timeSeconds,
+				anchor,
+				fallbackYaw,
+				fallbackPitch
+			);
+		}
+		if (sample == null) {
+			// Export without active drive: compile a one-shot snapshot for isolation
+			var snapshot = com.beatblock.timeline.playback.TimelineCompiler.compile(
+				timeline,
+				ctx().blockAnimationEngine(),
+				ctx().buildLayerManager()
+			);
+			sample = TimelineCameraEvaluator.evaluate(
+				snapshot.cameraTrack(),
+				snapshot.bpm(),
+				timeSeconds,
+				anchor,
+				fallbackYaw,
+				fallbackPitch
+			);
+		}
 		CameraRuntime runtime = CameraRuntime.getInstance();
 		runtime.setOwner(CameraRuntime.Owner.TIMELINE);
 		if (sample != null) {
@@ -125,18 +147,22 @@ public final class TimelineCameraController {
 
 		CameraRuntime runtime = CameraRuntime.getInstance();
 
-		boolean hasCameraTrackClips = false;
+		// Formal drive: camera comes only from CompiledTimelineSnapshot (never live document).
+		boolean formalDrive = BeatBlockClientDriver.isDriving();
 		var compiledPlayback = BeatBlockClientDriver.compiledPlayback();
-		if (playing && compiledPlayback != null) {
+
+		boolean hasCameraTrackClips = false;
+		if (formalDrive && compiledPlayback != null) {
 			hasCameraTrackClips = !compiledPlayback.cameraTrack().isEmpty();
-		} else if (timeline != null) {
+		} else if (!formalDrive && timeline != null) {
 			var track = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
 			if (track != null && !track.getClips().isEmpty()) {
 				hasCameraTrackClips = true;
 			}
 		}
 
-		boolean wantsTimeline = previewingKeyframe || ((playing || scrubbing) && hasCameraTrackClips);
+		boolean wantsTimeline = previewingKeyframe
+			|| ((playing || scrubbing || formalDrive) && hasCameraTrackClips);
 
 		if (wantsTimeline && !runtime.isTimelineOwner()) {
 			runtime.setOwner(CameraRuntime.Owner.TIMELINE);
@@ -149,17 +175,30 @@ public final class TimelineCameraController {
 		}
 
 		if (runtime.isTimelineOwner() || wantsTimeline) {
-			if (playing || scrubbing) {
+			if (playing || scrubbing || formalDrive) {
 				double timeSeconds = BeatBlockClientDriver.previewTimelineTimeSeconds();
 				MinecraftClient client = MinecraftClient.getInstance();
 				Vec3d anchor = client.player != null ? client.player.getEyePos() : Vec3d.ZERO;
 				float fallbackYaw = client.player != null ? client.player.getYaw() : 0f;
 				float fallbackPitch = client.player != null ? client.player.getPitch() : 0f;
 
-				TimelineCameraEvaluator.CameraSample sample = playing && compiledPlayback != null
-					? TimelineCameraEvaluator.evaluate(compiledPlayback.cameraTrack(), compiledPlayback.bpm(),
-						timeSeconds, anchor, fallbackYaw, fallbackPitch)
-					: TimelineCameraEvaluator.evaluate(timeline, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+				TimelineCameraEvaluator.CameraSample sample;
+				if (formalDrive) {
+					// Phase C+: formal path never samples live Timeline for camera
+					sample = compiledPlayback != null
+						? TimelineCameraEvaluator.evaluate(
+							compiledPlayback.cameraTrack(),
+							compiledPlayback.bpm(),
+							timeSeconds,
+							anchor,
+							fallbackYaw,
+							fallbackPitch)
+						: null;
+				} else {
+					// Scrub / preview: live document OK
+					sample = TimelineCameraEvaluator.evaluate(
+						timeline, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+				}
 
 				if (sample != null) {
 					runtime.applyTimelineSample(sample);

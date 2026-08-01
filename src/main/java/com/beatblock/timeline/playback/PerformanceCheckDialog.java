@@ -5,8 +5,10 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 
+import java.util.List;
+
 /**
- * ImGui modal: Performance check summary + problem list (Phase A).
+ * ImGui modal: Performance check summary + filterable problem list + jump-to.
  */
 public final class PerformanceCheckDialog {
 
@@ -25,7 +27,7 @@ public final class PerformanceCheckDialog {
 			return;
 		}
 
-		ImGui.setNextWindowSize(480f, 0f, ImGuiCond.Appearing);
+		ImGui.setNextWindowSize(520f, 0f, ImGuiCond.Appearing);
 		if (!ImGui.beginPopupModal(POPUP_ID, ImGuiWindowFlags.AlwaysAutoResize)) {
 			if (!ImGui.isPopupOpen(POPUP_ID)) {
 				PerformanceCheckController.dismissDialog();
@@ -83,9 +85,24 @@ public final class PerformanceCheckDialog {
 
 		if (PerformanceCheckController.showProblemsExpanded()) {
 			ImGui.separator();
-			ImGui.beginChild("##pcProblems", 0f, 200f, true);
+			// Filters
+			int filter = PerformanceCheckController.problemFilterMode();
+			if (ImGui.radioButton(BBTexts.get("beatblock.performance_check.filter_all") + "##pcFAll", filter == PerformanceCheckController.FILTER_ALL)) {
+				PerformanceCheckController.setProblemFilterMode(PerformanceCheckController.FILTER_ALL);
+			}
+			ImGui.sameLine();
+			if (ImGui.radioButton(BBTexts.get("beatblock.performance_check.filter_errors") + "##pcFErr", filter == PerformanceCheckController.FILTER_ERRORS)) {
+				PerformanceCheckController.setProblemFilterMode(PerformanceCheckController.FILTER_ERRORS);
+			}
+			ImGui.sameLine();
+			if (ImGui.radioButton(BBTexts.get("beatblock.performance_check.filter_warnings") + "##pcFWarn", filter == PerformanceCheckController.FILTER_WARNINGS)) {
+				PerformanceCheckController.setProblemFilterMode(PerformanceCheckController.FILTER_WARNINGS);
+			}
+
+			List<TimelineDiagnostic> problems = PerformanceCheckController.filteredProblems();
+			ImGui.beginChild("##pcProblems", 0f, 220f, true);
 			int row = 0;
-			for (TimelineDiagnostic d : report.problems()) {
+			for (TimelineDiagnostic d : problems) {
 				boolean err = d.severity() == TimelineDiagnosticSeverity.ERROR;
 				String prefix = err ? "✕ " : "⚠ ";
 				if (err) {
@@ -107,7 +124,10 @@ public final class PerformanceCheckDialog {
 					}
 					ImGui.sameLine();
 					if (ImGui.smallButton(BBTexts.get("beatblock.performance_check.jump") + "##pcJump" + row)) {
-						PerformanceCheckController.requestJumpTo(d.eventId(), d.hasTime() ? d.timeSeconds() : 0);
+						PerformanceCheckController.requestJumpTo(
+							d.eventId(),
+							d.hasTime() ? d.timeSeconds() : 0
+						);
 					}
 					if (ImGui.isItemHovered()) {
 						ImGui.setTooltip(BBTexts.get("beatblock.performance_check.jump.tooltip") + "\n" + meta);
@@ -116,7 +136,7 @@ public final class PerformanceCheckDialog {
 				}
 				row++;
 			}
-			if (report.problems().isEmpty()) {
+			if (problems.isEmpty()) {
 				ImGui.textDisabled(BBTexts.get("beatblock.performance_check.no_problems"));
 			}
 			ImGui.endChild();

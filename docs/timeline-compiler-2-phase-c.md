@@ -43,8 +43,15 @@ Problem list rows have a **跳转 / Jump** button:
 
 `PlaybackEngineTest`: due-event advance, rewind, isolation from live edits, global cues, id lookup.
 
-## Future (post Phase C)
+## Follow-ups (post Phase C)
 
-- Richer VFX particle program compilation
-- Camera also driven only from snapshot via PlaybackEngine
-- Multi-select jump / problem filters
+### Done in continuation
+- **Formal camera isolation**: while `BeatBlockClientDriver.isDriving()`, camera samples **only** `compiledPlayback.cameraTrack()` (never live Timeline)
+- **Export camera**: `sampleAtExportTime` uses active compiled snapshot or one-shot `TimelineCompiler.compile`
+- **Problem filters**: All / Errors / Warnings in Performance check dialog
+- **Jump**: seek + center view + select event (Phase C)
+
+### Still open
+- Richer particle VFX program (beyond global track cues)
+- Camera evaluation fully owned by `PlaybackEngine` (currently controller still samples track)
+- Multi-select / batch fix from problem list
