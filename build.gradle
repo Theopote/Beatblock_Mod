@@ -12,6 +12,22 @@ base {
 	archivesName = project.archives_base_name
 }
 
+// ---- Reproducible builds (P1-8) ----
+// Lock resolved versions so the same commit always uses the same dependency graph.
+// Update locks after intentional dependency changes:
+//   ./gradlew dependencies --write-locks
+dependencyLocking {
+	lockAllConfigurations()
+}
+
+// Stable zip/jar metadata across machines and rebuild times.
+tasks.withType(AbstractArchiveTask).configureEach {
+	preserveFileTimestamps = false
+	reproducibleFileOrder = true
+	dirPermissions { unix('755') }
+	filePermissions { unix('644') }
+}
+
 repositories {
 	mavenCentral()
 	maven {
@@ -139,6 +155,58 @@ tasks.register('verifyBundledDependencies') {
 }
 
 check.dependsOn verifyBundledDependencies
+
+/**
+ * Release fingerprint: after remapJar, write SHA-256 of the published mod jar.
+ * Pair a git tag (e.g. v1.0.0) with build/libs/*.jar + this checksum for unique release artifacts.
+ *
+ *   ./gradlew fingerprintReleaseJar
+ *   # or: ./gradlew remapJar fingerprintReleaseJar
+ */
+tasks.register('fingerprintReleaseJar') {
+	group = 'verification'
+	description = 'Write SHA-256 of the remapped release jar (tag ↔ unique artifact)'
+	dependsOn remapJar
+	def jarProvider = remapJar.archiveFile
+	def outProvider = layout.buildDirectory.file('libs/beatblock-release.sha256')
+	inputs.file jarProvider
+	outputs.file outProvider
+	doLast {
+		def jarFile = jarProvider.get().asFile
+		def digest = java.security.MessageDigest.getInstance('SHA-256')
+		jarFile.withInputStream { is ->
+			byte[] buf = new byte[8192]
+			int n
+			while ((n = is.read(buf)) > 0) {
+				digest.update(buf, 0, n)
+			}
+		}
+		def hex = digest.digest().collect { String.format('%02x', it) }.join('')
+		def out = outProvider.get().asFile
+		out.parentFile.mkdirs()
+		out.text = "${hex}  ${jarFile.name}\n"
+		logger.lifecycle("Release jar fingerprint: ${hex}  (${jarFile.name})")
+		logger.lifecycle("Written to ${out}")
+	}
+}
+
+// Optional CI gate: fail if an expected fingerprint file is provided and mismatches.
+//   ./gradlew verifyReleaseFingerprint -PreleaseSha256=<hex>
+tasks.register('verifyReleaseFingerprint') {
+	group = 'verification'
+	description = 'Verify remapped jar SHA-256 against -PreleaseSha256=<hex>'
+	dependsOn fingerprintReleaseJar
+	onlyIf { project.hasProperty('releaseSha256') }
+	doLast {
+		def expected = project.property('releaseSha256').toString().trim().toLowerCase()
+		def actualLine = layout.buildDirectory.file('libs/beatblock-release.sha256').get().asFile.text.trim()
+		def actual = actualLine.tokenize(/\s+/)[0].toLowerCase()
+		if (expected != actual) {
+			throw new GradleException("Release jar SHA-256 mismatch.\n  expected: ${expected}\n  actual:   ${actual}")
+		}
+		logger.lifecycle("Release jar SHA-256 matches: ${actual}")
+	}
+}
 
 jacoco {
 	toolVersion = '0.8.12'

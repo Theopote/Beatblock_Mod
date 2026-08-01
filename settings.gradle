@@ -16,3 +16,6 @@ pluginManagement {
 		gradlePluginPortal()
 	}
 }
+
+// Single-project root name (stable publish / lock paths).
+rootProject.name = 'beatblock'
