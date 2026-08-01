@@ -15,6 +15,7 @@ import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -329,14 +330,30 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 
 	@Override
 	public String resolveDefaultTargetObjectId() {
-		if (ctx().blockAnimationEngine() != null) {
-			var sys = Objects.requireNonNull(ctx().blockAnimationEngine()).getStageObjectSystem();
-			var all = sys.getAll();
-			if (!all.isEmpty()) {
-				return all.iterator().next().getId();
+		List<String> registered = resolveRegisteredStageObjectIds();
+		if (registered.size() == 1) {
+			return registered.getFirst();
+		}
+		if (!registered.isEmpty()) {
+			// Feature-mapper fallback only: first registered id. Animation drops no longer use this.
+			return registered.getFirst();
+		}
+		return "";
+	}
+
+	@Override
+	public List<String> resolveRegisteredStageObjectIds() {
+		if (ctx().blockAnimationEngine() == null) {
+			return List.of();
+		}
+		var sys = Objects.requireNonNull(ctx().blockAnimationEngine()).getStageObjectSystem();
+		List<String> ids = new ArrayList<>();
+		for (var obj : sys.getAll()) {
+			if (obj != null && obj.getId() != null && !obj.getId().isBlank()) {
+				ids.add(obj.getId());
 			}
 		}
-		return "default";
+		return ids;
 	}
 
 	@Override

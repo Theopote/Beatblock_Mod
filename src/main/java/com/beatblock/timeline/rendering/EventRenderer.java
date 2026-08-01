@@ -44,6 +44,9 @@ public final class EventRenderer {
 	private static final int DISPATCH_BURST_BADGE_COLOR = 0xFF_CC_AA_FF;
 	private static final int FRUSTUM_GATING_BADGE_COLOR = 0xFF_FF_66_66;
 	private static final int EDGE_PRIORITY_BADGE_COLOR = 0xFF_FF_AA_33;
+	/** Unbound StageEvent (no target StageObject) — yellow/amber warning. */
+	private static final int UNBOUND_TARGET_BADGE_COLOR = 0xFF_33_CC_FF;
+	private static final int UNBOUND_EVENT_OUTLINE_COLOR = 0xFF_33_AA_FF;
 	private static final float MIN_BAR_HALF_WIDTH = 1.25f;
 
 	private static int withAlpha(int abgr, int alpha) {
@@ -148,6 +151,11 @@ public final class EventRenderer {
                 case ANIMATE -> fillColor;
             };
             ImGui.getWindowDrawList().addRectFilled(baseX + x, y0, baseX + x + w, y1, resolvedFillColor, 2f);
+			if (e.isUnboundTarget()) {
+				// Amber outline so unbound events read as “needs target” without looking like errors.
+				ImGui.getWindowDrawList().addRect(baseX + x, y0, baseX + x + w, y1, UNBOUND_EVENT_OUTLINE_COLOR, 2f, 0, 1.5f);
+			}
+			renderUnboundTargetBadge(baseX + x, y0, baseX + x + w, y1, e);
 			renderDispatchBadge(baseX + x, y0, baseX + x + w, y1, e);
 			renderGroupSpatialBadge(baseX + x, y0, baseX + x + w, y1, e);
 			renderFrustumGatingBadge(baseX + x, y0, baseX + x + w, y1, e);
@@ -159,6 +167,24 @@ public final class EventRenderer {
             }
         }
 		ImGui.setCursorPosY(rowY + layout.rowHeight);
+	}
+
+	private void renderUnboundTargetBadge(float x0, float y0, float x1, float y1, TimelineAnimationEvent event) {
+		if (event == null || !event.isUnboundTarget()) return;
+
+		// Bottom-left “!” — unbound StageObject target
+		float bx0 = x0 + 2f;
+		float by1 = y1 - 2f;
+		float bx1 = Math.min(x1 - 2f, bx0 + 10f);
+		float by0 = Math.max(y0 + 2f, by1 - 10f);
+		if (bx1 <= bx0 || by1 <= by0) return;
+
+		ImGui.getWindowDrawList().addRectFilled(bx0, by0, bx1, by1, withAlpha(UNBOUND_TARGET_BADGE_COLOR, 0xE0), 2f);
+		ImGui.getWindowDrawList().addText(bx0 + 3f, by0 - 1f, 0xFF_11_11_11, "!");
+
+		if (ImGui.isMouseHoveringRect(bx0, by0, bx1, by1)) {
+			ImGui.setTooltip(BBTexts.get("beatblock.event.badge.unbound_target"));
+		}
 	}
 
 	private void renderDispatchBadge(float x0, float y0, float x1, float y1, TimelineAnimationEvent event) {

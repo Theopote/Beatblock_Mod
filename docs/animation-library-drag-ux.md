@@ -1,7 +1,7 @@
 # Animation Library 拖拽 UX：Preset + Target + Time
 
-> 状态：**设计锁定（先不扩功能）**  
-> 相关实现：`TimelineAudioDropHandler.handleAnimationPresetDrop`、`EventLibraryPanelPresenter.resolveTargetObjectId`、`AnimationLibraryPanelPresenter`
+> 状态：**设计锁定 + 第 1 步已落地（UNBOUND 可创建）**  
+> 相关实现：`AnimationDropTargetResolver`、`TimelineAudioDropHandler.handleDroppedAnimationPreset`、`EventLibraryPanelPresenter`、`EventRenderer` unbound 徽章
 
 ## 1. 为什么先停功能
 
@@ -32,26 +32,31 @@ Preset + Time  →  隐式猜 Target
 
 > 我把 Bounce 拖上去，它作用在哪些方块上？
 
-## 3. 现状（问题诊断）
+## 3. 现状（已改 / 仍待做）
 
-当前拖 preset → 动画轨（`TimelineAudioDropHandler`）的 Target 推断：
+### 已实现（2026-08）
+
+`AnimationDropTargetResolver`：
 
 ```
-1. 优先：时间轴上「当前选中动画事件」的 targetObjectId
-2. 否则：host.resolveDefaultTargetObjectId()（宿主默认，通常第一个/主 StageObject）
-3. 否则：失败 → Toast「无舞台对象」，不创建事件
+1. preferred StageObject ids（图层/世界选中，host 可注入）
+2. 选中动画事件上的 target（去重）
+3. 若场景中**恰好只有一个**已注册 StageObject → 自动绑
+4. 否则 UNBOUND（空 target，仍创建事件 + 黄标 + warning toast）
 ```
 
-| 优点 | 缺点 |
-|------|------|
-| 早期版本能跑通 | 同一操作在不同选中状态下结果不同，难预测 |
-| 实现简单 | 世界选区 / 多 StageObject 未进入决策 |
-| | **完全拒绝**无 target 的创建 → 像表单校验，不像 AE/Sequencer |
-| | 用户无法先落事件再补绑定 |
+- 多目标：暂时直接 **每对象一条事件**（「所有选中对象」默认），对话框后置
+- Timeline 黄边 + `!` 徽章；属性面板黄条提示
+- Event Library 应用模板对齐同一 resolver
+- **不再**用假 id `"default"` 静默绑死
 
-Event Library「应用模板」走同一类 `resolveTargetObjectId`，问题同源。
+### 仍待做
 
-「应用到选中事件」路径（改已有事件的 preset）语义清晰，**不在本问题范围**；本设计专指 **新建**（拖入时间线 / 从库生成新 clip）。
+- preferred ids 真正接图层多选 / 世界 StageObject 选中
+- 多选确认对话框（主对象 / 全部 / Group）
+- 播放 unbound 的一次 warn 日志（引擎已 no-op 安全）
+
+「应用到选中事件」路径（改已有事件的 preset）语义清晰，**不在本问题范围**。
 
 ## 4. 目标交互：三种拖拽状态
 
@@ -145,11 +150,13 @@ ResolvedDropTargets resolveForAnimationDrop(WorldSelection, StageObjectSystem, T
 
 ## 8. 验收标准
 
-- [ ] 无 StageObject 时拖 Bounce 仍生成事件，并显示「未绑定」
-- [ ] 单选 StageObject A 时拖 Bounce，事件 `targetObjectId == A`，Toast 可读
-- [ ] 多选 A+B 时不静默只绑 A；必须经用户选择（或明确默认「全部」且可撤销）
-- [ ] 属性面板可把 unbound 事件绑到任意 StageObject
-- [ ] 播放 unbound 不崩溃
+- [x] 无 StageObject 时拖 Bounce 仍生成事件，并显示「未绑定」（黄边 + `!` + warning toast）
+- [x] 场景仅一个 StageObject 时自动绑（不猜「多个中的第一个」）
+- [x] 多目标时创建 N 条（默认全部；对话框后置）
+- [x] 属性面板对 unbound 显示黄条；可改 Target 绑定
+- [x] 播放 unbound 不崩溃（`BlockAnimationEngine` 对 null target no-op）
+- [ ] preferred 接图层/世界选中
+- [ ] 多选确认对话框
 
 ## 9. 一句话
 

@@ -20,26 +20,47 @@ public final class ToastNotificationSystem {
 	private ToastNotificationSystem() {
 	}
 
-	public record Toast(String message, boolean success, long expiresAtMs) {}
+	public enum Kind {
+		SUCCESS,
+		WARNING,
+		ERROR
+	}
+
+	public record Toast(String message, Kind kind, long expiresAtMs) {
+		/** @deprecated use {@link #kind()} */
+		@Deprecated
+		public boolean success() {
+			return kind == Kind.SUCCESS;
+		}
+	}
 
 	public static void showSuccess(String message) {
-		show(message, true, DEFAULT_DURATION_MS);
+		show(message, Kind.SUCCESS, DEFAULT_DURATION_MS);
+	}
+
+	public static void showWarning(String message) {
+		show(message, Kind.WARNING, DEFAULT_DURATION_MS);
 	}
 
 	public static void showError(String message) {
-		show(message, false, DEFAULT_DURATION_MS);
+		show(message, Kind.ERROR, DEFAULT_DURATION_MS);
 	}
 
 	public static void show(String message, boolean success) {
-		show(message, success, DEFAULT_DURATION_MS);
+		show(message, success ? Kind.SUCCESS : Kind.ERROR, DEFAULT_DURATION_MS);
 	}
 
 	public static void show(String message, boolean success, long durationMs) {
+		show(message, success ? Kind.SUCCESS : Kind.ERROR, durationMs);
+	}
+
+	public static void show(String message, Kind kind, long durationMs) {
 		if (message == null || message.isBlank()) {
 			return;
 		}
+		Kind resolved = kind != null ? kind : Kind.SUCCESS;
 		long now = System.currentTimeMillis();
-		toasts.addFirst(new Toast(message, success, now + Math.max(1000L, durationMs)));
+		toasts.addFirst(new Toast(message, resolved, now + Math.max(1000L, durationMs)));
 		while (toasts.size() > MAX_VISIBLE) {
 			toasts.removeLast();
 		}
@@ -69,12 +90,19 @@ public final class ToastNotificationSystem {
 			ImGui.setNextWindowBgAlpha(0.92f * alpha);
 			ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowRounding, 8f);
 			ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 12f, 10f);
-			if (toast.success()) {
-				ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.12f, 0.28f, 0.14f, 1f);
-				ImGui.pushStyleColor(ImGuiCol.Border, 0.25f, 0.65f, 0.35f, 1f);
-			} else {
-				ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.30f, 0.14f, 0.12f, 1f);
-				ImGui.pushStyleColor(ImGuiCol.Border, 0.75f, 0.35f, 0.25f, 1f);
+			switch (toast.kind()) {
+				case SUCCESS -> {
+					ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.12f, 0.28f, 0.14f, 1f);
+					ImGui.pushStyleColor(ImGuiCol.Border, 0.25f, 0.65f, 0.35f, 1f);
+				}
+				case WARNING -> {
+					ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.32f, 0.26f, 0.08f, 1f);
+					ImGui.pushStyleColor(ImGuiCol.Border, 0.90f, 0.72f, 0.20f, 1f);
+				}
+				case ERROR -> {
+					ImGui.pushStyleColor(ImGuiCol.WindowBg, 0.30f, 0.14f, 0.12f, 1f);
+					ImGui.pushStyleColor(ImGuiCol.Border, 0.75f, 0.35f, 0.25f, 1f);
+				}
 			}
 
 			String windowId = BBTexts.get("beatblock.toast.window") + "##toast_" + index;
@@ -90,9 +118,11 @@ public final class ToastNotificationSystem {
 				| ImGuiWindowFlags.AlwaysAutoResize;
 
 			if (ImGui.begin(windowId, flags)) {
-				String prefix = toast.success()
-					? BBTexts.get("beatblock.toast.success_prefix")
-					: BBTexts.get("beatblock.toast.error_prefix");
+				String prefix = switch (toast.kind()) {
+					case SUCCESS -> BBTexts.get("beatblock.toast.success_prefix");
+					case WARNING -> BBTexts.get("beatblock.toast.warning_prefix");
+					case ERROR -> BBTexts.get("beatblock.toast.error_prefix");
+				};
 				ImGui.textColored(1f, 1f, 1f, alpha, prefix + " " + toast.message());
 			}
 			ImGui.end();

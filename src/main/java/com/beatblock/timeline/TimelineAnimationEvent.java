@@ -94,6 +94,14 @@ public final class TimelineAnimationEvent {
 		return targetObjectId;
 	}
 
+	/**
+	 * Unbound StageEvent: preset + time committed, target to be assigned later
+	 * (Animation Library drag UX — see {@code docs/animation-library-drag-ux.md}).
+	 */
+	public boolean isUnboundTarget() {
+		return targetObjectId == null || targetObjectId.isBlank();
+	}
+
 	public float getEnergy() {
 		return energy;
 	}

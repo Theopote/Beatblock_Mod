@@ -402,6 +402,13 @@ public final class AnimationPropertyEditor {
 			ImGui.textDisabled(BBTexts.get("beatblock.event.batch.primary_hint", batchCount));
 			ImGui.spacing();
 		}
+		if (isUnboundAnimationTarget(ref)) {
+			ImGui.textColored(1f, 0.78f, 0.2f, 1f, BBTexts.get("beatblock.event.unbound_target_banner"));
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip(BBTexts.get("beatblock.event.unbound_target_banner.tooltip"));
+			}
+			ImGui.spacing();
+		}
 
 		if (ImGui.beginTabBar("##eventPropTabs")) {
 			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.basic"))) {
@@ -746,5 +753,16 @@ public final class AnimationPropertyEditor {
 	private static String valueOf(ImString text) {
 		String value = text != null ? text.get() : null;
 		return value != null ? value : "";
+	}
+
+	private static boolean isUnboundAnimationTarget(EventPropertiesRef ref) {
+		if (ref == null || ref.event() == null) {
+			return false;
+		}
+		Object raw = ref.event().getParameters().get("targetObject");
+		if (raw == null) {
+			return true;
+		}
+		return String.valueOf(raw).trim().isEmpty();
 	}
 }

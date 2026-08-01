@@ -16,6 +16,7 @@ import com.beatblock.timeline.Track;
 import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineViewState;
+import com.beatblock.timeline.generation.AnimationDropTargetResolver;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.interaction.DragController;
 import com.beatblock.ui.i18n.BBTexts;
@@ -28,6 +29,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport.buildAudioAssetKey;
@@ -175,43 +178,58 @@ public final class TimelineAudioDropHandler {
 		if (trackId == null) {
 			return;
 		}
-		// Target 语义：Preset + Target + Time = StageEvent。
-		// 当前仍为「选中事件 target → host 默认 → 失败」；设计目标是
-		// 世界选中 StageObject 优先、多选需确认、无选中允许 UNBOUND（后补绑定）。
-		// 见 docs/animation-library-drag-ux.md — 在统一 resolver 前勿再加拖拽功能入口。
-		String targetObjectId = resolveTargetObjectId(selectionState, timeline, host);
-		if (targetObjectId == null || targetObjectId.isBlank()) {
-			ToastNotificationSystem.showError(BBTexts.get("beatblock.timeline.record.no_stage_object"));
-			return;
-		}
+		// Preset + Target + Time = StageEvent（见 docs/animation-library-drag-ux.md）
+		AnimationDropTargetResolver.Result targets = resolveDropTargets(selectionState, timeline, host);
 		float mouseX = ImGui.getMousePosX();
 		double rawTime = viewState.screenToTime(mouseX - layout.contentLeft);
 		double dropTime = DragController.snapTime(rawTime, null, timeline, toolbarState, viewState, interactionState);
 		dropTime = Math.max(0.0, dropTime);
 
 		double duration = preset.getDefaultDurationSeconds();
-		AnimationEventParams params = new AnimationEventParams(
-			TimelineAnimationActionMode.ANIMATE,
-			presetId,
-			targetObjectId,
-			1.0f,
-			duration,
-			TimelineEventOrigin.MANUAL,
-			Map.of()
-		);
-		TimelineAnimationEvent event = new TimelineAnimationEvent(
-			"",
-			dropTime,
-			duration,
-			presetId,
-			targetObjectId,
-			1.0f,
-			params.toParameterMap()
-		);
-		if (TimelineDraftWriter.writeEvent(timeline, trackId, event, TimelineEventOrigin.MANUAL)) {
+		int written = 0;
+		for (String targetObjectId : targets.targetsForEventCreation()) {
+			AnimationEventParams params = new AnimationEventParams(
+				TimelineAnimationActionMode.ANIMATE,
+				presetId,
+				targetObjectId,
+				1.0f,
+				duration,
+				TimelineEventOrigin.MANUAL,
+				Map.of()
+			);
+			TimelineAnimationEvent event = new TimelineAnimationEvent(
+				"",
+				dropTime,
+				duration,
+				presetId,
+				targetObjectId,
+				1.0f,
+				params.toParameterMap()
+			);
+			if (TimelineDraftWriter.writeEvent(timeline, trackId, event, TimelineEventOrigin.MANUAL)) {
+				written++;
+			}
+		}
+		if (written > 0) {
 			timeline.sortAll();
 			host.syncClockDuration();
-			ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.animation_library.dropped", preset.getDisplayName()));
+			if (targets.isUnbound()) {
+				ToastNotificationSystem.showWarning(BBTexts.get(
+					"beatblock.animation_library.dropped_unbound",
+					preset.getDisplayName()
+				));
+			} else if (written > 1) {
+				ToastNotificationSystem.showSuccess(BBTexts.get(
+					"beatblock.animation_library.dropped_multi",
+					preset.getDisplayName(),
+					written
+				));
+			} else {
+				ToastNotificationSystem.showSuccess(BBTexts.get(
+					"beatblock.animation_library.dropped",
+					preset.getDisplayName()
+				));
+			}
 		} else {
 			ToastNotificationSystem.showError(BBTexts.get("beatblock.animation_library.drop_failed"));
 		}
@@ -227,29 +245,36 @@ public final class TimelineAudioDropHandler {
 		return null;
 	}
 
-	private static @Nullable String resolveTargetObjectId(
+	/**
+	 * Preferred: host world/layer selection → selected events' targets → single registered StageObject → unbound.
+	 * Does not use fake {@code "default"} ids.
+	 */
+	static AnimationDropTargetResolver.Result resolveDropTargets(
 		SelectionState selectionState,
 		Timeline timeline,
 		TimelineAudioDropHost host
 	) {
-		if (selectionState != null && !selectionState.getSelectedEvents().isEmpty()) {
-			for (String eventId : selectionState.getSelectedEvents()) {
-				TimelineAnimationEvent event = findAnimationEvent(timeline, eventId);
-				if (event != null) {
-					String target = event.getTargetObjectId();
-					if (target != null && !target.isBlank()) {
-						return target;
-					}
-				}
+		List<String> preferred = host != null ? host.resolvePreferredStageObjectIds() : List.of();
+		List<String> fromEvents = collectTargetsFromSelectedEvents(selectionState, timeline);
+		List<String> registered = host != null ? host.resolveRegisteredStageObjectIds() : List.of();
+		return AnimationDropTargetResolver.resolve(preferred, fromEvents, registered);
+	}
+
+	private static List<String> collectTargetsFromSelectedEvents(
+		SelectionState selectionState,
+		Timeline timeline
+	) {
+		List<String> targets = new ArrayList<>();
+		if (selectionState == null || timeline == null || selectionState.getSelectedEvents().isEmpty()) {
+			return targets;
+		}
+		for (String eventId : selectionState.getSelectedEvents()) {
+			TimelineAnimationEvent event = findAnimationEvent(timeline, eventId);
+			if (event != null && !event.isUnboundTarget()) {
+				targets.add(event.getTargetObjectId());
 			}
 		}
-		if (host != null) {
-			String fallback = host.resolveDefaultTargetObjectId();
-			if (fallback != null && !fallback.isBlank()) {
-				return fallback;
-			}
-		}
-		return null;
+		return targets;
 	}
 
 	private static @Nullable TimelineAnimationEvent findAnimationEvent(Timeline timeline, String eventId) {

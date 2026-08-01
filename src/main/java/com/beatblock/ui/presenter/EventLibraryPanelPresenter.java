@@ -7,6 +7,7 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEventOrigin;
+import com.beatblock.timeline.generation.AnimationDropTargetResolver;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.ui.eventlibrary.EventTemplate;
@@ -15,6 +16,7 @@ import com.beatblock.ui.i18n.BBTexts;
 
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -91,24 +93,32 @@ public final class EventLibraryPanelPresenter {
 		if (template == null) {
 			return fail(BBTexts.get("beatblock.event_library.template_missing"));
 		}
-		String targetObjectId = resolveTargetObjectId(editor.getSelectionState(), tl);
-		if (targetObjectId == null) {
-			return fail(BBTexts.get("beatblock.timeline.record.no_stage_object"));
-		}
+		AnimationDropTargetResolver.Result targets = resolveDropTargets(editor.getSelectionState(), tl);
 		double timeSeconds = editor.getClock().getCurrentTimeSeconds();
-		TimelineAnimationEvent event = template.toTimelineEvent(timeSeconds, targetObjectId);
-		boolean written = TimelineDraftWriter.writeEvent(
-			tl,
-			Timeline.TRACK_ID_ANIMATION_BLOCK,
-			event,
-			TimelineEventOrigin.MANUAL
-		);
-		if (!written) {
+		int written = 0;
+		for (String targetObjectId : targets.targetsForEventCreation()) {
+			TimelineAnimationEvent event = template.toTimelineEvent(timeSeconds, targetObjectId);
+			if (TimelineDraftWriter.writeEvent(
+				tl,
+				Timeline.TRACK_ID_ANIMATION_BLOCK,
+				event,
+				TimelineEventOrigin.MANUAL
+			)) {
+				written++;
+			}
+		}
+		if (written <= 0) {
 			return fail(BBTexts.get("beatblock.event_library.apply_failed"));
 		}
 		tl.sortAll();
 		editor.syncClockDuration();
-		statusMessage = BBTexts.get("beatblock.event_library.applied", template.name());
+		if (targets.isUnbound()) {
+			statusMessage = BBTexts.get("beatblock.event_library.applied_unbound", template.name());
+		} else if (written > 1) {
+			statusMessage = BBTexts.get("beatblock.event_library.applied_multi", template.name(), written);
+		} else {
+			statusMessage = BBTexts.get("beatblock.event_library.applied", template.name());
+		}
 		return new ApplyOutcome(true, statusMessage);
 	}
 
@@ -120,25 +130,29 @@ public final class EventLibraryPanelPresenter {
 		return new ApplyOutcome(true, statusMessage);
 	}
 
-	private @Nullable String resolveTargetObjectId(@Nullable SelectionState selection, Timeline timeline) {
-		if (selection != null && !selection.getSelectedEvents().isEmpty()) {
+	private AnimationDropTargetResolver.Result resolveDropTargets(
+		@Nullable SelectionState selection,
+		Timeline timeline
+	) {
+		List<String> fromEvents = new ArrayList<>();
+		if (selection != null) {
 			for (String eventId : selection.getSelectedEvents()) {
 				TimelineAnimationEvent event = findAnimationEvent(timeline, eventId);
-				if (event != null && event.getTargetObjectId() != null && !event.getTargetObjectId().isBlank()) {
-					return event.getTargetObjectId();
+				if (event != null && !event.isUnboundTarget()) {
+					fromEvents.add(event.getTargetObjectId());
 				}
 			}
 		}
+		List<String> registered = new ArrayList<>();
 		StageObjectSystem system = stageObjectSystem.get();
-		if (system == null) {
-			return null;
-		}
-		for (StageObject obj : system.getAll()) {
-			if (obj != null && obj.getId() != null && !obj.getId().isBlank()) {
-				return obj.getId();
+		if (system != null) {
+			for (StageObject obj : system.getAll()) {
+				if (obj != null && obj.getId() != null && !obj.getId().isBlank()) {
+					registered.add(obj.getId());
+				}
 			}
 		}
-		return null;
+		return AnimationDropTargetResolver.resolve(List.of(), fromEvents, registered);
 	}
 
 	private static @Nullable TimelineAnimationEvent findAnimationEvent(Timeline timeline, String eventId) {
