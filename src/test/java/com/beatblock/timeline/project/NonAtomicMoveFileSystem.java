@@ -22,6 +22,7 @@ import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.FileAttributeView;
+import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -245,11 +246,6 @@ class NonAtomicMoveFileSystem extends FileSystem {
 		@Override
 		public FileSystem getFileSystem() {
 			return fs;
-		}
-
-		@Override
-		public FileSystemProvider provider() {
-			return fs.provider();
 		}
 
 		@Override

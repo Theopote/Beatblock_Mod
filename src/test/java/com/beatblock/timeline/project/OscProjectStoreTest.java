@@ -19,10 +19,18 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -194,7 +202,7 @@ class OscProjectStoreTest {
 		timeline.setName("Second");
 		OscProjectStore.save(file, timeline);
 
-		assertFalse(Files.exists(tempDir.resolve("atomic.osc.tmp")), "原子保存不应残留临时文件");
+		assertNoOscTempFiles(tempDir);
 		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file);
 		assertEquals("Second", loaded.getTimelineName());
 	}
@@ -213,6 +221,115 @@ class OscProjectStoreTest {
 
 		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file);
 		assertEquals("Original", loaded.getTimelineName());
-		assertFalse(Files.exists(tempDir.resolve("preserve.osc.tmp")), "保存失败不应残留临时文件");
+		assertNoOscTempFiles(tempDir);
+	}
+
+	@Test
+	void atomicMoveNotSupportedFallsBack() throws Exception {
+		Path realDir = tempDir.resolve("nonatomic");
+		Files.createDirectories(realDir);
+		Path realFile = realDir.resolve("fallback.osc");
+
+		NonAtomicMoveFileSystem fs = NonAtomicMoveFileSystem.ofDefault();
+		Path wrapped = fs.getPath(realFile.toString());
+
+		// 直接测 writeAtomically：包装 FS 拒绝 ATOMIC_MOVE，应回退为普通 move
+		OscProjectStore.writeAtomically(wrapped, "{\"version\":3,\"projectId\":\"fb\",\"timelineName\":\"Fallback\"}");
+
+		assertTrue(Files.exists(realFile));
+		String json = Files.readString(realFile, StandardCharsets.UTF_8);
+		assertTrue(json.contains("Fallback"));
+		assertNoOscTempFiles(realDir);
+	}
+
+	@Test
+	void concurrentSaveUsesUniqueTempFiles() throws Exception {
+		// 1) 固定名 *.osc.tmp 已被占用时，唯一临时文件仍应成功（旧实现会互相踩踏）
+		Path file = tempDir.resolve("unique.osc");
+		Path fixedTmp = tempDir.resolve("unique.osc.tmp");
+		Files.writeString(fixedTmp, "held-by-other-saver", StandardCharsets.UTF_8);
+
+		Timeline timeline = Timeline.createDefault();
+		timeline.setName("UniqueTemp");
+		OscProjectStore.save(file, timeline);
+
+		assertEquals("UniqueTemp", OscProjectStore.load(file).getTimelineName());
+		assertEquals("held-by-other-saver", Files.readString(fixedTmp, StandardCharsets.UTF_8),
+			"不应再使用固定的 *.osc.tmp 名覆盖其它保存任务的临时文件");
+
+		// 2) 同一目录下多目标并发保存：唯一临时名避免 create/write 冲突
+		int threads = 8;
+		ExecutorService pool = Executors.newFixedThreadPool(threads);
+		CountDownLatch start = new CountDownLatch(1);
+		AtomicReference<Throwable> failure = new AtomicReference<>();
+		try {
+			List<Future<?>> futures = new java.util.ArrayList<>();
+			for (int i = 0; i < threads; i++) {
+				final int idx = i;
+				futures.add(pool.submit(() -> {
+					try {
+						start.await(5, TimeUnit.SECONDS);
+						Path target = tempDir.resolve("concurrent-" + idx + ".osc");
+						Timeline t = Timeline.createDefault();
+						t.setName("writer-" + idx);
+						for (int r = 0; r < 4; r++) {
+							OscProjectStore.save(target, t);
+						}
+					} catch (Throwable e) {
+						failure.compareAndSet(null, e);
+					}
+				}));
+			}
+			start.countDown();
+			for (Future<?> f : futures) {
+				f.get(30, TimeUnit.SECONDS);
+			}
+		} finally {
+			pool.shutdownNow();
+		}
+
+		if (failure.get() != null) {
+			throw new AssertionError("并发保存失败（可能是临时文件名冲突）", failure.get());
+		}
+		for (int i = 0; i < threads; i++) {
+			Path target = tempDir.resolve("concurrent-" + i + ".osc");
+			assertEquals("writer-" + i, OscProjectStore.load(target).getTimelineName());
+		}
+		// 允许测试预置的 fixedTmp 存在，其它 .tmp 不得残留
+		try (Stream<Path> stream = Files.list(tempDir)) {
+			List<Path> leftover = stream
+				.filter(p -> p.getFileName().toString().endsWith(".tmp"))
+				.filter(p -> !p.equals(fixedTmp))
+				.toList();
+			assertTrue(leftover.isEmpty(), "不应残留临时文件: " + leftover);
+		}
+	}
+
+	@Test
+	void failedMoveDeletesTempFile() throws Exception {
+		// 目标路径已是目录时，move 会失败；应清理 createTempFile 产生的临时文件
+		Path blockingDir = tempDir.resolve("blocked.osc");
+		Files.createDirectories(blockingDir);
+
+		assertThrows(Exception.class, () ->
+			OscProjectStore.writeAtomically(blockingDir, "{\"version\":3,\"projectId\":\"x\"}"));
+
+		assertNoOscTempFiles(tempDir);
+		// 目录本身仍在（未被错误替换）
+		assertTrue(Files.isDirectory(blockingDir));
+	}
+
+	private static void assertNoOscTempFiles(Path dir) throws Exception {
+		assertFalse(Files.exists(dir.resolve(dir.getFileName() + ".tmp")));
+		try (Stream<Path> stream = Files.list(dir)) {
+			List<Path> temps = stream
+				.filter(p -> {
+					String name = p.getFileName().toString();
+					return name.endsWith(".tmp") || name.contains(".osc.");
+				})
+				.filter(p -> p.getFileName().toString().endsWith(".tmp"))
+				.toList();
+			assertTrue(temps.isEmpty(), "不应残留临时文件: " + temps);
+		}
 	}
 }

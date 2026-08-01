@@ -14,8 +14,10 @@ import com.google.gson.JsonParser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -76,14 +78,57 @@ public final class OscProjectStore {
 		}
 		root.add("animationTracks", TimelineAnimationPersistence.toJson(timeline));
 
-		Path temp = abs.resolveSibling(abs.getFileName() + ".tmp");
-		Files.writeString(temp, GSON.toJson(root), StandardCharsets.UTF_8);
-		Files.move(temp, abs, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+		// 原子写入：唯一临时文件 + ATOMIC_MOVE（必要时回退）+ 失败清理，避免半写/冲突。
+		String json = GSON.toJson(root);
+		writeAtomically(abs, json);
 
 		// 回写到 timeline，确保后续 UI 隔离键稳定。
 		timeline.setMetadata("projectId", projectId);
 		timeline.setMetadata("projectPath", abs.toString());
 		if (!audioPath.isBlank()) timeline.setMetadata("audioPath", audioPath);
+	}
+
+	/**
+	 * Write {@code content} to {@code target} via a unique sibling temp file, then replace.
+	 * Prefers {@link StandardCopyOption#ATOMIC_MOVE}; falls back when the filesystem rejects it.
+	 * Temp files are always cleaned up on failure (and no longer exist after a successful move).
+	 */
+	static void writeAtomically(Path target, String content) throws IOException {
+		if (target == null) throw new IOException("保存失败：目标路径为空");
+		Path abs = target.toAbsolutePath().normalize();
+		Path parent = abs.getParent();
+		if (parent != null) {
+			Files.createDirectories(parent);
+		}
+
+		String fileName = abs.getFileName() != null ? abs.getFileName().toString() : "project.osc";
+		Path temp = null;
+		try {
+			// 唯一临时名，避免并发保存争用固定的 "*.osc.tmp"
+			temp = parent != null
+				? Files.createTempFile(parent, fileName + ".", ".tmp")
+				: Files.createTempFile(fileName + ".", ".tmp");
+			Files.writeString(temp, content, StandardCharsets.UTF_8);
+			moveReplacing(temp, abs);
+			temp = null; // 已成功移走，finally 无需再删
+		} finally {
+			if (temp != null) {
+				try {
+					Files.deleteIfExists(temp);
+				} catch (IOException ignored) {
+					// 清理失败不应掩盖主异常
+				}
+			}
+		}
+	}
+
+	/** Prefer atomic replace; fall back when the filesystem cannot do ATOMIC_MOVE. */
+	static void moveReplacing(Path source, Path target) throws IOException {
+		try {
+			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+		} catch (AtomicMoveNotSupportedException ignored) {
+			Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+		}
 	}
 
 	public static LoadedProject load(Path filePath) throws IOException {
