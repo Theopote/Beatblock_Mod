@@ -45,16 +45,17 @@ Preset + Time  →  隐式猜 Target
 4. 否则 UNBOUND（空 target，仍创建事件 + 黄标 + warning toast）
 ```
 
-- 多目标：暂时直接 **每对象一条事件**（「所有选中对象」默认），对话框后置
+- 多目标：弹出确认（主对象 / 全部选中；Group Event 选项灰显「即将支持」）
 - Timeline 黄边 + `!` 徽章；属性面板黄条提示
 - Event Library 应用模板对齐同一 resolver
 - **不再**用假 id `"default"` 静默绑死
 
 ### 仍待做
 
-- ~~preferred ids 真正接图层多选~~ **已接**：`BuildLayerManager` 选中 → `getSelectedStageObjectIds()` → drop host preferred
-- 多选确认对话框（主对象 / 全部 / Group）；当前默认「全部」= N 条事件
+- ~~preferred ids 真正接图层多选~~ **已接**
+- ~~多选确认对话框~~ **已接**：`AnimationMultiTargetDropPrompt`（主对象 / 全部；Group 灰显）
 - 播放 unbound 的一次 warn 日志（引擎已 no-op 安全）
+- Group Event 真实数据模型
 - 世界方块选区 → 推断所属 StageObject（可选增强）
 
 「应用到选中事件」路径（改已有事件的 preset）语义清晰，**不在本问题范围**。
@@ -157,7 +158,8 @@ ResolvedDropTargets resolveForAnimationDrop(WorldSelection, StageObjectSystem, T
 - [x] 属性面板对 unbound 显示黄条；可改 Target 绑定
 - [x] 播放 unbound 不崩溃（`BlockAnimationEngine` 对 null target no-op）
 - [x] preferred 接图层选中（`BuildLayerManager.getSelectedStageObjectIds`）
-- [ ] 多选确认对话框
+- [x] 多选确认对话框（PRIMARY / ALL；Group 占位）
+- [ ] Group Event 实现
 - [ ] 世界方块选区 → StageObject 推断（可选）
 
 ## 9. 一句话

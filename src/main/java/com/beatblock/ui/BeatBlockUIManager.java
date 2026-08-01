@@ -225,6 +225,8 @@ public class BeatBlockUIManager {
 		quickStartWizardPanel.render();
 		videoExportDialog.render();
 		BeatBlockLassoOverlay.render();
+		// Multi-target animation placement (layer multi-select) — must run after panels open popups
+		com.beatblock.timeline.generation.AnimationMultiTargetDropPrompt.render();
 		ToastNotificationSystem.render();
 	}
 

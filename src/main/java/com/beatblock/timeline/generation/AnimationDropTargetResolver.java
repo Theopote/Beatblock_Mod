@@ -26,7 +26,7 @@ public final class AnimationDropTargetResolver {
 	public enum Mode {
 		/** Exactly one target — auto-bind. */
 		SINGLE,
-		/** Multiple targets — create one event per target (dialog can refine later). */
+		/** Multiple targets — UI must confirm PRIMARY vs ALL (see {@link AnimationMultiTargetDropPrompt}). */
 		MULTI,
 		/** No target — allow unbound StageEvent. */
 		UNBOUND
