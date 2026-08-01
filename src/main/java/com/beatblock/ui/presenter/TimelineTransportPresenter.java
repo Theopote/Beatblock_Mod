@@ -7,9 +7,15 @@ import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.playback.PerformanceCheckController;
+import com.beatblock.timeline.playback.TimelineValidationReport;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.util.MusicTimeFormatter;
 import com.beatblock.audio.MusicPlayer;
+import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.engine.layer.BuildLayerManager;
+import com.beatblock.ui.notification.ToastNotificationSystem;
+import com.beatblock.ui.i18n.BBTexts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +58,8 @@ public final class TimelineTransportPresenter {
 	private final Supplier<MusicPlayer> musicPlayer;
 	private final Supplier<IAudioPlayer> activeAudioPlayer;
 	private final TimelineDriveControl driveControl;
+	private final Supplier<BlockAnimationEngine> animationEngine;
+	private final Supplier<BuildLayerManager> layerManager;
 
 	public TimelineTransportPresenter(
 		Supplier<TimelineEditor> timelineEditor,
@@ -60,11 +68,25 @@ public final class TimelineTransportPresenter {
 		Supplier<IAudioPlayer> activeAudioPlayer,
 		TimelineDriveControl driveControl
 	) {
+		this(timelineEditor, timeline, musicPlayer, activeAudioPlayer, driveControl, () -> null, () -> null);
+	}
+
+	public TimelineTransportPresenter(
+		Supplier<TimelineEditor> timelineEditor,
+		Supplier<Timeline> timeline,
+		Supplier<MusicPlayer> musicPlayer,
+		Supplier<IAudioPlayer> activeAudioPlayer,
+		TimelineDriveControl driveControl,
+		Supplier<BlockAnimationEngine> animationEngine,
+		Supplier<BuildLayerManager> layerManager
+	) {
 		this.timelineEditor = timelineEditor;
 		this.timeline = timeline;
 		this.musicPlayer = musicPlayer;
 		this.activeAudioPlayer = activeAudioPlayer;
 		this.driveControl = driveControl != null ? driveControl : new TimelineDriveControl() {};
+		this.animationEngine = animationEngine != null ? animationEngine : () -> null;
+		this.layerManager = layerManager != null ? layerManager : () -> null;
 	}
 
 	public TransportViewState viewState(TimelineEditor editor, boolean shiftHeld) {
@@ -116,6 +138,36 @@ public final class TimelineTransportPresenter {
 		if (currentEditor == null) {
 			return;
 		}
+		final TimelineEditor ed = currentEditor;
+		TimelineValidationReport report = PerformanceCheckController.gatePlay(
+			timeline.get(),
+			animationEngine.get(),
+			layerManager.get(),
+			() -> startPlayInternal(ed)
+		);
+		if (report.hasErrors()) {
+			ToastNotificationSystem.showError(BBTexts.get(
+				"beatblock.performance_check.play_blocked_toast",
+				report.errorCount()
+			));
+		} else if (report.hasWarnings()) {
+			ToastNotificationSystem.showWarning(BBTexts.get(
+				"beatblock.performance_check.play_warnings_toast",
+				report.warningCount()
+			));
+		}
+	}
+
+	/** Run validation and open Performance check without starting play. */
+	public TimelineValidationReport runPerformanceCheck() {
+		return PerformanceCheckController.checkOnly(
+			timeline.get(),
+			animationEngine.get(),
+			layerManager.get()
+		);
+	}
+
+	private void startPlayInternal(TimelineEditor currentEditor) {
 		bindPlaybackSession(currentEditor);
 		ensureMusicDurationForPlayback(currentEditor);
 		pauseFullMixIfStemMode();

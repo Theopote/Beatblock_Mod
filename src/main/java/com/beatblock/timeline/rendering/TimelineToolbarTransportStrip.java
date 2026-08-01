@@ -80,6 +80,15 @@ final class TimelineToolbarTransportStrip {
 			transport.addMarkerAtCurrentTime(editor);
 		}
 		transportTooltip = TimelineToolbarImGui.hoveredTooltip(transportTooltip, BBTexts.get("beatblock.timeline.transport.add_marker"));
+		TimelineToolbarImGui.nextItemInGroup();
+
+		if (ImGui.button(Icons.Action.CHECK + "##tlPerfCheck", buttonSize, buttonSize)) {
+			transport.runPerformanceCheck();
+		}
+		transportTooltip = TimelineToolbarImGui.hoveredTooltip(
+			transportTooltip,
+			BBTexts.get("beatblock.performance_check.toolbar_tooltip")
+		);
 		IconButtonStyle.popBeatBlockIconButton();
 		if (transportTooltip != null) ImGui.setTooltip(transportTooltip);
 

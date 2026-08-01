@@ -491,8 +491,16 @@ public final class BeatBlockClientDriver {
 			stopPlaybackInternal();
 			return;
 		}
-		ctx().pauseFullMixIfStemPlayback();
-		player.play();
-		startDrivingInternal();
+		// Hotkey play uses the same Performance check gate as Transport
+		com.beatblock.timeline.playback.PerformanceCheckController.gatePlay(
+			ctx().timeline(),
+			ctx().blockAnimationEngine(),
+			ctx().buildLayerManager(),
+			() -> {
+				ctx().pauseFullMixIfStemPlayback();
+				player.play();
+				startDrivingInternal();
+			}
+		);
 	}
 }

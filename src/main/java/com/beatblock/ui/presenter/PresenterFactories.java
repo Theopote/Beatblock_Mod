@@ -167,7 +167,9 @@ public final class PresenterFactories {
 				public void stopDriving() {
 					BeatBlockClientDriver.stopDriving();
 				}
-			}
+			},
+			context::blockAnimationEngine,
+			context::buildLayerManager
 		);
 	}
 
