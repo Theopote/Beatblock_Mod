@@ -13,6 +13,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TimelineValidatorTest {
 
@@ -150,6 +151,27 @@ class TimelineValidatorTest {
 		PerformanceCheckController.clear();
 	}
 
+	@Test
+	void nonFiniteDurationIsFatalAndCompilerRejectsIt() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.setDurationSeconds(Double.NaN);
+
+		TimelineValidationReport report = TimelineValidator.validate(timeline, null);
+		assertTrue(report.hasFatalErrors());
+		assertTrue(report.problems().stream()
+			.anyMatch(d -> "non_finite_timeline_duration".equals(d.ruleId())));
+		assertThrows(TimelineCompilationException.class,
+			() -> TimelineCompiler.compile(timeline, null, null));
+	}
+
+	@Test
+	void cameraKeyframesAreNotDoubleCounted() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addCameraKeyframe(new com.beatblock.timeline.CameraKeyframe(1.0));
+
+		TimelineValidationReport report = TimelineValidator.validate(timeline, null);
+		assertEquals(1, report.cameraKeyframeCount());
+	}
 	private static TimelineAnimationEvent event(String id, double time, String anim, String target) {
 		return new TimelineAnimationEvent(id, time, 1.0, anim, target, 1f, Map.of(
 			"animationType", anim,

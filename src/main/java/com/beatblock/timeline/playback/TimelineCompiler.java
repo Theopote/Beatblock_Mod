@@ -57,6 +57,14 @@ public final class TimelineCompiler {
 		}
 
 		TimelineValidationReport report = TimelineValidator.validate(document, engine, layerManager);
+		if (report.hasFatalErrors()) {
+			String message = report.diagnostics().stream()
+				.filter(d -> d.severity() == TimelineDiagnosticSeverity.ERROR && d.isFatal())
+				.map(TimelineDiagnostic::message)
+				.findFirst()
+				.orElse("Fatal timeline validation error");
+			throw new TimelineCompilationException(message);
+		}
 
 		List<TimelineAnimationEvent> events = new ArrayList<>();
 		for (TimelineAnimationEvent event : document.getStageEvents()) {
@@ -204,7 +212,11 @@ public final class TimelineCompiler {
 					String id = event.getId() != null && !event.getId().isBlank()
 						? event.getId()
 						: PlaybackEngine.syntheticGlobalId(event.getTimeSeconds(), typeName, name, index++);
-					out.add(new CompiledGlobalEvent(id, event.getTimeSeconds(), typeName, name));
+					out.add(new CompiledGlobalEvent(
+						 id,
+						 event.getTimeSeconds(),
+						 new GlobalEventPayload.Generic(typeName, name, freezeMap(event.getParameters()))
+					));
 				}
 			}
 		}
@@ -214,7 +226,11 @@ public final class TimelineCompiler {
 				if (ge == null) continue;
 				String typeName = ge.getType() != null ? ge.getType().name() : "SPECIAL";
 				String id = PlaybackEngine.syntheticGlobalId(ge.getTimeSeconds(), typeName, ge.getName(), index++);
-				out.add(new CompiledGlobalEvent(id, ge.getTimeSeconds(), typeName, ge.getName()));
+				out.add(new CompiledGlobalEvent(
+					 id,
+					 ge.getTimeSeconds(),
+					 new GlobalEventPayload.Generic(typeName, ge.getName(), Map.of())
+				));
 			}
 		}
 		out.sort(Comparator

@@ -393,11 +393,12 @@ public final class TimelineValidator {
 				}
 			}
 		}
-		// Also global keyframes on timeline model if any
-		if (document.getCameraKeyframes() != null) {
-			n += document.getCameraKeyframes().size();
-		}
+
 		return n;
+	}
+
+	private static boolean isFinite(double value) {
+		return Double.isFinite(value);
 	}
 
 	private static String formatTime(double seconds) {
