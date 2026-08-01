@@ -34,10 +34,10 @@ class BuildLayerSelectionTargetTest {
 		List<String> order = manager.getLayerOrderIds();
 		assertEquals(2, order.size());
 
-		manager.selectLayer(order.get(0), false, false, order);
+		manager.selectLayer(order.getFirst(), false, false, order);
 		List<String> preferred = manager.getSelectedStageObjectIds();
 		assertEquals(1, preferred.size());
-		assertEquals(manager.get(order.get(0)).getStageObjectId(), preferred.getFirst());
+		assertEquals(manager.get(order.getFirst()).getStageObjectId(), preferred.getFirst());
 
 		var resolved = AnimationDropTargetResolver.resolve(
 			preferred,

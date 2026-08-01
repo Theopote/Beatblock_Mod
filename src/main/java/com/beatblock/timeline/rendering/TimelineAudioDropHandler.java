@@ -17,6 +17,8 @@ import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineViewState;
 import com.beatblock.timeline.generation.AnimationDropTargetResolver;
+import com.beatblock.timeline.generation.AnimationMultiTargetDropPrompt;
+import com.beatblock.timeline.generation.AnimationPresetEventWriter;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.interaction.DragController;
 import com.beatblock.ui.i18n.BBTexts;
@@ -31,7 +33,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport.buildAudioAssetKey;
 import static com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport.computeNextClipStartOffset;
@@ -185,54 +186,39 @@ public final class TimelineAudioDropHandler {
 		double dropTime = DragController.snapTime(rawTime, null, timeline, toolbarState, viewState, interactionState);
 		dropTime = Math.max(0.0, dropTime);
 
-		double duration = preset.getDefaultDurationSeconds();
-		int written = 0;
-		for (String targetObjectId : targets.targetsForEventCreation()) {
-			AnimationEventParams params = new AnimationEventParams(
-				TimelineAnimationActionMode.ANIMATE,
-				presetId,
-				targetObjectId,
-				1.0f,
-				duration,
-				TimelineEventOrigin.MANUAL,
-				Map.of()
-			);
-			TimelineAnimationEvent event = new TimelineAnimationEvent(
-				"",
-				dropTime,
-				duration,
-				presetId,
-				targetObjectId,
-				1.0f,
-				params.toParameterMap()
-			);
-			if (TimelineDraftWriter.writeEvent(timeline, trackId, event, TimelineEventOrigin.MANUAL)) {
-				written++;
-			}
+		if (targets.mode() == AnimationDropTargetResolver.Mode.MULTI) {
+			// Ask user: primary vs all (Group Event deferred)
+			final double time = dropTime;
+			final String track = trackId;
+			final String pid = presetId;
+			final String displayName = preset.getDisplayName();
+			AnimationMultiTargetDropPrompt.request(new AnimationMultiTargetDropPrompt.Pending(
+				displayName,
+				targets.targetObjectIds(),
+				chosenTargets -> {
+					var result = AnimationPresetEventWriter.writePresetEvents(
+						timeline, track, pid, time, chosenTargets);
+					if (result.written() > 0) {
+						host.syncClockDuration();
+					}
+					AnimationPresetEventWriter.toastWriteResult(displayName, result);
+					return result.written();
+				}
+			));
+			return;
 		}
-		if (written > 0) {
-			timeline.sortAll();
+
+		var result = AnimationPresetEventWriter.writePresetEvents(
+			timeline,
+			trackId,
+			presetId,
+			dropTime,
+			targets.targetsForEventCreation()
+		);
+		if (result.written() > 0) {
 			host.syncClockDuration();
-			if (targets.isUnbound()) {
-				ToastNotificationSystem.showWarning(BBTexts.get(
-					"beatblock.animation_library.dropped_unbound",
-					preset.getDisplayName()
-				));
-			} else if (written > 1) {
-				ToastNotificationSystem.showSuccess(BBTexts.get(
-					"beatblock.animation_library.dropped_multi",
-					preset.getDisplayName(),
-					written
-				));
-			} else {
-				ToastNotificationSystem.showSuccess(BBTexts.get(
-					"beatblock.animation_library.dropped",
-					preset.getDisplayName()
-				));
-			}
-		} else {
-			ToastNotificationSystem.showError(BBTexts.get("beatblock.animation_library.drop_failed"));
 		}
+		AnimationPresetEventWriter.toastWriteResult(preset.getDisplayName(), result);
 	}
 
 	private static @Nullable String resolveTrackIdForRow(int rowIndex) {

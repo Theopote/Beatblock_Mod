@@ -191,7 +191,7 @@ public final class BuildLayerManager {
 		if (layerId == null) return;
 		selectedLayerIds.remove(layerId);
 		if (layerId.equals(selectionAnchorLayerId)) {
-			selectionAnchorLayerId = selectedLayerIds.isEmpty() ? null : selectedLayerIds.iterator().next();
+			selectionAnchorLayerId = selectedLayerIds.isEmpty() ? null : selectedLayerIds.getFirst();
 		}
 	}
 
@@ -221,7 +221,7 @@ public final class BuildLayerManager {
 	private void pruneMissingSelection() {
 		selectedLayerIds.removeIf(id -> id == null || !layers.containsKey(id));
 		if (selectionAnchorLayerId != null && !layers.containsKey(selectionAnchorLayerId)) {
-			selectionAnchorLayerId = selectedLayerIds.isEmpty() ? null : selectedLayerIds.iterator().next();
+			selectionAnchorLayerId = selectedLayerIds.isEmpty() ? null : selectedLayerIds.getFirst();
 		}
 	}
 
@@ -266,7 +266,7 @@ public final class BuildLayerManager {
 		if (blocks == null || blocks.isEmpty()) return 0;
 		int count = 0;
 		for (BlockPos pos : blocks) {
-			if (pos != null && isBlockClaimed(pos)) count++;
+			if (isBlockClaimed(pos)) count++;
 		}
 		return count;
 	}

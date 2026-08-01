@@ -379,7 +379,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 	}
 
 	/**
-	 * 若 beatmap 为 Demucs 茎分离模式，将各茎 WAV 加载进 {@link BeatBlock#stemMixer}，
+	 * 若 beatmap 为 Demucs 茎分离模式，将各茎 WAV 加载进 ，
 	 * 若非 Demucs 模式则清空 stemMixer。
 	 */
 	private void bindStemAudioIfDemucsInternal(com.beatblock.audio.beatmap.Beatmap beatmap) {

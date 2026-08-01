@@ -9,11 +9,13 @@ import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.generation.AnimationDropTargetResolver;
+import com.beatblock.timeline.generation.AnimationMultiTargetDropPrompt;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.ui.eventlibrary.EventTemplate;
 import com.beatblock.ui.eventlibrary.EventTemplateStore;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.notification.ToastNotificationSystem;
 
 import org.jspecify.annotations.Nullable;
 
@@ -108,8 +110,52 @@ public final class EventLibraryPanelPresenter {
 		}
 		AnimationDropTargetResolver.Result targets = resolveDropTargets(editor.getSelectionState(), tl);
 		double timeSeconds = editor.getClock().getCurrentTimeSeconds();
+
+		if (targets.mode() == AnimationDropTargetResolver.Mode.MULTI) {
+			final String templateName = template.name();
+			AnimationMultiTargetDropPrompt.request(new AnimationMultiTargetDropPrompt.Pending(
+				templateName,
+				targets.targetObjectIds(),
+				chosenTargets -> {
+					int written = writeTemplateEvents(tl, editor, template, timeSeconds, chosenTargets);
+					if (written <= 0) {
+						ToastNotificationSystem.showError(BBTexts.get("beatblock.event_library.apply_failed"));
+						return 0;
+					}
+					String msg = written > 1
+						? BBTexts.get("beatblock.event_library.applied_multi", templateName, written)
+						: BBTexts.get("beatblock.event_library.applied", templateName);
+					ToastNotificationSystem.showSuccess(msg);
+					return written;
+				}
+			));
+			statusMessage = BBTexts.get("beatblock.animation_library.multi_target.pending");
+			return new ApplyOutcome(true, statusMessage);
+		}
+
+		int written = writeTemplateEvents(tl, editor, template, timeSeconds, targets.targetsForEventCreation());
+		if (written <= 0) {
+			return fail(BBTexts.get("beatblock.event_library.apply_failed"));
+		}
+		if (targets.isUnbound()) {
+			statusMessage = BBTexts.get("beatblock.event_library.applied_unbound", template.name());
+		} else if (written > 1) {
+			statusMessage = BBTexts.get("beatblock.event_library.applied_multi", template.name(), written);
+		} else {
+			statusMessage = BBTexts.get("beatblock.event_library.applied", template.name());
+		}
+		return new ApplyOutcome(true, statusMessage);
+	}
+
+	private static int writeTemplateEvents(
+		Timeline tl,
+		TimelineEditor editor,
+		EventTemplate template,
+		double timeSeconds,
+		List<String> targetObjectIds
+	) {
 		int written = 0;
-		for (String targetObjectId : targets.targetsForEventCreation()) {
+		for (String targetObjectId : targetObjectIds) {
 			TimelineAnimationEvent event = template.toTimelineEvent(timeSeconds, targetObjectId);
 			if (TimelineDraftWriter.writeEvent(
 				tl,
@@ -120,19 +166,11 @@ public final class EventLibraryPanelPresenter {
 				written++;
 			}
 		}
-		if (written <= 0) {
-			return fail(BBTexts.get("beatblock.event_library.apply_failed"));
+		if (written > 0) {
+			tl.sortAll();
+			editor.syncClockDuration();
 		}
-		tl.sortAll();
-		editor.syncClockDuration();
-		if (targets.isUnbound()) {
-			statusMessage = BBTexts.get("beatblock.event_library.applied_unbound", template.name());
-		} else if (written > 1) {
-			statusMessage = BBTexts.get("beatblock.event_library.applied_multi", template.name(), written);
-		} else {
-			statusMessage = BBTexts.get("beatblock.event_library.applied", template.name());
-		}
-		return new ApplyOutcome(true, statusMessage);
+		return written;
 	}
 
 	public ApplyOutcome deleteTemplate(String templateId) {
