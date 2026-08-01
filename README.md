@@ -134,6 +134,8 @@ python -c "import demucs.api, torch; print('ok')"
 
 ## 构建与运行
 
+请始终使用仓库自带的 **Gradle Wrapper**（已固定 **Gradle 9.3.0** + SHA-256），不要依赖本机全局 Gradle。
+
 ```bash
 # 编译
 ./gradlew compileJava
@@ -146,9 +148,15 @@ python -c "import demucs.api, torch; print('ok')"
 
 # 启动带模组的开发客户端（Windows）
 ./gradlew runClient
+
+# 发布指纹：remap jar + SHA-256（release tag 应对应此校验）
+./gradlew clean fingerprintReleaseJar
 ```
 
-构建产物位于 `build/libs/beatblock-<version>.jar`，放入 Fabric 模组的 `mods` 文件夹即可。
+构建产物位于 `build/libs/beatblock-<version>.jar`，放入 Fabric 模组的 `mods` 文件夹即可。  
+发布校验文件：`build/libs/beatblock-release.sha256`。
+
+**可复现构建：** Loom 固定为正式版 `1.15.5`（非 SNAPSHOT）；依赖图见 `gradle.lockfile`，校验和见 `gradle/verification-metadata.xml`。说明见 [docs/REPRODUCIBLE_BUILDS.md](docs/REPRODUCIBLE_BUILDS.md)。
 
 **跨平台：** ImGui JNI 已包含 Windows / Linux / macOS 三平台 natives，发布包可在对应系统上运行。
 
@@ -338,6 +346,7 @@ beatblock/
 | 文档 | 内容 |
 |------|------|
 | [docs/architecture.md](docs/architecture.md) | 三层架构、概念 ↔ 代码映射、三种演出参数 |
+| [docs/REPRODUCIBLE_BUILDS.md](docs/REPRODUCIBLE_BUILDS.md) | 可复现构建：Loom/Gradle 固定、lock、verification、release 指纹 |
 | [docs/REFACTOR_ROADMAP.md](docs/REFACTOR_ROADMAP.md) | 重构阶段、进度快照、验收标准 |
 | [OPTIMIZATION_GUIDE.md](OPTIMIZATION_GUIDE.md) | 代码优化清单与 **完成进度**（P0/P1/P2） |
 | [REVIEW_SUMMARY.md](REVIEW_SUMMARY.md) | 2026-06 代码审查结论与路线图 |
