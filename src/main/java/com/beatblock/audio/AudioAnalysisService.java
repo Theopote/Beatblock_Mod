@@ -16,6 +16,10 @@ import java.util.function.Consumer;
 /**
  * 音频分析对外入口：任务调度见 {@link AudioAnalysisOrchestrator}，
  * Python 环境健康见 {@link PythonRuntimeHealthMonitor}。
+ *
+ * <p>生产必须通过 {@link #createForClient} 注入主线程 {@link MainThreadDispatcher}，
+ * 禁止无参构造默默使用 {@link MainThreadDispatcher#immediate()}（会在后台线程跑 UI 回调）。
+ * 测试使用 {@link #createForTesting()}。
  */
 public final class AudioAnalysisService {
 
@@ -24,17 +28,45 @@ public final class AudioAnalysisService {
 
 	private volatile boolean useDemucs = true;
 
-	public AudioAnalysisService() {
-		this(new PythonEnvironmentDiagnostics(), MainThreadDispatcher.immediate());
+	/**
+	 * 客户端生产入口：回调必须调度到主线程（例如 {@code ClientThreadExecutor::run}）。
+	 */
+	public static @NonNull AudioAnalysisService createForClient(
+		@NonNull PythonEnvironmentDiagnostics pythonDiagnostics,
+		@NonNull MainThreadDispatcher callbackDispatcher
+	) {
+		if (pythonDiagnostics == null) {
+			throw new IllegalArgumentException("pythonDiagnostics must not be null");
+		}
+		if (callbackDispatcher == null) {
+			throw new IllegalArgumentException("callbackDispatcher must not be null");
+		}
+		return new AudioAnalysisService(pythonDiagnostics, callbackDispatcher);
 	}
 
-	public AudioAnalysisService(PythonEnvironmentDiagnostics pythonDiagnostics) {
-		this(pythonDiagnostics, MainThreadDispatcher.immediate());
+	/**
+	 * 测试入口：使用 {@link MainThreadDispatcher#immediate()}，回调在调用/工作线程直接执行。
+	 * 请勿在生产路径调用。
+	 */
+	public static @NonNull AudioAnalysisService createForTesting() {
+		return createForTesting(new PythonEnvironmentDiagnostics());
 	}
 
-	public AudioAnalysisService(
-		PythonEnvironmentDiagnostics pythonDiagnostics,
-		MainThreadDispatcher callbackDispatcher
+	/**
+	 * 测试入口（可注入 diagnostics）。使用 immediate dispatcher，请勿在生产路径调用。
+	 */
+	public static @NonNull AudioAnalysisService createForTesting(
+		@NonNull PythonEnvironmentDiagnostics pythonDiagnostics
+	) {
+		if (pythonDiagnostics == null) {
+			throw new IllegalArgumentException("pythonDiagnostics must not be null");
+		}
+		return new AudioAnalysisService(pythonDiagnostics, MainThreadDispatcher.immediate());
+	}
+
+	private AudioAnalysisService(
+		@NonNull PythonEnvironmentDiagnostics pythonDiagnostics,
+		@NonNull MainThreadDispatcher callbackDispatcher
 	) {
 		this.orchestrator = new AudioAnalysisOrchestrator(
 			new PythonAudioAnalyzer(pythonDiagnostics),
@@ -43,11 +75,13 @@ public final class AudioAnalysisService {
 		this.runtimeHealthMonitor = new PythonRuntimeHealthMonitor(pythonDiagnostics);
 	}
 
+	/** 包内测试：注入 stub {@link IAudioAnalyzer}（orchestrator 默认 immediate dispatcher）。 */
 	AudioAnalysisService(IAudioAnalyzer analyzer, PythonEnvironmentDiagnostics pythonDiagnostics) {
 		this.orchestrator = new AudioAnalysisOrchestrator(analyzer);
 		this.runtimeHealthMonitor = new PythonRuntimeHealthMonitor(pythonDiagnostics);
 	}
 
+	/** 包内测试：完全替换 orchestrator / health monitor。 */
 	AudioAnalysisService(
 		AudioAnalysisOrchestrator orchestrator,
 		PythonRuntimeHealthMonitor runtimeHealthMonitor

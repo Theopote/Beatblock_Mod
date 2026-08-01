@@ -1,6 +1,7 @@
 package com.beatblock.audio;
 
 import com.beatblock.audio.beatmap.Beatmap;
+import com.beatblock.audio.python.PythonEnvironmentDiagnostics;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -11,9 +12,27 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AudioAnalysisServiceTest {
+
+	@Test
+	void createForClientRejectsNullDispatcher() {
+		assertThrows(IllegalArgumentException.class, () ->
+			AudioAnalysisService.createForClient(new PythonEnvironmentDiagnostics(), null));
+	}
+
+	@Test
+	void createForTestingUsesImmediateDispatcherWithoutRequiringClient() {
+		AudioAnalysisService service = AudioAnalysisService.createForTesting();
+		try {
+			assertNotNull(service.getAnalyzer());
+		} finally {
+			service.shutdown();
+		}
+	}
 
 	@Test
 	void delegatesAnalyzeToConfiguredBackend() throws Exception {

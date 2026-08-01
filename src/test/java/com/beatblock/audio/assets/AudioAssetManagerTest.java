@@ -52,7 +52,7 @@ class AudioAssetManagerTest {
 
 	@Test
 	void startAnalysisUsesDemucsFlagFromInjectedContext() {
-		AudioAnalysisService service = new AudioAnalysisService();
+		AudioAnalysisService service = AudioAnalysisService.createForTesting();
 		service.setUseDemucs(false);
 		manager.bindContext(() -> BeatBlockContext.builder().externalAudioAnalyzer(service).build());
 		AudioAsset asset = new AudioAsset(Path.of("sample.mp3"));

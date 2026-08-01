@@ -35,7 +35,7 @@ public final class BeatBlockTestSupport {
 			.timelineEditor(editor)
 			.blockAnimationEngine(engine)
 			.audioAnalysisEngine(new AudioAnalysisEngine())
-			.externalAudioAnalyzer(new AudioAnalysisService())
+			.externalAudioAnalyzer(AudioAnalysisService.createForTesting())
 			.audioConversionService(new AudioConversionService())
 			.videoExportService(new VideoExportService(Runnable::run))
 			.build();

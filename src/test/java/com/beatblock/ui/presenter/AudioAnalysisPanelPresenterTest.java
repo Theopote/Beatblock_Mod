@@ -16,7 +16,7 @@ class AudioAnalysisPanelPresenterTest {
 
 	@Test
 	void demucsToggleUsesInjectedAnalyzer() {
-		AudioAnalysisService service = new AudioAnalysisService();
+		AudioAnalysisService service = AudioAnalysisService.createForTesting();
 		service.setUseDemucs(true);
 		BeatBlockContext context = BeatBlockContext.builder()
 			.externalAudioAnalyzer(service)
@@ -53,7 +53,7 @@ class AudioAnalysisPanelPresenterTest {
 
 	@Test
 	void exposesRuntimeDiagnosticsFromInjectedService() {
-		AudioAnalysisService service = new AudioAnalysisService();
+		AudioAnalysisService service = AudioAnalysisService.createForTesting();
 		BeatBlockContext context = BeatBlockContext.builder()
 			.externalAudioAnalyzer(service)
 			.build();

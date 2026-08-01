@@ -79,7 +79,7 @@ public class BeatBlock implements ModInitializer {
 
 		AudioAnalysisEngine analysisEngine = new AudioAnalysisEngine();
 		MainThreadDispatcher callbackDispatcher = com.beatblock.client.export.ClientThreadExecutor::run;
-		AudioAnalysisService analyzer = new AudioAnalysisService(
+		AudioAnalysisService analyzer = AudioAnalysisService.createForClient(
 			new com.beatblock.audio.python.PythonEnvironmentDiagnostics(),
 			callbackDispatcher
 		);

@@ -71,7 +71,7 @@ class BeatBlockContextTest {
 
 	@Test
 	void closeShutsDownOwnedBackgroundServicesAndIsIdempotent() {
-		AudioAnalysisService analysis = new AudioAnalysisService();
+		AudioAnalysisService analysis = AudioAnalysisService.createForTesting();
 		AudioConversionService conversion = new AudioConversionService();
 		BeatBlockContext context = BeatBlockContext.builder()
 			.externalAudioAnalyzer(analysis)
