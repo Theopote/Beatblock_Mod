@@ -104,7 +104,7 @@ public final class TimelineTransportPresenter {
 		double duration = resolveDuration(editor);
 		boolean hasMusic = music != null && currentTimeline != null && currentTimeline.getDurationSeconds() > 0;
 		// 有音乐时以 session（音频）为准；无音乐测试路径仍可读 clock
-		boolean playing = hasMusic ? session.isPlaying() : session.isPlaying();
+		boolean playing = session.isPlaying();
 		String positionDisplay = MusicTimeFormatter.formatPositionDisplay(currentTime, duration, bpm);
 		return new TransportViewState(hasMusic, playing, bpm, seekStep, stepSeek,
 			currentTime, duration, positionDisplay);

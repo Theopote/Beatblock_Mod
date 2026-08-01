@@ -8,9 +8,12 @@ import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.payload.StageEventPayload;
 import org.jspecify.annotations.Nullable;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,6 +35,8 @@ public final class TimelineValidator {
 	public static final String RULE_MISSING_STAGE_OBJECT = "missing_stage_object";
 	public static final String RULE_EVENT_OUTSIDE_TIMELINE = "event_outside_timeline";
 	public static final String RULE_MISSING_AUDIO = "missing_audio_asset";
+	public static final String RULE_AUDIO_FILE_MISSING = "audio_file_missing";
+	public static final String RULE_MISSING_BUILD_LAYER = "missing_build_layer";
 	public static final String RULE_COUNT_ANIMATION = "count_animation_events";
 	public static final String RULE_COUNT_CAMERA = "count_camera_keyframes";
 	public static final String RULE_COUNT_LAYERS = "count_build_layers";
@@ -75,11 +80,11 @@ public final class TimelineValidator {
 				if (event == null) {
 					continue;
 				}
-				validateEvent(event, duration, engine, seenIds, issues);
+				validateEvent(event, duration, engine, layerManager, seenIds, issues);
 			}
 		}
 
-		// Audio path: warn when there is content to play but no bound audio
+		// Audio path: warn when there is content to play but no bound audio / file missing
 		Object audioPath = document.getMetadata("audioPath");
 		String path = audioPath != null ? String.valueOf(audioPath).trim() : "";
 		if (animCount > 0 && path.isBlank()) {
@@ -89,6 +94,21 @@ public final class TimelineValidator {
 				null,
 				Double.NaN
 			));
+		} else if (!path.isBlank()) {
+			boolean exists;
+			try {
+				exists = Files.isRegularFile(Path.of(path));
+			} catch (RuntimeException ignored) {
+				exists = false;
+			}
+			if (!exists) {
+				issues.add(TimelineDiagnostic.warning(
+					RULE_AUDIO_FILE_MISSING,
+					"Audio path does not exist on disk: " + path,
+					null,
+					Double.NaN
+				));
+			}
 		}
 
 		// Summary info lines (for Performance check UI counts — always present)
@@ -118,6 +138,7 @@ public final class TimelineValidator {
 		TimelineAnimationEvent event,
 		double timelineDuration,
 		@Nullable BlockAnimationEngine engine,
+		@Nullable BuildLayerManager layerManager,
 		Set<String> seenIds,
 		List<TimelineDiagnostic> issues
 	) {
@@ -148,7 +169,7 @@ public final class TimelineValidator {
 			));
 		}
 
-		// Payload / unsupported params
+		// Payload / unsupported params + BUILD layer binding
 		try {
 			StageEventPayload payload = event.getPayload();
 			if (payload == null) {
@@ -158,6 +179,18 @@ public final class TimelineValidator {
 					eventId,
 					time
 				));
+			} else if (payload.actionMode() == TimelineAnimationActionMode.BUILD
+				&& payload instanceof StageEventPayload.Build build) {
+				String layerId = build.layerId();
+				if (layerId != null && !layerId.isBlank() && layerManager != null
+					&& layerManager.get(layerId) == null) {
+					issues.add(TimelineDiagnostic.warning(
+						RULE_MISSING_BUILD_LAYER,
+						"BUILD event " + idLabel + " references missing layer \"" + layerId + "\"",
+						eventId,
+						time
+					));
+				}
 			}
 		} catch (RuntimeException ex) {
 			issues.add(TimelineDiagnostic.error(

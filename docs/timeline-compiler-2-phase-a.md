@@ -41,4 +41,5 @@ PlaybackSession.play + TimelineCompiler.compile (existing)
 
 ## Next (Phase B)
 
-Expand `CompiledTimelineSnapshot` → build layers, audio refs, markers; attach report to compile output.
+See [timeline-compiler-2-phase-b.md](timeline-compiler-2-phase-b.md) — **done**:
+build layers, audio refs, markers, validation report attached at compile.

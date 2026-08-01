@@ -17,21 +17,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TimelineValidatorTest {
 
 	@Test
-	void cleanTimelineWithValidEventHasNoErrorsOrWarnings() {
-		Timeline timeline = Timeline.createDefault();
-		timeline.setDurationSeconds(10);
-		timeline.setMetadata("audioPath", "C:/music/track.wav");
-		BlockAnimationEngine engine = new BlockAnimationEngine();
-		String animId = engine.getAnimationLibrary().getAll().keySet().iterator().next();
-		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
-			"stage-a", "Stage A", List.of(new BlockPos(0, 64, 0))));
-		timeline.addAutoAnimationEvent(event("ev1", 1.0, animId, "stage-a"));
+	void cleanTimelineWithValidEventHasNoErrorsOrWarnings() throws Exception {
+		java.nio.file.Path audio = java.nio.file.Files.createTempFile("bb-audio", ".wav");
+		try {
+			Timeline timeline = Timeline.createDefault();
+			timeline.setDurationSeconds(10);
+			timeline.setMetadata("audioPath", audio.toString());
+			BlockAnimationEngine engine = new BlockAnimationEngine();
+			String animId = engine.getAnimationLibrary().getAll().keySet().iterator().next();
+			engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+				"stage-a", "Stage A", List.of(new BlockPos(0, 64, 0))));
+			timeline.addAutoAnimationEvent(event("ev1", 1.0, animId, "stage-a"));
 
-		TimelineValidationReport report = TimelineValidator.validate(timeline, engine);
-		assertFalse(report.hasErrors());
-		assertFalse(report.hasWarnings());
-		assertEquals(1, report.animationEventCount());
-		assertTrue(report.infoCount() >= 3);
+			TimelineValidationReport report = TimelineValidator.validate(timeline, engine);
+			assertFalse(report.hasErrors());
+			assertFalse(report.hasWarnings(), () -> report.problems().toString());
+			assertEquals(1, report.animationEventCount());
+			assertTrue(report.infoCount() >= 3);
+		} finally {
+			java.nio.file.Files.deleteIfExists(audio);
+		}
 	}
 
 	@Test

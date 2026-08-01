@@ -175,7 +175,12 @@ public final class BeatBlockClientDriver {
 	private void startDrivingInternal() {
 		lastTickNanos = 0;
 		resetTimelineAnimationScheduling();
-		compiledPlayback = TimelineCompiler.compile(ctx().timeline(), ctx().blockAnimationEngine());
+		// Phase B: full compile with layers + validation report attached
+		compiledPlayback = TimelineCompiler.compile(
+			ctx().timeline(),
+			ctx().blockAnimationEngine(),
+			ctx().buildLayerManager()
+		);
 		driving = true;
 	}
 
@@ -269,7 +274,7 @@ public final class BeatBlockClientDriver {
 
 		CompiledTimelineSnapshot playback = previewOnly ? null : compiledPlayback;
 		if (!previewOnly && playback == null) {
-			playback = TimelineCompiler.compile(timeline);
+			playback = TimelineCompiler.compile(timeline, engine, ctx().buildLayerManager());
 			compiledPlayback = playback;
 		}
 		List<TimelineAnimationEvent> events = playback != null ? playback.stageEvents() : timeline.getStageEvents();

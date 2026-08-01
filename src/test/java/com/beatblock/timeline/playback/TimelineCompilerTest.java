@@ -1,11 +1,16 @@
 package com.beatblock.timeline.playback;
 
+import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.EventType;
+import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.TimelineOperations;
+import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.timeline.command.layer.CreateLayerCommand;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.StageObjectSystem;
+import com.beatblock.engine.layer.BuildLayerManager;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -111,5 +116,62 @@ class TimelineCompilerTest {
 		var ex = assertThrows(TimelineCompilationException.class, () -> TimelineCompiler.compile(timeline));
 		assertTrue(ex.getMessage().contains("Unsupported mutable parameter type"));
 		assertTrue(ex.getMessage().contains("java.lang.Object"));
+	}
+
+	@Test
+	void phaseBSnapshotIncludesMarkersAudioAndValidationReport() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.setDurationSeconds(30);
+		timeline.setMetadata("audioPath", "C:/does/not/exist/track.wav");
+		timeline.setMetadata("audioAssetId", "asset-1");
+		timeline.addMarker(new TimelineMarker("mk1", 4.0, "Drop", MarkerType.DROP));
+		timeline.addMarker(new TimelineMarker("mk2", 1.0, "Intro", MarkerType.GENERIC));
+
+		BlockAnimationEngine engine = new BlockAnimationEngine();
+		String animId = engine.getAnimationLibrary().getAll().keySet().iterator().next();
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"stage", "S", List.of(new BlockPos(0, 64, 0))));
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"ev", 2.0, 1.0, animId, "stage", 1f,
+			Map.of("animationType", animId, "targetObject", "stage", "durationSeconds", 1.0)));
+
+		CompiledTimelineSnapshot snapshot = TimelineCompiler.compile(timeline, engine, null);
+
+		assertEquals(2, snapshot.markers().size());
+		assertEquals("mk2", snapshot.markers().getFirst().id()); // sorted by time
+		assertEquals(30.0, snapshot.durationSeconds(), 1e-9);
+		assertTrue(snapshot.audio().pathPresent());
+		assertFalse(snapshot.audio().fileExists());
+		assertEquals("asset-1", snapshot.audio().assetId());
+		assertNotNull(snapshot.validationReport());
+		assertTrue(snapshot.validationReport().hasWarnings()); // missing audio file
+		assertEquals(1, snapshot.compiledStageEvents().size());
+	}
+
+	@Test
+	void phaseBBuildLayersAreFrozenAtCompileTime() {
+		StageObjectSystem stages = new StageObjectSystem();
+		BuildLayerManager layers = new BuildLayerManager(stages);
+		CommandManager commands = new CommandManager();
+		commands.execute(new CreateLayerCommand(layers, "Tower", List.of(new BlockPos(1, 64, 2))));
+		assertEquals(1, layers.getAll().size());
+		String layerId = layers.getAll().iterator().next().getId();
+		String stageId = layers.get(layerId).getStageObjectId();
+
+		Timeline timeline = Timeline.createDefault();
+		timeline.setMetadata("audioPath", "x.wav");
+		CompiledTimelineSnapshot snapshot = TimelineCompiler.compile(timeline, null, layers);
+
+		assertEquals(1, snapshot.buildLayers().size());
+		CompiledBuildLayer compiled = snapshot.buildLayers().getFirst();
+		assertEquals(layerId, compiled.layerId());
+		assertEquals(stageId, compiled.stageObjectId());
+		assertEquals(1, compiled.blockCount());
+
+		// Live manager mutation must not affect snapshot
+		layers.dissolveLayer(layers.get(layerId));
+		assertEquals(0, layers.getAll().size());
+		assertEquals(1, snapshot.buildLayers().size());
+		assertEquals(List.of(new BlockPos(1, 64, 2)), snapshot.buildLayers().getFirst().blocks());
 	}
 }

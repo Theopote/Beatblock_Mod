@@ -1,30 +1,61 @@
 package com.beatblock.timeline.playback;
 
+import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.engine.StageObject;
+import com.beatblock.engine.layer.BuildLayer;
+import com.beatblock.engine.layer.BuildLayerManager;
+import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.payload.StageEventPayload;
-import com.beatblock.engine.BlockAnimationEngine;
-import com.beatblock.engine.StageObject;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Array;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 将可编辑 Timeline 编译为一次播放期间稳定的不可变数据。 */
+/**
+ * Compiles an editable {@link Timeline} into an immutable {@link CompiledTimelineSnapshot}
+ * (Phase B: stage + camera + build layers + audio + markers + validation report).
+ */
 public final class TimelineCompiler {
 
 	private TimelineCompiler() {}
 
-	public static CompiledTimelineSnapshot compile(Timeline document) {
+	public static CompiledTimelineSnapshot compile(@Nullable Timeline document) {
+		return compile(document, null, null);
+	}
+
+	public static CompiledTimelineSnapshot compile(
+		@Nullable Timeline document,
+		@Nullable BlockAnimationEngine engine
+	) {
+		return compile(document, engine, null);
+	}
+
+	/**
+	 * Full compile with optional engine (stage/preset resolve) and layer manager (build layers).
+	 * Always runs {@link TimelineValidator} and attaches the report to the snapshot.
+	 */
+	public static CompiledTimelineSnapshot compile(
+		@Nullable Timeline document,
+		@Nullable BlockAnimationEngine engine,
+		@Nullable BuildLayerManager layerManager
+	) {
 		if (document == null) {
-			return new CompiledTimelineSnapshot(List.of(), List.of(), new CompiledCameraTrack(List.of()), new double[0], 120.0, true, -1);
+			return CompiledTimelineSnapshot.empty();
 		}
+
+		TimelineValidationReport report = TimelineValidator.validate(document, engine, layerManager);
+
 		List<TimelineAnimationEvent> events = new ArrayList<>();
 		for (TimelineAnimationEvent event : document.getStageEvents()) {
 			events.add(copyEvent(event));
@@ -32,32 +63,38 @@ public final class TimelineCompiler {
 		events.sort(Comparator
 			.comparingDouble(TimelineAnimationEvent::getTimeSeconds)
 			.thenComparing(TimelineAnimationEvent::getEventId));
+
 		double bpm = document.getBpm() > 0 ? document.getBpm() : 120.0;
+		double duration = Math.max(0, document.getDurationSeconds());
+
 		return new CompiledTimelineSnapshot(
 			events,
-			compileStageEvents(events, null),
+			compileStageEvents(events, engine),
 			compileCameraTrack(document.getTrack(Timeline.TRACK_ID_CAMERA)),
+			compileBuildLayers(layerManager),
+			compileMarkers(document),
+			compileAudio(document),
 			ReferenceBeatResolver.resolveBeatTimesSeconds(document),
 			bpm,
+			duration,
 			shouldRestoreWorldMutations(document),
-			document.getStageEventsGeneration()
+			document.getStageEventsGeneration(),
+			report
 		);
 	}
 
-	public static CompiledTimelineSnapshot compile(Timeline document, BlockAnimationEngine engine) {
-		CompiledTimelineSnapshot base = compile(document);
-		return new CompiledTimelineSnapshot(
-			base.stageEvents(), compileStageEvents(base.stageEvents(), engine), base.cameraTrack(),
-			base.referenceBeatTimesSeconds(), base.bpm(), base.restoreWorldMutations(), base.sourceGeneration());
-	}
-
 	private static List<CompiledStageEvent> compileStageEvents(
-		List<TimelineAnimationEvent> events, @Nullable BlockAnimationEngine engine) {
+		List<TimelineAnimationEvent> events,
+		@Nullable BlockAnimationEngine engine
+	) {
 		List<CompiledStageEvent> compiled = new ArrayList<>(events.size());
 		for (TimelineAnimationEvent event : events) {
-			var definition = engine != null ? engine.getAnimationLibrary().get(event.getAnimationTypeId()) : null;
+			var definition = engine != null
+				? engine.getAnimationLibrary().get(event.getAnimationTypeId())
+				: null;
 			StageObject source = engine != null
-				? engine.getStageObjectSystem().get(event.getTargetObjectId()) : null;
+				? engine.getStageObjectSystem().get(event.getTargetObjectId())
+				: null;
 			CompiledStageTarget target = null;
 			if (source != null) {
 				target = new CompiledStageTarget(
@@ -75,26 +112,103 @@ public final class TimelineCompiler {
 	}
 
 	private static CompiledCameraTrack compileCameraTrack(@Nullable Track track) {
-		if (track == null || !track.isEnabled()) return new CompiledCameraTrack(List.of());
+		if (track == null || !track.isEnabled()) {
+			return new CompiledCameraTrack(List.of());
+		}
 		List<CompiledCameraTrack.CameraClip> clips = new ArrayList<>();
 		for (var clip : track.getClips()) {
 			List<CompiledCameraTrack.CameraEvent> cameraEvents = new ArrayList<>();
 			for (var event : clip.getEvents()) {
 				cameraEvents.add(new CompiledCameraTrack.CameraEvent(
-					event.getId(), event.getTimeSeconds(), event.getType(), freezeMap(event.getParameters())));
+					event.getId(),
+					event.getTimeSeconds(),
+					event.getType(),
+					freezeMap(event.getParameters())
+				));
 			}
 			cameraEvents.sort(Comparator.comparingDouble(CompiledCameraTrack.CameraEvent::timeSeconds)
 				.thenComparing(CompiledCameraTrack.CameraEvent::id));
 			clips.add(new CompiledCameraTrack.CameraClip(
-				clip.getStartTimeSeconds(), clip.getEndTimeSeconds(), cameraEvents));
+				clip.getStartTimeSeconds(),
+				clip.getEndTimeSeconds(),
+				cameraEvents
+			));
 		}
 		clips.sort(Comparator.comparingDouble(CompiledCameraTrack.CameraClip::startTimeSeconds));
 		return new CompiledCameraTrack(clips);
 	}
 
+	private static List<CompiledBuildLayer> compileBuildLayers(@Nullable BuildLayerManager layerManager) {
+		if (layerManager == null) {
+			return List.of();
+		}
+		List<CompiledBuildLayer> out = new ArrayList<>();
+		for (BuildLayer layer : layerManager.getAll()) {
+			if (layer == null) {
+				continue;
+			}
+			StageObject stage = layer.getStageObject();
+			List<net.minecraft.util.math.BlockPos> blocks = stage != null
+				? List.copyOf(stage.getBlocks())
+				: List.of();
+			String state = layer.getState() != null ? layer.getState().name() : "FREE_VISIBLE";
+			out.add(new CompiledBuildLayer(
+				layer.getId(),
+				layer.getName(),
+				layer.getStageObjectId(),
+				layer.getBoundClipId(),
+				state,
+				layer.getGroupId(),
+				blocks
+			));
+		}
+		out.sort(Comparator.comparing(CompiledBuildLayer::layerId));
+		return List.copyOf(out);
+	}
+
+	private static List<CompiledMarker> compileMarkers(Timeline document) {
+		List<CompiledMarker> out = new ArrayList<>();
+		for (TimelineMarker marker : document.getMarkers()) {
+			if (marker == null) {
+				continue;
+			}
+			MarkerType type = marker.getType();
+			out.add(new CompiledMarker(
+				marker.getId(),
+				marker.getTimeSeconds(),
+				marker.getName(),
+				type != null ? type.name() : "GENERIC"
+			));
+		}
+		out.sort(Comparator
+			.comparingDouble(CompiledMarker::timeSeconds)
+			.thenComparing(CompiledMarker::id));
+		return List.copyOf(out);
+	}
+
+	private static CompiledAudioReference compileAudio(Timeline document) {
+		Object pathRaw = document.getMetadata("audioPath");
+		String path = pathRaw != null ? String.valueOf(pathRaw).trim() : "";
+		boolean present = !path.isBlank();
+		boolean exists = false;
+		if (present) {
+			try {
+				exists = Files.isRegularFile(Path.of(path));
+			} catch (RuntimeException ignored) {
+				exists = false;
+			}
+		}
+		Object assetRaw = document.getMetadata("audioAssetId");
+		String assetId = assetRaw != null ? String.valueOf(assetRaw).trim() : null;
+		if (assetId != null && assetId.isBlank()) {
+			assetId = null;
+		}
+		double duration = Math.max(0, document.getDurationSeconds());
+		return new CompiledAudioReference(path, present, exists, duration, assetId);
+	}
+
 	private static TimelineAnimationEvent copyEvent(TimelineAnimationEvent event) {
-		// 先通过 StageEventPayload 做一次强类型验证，再冻结回参数表。
-		// 这样播放快照不再依赖“猜如何深复制任意 Map”，而是只保留已知可序列化的基础类型。
+		// Strong-type validate via StageEventPayload, then freeze parameter map.
 		StageEventPayload payload = event.getPayload();
 		return new TimelineAnimationEvent(
 			event.getEventId(),
@@ -108,15 +222,21 @@ public final class TimelineCompiler {
 	}
 
 	private static Map<String, Object> freezeMap(Map<String, Object> source) {
-		if (source == null || source.isEmpty()) return Map.of();
+		if (source == null || source.isEmpty()) {
+			return Map.of();
+		}
 		Map<String, Object> frozen = new LinkedHashMap<>();
-		for (var entry : source.entrySet()) frozen.put(entry.getKey(), freezeValue(entry.getValue()));
+		for (var entry : source.entrySet()) {
+			frozen.put(entry.getKey(), freezeValue(entry.getValue()));
+		}
 		return Map.copyOf(frozen);
 	}
 
 	private static Object freezeValue(Object value) {
 		if (value == null || value instanceof String || value instanceof Number
-			|| value instanceof Boolean || value instanceof Character || value instanceof Enum<?>) return value;
+			|| value instanceof Boolean || value instanceof Character || value instanceof Enum<?>) {
+			return value;
+		}
 		if (value instanceof Map<?, ?> map) {
 			Map<String, Object> frozen = new LinkedHashMap<>();
 			for (var entry : map.entrySet()) {
@@ -126,12 +246,16 @@ public final class TimelineCompiler {
 		}
 		if (value instanceof Iterable<?> iterable) {
 			List<Object> frozen = new ArrayList<>();
-			for (Object item : iterable) frozen.add(freezeValue(item));
+			for (Object item : iterable) {
+				frozen.add(freezeValue(item));
+			}
 			return List.copyOf(frozen);
 		}
 		if (value.getClass().isArray()) {
 			List<Object> frozen = new ArrayList<>(Array.getLength(value));
-			for (int i = 0; i < Array.getLength(value); i++) frozen.add(freezeValue(Array.get(value, i)));
+			for (int i = 0; i < Array.getLength(value); i++) {
+				frozen.add(freezeValue(Array.get(value, i)));
+			}
 			return List.copyOf(frozen);
 		}
 		throw new TimelineCompilationException(
@@ -140,7 +264,9 @@ public final class TimelineCompiler {
 
 	private static boolean shouldRestoreWorldMutations(Timeline timeline) {
 		Object raw = timeline.getMetadata("timelineActionRollbackMode");
-		if (raw == null) return true;
+		if (raw == null) {
+			return true;
+		}
 		String mode = String.valueOf(raw).trim().toLowerCase(java.util.Locale.ROOT);
 		return !"persistent".equals(mode) && !"performance".equals(mode);
 	}
