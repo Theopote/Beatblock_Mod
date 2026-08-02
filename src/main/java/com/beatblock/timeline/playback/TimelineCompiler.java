@@ -258,7 +258,7 @@ public final class TimelineCompiler {
 					out.add(new CompiledGlobalEvent(
 						 id,
 						 event.getTimeSeconds(),
-						 new GlobalEventPayload.Generic(typeName, name, freezeMap(event.getParameters()))
+						 GlobalEventPayloadCodec.decode(freezeMap(event.getParameters()))
 					));
 				}
 			}
@@ -272,7 +272,7 @@ public final class TimelineCompiler {
 				out.add(new CompiledGlobalEvent(
 					 id,
 					 ge.getTimeSeconds(),
-					 new GlobalEventPayload.Generic(typeName, ge.getName(), Map.of())
+					 GlobalEventPayloadCodec.decode(Map.of("type", typeName, "name", ge.getName()))
 				));
 			}
 		}

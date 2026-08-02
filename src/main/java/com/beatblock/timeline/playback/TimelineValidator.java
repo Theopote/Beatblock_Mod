@@ -33,6 +33,7 @@ public final class TimelineValidator {
 	public static final String RULE_NON_POSITIVE_EVENT_DURATION = "non_positive_event_duration";
 	public static final String RULE_MISSING_ANIMATION_PRESET = "missing_animation_preset";
 	public static final String RULE_UNSUPPORTED_PAYLOAD = "unsupported_payload";
+	public static final String RULE_INVALID_GLOBAL_PAYLOAD = "invalid_global_payload";
 	public static final String RULE_UNBOUND_TARGET = "unbound_target";
 	public static final String RULE_MISSING_STAGE_OBJECT = "missing_stage_object";
 	public static final String RULE_EVENT_OUTSIDE_TIMELINE = "event_outside_timeline";
@@ -147,6 +148,18 @@ public final class TimelineValidator {
 							event.getId(),
 							eventTime
 						));
+					}					if (event.getType() == EventType.GLOBAL
+						|| Timeline.TRACK_ID_GLOBAL.equals(track.getId())) {
+						try {
+							GlobalEventPayloadCodec.decode(event.getParameters());
+						} catch (RuntimeException ex) {
+							issues.add(TimelineDiagnostic.error(
+								RULE_INVALID_GLOBAL_PAYLOAD,
+								"Invalid global payload for event " + event.getId() + ": " + ex.getMessage(),
+								event.getId(),
+								eventTime
+							));
+						}
 					}
 				}
 			}

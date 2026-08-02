@@ -32,9 +32,12 @@ public record CompiledGlobalEvent(
 	}
 
 	public String name() {
-		if (payload instanceof GlobalEventPayload.Generic g) {
-			return g.name();
-		}
+		if (payload instanceof GlobalEventPayload.Generic g) return g.name();
+		if (payload instanceof GlobalEventPayload.Lighting p) return p.name();
+		if (payload instanceof GlobalEventPayload.Weather p) return p.name();
+		if (payload instanceof GlobalEventPayload.ParticleBurst p) return p.name();
+		if (payload instanceof GlobalEventPayload.ScreenFlash p) return p.name();
+		if (payload instanceof GlobalEventPayload.AudioMix p) return p.name();
 		return "";
 	}
 }
