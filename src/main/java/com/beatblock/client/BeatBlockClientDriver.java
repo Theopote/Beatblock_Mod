@@ -26,6 +26,7 @@ import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -360,11 +361,11 @@ public final class BeatBlockClientDriver {
 
 	private GlobalEventExecutor createGlobalEventExecutor() {
 		return new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
-			@Override public boolean applyLighting(GlobalEventPayload.Lighting payload) { return GlobalVisualEffectOverlay.applyLighting(payload); }
-			@Override public boolean applyWeather(GlobalEventPayload.Weather payload) { return applyGlobalWeather(payload); }
-			@Override public boolean emitParticleBurst(GlobalEventPayload.ParticleBurst payload) { return emitGlobalParticles(payload); }
-			@Override public boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload) { return GlobalVisualEffectOverlay.applyScreenFlash(payload); }
-			@Override public boolean applyAudioMix(GlobalEventPayload.AudioMix payload) { return applyGlobalAudioMix(payload); }
+			@Override public boolean applyLighting(GlobalEventPayload.@NotNull Lighting payload) { return GlobalVisualEffectOverlay.applyLighting(payload); }
+			@Override public boolean applyWeather(GlobalEventPayload.@NotNull Weather payload) { return applyGlobalWeather(payload); }
+			@Override public boolean emitParticleBurst(GlobalEventPayload.@NotNull ParticleBurst payload) { return emitGlobalParticles(payload); }
+			@Override public boolean applyScreenFlash(GlobalEventPayload.@NotNull ScreenFlash payload) { return GlobalVisualEffectOverlay.applyScreenFlash(payload); }
+			@Override public boolean applyAudioMix(GlobalEventPayload.@NotNull AudioMix payload) { return applyGlobalAudioMix(payload); }
 		});
 	}
 
@@ -461,7 +462,7 @@ public final class BeatBlockClientDriver {
 		}
 		var plan = engine.planControl(event, world);
 		var mutations = plan.mutations();
-		if (mutations == null || mutations.isEmpty()) {
+		if (mutations.isEmpty()) {
 			String detail = plan.skipReason() != null
 				? "skip-" + plan.skipReason().name().toLowerCase(Locale.ROOT)
 				: "skip-no-change";
@@ -509,7 +510,7 @@ public final class BeatBlockClientDriver {
 		);
 		lastTimelineActionExecutionReport = report;
 		String eventId = event.getEventId();
-		if (eventId != null && !eventId.isBlank()) {
+		if (!eventId.isBlank()) {
 			if (timelineActionReportByEventId.size() > MAX_ACTION_REPORT_CACHE_SIZE) {
 				timelineActionReportByEventId.clear();
 			}
