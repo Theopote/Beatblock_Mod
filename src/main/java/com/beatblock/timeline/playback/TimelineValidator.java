@@ -167,7 +167,17 @@ public final class TimelineValidator {
 							event.getId(),
 							eventTime
 						));
-					}					if (event.getType() == EventType.GLOBAL
+					}
+					if (isFinite(eventTime) && eventTime < 0
+						&& (event.getType() == EventType.GLOBAL || Timeline.TRACK_ID_GLOBAL.equals(track.getId()))) {
+						issues.add(TimelineDiagnostic.error(
+							"negative_global_time",
+							"Global event in track \"" + track.getName() + "\" has negative time: " + eventTime,
+							event.getId(),
+							eventTime
+						));
+					}
+					if (event.getType() == EventType.GLOBAL
 						|| Timeline.TRACK_ID_GLOBAL.equals(track.getId())) {
 						try {
 							GlobalEventPayloadCodec.decode(event.getParameters());
@@ -207,6 +217,13 @@ public final class TimelineValidator {
 					issues.add(TimelineDiagnostic.error(
 						"non_finite_global_time",
 						"Global event \"" + ge.getName() + "\" has non-finite time: " + ge.getTimeSeconds(),
+						null,
+						ge.getTimeSeconds()
+					));
+				}				else if (ge.getTimeSeconds() < 0) {
+					issues.add(TimelineDiagnostic.error(
+						"negative_global_time",
+						"Global event \"" + ge.getName() + "\" has negative time: " + ge.getTimeSeconds(),
 						null,
 						ge.getTimeSeconds()
 					));

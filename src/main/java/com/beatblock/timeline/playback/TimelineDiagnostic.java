@@ -64,6 +64,7 @@ public record TimelineDiagnostic(
 			|| "non_finite_camera_time".equals(ruleId)
 			|| "non_finite_marker_time".equals(ruleId)
 			|| "non_finite_global_time".equals(ruleId)
+			|| "negative_global_time".equals(ruleId)
 			|| "non_finite_beat_time".equals(ruleId)
 			|| "invalid_clip_range".equals(ruleId)
 			|| "invalid_bpm".equals(ruleId)

@@ -61,4 +61,34 @@ class GlobalEventPayloadCodecTest {
 			.anyMatch(d -> TimelineValidator.RULE_INVALID_GLOBAL_PAYLOAD.equals(d.ruleId())));
 		assertThrows(TimelineCompilationException.class, () -> TimelineCompiler.compile(timeline));
 	}
+
+	@Test
+	void compiledGlobalEventRejectsInvalidTimeInsteadOfClamping() {
+		GlobalEventPayload payload = new GlobalEventPayload.Generic("SPECIAL", "", Map.of());
+		assertThrows(IllegalArgumentException.class,
+			() -> new CompiledGlobalEvent("negative", -2.0, payload));
+		assertThrows(IllegalArgumentException.class,
+			() -> new CompiledGlobalEvent("nan", Double.NaN, payload));
+	}
+
+	@Test
+	void compilerReportsNegativeGlobalTimeAsFatal() {
+		Timeline timeline = Timeline.createDefault();
+		var track = timeline.getTrack(Timeline.TRACK_ID_GLOBAL);
+		var clip = TimelineOperations.addClip(track, 0.0, 1.0);
+		clip.addEvent(new com.beatblock.timeline.TimelineEvent(
+			"negative-global", 0.0, EventType.GLOBAL,
+			Map.of("type", "LIGHTING", "name", "Too early", "intensity", 1.0)) {
+			@Override public double getTimeSeconds() { return -2.0; }
+		});
+
+		TimelineValidationReport report = TimelineValidator.validate(timeline, null);
+		assertTrue(report.hasFatalErrors());
+		assertTrue(report.problems().stream()
+			.anyMatch(d -> "negative_global_time".equals(d.ruleId()) && d.timeSeconds() == -2.0));
+		TimelineCompilationException error = assertThrows(TimelineCompilationException.class,
+			() -> TimelineCompiler.compile(timeline, null, null, CompilePolicy.SKIP_INVALID_EVENTS));
+		assertTrue(error.report() != null);
+		assertTrue(error.getMessage().contains("ruleId=negative_global_time"));
+	}
 }

@@ -14,8 +14,8 @@ public record CompiledGlobalEvent(
 	public CompiledGlobalEvent {
 		id = id != null ? id : "";
 		Objects.requireNonNull(payload, "payload");
-		if (timeSeconds < 0) {
-			timeSeconds = 0;
+		if (!Double.isFinite(timeSeconds) || timeSeconds < 0) {
+			throw new IllegalArgumentException("timeSeconds must be finite and non-negative: " + timeSeconds);
 		}
 	}
 
