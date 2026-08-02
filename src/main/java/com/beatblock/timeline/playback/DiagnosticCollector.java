@@ -3,11 +3,12 @@ package com.beatblock.timeline.playback;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 
 /** Mutable diagnostic sink scoped to one validation run. */
 public final class DiagnosticCollector {
 	private final List<TimelineDiagnostic> diagnostics = new ArrayList<>();
-	private TimelineSourceLocation currentLocation;
+	private @Nullable TimelineSourceLocation currentLocation;
 
 	public void add(TimelineDiagnostic diagnostic) {
 		TimelineDiagnostic value = Objects.requireNonNull(diagnostic, "diagnostic");
@@ -18,7 +19,7 @@ public final class DiagnosticCollector {
 	public void at(TimelineSourceLocation location, Runnable validation) {
 		Objects.requireNonNull(location, "location");
 		Objects.requireNonNull(validation, "validation");
-		TimelineSourceLocation previous = currentLocation;
+		@Nullable TimelineSourceLocation previous = currentLocation;
 		currentLocation = location;
 		try {
 			validation.run();

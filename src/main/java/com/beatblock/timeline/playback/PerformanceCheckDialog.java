@@ -156,7 +156,10 @@ public final class PerformanceCheckDialog {
 		if (safelyRepairable > 0) {
 			String label = BBTexts.get("beatblock.performance_check.repair_safe", safelyRepairable);
 			if (ImGui.button(label + "##pcRepairSafe", 220f, 0f)) {
-				PerformanceCheckController.repairSafely(BeatBlock.getContext().commandManager());
+				var commandManager = BeatBlock.getContext().commandManager();
+				if (commandManager != null) {
+					PerformanceCheckController.repairSafely(commandManager);
+				}
 			}
 			if (ImGui.isItemHovered()) {
 				ImGui.setTooltip(BBTexts.get("beatblock.performance_check.repair_safe.tooltip"));

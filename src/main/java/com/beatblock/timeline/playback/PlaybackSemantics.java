@@ -1,5 +1,7 @@
 package com.beatblock.timeline.playback;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Semantics of how an event behaves when playback is running or seeking/rewinding.
  */
@@ -19,7 +21,7 @@ public enum PlaybackSemantics {
 	 */
 	IDEMPOTENT;
 
-	public static java.util.Optional<PlaybackSemantics> fromValue(Object value) {
+	public static java.util.Optional<PlaybackSemantics> fromValue(@Nullable Object value) {
 		if (value instanceof PlaybackSemantics semantics) {
 			return java.util.Optional.of(semantics);
 		}

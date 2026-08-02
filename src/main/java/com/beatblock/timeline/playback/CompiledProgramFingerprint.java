@@ -10,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /** Stable SHA-256 identity of executable snapshot content. */
 public final class CompiledProgramFingerprint {
@@ -75,7 +76,7 @@ public final class CompiledProgramFingerprint {
 		field(out, value.getClass().getName(), value);
 	}
 
-	private static void field(StringBuilder out, String name, Object value) {
+	private static void field(StringBuilder out, String name, @Nullable Object value) {
 		String text = value instanceof Double d ? Long.toHexString(Double.doubleToLongBits(d))
 			: value instanceof Float f ? Integer.toHexString(Float.floatToIntBits(f)) : String.valueOf(value);
 		out.append(name.length()).append(':').append(name).append('=').append(text.length()).append(':').append(text).append(';');

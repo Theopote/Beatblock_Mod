@@ -2,7 +2,7 @@ plugins {
 	id 'fabric-loom' version "${loom_version}"
 	id 'maven-publish'
 	id 'jacoco'
-	id 'net.ltgt.errorprone' version '4.1.0' apply false
+	id 'net.ltgt.errorprone' version '4.1.0'
 }
 
 version = project.mod_version
@@ -18,6 +18,8 @@ base {
 //   ./gradlew dependencies --write-locks
 dependencyLocking {
 	lockAllConfigurations()
+	// LWJGL resolves this bridge only on macOS. Its artifact remains checksum-verified.
+	ignoredDependencies.add('ca.weblite:java-objc-bridge')
 }
 
 // Stable zip/jar metadata across machines and rebuild times.
@@ -40,9 +42,6 @@ repositories {
 	}
 }
 
-if (findProperty('enableNullaway') == 'true') {
-	apply plugin: 'net.ltgt.errorprone'
-}
 
 configurations {
 	spotbugs
@@ -92,10 +91,8 @@ dependencies {
 
 	spotbugs 'com.github.spotbugs:spotbugs:4.10.2'
 
-	if (findProperty('enableNullaway') == 'true') {
-		errorprone 'com.google.errorprone:error_prone_core:2.36.0'
-		errorprone 'com.uber.nullaway:nullaway:0.12.3'
-	}
+	errorprone 'com.google.errorprone:error_prone_core:2.36.0'
+	errorprone 'com.uber.nullaway:nullaway:0.12.3'
 }
 
 processResources {
@@ -108,6 +105,7 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 21
+	it.options.errorprone.enabled = findProperty('enableNullaway') == 'true'
 	if (it.name == 'compileJava' && findProperty('enableNullaway') == 'true') {
 		it.options.compilerArgs << '-XDaddTypeAnnotationsToSymbol=true'
 		it.options.errorprone {
