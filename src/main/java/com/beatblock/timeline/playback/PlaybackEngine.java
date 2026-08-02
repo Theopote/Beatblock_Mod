@@ -38,7 +38,7 @@ public final class PlaybackEngine {
 
 	private @Nullable CompiledTimelineSnapshot program;
 	private final Map<String, CompiledStageEvent> stageById = new HashMap<>();
-	private final Set<String> scheduledStageIds = new HashSet<>();
+	private final Set<Long> scheduledStageSequences = new HashSet<>();
 	private final Set<String> scheduledGlobalIds = new HashSet<>();
 	private int stageCursor;
 	private int globalCursor;
@@ -64,7 +64,7 @@ public final class PlaybackEngine {
 	public void reset() {
 		program = null;
 		stageById.clear();
-		scheduledStageIds.clear();
+		scheduledStageSequences.clear();
 		scheduledGlobalIds.clear();
 		stageCursor = 0;
 		globalCursor = 0;
@@ -99,7 +99,7 @@ public final class PlaybackEngine {
 			return;
 		}
 		if (currentTime + EVENT_EPSILON < lastTime) {
-			scheduledStageIds.clear();
+			scheduledStageSequences.clear();
 			scheduledGlobalIds.clear();
 			stageCursor = 0;
 			globalCursor = 0;
@@ -119,8 +119,8 @@ public final class PlaybackEngine {
 			if (event.getTimeSeconds() > currentTime + EVENT_EPSILON) {
 				break;
 			}
-			String key = scheduleKey(event);
-			if (scheduledStageIds.add(key) && stageHandler != null) {
+			long key = compiled.stableSequence();
+			if (scheduledStageSequences.add(key) && stageHandler != null) {
 				stageHandler.onStageEvent(compiled, event);
 			}
 			stageCursor++;
@@ -151,19 +151,13 @@ public final class PlaybackEngine {
 
 	/** Unit-test helper: how many stage events have been scheduled since load/reset. */
 	public int scheduledStageCount() {
-		return scheduledStageIds.size();
+		return scheduledStageSequences.size();
 	}
 
 	public int scheduledGlobalCount() {
 		return scheduledGlobalIds.size();
 	}
 
-	private static String scheduleKey(TimelineAnimationEvent event) {
-		if (event.getEventId() != null && !event.getEventId().isBlank()) {
-			return event.getEventId();
-		}
-		return event.getTimeSeconds() + "|" + event.getAnimationTypeId() + "|" + event.getTargetObjectId();
-	}
 
 	private static String globalKey(CompiledGlobalEvent event) {
 		if (event.id() != null && !event.id().isBlank()) {

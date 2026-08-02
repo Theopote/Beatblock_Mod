@@ -129,4 +129,37 @@ class PlaybackEngineTest {
 		pe.load(program);
 		assertNotNull(pe.findCompiledStage("stable-id"));
 	}
+	@Test
+	void identicalIdlessEventsUseCompiledSequenceAsSchedulingIdentity() {
+		TimelineAnimationEvent first = new TimelineAnimationEvent(
+			"", 1.0, 1.0, "Pulse", "tower", 1f, Map.of());
+		TimelineAnimationEvent second = new TimelineAnimationEvent(
+			"", 1.0, 1.0, "Pulse", "tower", 1f, Map.of());
+		CompiledTimelineSnapshot program = new CompiledTimelineSnapshot(
+			List.of(first, second),
+			List.of(
+				new CompiledStageEvent(first, null, null, 0L),
+				new CompiledStageEvent(second, null, null, 1L)
+			),
+			new CompiledCameraTrack(List.of()),
+			List.of(),
+			List.of(),
+			List.of(),
+			CompiledAudioReference.empty(),
+			new double[0],
+			120.0,
+			2.0,
+			true,
+			0,
+			null
+		);
+
+		PlaybackEngine engine = new PlaybackEngine();
+		engine.load(program);
+		AtomicInteger hits = new AtomicInteger();
+		engine.advance(1.0, (compiled, event) -> hits.incrementAndGet(), null);
+
+		assertEquals(2, hits.get());
+		assertEquals(2, engine.scheduledStageCount());
+	}
 }
