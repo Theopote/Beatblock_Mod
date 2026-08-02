@@ -1,5 +1,7 @@
 package com.beatblock.timeline.playback;
 
+import com.beatblock.BeatBlock;
+
 import java.util.Objects;
 
 /** Executes compiled global events through explicit runtime capabilities. */
@@ -37,6 +39,7 @@ public final class GlobalEventExecutor {
 		} else if (payload instanceof GlobalEventPayload.AudioMix value) {
 			executed = backend.applyAudioMix(value);
 		} else if (payload instanceof GlobalEventPayload.Generic value) {
+			BeatBlock.LOGGER.warn("Unsupported global event type {} ({})", value.typeName(), event.id());
 			backend.unsupported(value);
 			executed = false;
 		} else {

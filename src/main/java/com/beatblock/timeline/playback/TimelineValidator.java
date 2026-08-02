@@ -17,6 +17,7 @@ public final class TimelineValidator {
 	public static final String RULE_MISSING_ANIMATION_PRESET = "missing_animation_preset";
 	public static final String RULE_UNSUPPORTED_PAYLOAD = "unsupported_payload";
 	public static final String RULE_INVALID_GLOBAL_PAYLOAD = "invalid_global_payload";
+	public static final String RULE_UNKNOWN_GLOBAL_EVENT = "unknown_global_event";
 	public static final String RULE_INVALID_REFERENCE_BEAT_DATA = "invalid_reference_beat_data";
 	public static final String RULE_BPM_METADATA_MISMATCH = "timeline_bpm_metadata_mismatch";
 	public static final String RULE_UNBOUND_TARGET = "unbound_target";

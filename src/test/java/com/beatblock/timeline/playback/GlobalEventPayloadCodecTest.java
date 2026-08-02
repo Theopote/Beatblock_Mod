@@ -91,4 +91,19 @@ class GlobalEventPayloadCodecTest {
 		assertTrue(error.report() != null);
 		assertTrue(error.getMessage().contains("ruleId=negative_global_time"));
 	}
+
+	@Test
+	void unknownGlobalTypeProducesVisibleValidationWarning() {
+		Timeline timeline = Timeline.createDefault();
+		var track = timeline.getTrack(Timeline.TRACK_ID_GLOBAL);
+		var clip = TimelineOperations.addClip(track, 0.0, 2.0);
+		TimelineOperations.addEvent(clip, 1.0, EventType.GLOBAL,
+			Map.of("type", "PLUGIN_NOT_INSTALLED", "name", "Extension cue"));
+
+		TimelineValidationReport report = TimelineValidator.validate(timeline, null);
+		assertTrue(report.problems().stream().anyMatch(d ->
+			TimelineValidator.RULE_UNKNOWN_GLOBAL_EVENT.equals(d.ruleId())
+				&& d.severity() == TimelineDiagnosticSeverity.WARNING));
+		assertEquals(1, TimelineCompiler.compile(timeline).globalEvents().size());
+	}
 }

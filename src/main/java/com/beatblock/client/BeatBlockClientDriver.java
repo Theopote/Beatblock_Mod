@@ -2,6 +2,7 @@ package com.beatblock.client;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.client.vfx.VfxEmitter;
+import com.beatblock.client.render.GlobalVisualEffectOverlay;
 import com.beatblock.engine.BlockControlExecutor;
 import com.beatblock.engine.WorldMutationSink;
 import com.beatblock.runtime.BeatBlockContext;
@@ -358,10 +359,10 @@ public final class BeatBlockClientDriver {
 	private void onCompiledGlobalEvent(CompiledGlobalEvent event) {
 		if (event == null) return;
 		GlobalEventExecutor.ExecutionResult execution = new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
-			@Override public boolean applyLighting(GlobalEventPayload.Lighting payload) { return false; }
+			@Override public boolean applyLighting(GlobalEventPayload.Lighting payload) { return GlobalVisualEffectOverlay.applyLighting(payload); }
 			@Override public boolean applyWeather(GlobalEventPayload.Weather payload) { return applyGlobalWeather(payload); }
 			@Override public boolean emitParticleBurst(GlobalEventPayload.ParticleBurst payload) { return emitGlobalParticles(payload); }
-			@Override public boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload) { return false; }
+			@Override public boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload) { return GlobalVisualEffectOverlay.applyScreenFlash(payload); }
 			@Override public boolean applyAudioMix(GlobalEventPayload.AudioMix payload) { return applyGlobalAudioMix(payload); }
 		}).execute(event);
 		lastTimelineActionExecutionReport = new TimelineActionExecutionReport(

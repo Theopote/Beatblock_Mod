@@ -13,9 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlaybackEngineTest {
@@ -265,5 +267,58 @@ class PlaybackEngineTest {
 			(compiled, source) -> hits.incrementAndGet(), null);
 
 		assertEquals(1, hits.get());
+	}
+
+	@Test
+	void seekFromZeroToSixtyThenBackToThirtyReconstructsWithoutTransientReplay() {
+		List<TimelineAnimationEvent> events = List.of(
+			new TimelineAnimationEvent("state-10", 10.0, 1.0, "Place", "stage", 1f, Map.of("actionMode", "PLACE")),
+			new TimelineAnimationEvent("fx-20", 20.0, 1.0, "Pulse", "stage", 1f, Map.of("actionMode", "ANIMATE")),
+			new TimelineAnimationEvent("state-40", 40.0, 1.0, "Build", "stage", 1f, Map.of("actionMode", "BUILD")),
+			new TimelineAnimationEvent("fx-50", 50.0, 1.0, "Pulse", "stage", 1f, Map.of("actionMode", "ANIMATE"))
+		);
+		List<CompiledStageEvent> compiled = new ArrayList<>();
+		for (int i = 0; i < events.size(); i++) compiled.add(new CompiledStageEvent(events.get(i), null, null, i));
+		CompiledTimelineSnapshot program = new CompiledTimelineSnapshot(
+			events, compiled, new CompiledCameraTrack(List.of()), List.of(), List.of(), List.of(),
+			CompiledAudioReference.empty(), new double[0], 120.0, 60.0, true, 0, null);
+		PlaybackEngine engine = new PlaybackEngine();
+		engine.load(program);
+		List<String> dispatched = new ArrayList<>();
+
+		engine.advance(60.0, (c, e) -> dispatched.add(e.getEventId()), null);
+		assertEquals(List.of("state-10", "fx-20", "state-40", "fx-50"), dispatched);
+
+		dispatched.clear();
+		engine.seek(30.0, SeekMode.RECONSTRUCT_STATE,
+			(c, e) -> dispatched.add(e.getEventId()), null);
+		assertEquals(List.of("state-10"), dispatched);
+
+		dispatched.clear();
+		engine.advance(60.0, (c, e) -> dispatched.add(e.getEventId()), null);
+		assertEquals(List.of("state-40", "fx-50"), dispatched);
+	}
+
+	@Test
+	void reconstructSeekHandlesTenThousandEventsWithinBudget() {
+		List<TimelineAnimationEvent> events = new ArrayList<>(10_000);
+		List<CompiledStageEvent> compiled = new ArrayList<>(10_000);
+		for (int i = 0; i < 10_000; i++) {
+			TimelineAnimationEvent event = new TimelineAnimationEvent(
+				"event-" + i, i / 100.0, 1.0, "Place", "stage", 1f, Map.of("actionMode", "PLACE"));
+			events.add(event);
+			compiled.add(new CompiledStageEvent(event, null, null, i));
+		}
+		CompiledTimelineSnapshot program = new CompiledTimelineSnapshot(
+			events, compiled, new CompiledCameraTrack(List.of()), List.of(), List.of(), List.of(),
+			CompiledAudioReference.empty(), new double[0], 120.0, 100.0, true, 0, null);
+		PlaybackEngine engine = new PlaybackEngine();
+		engine.load(program);
+		AtomicInteger dispatched = new AtomicInteger();
+
+		assertTimeout(Duration.ofSeconds(2), () -> engine.seek(
+			100.0, SeekMode.RECONSTRUCT_STATE,
+			(c, e) -> dispatched.incrementAndGet(), null));
+		assertEquals(10_000, dispatched.get());
 	}
 }

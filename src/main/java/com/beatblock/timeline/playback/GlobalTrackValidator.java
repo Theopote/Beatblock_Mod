@@ -24,7 +24,12 @@ final class GlobalTrackValidator implements TimelineValidationRule {
 							event.getId(), time));
 					}
 					try {
-						GlobalEventPayloadCodec.decode(event.getParameters());
+						GlobalEventPayload payload = GlobalEventPayloadCodec.decode(event.getParameters());
+						if (payload instanceof GlobalEventPayload.Generic generic) {
+							diagnostics.add(TimelineDiagnostic.warning(TimelineValidator.RULE_UNKNOWN_GLOBAL_EVENT,
+								"Unknown global event type \"" + generic.typeName() + "\" will not be executed",
+								event.getId(), time));
+						}
 					} catch (RuntimeException error) {
 						diagnostics.add(TimelineDiagnostic.error(TimelineValidator.RULE_INVALID_GLOBAL_PAYLOAD,
 							"Invalid global payload for event " + event.getId() + ": " + error.getMessage(),
