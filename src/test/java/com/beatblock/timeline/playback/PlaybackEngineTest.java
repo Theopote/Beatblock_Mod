@@ -162,4 +162,64 @@ class PlaybackEngineTest {
 		assertEquals(2, hits.get());
 		assertEquals(2, engine.scheduledStageCount());
 	}
+	@Test
+	void reconstructSeekReplaysStateButSkipsTransientEventsAndGlobals() {
+		TimelineAnimationEvent transientEvent = new TimelineAnimationEvent(
+			"transient", 1.0, 1.0, "Pulse", "tower", 1f,
+			Map.of("actionMode", "ANIMATE"));
+		TimelineAnimationEvent idempotentEvent = new TimelineAnimationEvent(
+			"place", 1.0, 1.0, "Pulse", "tower", 1f,
+			Map.of("actionMode", "PLACE"));
+		TimelineAnimationEvent statefulEvent = new TimelineAnimationEvent(
+			"build", 1.0, 1.0, "Pulse", "tower", 1f,
+			Map.of("actionMode", "BUILD"));
+		CompiledGlobalEvent global = new CompiledGlobalEvent(
+			"flash", 1.0, new GlobalEventPayload.Generic("SCREEN_FLASH", "Flash", Map.of()));
+		CompiledTimelineSnapshot program = new CompiledTimelineSnapshot(
+			List.of(transientEvent, idempotentEvent, statefulEvent),
+			List.of(
+				new CompiledStageEvent(transientEvent, null, null, 0L),
+				new CompiledStageEvent(idempotentEvent, null, null, 1L),
+				new CompiledStageEvent(statefulEvent, null, null, 2L)
+			),
+			new CompiledCameraTrack(List.of()), List.of(), List.of(), List.of(global),
+			CompiledAudioReference.empty(), new double[0], 120.0, 2.0, true, 0, null
+		);
+
+		PlaybackEngine engine = new PlaybackEngine();
+		engine.load(program);
+		List<String> replayed = new ArrayList<>();
+		AtomicInteger globalHits = new AtomicInteger();
+		engine.seek(2.0, SeekMode.RECONSTRUCT_STATE,
+			(compiled, event) -> replayed.add(event.getEventId()),
+			event -> globalHits.incrementAndGet());
+
+		assertEquals(List.of("place", "build"), replayed);
+		assertEquals(0, globalHits.get());
+	}
+
+	@Test
+	void replayAllSeekExplicitlyReplaysTransientAndGlobalEvents() {
+		TimelineAnimationEvent transientEvent = new TimelineAnimationEvent(
+			"transient", 1.0, 1.0, "Pulse", "tower", 1f,
+			Map.of("actionMode", "ANIMATE"));
+		CompiledGlobalEvent global = new CompiledGlobalEvent(
+			"flash", 1.0, new GlobalEventPayload.Generic("SCREEN_FLASH", "Flash", Map.of()));
+		CompiledTimelineSnapshot program = new CompiledTimelineSnapshot(
+			List.of(transientEvent), List.of(new CompiledStageEvent(transientEvent, null, null, 0L)),
+			new CompiledCameraTrack(List.of()), List.of(), List.of(), List.of(global),
+			CompiledAudioReference.empty(), new double[0], 120.0, 2.0, true, 0, null
+		);
+
+		PlaybackEngine engine = new PlaybackEngine();
+		engine.load(program);
+		AtomicInteger stageHits = new AtomicInteger();
+		AtomicInteger globalHits = new AtomicInteger();
+		engine.seek(2.0, SeekMode.REPLAY_ALL,
+			(compiled, event) -> stageHits.incrementAndGet(),
+			event -> globalHits.incrementAndGet());
+
+		assertEquals(1, stageHits.get());
+		assertEquals(1, globalHits.get());
+	}
 }

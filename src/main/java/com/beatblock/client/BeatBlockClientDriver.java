@@ -14,6 +14,7 @@ import com.beatblock.timeline.playback.CompiledStageEvent;
 import com.beatblock.timeline.playback.CompilePolicy;
 import com.beatblock.timeline.playback.PerformanceCheckController;
 import com.beatblock.timeline.playback.PlaybackEngine;
+import com.beatblock.timeline.playback.SeekMode;
 import com.beatblock.timeline.playback.TimelineCompiler;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
@@ -287,9 +288,11 @@ public final class BeatBlockClientDriver {
 		}
 
 		// Formal play — PlaybackEngine only
-		if (currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime) {
+		boolean rewinding = currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime;
+		if (rewinding) {
 			// Rewind: engine clears its own cursors on advance; still restore world mutations
 			restoreTimelineMutationSnapshot();
+			engine.clear();
 			var buildSequencer = engine.getBuildSequencer();
 			if (buildSequencer != null) {
 				buildSequencer.setMutationBudgetPerTick(PLAYBACK_MUTATION_BUDGET_PER_TICK);
@@ -303,11 +306,18 @@ public final class BeatBlockClientDriver {
 		}
 		double[] referenceBeats = playback.referenceBeatTimesSeconds();
 		double bpm = playback.bpm();
-		playbackEngine.advance(
-			currentTime,
-			(compiled, event) -> applyTimelineActionEvent(event, compiled, false, referenceBeats, bpm),
-			this::onCompiledGlobalEvent
-		);
+		PlaybackEngine.StageEventHandler stageHandler =
+			(compiled, event) -> applyTimelineActionEvent(event, compiled, false, referenceBeats, bpm);
+		if (rewinding) {
+			playbackEngine.seek(
+				currentTime,
+				SeekMode.RECONSTRUCT_STATE,
+				stageHandler,
+				this::onCompiledGlobalEvent
+			);
+		} else {
+			playbackEngine.advance(currentTime, stageHandler, this::onCompiledGlobalEvent);
+		}
 		lastStageEventTime = currentTime;
 	}
 

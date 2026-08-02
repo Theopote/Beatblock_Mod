@@ -99,10 +99,8 @@ public final class PlaybackEngine {
 			return;
 		}
 		if (currentTime + EVENT_EPSILON < lastTime) {
-			scheduledStageSequences.clear();
-			scheduledGlobalIds.clear();
-			stageCursor = 0;
-			globalCursor = 0;
+			seek(currentTime, SeekMode.JUMP_WITHOUT_REPLAY, null, null);
+			return;
 		}
 
 		List<CompiledStageEvent> stages = program.compiledStageEvents();
@@ -149,6 +147,62 @@ public final class PlaybackEngine {
 		lastTime = currentTime;
 	}
 
+	/**
+	 * Repositions playback independently from forward advancement.
+	 * RECONSTRUCT_STATE replays only state-bearing stage events; global cues are transient.
+	 */
+	public void seek(
+		double targetTime,
+		SeekMode mode,
+		@Nullable StageEventHandler stageHandler,
+		@Nullable GlobalEventHandler globalHandler
+	) {
+		if (program == null) return;
+		if (!Double.isFinite(targetTime)) {
+			throw new IllegalArgumentException("targetTime must be finite");
+		}
+		SeekMode effectiveMode = mode != null ? mode : SeekMode.JUMP_WITHOUT_REPLAY;
+		double target = Math.max(0, targetTime);
+		scheduledStageSequences.clear();
+		scheduledGlobalIds.clear();
+		stageCursor = 0;
+		globalCursor = 0;
+
+		List<CompiledStageEvent> stages = program.compiledStageEvents();
+		while (stageCursor < stages.size()) {
+			CompiledStageEvent compiled = stages.get(stageCursor);
+			TimelineAnimationEvent event = compiled != null ? compiled.event() : null;
+			if (event == null) {
+				stageCursor++;
+				continue;
+			}
+			if (event.getTimeSeconds() > target + EVENT_EPSILON) break;
+			boolean replay = effectiveMode == SeekMode.REPLAY_ALL
+				|| (effectiveMode == SeekMode.RECONSTRUCT_STATE
+					&& compiled.semantics() != PlaybackSemantics.TRANSIENT);
+			if (replay) {
+				scheduledStageSequences.add(compiled.stableSequence());
+				if (stageHandler != null) stageHandler.onStageEvent(compiled, event);
+			}
+			stageCursor++;
+		}
+
+		List<CompiledGlobalEvent> globals = program.globalEvents();
+		while (globalCursor < globals.size()) {
+			CompiledGlobalEvent event = globals.get(globalCursor);
+			if (event == null) {
+				globalCursor++;
+				continue;
+			}
+			if (event.timeSeconds() > target + EVENT_EPSILON) break;
+			if (effectiveMode == SeekMode.REPLAY_ALL) {
+				scheduledGlobalIds.add(globalKey(event));
+				if (globalHandler != null) globalHandler.onGlobalEvent(event);
+			}
+			globalCursor++;
+		}
+		lastTime = target;
+	}
 	/** Unit-test helper: how many stage events have been scheduled since load/reset. */
 	public int scheduledStageCount() {
 		return scheduledStageSequences.size();

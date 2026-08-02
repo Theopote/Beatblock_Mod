@@ -17,5 +17,8 @@ public enum SeekMode {
 	/**
 	 * Direct jump without replaying any past events.
 	 */
-	JUMP_WITHOUT_REPLAY
+	JUMP_WITHOUT_REPLAY,
+
+	/** Explicitly replay every event up to the seek target. */
+	REPLAY_ALL
 }
