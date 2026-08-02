@@ -16,8 +16,10 @@ class GlobalEventPayloadCodecTest {
 
 	@Test
 	void decodesEveryKnownGlobalPayloadType() {
-		assertInstanceOf(GlobalEventPayload.Lighting.class,
+		assertInstanceOf(GlobalEventPayload.EnvironmentLighting.class,
 			GlobalEventPayloadCodec.decode(Map.of("type", "lighting", "intensity", 0.5)));
+		assertInstanceOf(GlobalEventPayload.ScreenTint.class,
+			GlobalEventPayloadCodec.decode(Map.of("type", "screen_tint", "intensity", 0.5)));
 		assertInstanceOf(GlobalEventPayload.Weather.class,
 			GlobalEventPayloadCodec.decode(Map.of("type", "WEATHER", "weatherType", "rain")));
 		assertInstanceOf(GlobalEventPayload.ParticleBurst.class,
@@ -40,8 +42,8 @@ class GlobalEventPayloadCodecTest {
 			"r", 1.0, "g", 0.5, "b", 0.25, "durationSeconds", 2.0));
 
 		CompiledGlobalEvent event = TimelineCompiler.compile(timeline).globalEvents().getFirst();
-		GlobalEventPayload.Lighting payload = assertInstanceOf(
-			GlobalEventPayload.Lighting.class, event.payload());
+		GlobalEventPayload.EnvironmentLighting payload = assertInstanceOf(
+			GlobalEventPayload.EnvironmentLighting.class, event.payload());
 		assertEquals(0.75, payload.intensity(), 1e-9);
 		assertEquals(2.0, payload.durationSeconds(), 1e-9);
 		assertEquals("Key light", event.name());

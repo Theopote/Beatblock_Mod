@@ -120,6 +120,7 @@ public final class GlobalPropertyEditor {
 		return BBTexts.labels(
 			"beatblock.global.type.stage",
 			"beatblock.global.type.lighting",
+			"beatblock.global.type.screen_tint",
 			"beatblock.global.type.special"
 		);
 	}

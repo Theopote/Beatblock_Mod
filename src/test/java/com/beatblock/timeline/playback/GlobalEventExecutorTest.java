@@ -15,26 +15,30 @@ class GlobalEventExecutorTest {
 	void dispatchesEveryTypedPayloadAndReportsGenericAsUnsupported() {
 		AtomicInteger calls = new AtomicInteger();
 		GlobalEventExecutor executor = new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
-			@Override public boolean applyLighting(GlobalEventPayload.Lighting payload) { calls.incrementAndGet(); return true; }
+			@Override public boolean applyEnvironmentLighting(GlobalEventPayload.EnvironmentLighting payload) { calls.incrementAndGet(); return true; }
+			@Override public boolean applyScreenTint(GlobalEventPayload.ScreenTint payload) { calls.incrementAndGet(); return true; }
 			@Override public boolean applyWeather(GlobalEventPayload.Weather payload) { calls.incrementAndGet(); return true; }
 			@Override public boolean emitParticleBurst(GlobalEventPayload.ParticleBurst payload) { calls.incrementAndGet(); return true; }
 			@Override public boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload) { calls.incrementAndGet(); return true; }
 			@Override public boolean applyAudioMix(GlobalEventPayload.AudioMix payload) { calls.incrementAndGet(); return true; }
 		});
 
-		assertTrue(executor.execute(event("light", new GlobalEventPayload.Lighting("", 1, 1, 1, 1, 0))).executed());
+		assertTrue(executor.execute(event("light", new GlobalEventPayload.EnvironmentLighting("", 1, 1, 1, 1, 0))).executed());
+		assertTrue(executor.execute(event("tint", new GlobalEventPayload.ScreenTint("", 0.5, 1, 1, 1, 0))).executed());
 		assertTrue(executor.execute(event("weather", new GlobalEventPayload.Weather("", "rain", 0))).executed());
 		assertTrue(executor.execute(event("particle", new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1))).executed());
 		assertTrue(executor.execute(event("flash", new GlobalEventPayload.ScreenFlash("", 1, 1, 1, 0.1))).executed());
 		assertTrue(executor.execute(event("audio", new GlobalEventPayload.AudioMix("", "master", 1, 0))).executed());
 		assertFalse(executor.execute(event("generic", new GlobalEventPayload.Generic("CUSTOM", "", Map.of()))).executed());
-		assertEquals(5, calls.get());
+		assertEquals(6, calls.get());
 	}
 
 	@Test
 	void globalSemanticsMatchSeekBehavior() {
 		assertEquals(PlaybackSemantics.STATEFUL,
-			event("light", new GlobalEventPayload.Lighting("", 1, 1, 1, 1, 0)).semantics());
+			event("light", new GlobalEventPayload.EnvironmentLighting("", 1, 1, 1, 1, 0)).semantics());
+		assertEquals(PlaybackSemantics.STATEFUL,
+			event("tint", new GlobalEventPayload.ScreenTint("", 0.5, 1, 1, 1, 0)).semantics());
 		assertEquals(PlaybackSemantics.STATEFUL,
 			event("weather", new GlobalEventPayload.Weather("", "rain", 0)).semantics());
 		assertEquals(PlaybackSemantics.STATEFUL,
