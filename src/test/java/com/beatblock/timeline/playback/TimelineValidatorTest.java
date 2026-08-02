@@ -205,4 +205,30 @@ class TimelineValidatorTest {
 			() -> TimelineCompiler.compile(timeline));
 		assertTrue(error.getMessage().startsWith("Failed to resolve reference beats:"));
 	}
+	@Test
+	void validatesEffectiveBpmAndReportsMetadataMismatch() {
+		Timeline malformed = Timeline.createDefault();
+		malformed.setMetadata("bpm", "not-a-number");
+		TimelineValidationReport malformedReport = TimelineValidator.validate(malformed, null);
+		assertTrue(malformedReport.hasFatalErrors());
+		assertTrue(malformedReport.problems().stream()
+			.anyMatch(d -> "invalid_bpm".equals(d.ruleId())));
+
+		Timeline nonFiniteEffective = new Timeline() {
+			@Override public double getBpm() { return Double.NaN; }
+		};
+		nonFiniteEffective.setMetadata("bpm", 120.0);
+		TimelineValidationReport nonFiniteReport = TimelineValidator.validate(nonFiniteEffective, null);
+		assertTrue(nonFiniteReport.hasFatalErrors());
+		assertThrows(TimelineCompilationException.class,
+			() -> TimelineCompiler.compile(nonFiniteEffective));
+
+		Timeline mismatched = new Timeline() {
+			@Override public double getBpm() { return 130.0; }
+		};
+		mismatched.setMetadata("bpm", 120.0);
+		TimelineValidationReport mismatchReport = TimelineValidator.validate(mismatched, null);
+		assertTrue(mismatchReport.problems().stream()
+			.anyMatch(d -> TimelineValidator.RULE_BPM_METADATA_MISMATCH.equals(d.ruleId())));
+	}
 }

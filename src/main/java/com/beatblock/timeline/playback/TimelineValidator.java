@@ -35,6 +35,7 @@ public final class TimelineValidator {
 	public static final String RULE_UNSUPPORTED_PAYLOAD = "unsupported_payload";
 	public static final String RULE_INVALID_GLOBAL_PAYLOAD = "invalid_global_payload";
 	public static final String RULE_INVALID_REFERENCE_BEAT_DATA = "invalid_reference_beat_data";
+	public static final String RULE_BPM_METADATA_MISMATCH = "timeline_bpm_metadata_mismatch";
 	public static final String RULE_UNBOUND_TARGET = "unbound_target";
 	public static final String RULE_MISSING_STAGE_OBJECT = "missing_stage_object";
 	public static final String RULE_EVENT_OUTSIDE_TIMELINE = "event_outside_timeline";
@@ -86,14 +87,24 @@ public final class TimelineValidator {
 			));
 		}
 
-		// Validate BPM
-		Object bpmVal = document.getMetadata("bpm");
-		if (bpmVal instanceof Number) {
-			double val = ((Number) bpmVal).doubleValue();
-			if (!isFinite(val) || val <= 0) {
-				issues.add(TimelineDiagnostic.error(
-					"invalid_bpm",
-					"Timeline has invalid BPM value: " + val,
+		// Validate the same effective BPM consumed by TimelineCompiler.
+		Object bpmMetadata = document.getMetadata("bpm");
+		double bpm = document.getBpm();
+		boolean unsetDefault = bpmMetadata == null && bpm == 0.0;
+		if (!unsetDefault && (!isFinite(bpm) || bpm <= 0)) {
+			issues.add(TimelineDiagnostic.error(
+				"invalid_bpm",
+				"Timeline has invalid effective BPM value: " + bpm,
+				null,
+				Double.NaN
+			));
+		} else if (bpmMetadata instanceof Number number) {
+			double metadataBpm = number.doubleValue();
+			if (isFinite(metadataBpm) && isFinite(bpm) && metadataBpm > 0 && bpm > 0
+				&& Math.abs(metadataBpm - bpm) > 1e-9) {
+				issues.add(TimelineDiagnostic.warning(
+					RULE_BPM_METADATA_MISMATCH,
+					"Timeline BPM metadata (" + metadataBpm + ") differs from effective BPM (" + bpm + ")",
 					null,
 					Double.NaN
 				));
