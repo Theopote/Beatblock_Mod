@@ -141,6 +141,7 @@ public final class TimelineCompiler {
 		@Nullable BlockAnimationEngine engine
 	) {
 		List<CompiledStageEvent> compiled = new ArrayList<>(events.size());
+		long sequence = 0;
 		for (TimelineAnimationEvent event : events) {
 			var definition = engine != null
 				? engine.getAnimationLibrary().get(event.getAnimationTypeId())
@@ -159,7 +160,7 @@ public final class TimelineCompiler {
 					source.getGroupSpec().getStaggerDelaySeconds()
 				);
 			}
-			compiled.add(new CompiledStageEvent(event, definition, target));
+			compiled.add(new CompiledStageEvent(event, definition, target, sequence++));
 		}
 		return List.copyOf(compiled);
 	}

@@ -227,4 +227,22 @@ class TimelineCompilerTest {
 		assertThrows(TimelineCompilationException.class,
 			() -> TimelineCompiler.compile(timeline, null, null, CompilePolicy.SKIP_INVALID_EVENTS));
 	}
+	@Test
+	void stableSequenceIsAssignedAfterDeterministicSorting() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(event("later", 4.0, Map.of()));
+		timeline.addAutoAnimationEvent(event("earlier", 1.0, Map.of()));
+
+		CompiledTimelineSnapshot first = TimelineCompiler.compile(timeline);
+		CompiledTimelineSnapshot second = TimelineCompiler.compile(timeline);
+
+		assertEquals(List.of(0L, 1L), first.compiledStageEvents().stream()
+			.map(CompiledStageEvent::stableSequence).toList());
+		assertEquals(first.compiledStageEvents().stream()
+			.map(e -> e.event().getEventId()).toList(), second.compiledStageEvents().stream()
+			.map(e -> e.event().getEventId()).toList());
+		assertEquals(first.compiledStageEvents().stream()
+			.map(CompiledStageEvent::stableSequence).toList(), second.compiledStageEvents().stream()
+			.map(CompiledStageEvent::stableSequence).toList());
+	}
 }
