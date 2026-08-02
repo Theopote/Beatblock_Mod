@@ -28,6 +28,7 @@ public final class CompiledTimelineSnapshot {
 	private final boolean restoreWorldMutations;
 	private final int sourceGeneration;
 	private final @Nullable TimelineValidationReport validationReport;
+	private CompiledProgramMetadata metadata = CompiledProgramMetadata.unknown();
 
 	CompiledTimelineSnapshot(
 		List<TimelineAnimationEvent> stageEvents,
@@ -132,6 +133,14 @@ public final class CompiledTimelineSnapshot {
 	/** Validation report captured at compile time; may be null for legacy empty snapshots. */
 	public @Nullable TimelineValidationReport validationReport() {
 		return validationReport;
+	}
+
+	public CompiledProgramMetadata metadata() {
+		return metadata;
+	}
+
+	void attachMetadata(CompiledProgramMetadata value) {
+		metadata = value != null ? value : CompiledProgramMetadata.unknown();
 	}
 
 	/** Convenience: true when compile-time validation found errors. */

@@ -61,6 +61,8 @@ public final class OscProjectStore {
 		root.addProperty("projectPath", abs.toString());
 		root.addProperty("timelineName", timelineName);
 		root.addProperty("audioPath", audioPath);
+		root.addProperty("durationSeconds", timeline.getDurationSeconds());
+		root.addProperty("bpm", timeline.getBpm());
 		JsonArray markers = new JsonArray();
 		for (TimelineMarker marker : timeline.getMarkers()) {
 			if (marker == null) continue;
@@ -157,6 +159,8 @@ public final class OscProjectStore {
 		String projectPath = getString(root, "projectPath", abs.toString());
 		String timelineName = getString(root, "timelineName", "");
 		String audioPath = getString(root, "audioPath", "");
+		double durationSeconds = getDouble(root, "durationSeconds", 0.0);
+		double bpm = getDouble(root, "bpm", 0.0);
 		List<TimelineMarker> markers = parseMarkers(root);
 		if (layerManager != null && root.has("buildLayers") && root.get("buildLayers").isJsonArray()) {
 			JsonArray groupsArr = root.has("buildLayerGroups") && root.get("buildLayerGroups").isJsonArray()
@@ -165,6 +169,14 @@ public final class OscProjectStore {
 			BuildLayerPersistence.loadInto(layerManager, root.getAsJsonArray("buildLayers"), groupsArr);
 		}
 		if (timeline != null) {
+			timeline.setName(timelineName);
+			timeline.setDurationSeconds(durationSeconds);
+			timeline.setMetadata("projectId", projectId);
+			timeline.setMetadata("projectPath", projectPath);
+			timeline.setMetadata("audioPath", audioPath.isBlank() ? null : audioPath);
+			timeline.setMetadata("bpm", bpm > 0 ? bpm : null);
+			timeline.clearMarkers();
+			markers.forEach(timeline::addMarker);
 			JsonArray animationTracks = root.has("animationTracks") && root.get("animationTracks").isJsonArray()
 				? root.getAsJsonArray("animationTracks")
 				: null;
@@ -200,6 +212,17 @@ public final class OscProjectStore {
 			return obj.get(key).getAsInt();
 		} catch (RuntimeException e) {
 			BeatBlock.LOGGER.debug("Invalid int for key '{}', using default {}", key, def, e);
+			return def;
+		}
+	}
+
+	private static double getDouble(JsonObject obj, String key, double def) {
+		if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) return def;
+		try {
+			double value = obj.get(key).getAsDouble();
+			return Double.isFinite(value) ? value : def;
+		} catch (RuntimeException e) {
+			BeatBlock.LOGGER.debug("Invalid double for key '{}', using default {}", key, def, e);
 			return def;
 		}
 	}

@@ -32,6 +32,8 @@ import java.util.Set;
  */
 public final class TimelineCompiler {
 
+	public static final int COMPILER_VERSION = 1;
+
 	private TimelineCompiler() {}
 
 	public static CompiledTimelineSnapshot compile(@Nullable Timeline document) {
@@ -116,9 +118,29 @@ public final class TimelineCompiler {
 			document.getStageEventsGeneration(),
 			report
 		);
+		String sourceFingerprint = CompiledProgramFingerprint.compute(snapshot);
+		snapshot.attachMetadata(new CompiledProgramMetadata(
+			COMPILER_VERSION,
+			String.valueOf(document.getMetadata("projectId") != null ? document.getMetadata("projectId") : ""),
+			document.getStageEventsGeneration(),
+			sourceFingerprint,
+			presetCatalogFingerprint(engine)
+		));
 		return new CompileResult(snapshot, report, skippedEventIds, skippedLocations);
 	}
 
+
+	private static String presetCatalogFingerprint(@Nullable BlockAnimationEngine engine) {
+		if (engine == null) return "";
+		String ids = String.join("\n", engine.getAnimationLibrary().getAll().keySet().stream().sorted().toList());
+		try {
+			byte[] bytes = java.security.MessageDigest.getInstance("SHA-256")
+				.digest(ids.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			return java.util.HexFormat.of().formatHex(bytes);
+		} catch (java.security.NoSuchAlgorithmException impossible) {
+			throw new IllegalStateException(impossible);
+		}
+	}
 
 	private static SkipSelection degradableEvents(TimelineValidationReport report, CompilePolicy policy) {
 		if (policy != CompilePolicy.SKIP_INVALID_EVENTS) return SkipSelection.empty();
