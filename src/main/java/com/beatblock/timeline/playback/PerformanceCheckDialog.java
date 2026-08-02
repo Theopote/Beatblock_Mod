@@ -1,5 +1,7 @@
 package com.beatblock.timeline.playback;
 
+import com.beatblock.BeatBlock;
+
 import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
@@ -110,7 +112,11 @@ public final class PerformanceCheckDialog {
 				} else {
 					ImGui.textColored(1f, 0.85f, 0.3f, 1f, prefix + d.message());
 				}
-				boolean canJump = d.hasTime() || d.eventId() != null;
+				if (TimelineAutoRepair.disposition(d) == TimelineAutoRepair.RepairDisposition.REQUIRES_USER_INPUT) {
+					ImGui.sameLine();
+					ImGui.textDisabled(BBTexts.get("beatblock.performance_check.guided_fix"));
+				}
+				boolean canJump = d.hasTime() || d.eventId() != null || d.sourceLocation() != null;
 				if (canJump) {
 					StringBuilder meta = new StringBuilder();
 					if (d.eventId() != null) {
@@ -145,6 +151,18 @@ public final class PerformanceCheckDialog {
 		ImGui.spacing();
 		ImGui.separator();
 		ImGui.spacing();
+
+		int safelyRepairable = PerformanceCheckController.safelyRepairableCount();
+		if (safelyRepairable > 0) {
+			String label = BBTexts.get("beatblock.performance_check.repair_safe", safelyRepairable);
+			if (ImGui.button(label + "##pcRepairSafe", 220f, 0f)) {
+				PerformanceCheckController.repairSafely(BeatBlock.getContext().commandManager());
+			}
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip(BBTexts.get("beatblock.performance_check.repair_safe.tooltip"));
+			}
+			ImGui.spacing();
+		}
 
 		if (report.hasErrors()) {
 			if (report.hasFatalErrors()) {

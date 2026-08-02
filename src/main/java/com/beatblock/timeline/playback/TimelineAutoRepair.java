@@ -21,6 +21,34 @@ import java.util.Set;
 
 /** Converts safe validation repairs into one undoable CommandManager transaction. */
 public final class TimelineAutoRepair {
+	public enum RepairDisposition {
+		SAFE_AUTOMATIC,
+		REQUIRES_USER_INPUT,
+		NOT_REPAIRABLE
+	}
+
+	public static RepairDisposition disposition(TimelineDiagnostic diagnostic) {
+		if (diagnostic == null) return RepairDisposition.NOT_REPAIRABLE;
+		String rule = diagnostic.ruleId();
+		if (TimelineValidator.RULE_NON_POSITIVE_EVENT_DURATION.equals(rule)
+			|| TimelineValidator.RULE_INVALID_DURATION.equals(rule)) {
+			return RepairDisposition.SAFE_AUTOMATIC;
+		}
+		if (TimelineValidator.RULE_MISSING_ANIMATION_PRESET.equals(rule)
+			|| TimelineValidator.RULE_UNBOUND_TARGET.equals(rule)
+			|| TimelineValidator.RULE_MISSING_STAGE_OBJECT.equals(rule)
+			|| TimelineValidator.RULE_MISSING_AUDIO.equals(rule)
+			|| TimelineValidator.RULE_AUDIO_FILE_MISSING.equals(rule)
+			|| TimelineValidator.RULE_MISSING_BUILD_LAYER.equals(rule)) {
+			return RepairDisposition.REQUIRES_USER_INPUT;
+		}
+		return RepairDisposition.NOT_REPAIRABLE;
+	}
+
+	public static boolean canSafelyRepair(TimelineDiagnostic diagnostic) {
+		return disposition(diagnostic) == RepairDisposition.SAFE_AUTOMATIC
+			&& (diagnostic.sourceLocation() != null || diagnostic.eventId() != null);
+	}
 	public record RepairResult(
 		List<String> repairedEventIds,
 		List<TimelineSourceLocation> repairedLocations,

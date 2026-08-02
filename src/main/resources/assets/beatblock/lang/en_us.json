@@ -1139,6 +1139,9 @@
   "beatblock.performance_check.filter_all": "All",
   "beatblock.performance_check.filter_errors": "Errors",
   "beatblock.performance_check.filter_warnings": "Warnings",
+  "beatblock.performance_check.repair_safe": "Repair safely fixable issues ({0})",
+  "beatblock.performance_check.repair_safe.tooltip": "Only unambiguous fixes are applied. Issues requiring a choice remain in the report.",
+  "beatblock.performance_check.guided_fix": "Requires selection",
   "beatblock.toast.wizard.music_imported": "Music imported and analyzed",
   "beatblock.toast.event_applied": "Event properties applied",
 

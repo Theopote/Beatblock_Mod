@@ -3,6 +3,7 @@ package com.beatblock.timeline.playback;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.command.CommandManager;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -12,6 +13,9 @@ import org.jspecify.annotations.Nullable;
 public final class PerformanceCheckController {
 
 	private static @Nullable TimelineValidationReport lastReport;
+	private static @Nullable Timeline checkedTimeline;
+	private static @Nullable BlockAnimationEngine checkedEngine;
+	private static @Nullable BuildLayerManager checkedLayers;
 	private static boolean openDialogRequested;
 	private static boolean showProblemsExpanded;
 	/** Play action deferred when blocked by errors; used by Force Play. */
@@ -35,6 +39,9 @@ public final class PerformanceCheckController {
 
 	public static void clear() {
 		lastReport = null;
+		checkedTimeline = null;
+		checkedEngine = null;
+		checkedLayers = null;
 		openDialogRequested = false;
 		showProblemsExpanded = false;
 		blockedPlayAction = null;
@@ -89,6 +96,9 @@ public final class PerformanceCheckController {
 	) {
 		TimelineValidationReport report = TimelineValidator.validate(timeline, engine, layers);
 		lastReport = report;
+		checkedTimeline = timeline;
+		checkedEngine = engine;
+		checkedLayers = layers;
 
 		if (report.hasErrors()) {
 			blockedPlayAction = report.hasFatalErrors() ? null : onAllowed;
@@ -120,12 +130,33 @@ public final class PerformanceCheckController {
 	) {
 		TimelineValidationReport report = TimelineValidator.validate(timeline, engine, layers);
 		lastReport = report;
+		checkedTimeline = timeline;
+		checkedEngine = engine;
+		checkedLayers = layers;
 		openDialogRequested = true;
 		showProblemsExpanded = report.hasErrors() || report.hasWarnings();
 		blockedPlayAction = null;
 		return report;
 	}
 
+	public static int safelyRepairableCount() {
+		TimelineValidationReport report = lastReport;
+		if (report == null) return 0;
+		int count = 0;
+		for (TimelineDiagnostic diagnostic : report.problems()) {
+			if (TimelineAutoRepair.canSafelyRepair(diagnostic)) count++;
+		}
+		return count;
+	}
+
+	public static java.util.Optional<TimelineAutoRepair.RepairResult> repairSafely(CommandManager commandManager) {
+		if (checkedTimeline == null || lastReport == null || commandManager == null) return java.util.Optional.empty();
+		TimelineAutoRepair.RepairResult result = TimelineAutoRepair.apply(
+			checkedTimeline, lastReport, checkedEngine, commandManager);
+		lastReport = TimelineValidator.validate(checkedTimeline, checkedEngine, checkedLayers);
+		showProblemsExpanded = lastReport.hasErrors() || lastReport.hasWarnings();
+		return java.util.Optional.of(result);
+	}
 	public static boolean consumeOpenDialogRequest() {
 		if (!openDialogRequested) {
 			return false;

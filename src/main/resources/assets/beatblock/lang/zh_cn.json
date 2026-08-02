@@ -1177,6 +1177,9 @@
   "beatblock.performance_check.filter_all": "全部",
   "beatblock.performance_check.filter_errors": "仅错误",
   "beatblock.performance_check.filter_warnings": "仅警告",
+  "beatblock.performance_check.repair_safe": "修复可安全处理的问题（{0}）",
+  "beatblock.performance_check.repair_safe.tooltip": "只处理完全无歧义的问题；需要选择的问题会继续保留在报告中。",
+  "beatblock.performance_check.guided_fix": "需要选择",
   "beatblock.toast.wizard.music_imported": "音乐已导入并分析",
   "beatblock.toast.event_applied": "事件属性已应用",
 

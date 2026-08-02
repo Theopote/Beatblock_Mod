@@ -78,4 +78,22 @@ class TimelineAutoRepairTest {
 		commands.undo();
 		assertEquals(-3.0, ((Number) event.getParameters().get("durationSeconds")).doubleValue());
 	}
+
+	@Test
+	void repairDispositionSeparatesSafeFixesFromGuidedChoices() {
+		TimelineDiagnostic duration = TimelineDiagnostic.error(
+			TimelineValidator.RULE_NON_POSITIVE_EVENT_DURATION, "duration", "event", 1.0);
+		TimelineDiagnostic preset = TimelineDiagnostic.error(
+			TimelineValidator.RULE_MISSING_ANIMATION_PRESET, "preset", "event", 1.0);
+		TimelineDiagnostic corruption = TimelineDiagnostic.error(
+			TimelineValidator.RULE_NON_FINITE_EVENT_DURATION, "corrupt", "event", 1.0);
+
+		assertEquals(TimelineAutoRepair.RepairDisposition.SAFE_AUTOMATIC,
+			TimelineAutoRepair.disposition(duration));
+		assertTrue(TimelineAutoRepair.canSafelyRepair(duration));
+		assertEquals(TimelineAutoRepair.RepairDisposition.REQUIRES_USER_INPUT,
+			TimelineAutoRepair.disposition(preset));
+		assertEquals(TimelineAutoRepair.RepairDisposition.NOT_REPAIRABLE,
+			TimelineAutoRepair.disposition(corruption));
+	}
 }
