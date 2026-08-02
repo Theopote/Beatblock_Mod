@@ -248,4 +248,18 @@ class TimelineValidatorTest {
 			.anyMatch(d -> "non_finite_timeline_duration".equals(d.ruleId())));
 		assertTrue(error.getMessage().contains("ruleId=" + "invalid_bpm"));
 		assertTrue(error.getMessage().contains("ruleId=" + "non_finite_timeline_duration"));
-	}}
+	}
+	@Test
+	void additionalValidationRulesCanContributeDiagnostics() {
+		Timeline timeline = Timeline.createDefault();
+		TimelineValidationRule customRule = (context, diagnostics) -> diagnostics.add(
+			TimelineDiagnostic.warning("plugin_custom_rule",
+				"Custom rule saw " + context.animationEventCount() + " events", null, Double.NaN));
+
+		TimelineValidationReport report = TimelineValidator.validateWithRules(
+			timeline, null, null, List.of(customRule));
+
+		assertTrue(report.diagnostics().stream()
+			.anyMatch(d -> "plugin_custom_rule".equals(d.ruleId())));
+	}
+}
