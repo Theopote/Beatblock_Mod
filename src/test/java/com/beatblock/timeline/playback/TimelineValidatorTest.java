@@ -231,4 +231,21 @@ class TimelineValidatorTest {
 		assertTrue(mismatchReport.problems().stream()
 			.anyMatch(d -> TimelineValidator.RULE_BPM_METADATA_MISMATCH.equals(d.ruleId())));
 	}
-}
+	@Test
+	void compilationExceptionRetainsCompleteValidationReport() {
+		Timeline timeline = new Timeline() {
+			@Override public double getBpm() { return Double.NaN; }
+		};
+		timeline.setDurationSeconds(Double.NaN);
+
+		TimelineCompilationException error = assertThrows(TimelineCompilationException.class,
+			() -> TimelineCompiler.compile(timeline));
+		TimelineValidationReport exceptionReport = error.report();
+		assertTrue(exceptionReport != null);
+		assertTrue(exceptionReport.problems().stream()
+			.anyMatch(d -> "invalid_bpm".equals(d.ruleId())));
+		assertTrue(exceptionReport.problems().stream()
+			.anyMatch(d -> "non_finite_timeline_duration".equals(d.ruleId())));
+		assertTrue(error.getMessage().contains("ruleId=" + "invalid_bpm"));
+		assertTrue(error.getMessage().contains("ruleId=" + "non_finite_timeline_duration"));
+	}}

@@ -72,7 +72,7 @@ public final class TimelineCompiler {
 
 		TimelineValidationReport report = TimelineValidator.validate(document, engine, layerManager);
 		if (report.hasFatalErrors() || (policy == CompilePolicy.STRICT && report.hasErrors())) {
-			throw new TimelineCompilationException(firstError(report));
+			throw new TimelineCompilationException(report);
 		}
 
 		Set<String> skippedIds = degradableEventIds(report, policy);
@@ -111,13 +111,6 @@ public final class TimelineCompiler {
 		return new CompileResult(snapshot, report, skippedEventIds);
 	}
 
-	private static String firstError(TimelineValidationReport report) {
-		return report.diagnostics().stream()
-			.filter(d -> d.severity() == TimelineDiagnosticSeverity.ERROR)
-			.map(TimelineDiagnostic::message)
-			.findFirst()
-			.orElse("Timeline validation failed");
-	}
 
 	private static Set<String> degradableEventIds(TimelineValidationReport report, CompilePolicy policy) {
 		if (policy != CompilePolicy.SKIP_INVALID_EVENTS) return Set.of();
