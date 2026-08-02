@@ -9,6 +9,8 @@ import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.playback.CompiledGlobalEvent;
+import com.beatblock.timeline.playback.GlobalEventExecutor;
+import com.beatblock.timeline.playback.GlobalEventPayload;
 import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
 import com.beatblock.timeline.playback.CompiledStageEvent;
 import com.beatblock.timeline.playback.CompilePolicy;
@@ -19,6 +21,8 @@ import com.beatblock.timeline.playback.TimelineCompiler;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.particle.ParticleEffect;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -352,24 +356,54 @@ public final class BeatBlockClientDriver {
 	}
 
 	private void onCompiledGlobalEvent(CompiledGlobalEvent event) {
-		// Phase C: formal global/VFX cues are frozen; dispatch is intentionally light
-		// (lighting/special hooks can subscribe here later without re-reading the document).
-		if (event == null) {
-			return;
-		}
-		// Keep last report style diagnostics for tools
-		TimelineActionExecutionReport report = new TimelineActionExecutionReport(
-			System.currentTimeMillis(),
-			event.id(),
-			"",
-			TimelineAnimationActionMode.ANIMATE,
-			0,
-			"GLOBAL",
-			event.typeName() + ":" + event.name()
-		);
-		lastTimelineActionExecutionReport = report;
+		if (event == null) return;
+		GlobalEventExecutor.ExecutionResult execution = new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
+			@Override public boolean applyLighting(GlobalEventPayload.Lighting payload) { return false; }
+			@Override public boolean applyWeather(GlobalEventPayload.Weather payload) { return applyGlobalWeather(payload); }
+			@Override public boolean emitParticleBurst(GlobalEventPayload.ParticleBurst payload) { return emitGlobalParticles(payload); }
+			@Override public boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload) { return false; }
+			@Override public boolean applyAudioMix(GlobalEventPayload.AudioMix payload) { return applyGlobalAudioMix(payload); }
+		}).execute(event);
+		lastTimelineActionExecutionReport = new TimelineActionExecutionReport(
+			System.currentTimeMillis(), event.id(), "", TimelineAnimationActionMode.ANIMATE, 0,
+			execution.executed() ? "GLOBAL_EXECUTED" : "GLOBAL_UNSUPPORTED",
+			execution.typeName() + ":" + event.name());
 	}
 
+	private boolean applyGlobalWeather(GlobalEventPayload.Weather payload) {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client == null || client.world == null) return false;
+		String weather = payload.weatherType().toLowerCase(Locale.ROOT);
+		boolean rain = "rain".equals(weather) || "thunder".equals(weather) || "storm".equals(weather);
+		boolean thunder = "thunder".equals(weather) || "storm".equals(weather);
+		client.world.setRainGradient(rain ? 1.0f : 0.0f);
+		client.world.setThunderGradient(thunder ? 1.0f : 0.0f);
+		return true;
+	}
+
+	private boolean emitGlobalParticles(GlobalEventPayload.ParticleBurst payload) {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client == null || client.world == null) return false;
+		ParticleEffect particle = switch (payload.particleType().toLowerCase(Locale.ROOT)) {
+			case "flame", "minecraft:flame" -> ParticleTypes.FLAME;
+			case "crit", "minecraft:crit" -> ParticleTypes.CRIT;
+			case "firework", "minecraft:firework" -> ParticleTypes.FIREWORK;
+			case "end_rod", "minecraft:end_rod" -> ParticleTypes.END_ROD;
+			default -> ParticleTypes.POOF;
+		};
+		for (int i = 0; i < payload.count(); i++) {
+			double angle = i * 2.399963229728653;
+			double speed = 0.04 + (i % 5) * 0.01;
+			client.world.addParticleClient(particle, payload.x(), payload.y(), payload.z(),
+				Math.cos(angle) * speed, 0.04 + (i % 3) * 0.02, Math.sin(angle) * speed);
+		}
+		return true;
+	}
+
+	private boolean applyGlobalAudioMix(GlobalEventPayload.AudioMix payload) {
+		var mixer = ctx().stemMixer();
+		return mixer != null && mixer.setStemVolume(payload.channel(), payload.volume());
+	}
 	private void applyTimelineActionEvent(
 		TimelineAnimationEvent event,
 		@org.jspecify.annotations.Nullable CompiledStageEvent compiledHint,

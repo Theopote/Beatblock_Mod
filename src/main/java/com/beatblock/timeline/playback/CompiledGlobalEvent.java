@@ -19,6 +19,14 @@ public record CompiledGlobalEvent(
 		}
 	}
 
+	public PlaybackSemantics semantics() {
+		if (payload instanceof GlobalEventPayload.Lighting
+			|| payload instanceof GlobalEventPayload.Weather
+			|| payload instanceof GlobalEventPayload.AudioMix) {
+			return PlaybackSemantics.STATEFUL;
+		}
+		return PlaybackSemantics.TRANSIENT;
+	}
 	public String typeName() {
 		if (payload instanceof GlobalEventPayload.Generic g) {
 			return g.typeName();

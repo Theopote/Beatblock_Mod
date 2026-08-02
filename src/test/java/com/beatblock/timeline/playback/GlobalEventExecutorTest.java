@@ -1,0 +1,51 @@
+package com.beatblock.timeline.playback;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class GlobalEventExecutorTest {
+
+	@Test
+	void dispatchesEveryTypedPayloadAndReportsGenericAsUnsupported() {
+		AtomicInteger calls = new AtomicInteger();
+		GlobalEventExecutor executor = new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
+			@Override public boolean applyLighting(GlobalEventPayload.Lighting payload) { calls.incrementAndGet(); return true; }
+			@Override public boolean applyWeather(GlobalEventPayload.Weather payload) { calls.incrementAndGet(); return true; }
+			@Override public boolean emitParticleBurst(GlobalEventPayload.ParticleBurst payload) { calls.incrementAndGet(); return true; }
+			@Override public boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload) { calls.incrementAndGet(); return true; }
+			@Override public boolean applyAudioMix(GlobalEventPayload.AudioMix payload) { calls.incrementAndGet(); return true; }
+		});
+
+		assertTrue(executor.execute(event("light", new GlobalEventPayload.Lighting("", 1, 1, 1, 1, 0))).executed());
+		assertTrue(executor.execute(event("weather", new GlobalEventPayload.Weather("", "rain", 0))).executed());
+		assertTrue(executor.execute(event("particle", new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1))).executed());
+		assertTrue(executor.execute(event("flash", new GlobalEventPayload.ScreenFlash("", 1, 1, 1, 0.1))).executed());
+		assertTrue(executor.execute(event("audio", new GlobalEventPayload.AudioMix("", "master", 1, 0))).executed());
+		assertFalse(executor.execute(event("generic", new GlobalEventPayload.Generic("CUSTOM", "", Map.of()))).executed());
+		assertEquals(5, calls.get());
+	}
+
+	@Test
+	void globalSemanticsMatchSeekBehavior() {
+		assertEquals(PlaybackSemantics.STATEFUL,
+			event("light", new GlobalEventPayload.Lighting("", 1, 1, 1, 1, 0)).semantics());
+		assertEquals(PlaybackSemantics.STATEFUL,
+			event("weather", new GlobalEventPayload.Weather("", "rain", 0)).semantics());
+		assertEquals(PlaybackSemantics.STATEFUL,
+			event("audio", new GlobalEventPayload.AudioMix("", "master", 1, 0)).semantics());
+		assertEquals(PlaybackSemantics.TRANSIENT,
+			event("particle", new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1)).semantics());
+		assertEquals(PlaybackSemantics.TRANSIENT,
+			event("flash", new GlobalEventPayload.ScreenFlash("", 1, 1, 1, 0.1)).semantics());
+	}
+
+	private static CompiledGlobalEvent event(String id, GlobalEventPayload payload) {
+		return new CompiledGlobalEvent(id, 1.0, payload);
+	}
+}

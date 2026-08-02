@@ -195,7 +195,10 @@ public final class PlaybackEngine {
 				continue;
 			}
 			if (event.timeSeconds() > target + EVENT_EPSILON) break;
-			if (effectiveMode == SeekMode.REPLAY_ALL) {
+			boolean replay = effectiveMode == SeekMode.REPLAY_ALL
+				|| (effectiveMode == SeekMode.RECONSTRUCT_STATE
+					&& event.semantics() != PlaybackSemantics.TRANSIENT);
+			if (replay) {
 				scheduledGlobalIds.add(globalKey(event));
 				if (globalHandler != null) globalHandler.onGlobalEvent(event);
 			}

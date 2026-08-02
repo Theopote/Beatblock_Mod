@@ -37,6 +37,7 @@ public final class StemMixer implements IAudioPlayer {
 		final int alSource;
 		final int alBuffer;
 		volatile boolean muted;
+		volatile float gain = 1.0f;
 
 		StemTrack(String key, Path path, int alSource, int alBuffer) {
 			this.key     = key;
@@ -147,7 +148,7 @@ public final class StemMixer implements IAudioPlayer {
 		if (t == null) return;
 		t.muted = muted;
 		try {
-			AL10.alSourcef(t.alSource, AL10.AL_GAIN, muted ? 0.0f : 1.0f);
+			AL10.alSourcef(t.alSource, AL10.AL_GAIN, muted ? 0.0f : t.gain);
 		} catch (Throwable e) {
 			LOGGER.debug("OpenAL alSourcef failed for stem={}", key, e);
 		}
@@ -155,6 +156,21 @@ public final class StemMixer implements IAudioPlayer {
 
 	// ── IAudioPlayer ─────────────────────────────────────────────────────────
 
+	/** Applies immediate gain to one stem, or every stem when key is "master". */
+	public synchronized boolean setStemVolume(@Nullable String key, float volume) {
+		if (!Float.isFinite(volume)) return false;
+		float gain = Math.max(0.0f, Math.min(1.0f, volume));
+		if (!ensureOpenAlBackendReady()) return false;
+		boolean master = key == null || key.isBlank() || "master".equalsIgnoreCase(key);
+		boolean applied = false;
+		for (StemTrack track : stems.values()) {
+			if (!master && !track.key.equalsIgnoreCase(key)) continue;
+			track.gain = gain;
+			AL10.alSourcef(track.alSource, AL10.AL_GAIN, track.muted ? 0.0f : gain);
+			applied = true;
+		}
+		return applied;
+	}
 	@Override
 	public boolean isPlaying() {
 		ensureOpenAlBackendReady();
@@ -319,6 +335,7 @@ public final class StemMixer implements IAudioPlayer {
 					return false;
 				}
 				setStemMuted(track.key, track.muted);
+				setStemVolume(track.key, track.gain);
 			}
 			setCurrentTimeSeconds(resumeTime);
 			if (resumePlaying) {
