@@ -128,7 +128,8 @@ public final class TimelineCompiler {
 			if (TimelineValidator.RULE_UNBOUND_TARGET.equals(rule)
 				|| TimelineValidator.RULE_MISSING_STAGE_OBJECT.equals(rule)
 				|| TimelineValidator.RULE_MISSING_ANIMATION_PRESET.equals(rule)
-				|| TimelineValidator.RULE_MISSING_BUILD_LAYER.equals(rule)) {
+				|| TimelineValidator.RULE_MISSING_BUILD_LAYER.equals(rule)
+				|| TimelineValidator.RULE_NON_POSITIVE_EVENT_DURATION.equals(rule)) {
 				ids.add(diagnostic.eventId());
 			}
 		}
@@ -304,6 +305,10 @@ public final class TimelineCompiler {
 	private static TimelineAnimationEvent copyEvent(TimelineAnimationEvent event) {
 		// Strong-type validate via StageEventPayload, then freeze parameter map.
 		StageEventPayload payload = event.getPayload();
+		if (!Double.isFinite(payload.durationSeconds())) {
+			throw new TimelineCompilationException(
+				"Non-finite duration for event " + event.getEventId() + ": " + payload.durationSeconds());
+		}
 		return new TimelineAnimationEvent(
 			event.getEventId(),
 			event.getTimeSeconds(),

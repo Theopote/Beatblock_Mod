@@ -211,4 +211,20 @@ class TimelineCompilerTest {
 		assertThrows(TimelineCompilationException.class,
 			() -> TimelineCompiler.compile(timeline, null, null, CompilePolicy.SKIP_INVALID_EVENTS));
 	}
+	@Test
+	void nonFiniteEventDurationIsFatalForEveryCompilePolicy() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"nan-duration", 1.0, Double.NaN, "Pulse", "stage", 1f,
+			Map.of("animationType", "Pulse", "targetObject", "stage", "durationSeconds", Double.NaN)));
+
+		TimelineValidationReport report = TimelineValidator.validate(timeline, null);
+		assertTrue(report.hasFatalErrors());
+		assertTrue(report.problems().stream()
+			.anyMatch(d -> TimelineValidator.RULE_NON_FINITE_EVENT_DURATION.equals(d.ruleId())));
+		assertThrows(TimelineCompilationException.class,
+			() -> TimelineCompiler.compile(timeline, null, null, CompilePolicy.STRICT));
+		assertThrows(TimelineCompilationException.class,
+			() -> TimelineCompiler.compile(timeline, null, null, CompilePolicy.SKIP_INVALID_EVENTS));
+	}
 }

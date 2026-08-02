@@ -29,6 +29,8 @@ public final class TimelineValidator {
 
 	public static final String RULE_DUPLICATE_EVENT_ID = "duplicate_event_id";
 	public static final String RULE_INVALID_DURATION = "invalid_duration";
+	public static final String RULE_NON_FINITE_EVENT_DURATION = "non_finite_event_duration";
+	public static final String RULE_NON_POSITIVE_EVENT_DURATION = "non_positive_event_duration";
 	public static final String RULE_MISSING_ANIMATION_PRESET = "missing_animation_preset";
 	public static final String RULE_UNSUPPORTED_PAYLOAD = "unsupported_payload";
 	public static final String RULE_UNBOUND_TARGET = "unbound_target";
@@ -267,10 +269,17 @@ public final class TimelineValidator {
 
 		// Duration
 		double dur = event.getDurationSeconds();
-		if (Double.isNaN(dur) || Double.isInfinite(dur) || dur <= 0) {
+		if (!isFinite(dur)) {
 			issues.add(TimelineDiagnostic.error(
-				RULE_INVALID_DURATION,
-				"Invalid duration for event " + idLabel + ": " + dur,
+				RULE_NON_FINITE_EVENT_DURATION,
+				"Non-finite duration for event " + idLabel + ": " + dur,
+				eventId,
+				time
+			));
+		} else if (dur <= 0) {
+			issues.add(TimelineDiagnostic.error(
+				RULE_NON_POSITIVE_EVENT_DURATION,
+				"Non-positive duration for event " + idLabel + ": " + dur,
 				eventId,
 				time
 			));
