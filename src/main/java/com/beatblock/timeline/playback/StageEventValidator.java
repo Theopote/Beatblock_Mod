@@ -13,8 +13,11 @@ final class StageEventValidator implements TimelineValidationRule {
 	@Override
 	public void validate(TimelineCompileContext context, DiagnosticCollector diagnostics) {
 		Set<String> seenIds = new HashSet<>();
-		for (TimelineAnimationEvent event : context.stageEvents()) {
-			if (event != null) validateEvent(event, context, seenIds, diagnostics);
+		for (int i = 0; i < context.stageEvents().size(); i++) {
+			TimelineAnimationEvent event = context.stageEvents().get(i);
+			if (event == null) continue;
+			TimelineSourceLocation location = context.stageEventLocations().get(i);
+			diagnostics.at(location, () -> validateEvent(event, context, seenIds, diagnostics));
 		}
 	}
 

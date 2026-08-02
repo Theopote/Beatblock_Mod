@@ -245,4 +245,30 @@ class TimelineCompilerTest {
 			.map(CompiledStageEvent::stableSequence).toList(), second.compiledStageEvents().stream()
 			.map(CompiledStageEvent::stableSequence).toList());
 	}
+
+	@Test
+	void skipPolicyUsesSourceLocationForInvalidEventWithoutId() {
+		Timeline timeline = Timeline.createDefault();
+		var track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_AUTO);
+		var clip = TimelineOperations.addClip(track, 0.0, 2.0);
+		clip.addEvent(new com.beatblock.timeline.TimelineEvent(
+			"", 1.0, EventType.ANIMATION,
+			Map.of("animationType", "bounce", "targetObject", "", "durationSeconds", 1.0)));
+
+		CompileResult result = TimelineCompiler.compile(
+			timeline, null, null, CompilePolicy.SKIP_INVALID_EVENTS);
+
+		assertTrue(result.snapshot().stageEvents().isEmpty());
+		assertTrue(result.skippedEventIds().isEmpty());
+		assertEquals(1, result.skippedLocations().size());
+		TimelineSourceLocation location = result.skippedLocations().getFirst();
+		assertEquals(Timeline.TRACK_ID_ANIMATION_AUTO, location.trackId());
+		assertEquals(clip.getId(), location.clipId());
+		assertEquals("", location.eventId());
+		assertEquals(0, location.sourceIndex());
+		assertTrue(result.report().problems().stream().anyMatch(d ->
+			TimelineValidator.RULE_UNBOUND_TARGET.equals(d.ruleId())
+				&& d.eventId() == null
+				&& location.equals(d.sourceLocation())));
+	}
 }

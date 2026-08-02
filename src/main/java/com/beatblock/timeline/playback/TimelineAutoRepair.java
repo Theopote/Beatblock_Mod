@@ -8,12 +8,11 @@ import com.beatblock.timeline.Track;
 import com.beatblock.timeline.command.Command;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.CompositeCommand;
-import com.beatblock.timeline.command.UpdateAnimationEventCommand;
-import com.beatblock.timeline.editing.AnimationEventSnapshot;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,10 +21,19 @@ import java.util.Set;
 
 /** Converts safe validation repairs into one undoable CommandManager transaction. */
 public final class TimelineAutoRepair {
-	public record RepairResult(List<String> repairedEventIds, List<TimelineDiagnostic> unresolved) {
+	public record RepairResult(
+		List<String> repairedEventIds,
+		List<TimelineSourceLocation> repairedLocations,
+		List<TimelineDiagnostic> unresolved
+	) {
 		public RepairResult {
 			repairedEventIds = List.copyOf(repairedEventIds != null ? repairedEventIds : List.of());
+			repairedLocations = List.copyOf(repairedLocations != null ? repairedLocations : List.of());
 			unresolved = List.copyOf(unresolved != null ? unresolved : List.of());
+		}
+
+		public RepairResult(List<String> repairedEventIds, List<TimelineDiagnostic> unresolved) {
+			this(repairedEventIds, List.of(), unresolved);
 		}
 	}
 
@@ -42,18 +50,22 @@ public final class TimelineAutoRepair {
 		Objects.requireNonNull(commandManager, "commandManager");
 		List<Command> repairs = new ArrayList<>();
 		List<String> repairedIds = new ArrayList<>();
+		List<TimelineSourceLocation> repairedLocations = new ArrayList<>();
 		List<TimelineDiagnostic> unresolved = new ArrayList<>();
-		Set<String> handledIds = new HashSet<>();
+		Set<String> handledSources = new HashSet<>();
 
 		for (TimelineDiagnostic diagnostic : report.problems()) {
+			TimelineSourceLocation source = diagnostic.sourceLocation();
 			String eventId = diagnostic.eventId();
+			String sourceKey = source != null ? "source:" + source.sourceIndex() : "id:" + eventId;
 			if ((TimelineValidator.RULE_NON_POSITIVE_EVENT_DURATION.equals(diagnostic.ruleId())
 				|| TimelineValidator.RULE_INVALID_DURATION.equals(diagnostic.ruleId()))
-				&& eventId != null && handledIds.add(eventId)) {
-				LocatedEvent located = locate(timeline, eventId);
+				&& (source != null || eventId != null) && handledSources.add(sourceKey)) {
+				LocatedEvent located = locate(timeline, source, eventId);
 				if (located != null) {
 					repairs.add(durationRepair(timeline, located, defaultDuration(located.event(), engine)));
-					repairedIds.add(eventId);
+					if (eventId != null) repairedIds.add(eventId);
+					if (source != null) repairedLocations.add(source);
 					continue;
 				}
 			}
@@ -63,21 +75,22 @@ public final class TimelineAutoRepair {
 		if (!repairs.isEmpty()) {
 			commandManager.execute(new CompositeCommand(repairs));
 		}
-		return new RepairResult(repairedIds, unresolved);
+		return new RepairResult(repairedIds, repairedLocations, unresolved);
 	}
 
 	private static Command durationRepair(Timeline timeline, LocatedEvent located, double duration) {
-		AnimationEventSnapshot before = AnimationEventSnapshot.capture(
-			located.event(), located.clip(), timeline, located.clip().getId());
-		Map<String, Object> parameters = new HashMap<>(before.parameters());
-		parameters.put("durationSeconds", duration);
-		AnimationEventSnapshot after = new AnimationEventSnapshot(
-			before.timeSeconds(), parameters, before.clipStartSeconds(), before.clipEndSeconds(),
-			before.clipEventTimesById(), before.timelineMetadata(), before.timelineDurationSeconds());
-		return new UpdateAnimationEventCommand(
-			timeline, located.track().getId(), located.clip().getId(), located.event().getId(), before, after);
+		Map<String, Object> before = Map.copyOf(located.event().getParameters());
+		Map<String, Object> after = new HashMap<>(before);
+		after.put("durationSeconds", duration);
+		return new Command() {
+			@Override public void execute() { apply(after); }
+			@Override public void undo() { apply(before); }
+			private void apply(Map<String, Object> parameters) {
+				located.event().setParameters(parameters);
+				timeline.markAnimationEventsDirty(located.track().getId());
+			}
+		};
 	}
-
 	private static double defaultDuration(TimelineEvent event, @Nullable BlockAnimationEngine engine) {
 		if (engine != null) {
 			Object raw = event.getParameters().get("animationType");
@@ -90,17 +103,40 @@ public final class TimelineAutoRepair {
 		return 1.0;
 	}
 
-	private static @Nullable LocatedEvent locate(Timeline timeline, String eventId) {
-		for (Track track : timeline.getTracks()) {
-			if (track == null || !Timeline.isAnimationEventsTrackId(track.getId())) continue;
-			for (Clip clip : track.getClips()) {
-				if (clip == null) continue;
-				TimelineEvent event = clip.getEvent(eventId);
-				if (event != null) return new LocatedEvent(track, clip, event);
+	private static @Nullable LocatedEvent locate(
+		Timeline timeline, @Nullable TimelineSourceLocation source, @Nullable String eventId) {
+		if (source != null) {
+			List<LocatedEvent> candidates = sourceEvents(timeline);
+			if (source.sourceIndex() < candidates.size()) {
+				LocatedEvent candidate = candidates.get(source.sourceIndex());
+				if (source.trackId().isBlank() || source.trackId().equals(candidate.track().getId())) return candidate;
 			}
+		}
+		if (eventId == null) return null;
+		for (LocatedEvent candidate : sourceEvents(timeline)) {
+			if (eventId.equals(candidate.event().getId())) return candidate;
 		}
 		return null;
 	}
 
+	private static List<LocatedEvent> sourceEvents(Timeline timeline) {
+		record Ordered(LocatedEvent located, int order) {}
+		List<Ordered> ordered = new ArrayList<>();
+		int order = 0;
+		for (Track track : timeline.getTracks()) {
+			if (track == null || !Timeline.isAnimationEventsTrackId(track.getId())) continue;
+			for (Clip clip : track.getClips()) {
+				if (clip == null) continue;
+				for (TimelineEvent event : clip.getEvents()) {
+					if (event != null && event.getType() == com.beatblock.timeline.EventType.ANIMATION) {
+						ordered.add(new Ordered(new LocatedEvent(track, clip, event), order++));
+					}
+				}
+			}
+		}
+		ordered.sort(Comparator.comparingDouble((Ordered value) -> value.located().event().getTimeSeconds())
+			.thenComparingInt(Ordered::order));
+		return ordered.stream().map(Ordered::located).toList();
+	}
 	private record LocatedEvent(Track track, Clip clip, TimelineEvent event) {}
 }

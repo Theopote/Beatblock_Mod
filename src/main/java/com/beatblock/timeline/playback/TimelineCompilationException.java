@@ -57,6 +57,12 @@ public final class TimelineCompilationException extends RuntimeException {
 		if (diagnostic.trackHint() != null) {
 			result.append(", track=").append(diagnostic.trackHint());
 		}
+		if (diagnostic.sourceLocation() != null) {
+			TimelineSourceLocation source = diagnostic.sourceLocation();
+			result.append(", sourceIndex=").append(source.sourceIndex());
+			if (!source.trackId().isBlank()) result.append(", sourceTrack=").append(source.trackId());
+			if (!source.clipId().isBlank()) result.append(", sourceClip=").append(source.clipId());
+		}
 		return result.append(']').toString();
 	}
 }

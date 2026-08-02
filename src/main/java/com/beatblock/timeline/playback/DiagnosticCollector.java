@@ -7,11 +7,25 @@ import java.util.Objects;
 /** Mutable diagnostic sink scoped to one validation run. */
 public final class DiagnosticCollector {
 	private final List<TimelineDiagnostic> diagnostics = new ArrayList<>();
+	private TimelineSourceLocation currentLocation;
 
 	public void add(TimelineDiagnostic diagnostic) {
-		diagnostics.add(Objects.requireNonNull(diagnostic, "diagnostic"));
+		TimelineDiagnostic value = Objects.requireNonNull(diagnostic, "diagnostic");
+		diagnostics.add(value.sourceLocation() == null && currentLocation != null
+			? value.withSourceLocation(currentLocation) : value);
 	}
 
+	public void at(TimelineSourceLocation location, Runnable validation) {
+		Objects.requireNonNull(location, "location");
+		Objects.requireNonNull(validation, "validation");
+		TimelineSourceLocation previous = currentLocation;
+		currentLocation = location;
+		try {
+			validation.run();
+		} finally {
+			currentLocation = previous;
+		}
+	}
 	public List<TimelineDiagnostic> diagnostics() {
 		return List.copyOf(diagnostics);
 	}

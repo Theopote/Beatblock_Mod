@@ -54,4 +54,28 @@ class TimelineAutoRepairTest {
 		assertEquals(List.of(diagnostic), result.unresolved());
 		assertEquals(0, commands.undoCount());
 	}
+
+	@Test
+	void sourceLocationRepairsAnEventWithoutIdAndRemainsUndoable() {
+		Timeline timeline = Timeline.createDefault();
+		var track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_AUTO);
+		var clip = TimelineOperations.addClip(track, 0.0, 2.0);
+		TimelineEvent event = new TimelineEvent("", 1.0, EventType.ANIMATION, Map.of(
+			"animationType", "bounce", "targetObject", "stage", "durationSeconds", -3.0));
+		clip.addEvent(event);
+		TimelineSourceLocation source = new TimelineSourceLocation(
+			track.getId(), clip.getId(), "", 0);
+		TimelineDiagnostic diagnostic = TimelineDiagnostic.error(
+			TimelineValidator.RULE_NON_POSITIVE_EVENT_DURATION,
+			"Non-positive duration", null, 1.0).withSourceLocation(source);
+		TimelineValidationReport report = new TimelineValidationReport(List.of(diagnostic), 1, 0, 0, 0);
+		CommandManager commands = new CommandManager();
+
+		TimelineAutoRepair.RepairResult result = TimelineAutoRepair.apply(timeline, report, null, commands);
+		assertTrue(result.repairedEventIds().isEmpty());
+		assertEquals(List.of(source), result.repairedLocations());
+		assertEquals(1.0, ((Number) event.getParameters().get("durationSeconds")).doubleValue());
+		commands.undo();
+		assertEquals(-3.0, ((Number) event.getParameters().get("durationSeconds")).doubleValue());
+	}
 }

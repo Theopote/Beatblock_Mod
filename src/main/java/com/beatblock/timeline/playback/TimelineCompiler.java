@@ -75,13 +75,21 @@ public final class TimelineCompiler {
 			throw new TimelineCompilationException(report);
 		}
 
-		Set<String> skippedIds = degradableEventIds(report, policy);
+		SkipSelection skipSelection = degradableEvents(report, policy);
 		List<String> skippedEventIds = new ArrayList<>();
+		List<TimelineSourceLocation> skippedLocations = new ArrayList<>();
+		List<TimelineAnimationEvent> sourceEvents = document.getStageEvents();
 		List<TimelineAnimationEvent> events = new ArrayList<>();
-		for (TimelineAnimationEvent event : document.getStageEvents()) {
+		for (int sourceIndex = 0; sourceIndex < sourceEvents.size(); sourceIndex++) {
+			TimelineAnimationEvent event = sourceEvents.get(sourceIndex);
 			if (event == null) continue;
-			if (skippedIds.contains(event.getEventId())) {
-				skippedEventIds.add(event.getEventId());
+			boolean skip = skipSelection.sourceIndexes().contains(sourceIndex)
+				|| (!event.getEventId().isBlank() && skipSelection.eventIds().contains(event.getEventId()));
+			if (skip) {
+				if (!event.getEventId().isBlank()) skippedEventIds.add(event.getEventId());
+				TimelineSourceLocation location = skipSelection.locationsByIndex().get(sourceIndex);
+				if (location == null) location = new TimelineSourceLocation("", "", event.getEventId(), sourceIndex);
+				skippedLocations.add(location);
 				continue;
 			}
 			events.add(copyEvent(event));
@@ -108,27 +116,45 @@ public final class TimelineCompiler {
 			document.getStageEventsGeneration(),
 			report
 		);
-		return new CompileResult(snapshot, report, skippedEventIds);
+		return new CompileResult(snapshot, report, skippedEventIds, skippedLocations);
 	}
 
 
-	private static Set<String> degradableEventIds(TimelineValidationReport report, CompilePolicy policy) {
-		if (policy != CompilePolicy.SKIP_INVALID_EVENTS) return Set.of();
-		Set<String> ids = new HashSet<>();
+	private static SkipSelection degradableEvents(TimelineValidationReport report, CompilePolicy policy) {
+		if (policy != CompilePolicy.SKIP_INVALID_EVENTS) return SkipSelection.empty();
+		Set<Integer> sourceIndexes = new HashSet<>();
+		Set<String> eventIds = new HashSet<>();
+		Map<Integer, TimelineSourceLocation> locationsByIndex = new LinkedHashMap<>();
 		for (TimelineDiagnostic diagnostic : report.problems()) {
-			if (diagnostic.eventId() == null) continue;
 			String rule = diagnostic.ruleId();
-			if (TimelineValidator.RULE_UNBOUND_TARGET.equals(rule)
-				|| TimelineValidator.RULE_MISSING_STAGE_OBJECT.equals(rule)
-				|| TimelineValidator.RULE_MISSING_ANIMATION_PRESET.equals(rule)
-				|| TimelineValidator.RULE_MISSING_BUILD_LAYER.equals(rule)
-				|| TimelineValidator.RULE_NON_POSITIVE_EVENT_DURATION.equals(rule)) {
-				ids.add(diagnostic.eventId());
+			if (!isDegradableRule(rule)) continue;
+			TimelineSourceLocation location = diagnostic.sourceLocation();
+			if (location != null) {
+				sourceIndexes.add(location.sourceIndex());
+				locationsByIndex.putIfAbsent(location.sourceIndex(), location);
 			}
+			if (diagnostic.eventId() != null) eventIds.add(diagnostic.eventId());
 		}
-		return ids;
+		return new SkipSelection(sourceIndexes, eventIds, locationsByIndex);
 	}
 
+	private static boolean isDegradableRule(String rule) {
+		return TimelineValidator.RULE_UNBOUND_TARGET.equals(rule)
+			|| TimelineValidator.RULE_MISSING_STAGE_OBJECT.equals(rule)
+			|| TimelineValidator.RULE_MISSING_ANIMATION_PRESET.equals(rule)
+			|| TimelineValidator.RULE_MISSING_BUILD_LAYER.equals(rule)
+			|| TimelineValidator.RULE_NON_POSITIVE_EVENT_DURATION.equals(rule);
+	}
+
+	private record SkipSelection(
+		Set<Integer> sourceIndexes,
+		Set<String> eventIds,
+		Map<Integer, TimelineSourceLocation> locationsByIndex
+	) {
+		private static SkipSelection empty() {
+			return new SkipSelection(Set.of(), Set.of(), Map.of());
+		}
+	}
 	private static List<CompiledStageEvent> compileStageEvents(
 		List<TimelineAnimationEvent> events,
 		@Nullable BlockAnimationEngine engine

@@ -20,8 +20,19 @@ public record TimelineDiagnostic(
 	String message,
 	@Nullable String eventId,
 	double timeSeconds,
-	@Nullable String trackHint
+	@Nullable String trackHint,
+	@Nullable TimelineSourceLocation sourceLocation
 ) {
+	public TimelineDiagnostic(
+		String ruleId,
+		TimelineDiagnosticSeverity severity,
+		String message,
+		@Nullable String eventId,
+		double timeSeconds,
+		@Nullable String trackHint
+	) {
+		this(ruleId, severity, message, eventId, timeSeconds, trackHint, null);
+	}
 	public TimelineDiagnostic {
 		Objects.requireNonNull(ruleId, "ruleId");
 		Objects.requireNonNull(severity, "severity");
@@ -46,6 +57,9 @@ public record TimelineDiagnostic(
 		return new TimelineDiagnostic(ruleId, TimelineDiagnosticSeverity.INFO, message, null, Double.NaN, null);
 	}
 
+	public TimelineDiagnostic withSourceLocation(TimelineSourceLocation location) {
+		return new TimelineDiagnostic(ruleId, severity, message, eventId, timeSeconds, trackHint, location);
+	}
 	public boolean hasTime() {
 		return !Double.isNaN(timeSeconds);
 	}
