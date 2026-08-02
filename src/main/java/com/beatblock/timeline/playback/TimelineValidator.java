@@ -34,6 +34,7 @@ public final class TimelineValidator {
 	public static final String RULE_MISSING_ANIMATION_PRESET = "missing_animation_preset";
 	public static final String RULE_UNSUPPORTED_PAYLOAD = "unsupported_payload";
 	public static final String RULE_INVALID_GLOBAL_PAYLOAD = "invalid_global_payload";
+	public static final String RULE_INVALID_REFERENCE_BEAT_DATA = "invalid_reference_beat_data";
 	public static final String RULE_UNBOUND_TARGET = "unbound_target";
 	public static final String RULE_MISSING_STAGE_OBJECT = "missing_stage_object";
 	public static final String RULE_EVENT_OUTSIDE_TIMELINE = "event_outside_timeline";
@@ -115,7 +116,14 @@ public final class TimelineValidator {
 					}
 				}
 			}
-		} catch (Exception ignored) {}
+		} catch (RuntimeException error) {
+			issues.add(TimelineDiagnostic.error(
+				RULE_INVALID_REFERENCE_BEAT_DATA,
+				"Failed to resolve reference beats: " + safeMessage(error),
+				null,
+				Double.NaN
+			));
+		}
 
 		// Validate all tracks, clips, and clip events
 		for (Track track : document.getTracks()) {
@@ -419,6 +427,10 @@ public final class TimelineValidator {
 		return n;
 	}
 
+	private static String safeMessage(RuntimeException error) {
+		String message = error.getMessage();
+		return message != null && !message.isBlank() ? message : error.getClass().getSimpleName();
+	}
 	private static boolean isFinite(double value) {
 		return Double.isFinite(value);
 	}

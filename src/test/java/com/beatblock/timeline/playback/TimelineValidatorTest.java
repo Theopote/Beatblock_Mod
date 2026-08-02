@@ -179,4 +179,30 @@ class TimelineValidatorTest {
 			"durationSeconds", 1.0
 		));
 	}
+	@Test
+	void referenceBeatResolverFailureBecomesFatalDiagnostic() {
+		Timeline timeline = new Timeline() {
+			@Override
+			public boolean hasFeatureTracks() {
+				return true;
+			}
+
+			@Override
+			public Map<String, com.beatblock.timeline.FeatureTrack> getFeatureTracks() {
+				Map<String, com.beatblock.timeline.FeatureTrack> tracks = new java.util.LinkedHashMap<>();
+				tracks.put(null, new com.beatblock.timeline.FeatureTrack("broken", "Broken"));
+				tracks.put("other", new com.beatblock.timeline.FeatureTrack("other", "Other"));
+				return java.util.Collections.unmodifiableMap(tracks);
+			}
+		};
+
+		TimelineValidationReport report = TimelineValidator.validate(timeline, null);
+		assertTrue(report.hasFatalErrors());
+		assertTrue(report.problems().stream()
+			.anyMatch(d -> TimelineValidator.RULE_INVALID_REFERENCE_BEAT_DATA.equals(d.ruleId())
+				&& d.message().startsWith("Failed to resolve reference beats:")));
+		TimelineCompilationException error = assertThrows(TimelineCompilationException.class,
+			() -> TimelineCompiler.compile(timeline));
+		assertTrue(error.getMessage().startsWith("Failed to resolve reference beats:"));
+	}
 }

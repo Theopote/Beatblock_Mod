@@ -57,6 +57,7 @@ public record TimelineDiagnostic(
 		return "unsupported_payload".equals(ruleId)
 			|| "unsupported_parameter_type".equals(ruleId)
 			|| "invalid_global_payload".equals(ruleId)
+			|| "invalid_reference_beat_data".equals(ruleId)
 			|| "non_finite_event_time".equals(ruleId)
 			|| "non_finite_event_duration".equals(ruleId)
 			|| "non_finite_timeline_duration".equals(ruleId)
