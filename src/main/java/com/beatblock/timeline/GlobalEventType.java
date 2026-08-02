@@ -6,5 +6,6 @@ package com.beatblock.timeline;
 public enum GlobalEventType {
 	STAGE,
 	LIGHTING,
+	SCREEN_TINT,
 	SPECIAL
 }

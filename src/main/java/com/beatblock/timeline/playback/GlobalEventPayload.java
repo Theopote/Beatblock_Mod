@@ -4,6 +4,14 @@ import java.util.Map;
 
 /** Strongly typed payload representing a compiled global / VFX track event. */
 public sealed interface GlobalEventPayload {
+	/** World/environment lighting intent. Execution requires a world-capable backend. */
+	record EnvironmentLighting(String name, double intensity, float r, float g, float b, double durationSeconds)
+		implements GlobalEventPayload { public EnvironmentLighting { name = name != null ? name : ""; } }
+	/** Editor/screen overlay tint; does not modify Minecraft world lighting. */
+	record ScreenTint(String name, double intensity, float r, float g, float b, double durationSeconds)
+		implements GlobalEventPayload { public ScreenTint { name = name != null ? name : ""; } }
+	/** @deprecated Use EnvironmentLighting or ScreenTint to state the intended capability. */
+	@Deprecated
 	record Lighting(String name, double intensity, float r, float g, float b, double durationSeconds)
 		implements GlobalEventPayload { public Lighting { name = name != null ? name : ""; } }
 	record Weather(String name, String weatherType, double transitionSeconds)

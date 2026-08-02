@@ -15,7 +15,14 @@ public final class GlobalEventPayloadCodec {
 		Map<String, Object> params = parameters != null ? parameters : Map.of();
 		String type = normalizeType(params.get("type"));
 		return switch (type) {
-			case "LIGHTING" -> new GlobalEventPayload.Lighting(
+			case "LIGHTING", "ENVIRONMENT_LIGHTING" -> new GlobalEventPayload.EnvironmentLighting(
+				string(params, "name", ""),
+				number(params, "intensity", 1.0),
+				(float) number(params, "r", 1.0),
+				(float) number(params, "g", 1.0),
+				(float) number(params, "b", 1.0),
+				nonNegative(params, "durationSeconds", 0.0));
+			case "SCREEN_TINT", "OVERLAY_TINT" -> new GlobalEventPayload.ScreenTint(
 				string(params, "name", ""),
 				number(params, "intensity", 1.0),
 				(float) number(params, "r", 1.0),

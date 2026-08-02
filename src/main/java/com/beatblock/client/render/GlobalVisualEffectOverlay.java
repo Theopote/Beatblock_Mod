@@ -3,17 +3,17 @@ package com.beatblock.client.render;
 import com.beatblock.timeline.playback.GlobalEventPayload;
 import imgui.ImGui;
 
-/** Full-screen editor overlay for compiled lighting and screen-flash cues. */
+/** Full-screen editor overlay for compiled screen-tint and screen-flash cues. */
 public final class GlobalVisualEffectOverlay {
-	private static volatile ColorEffect lighting;
+	private static volatile ColorEffect screenTint;
 	private static volatile ColorEffect flash;
 
 	private GlobalVisualEffectOverlay() {}
 
-	public static boolean applyLighting(GlobalEventPayload.Lighting payload) {
+	public static boolean applyScreenTint(GlobalEventPayload.ScreenTint payload) {
 		if (payload == null) return false;
 		double intensity = clamp(payload.intensity(), 0.0, 1.0);
-		lighting = intensity > 0
+		screenTint = intensity > 0
 			? new ColorEffect(payload.r(), payload.g(), payload.b(), intensity * 0.35, Long.MAX_VALUE, false)
 			: null;
 		return true;
@@ -29,7 +29,7 @@ public final class GlobalVisualEffectOverlay {
 	}
 
 	public static void clear() {
-		lighting = null;
+		screenTint = null;
 		flash = null;
 	}
 
@@ -39,7 +39,7 @@ public final class GlobalVisualEffectOverlay {
 		float height = io.getDisplaySizeY();
 		if (width <= 0 || height <= 0) return;
 		long now = System.nanoTime();
-		draw(lighting, now, width, height);
+		draw(screenTint, now, width, height);
 		ColorEffect currentFlash = flash;
 		if (currentFlash != null && now >= currentFlash.endNanos()) {
 			flash = null;

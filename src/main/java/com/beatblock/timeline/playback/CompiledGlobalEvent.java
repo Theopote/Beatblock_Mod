@@ -20,7 +20,9 @@ public record CompiledGlobalEvent(
 	}
 
 	public PlaybackSemantics semantics() {
-		if (payload instanceof GlobalEventPayload.Lighting
+		if (payload instanceof GlobalEventPayload.EnvironmentLighting
+			|| payload instanceof GlobalEventPayload.ScreenTint
+			|| payload instanceof GlobalEventPayload.Lighting
 			|| payload instanceof GlobalEventPayload.Weather
 			|| payload instanceof GlobalEventPayload.AudioMix) {
 			return PlaybackSemantics.STATEFUL;
@@ -31,6 +33,8 @@ public record CompiledGlobalEvent(
 		if (payload instanceof GlobalEventPayload.Generic g) {
 			return g.typeName();
 		}
+		if (payload instanceof GlobalEventPayload.EnvironmentLighting) return "ENVIRONMENT_LIGHTING";
+		if (payload instanceof GlobalEventPayload.ScreenTint) return "SCREEN_TINT";
 		if (payload instanceof GlobalEventPayload.Lighting) return "LIGHTING";
 		if (payload instanceof GlobalEventPayload.Weather) return "WEATHER";
 		if (payload instanceof GlobalEventPayload.ParticleBurst) return "PARTICLE";
@@ -41,6 +45,8 @@ public record CompiledGlobalEvent(
 
 	public String name() {
 		if (payload instanceof GlobalEventPayload.Generic g) return g.name();
+		if (payload instanceof GlobalEventPayload.EnvironmentLighting p) return p.name();
+		if (payload instanceof GlobalEventPayload.ScreenTint p) return p.name();
 		if (payload instanceof GlobalEventPayload.Lighting p) return p.name();
 		if (payload instanceof GlobalEventPayload.Weather p) return p.name();
 		if (payload instanceof GlobalEventPayload.ParticleBurst p) return p.name();

@@ -361,7 +361,8 @@ public final class BeatBlockClientDriver {
 
 	private GlobalEventExecutor createGlobalEventExecutor() {
 		return new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
-			@Override public boolean applyLighting(GlobalEventPayload.@NotNull Lighting payload) { return GlobalVisualEffectOverlay.applyLighting(payload); }
+			@Override public boolean applyEnvironmentLighting(GlobalEventPayload.@NotNull EnvironmentLighting payload) { return false; }
+			@Override public boolean applyScreenTint(GlobalEventPayload.@NotNull ScreenTint payload) { return GlobalVisualEffectOverlay.applyScreenTint(payload); }
 			@Override public boolean applyWeather(GlobalEventPayload.@NotNull Weather payload) { return applyGlobalWeather(payload); }
 			@Override public boolean emitParticleBurst(GlobalEventPayload.@NotNull ParticleBurst payload) { return emitGlobalParticles(payload); }
 			@Override public boolean applyScreenFlash(GlobalEventPayload.@NotNull ScreenFlash payload) { return GlobalVisualEffectOverlay.applyScreenFlash(payload); }
