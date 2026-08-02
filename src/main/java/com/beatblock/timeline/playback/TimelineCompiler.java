@@ -20,9 +20,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Compiles an editable {@link Timeline} into an immutable {@link CompiledTimelineSnapshot}
@@ -52,22 +54,36 @@ public final class TimelineCompiler {
 		@Nullable BlockAnimationEngine engine,
 		@Nullable BuildLayerManager layerManager
 	) {
+		return compile(document, engine, layerManager, CompilePolicy.STRICT).snapshot();
+	}
+
+	public static CompileResult compile(
+		@Nullable Timeline document,
+		@Nullable BlockAnimationEngine engine,
+		@Nullable BuildLayerManager layerManager,
+		CompilePolicy policy
+	) {
+		if (policy == null) {
+			throw new IllegalArgumentException("policy must not be null");
+		}
 		if (document == null) {
-			return CompiledTimelineSnapshot.empty();
+			return new CompileResult(CompiledTimelineSnapshot.empty(), TimelineValidator.validate(null, engine, layerManager), List.of());
 		}
 
 		TimelineValidationReport report = TimelineValidator.validate(document, engine, layerManager);
-		if (report.hasFatalErrors()) {
-			String message = report.diagnostics().stream()
-				.filter(d -> d.severity() == TimelineDiagnosticSeverity.ERROR && d.isFatal())
-				.map(TimelineDiagnostic::message)
-				.findFirst()
-				.orElse("Fatal timeline validation error");
-			throw new TimelineCompilationException(message);
+		if (report.hasFatalErrors() || (policy == CompilePolicy.STRICT && report.hasErrors())) {
+			throw new TimelineCompilationException(firstError(report));
 		}
 
+		Set<String> skippedIds = degradableEventIds(report, policy);
+		List<String> skippedEventIds = new ArrayList<>();
 		List<TimelineAnimationEvent> events = new ArrayList<>();
 		for (TimelineAnimationEvent event : document.getStageEvents()) {
+			if (event == null) continue;
+			if (skippedIds.contains(event.getEventId())) {
+				skippedEventIds.add(event.getEventId());
+				continue;
+			}
 			events.add(copyEvent(event));
 		}
 		events.sort(Comparator
@@ -77,7 +93,7 @@ public final class TimelineCompiler {
 		double bpm = document.getBpm() > 0 ? document.getBpm() : 120.0;
 		double duration = Math.max(0, document.getDurationSeconds());
 
-		return new CompiledTimelineSnapshot(
+		CompiledTimelineSnapshot snapshot = new CompiledTimelineSnapshot(
 			events,
 			compileStageEvents(events, engine),
 			compileCameraTrack(document.getTrack(Timeline.TRACK_ID_CAMERA)),
@@ -92,6 +108,31 @@ public final class TimelineCompiler {
 			document.getStageEventsGeneration(),
 			report
 		);
+		return new CompileResult(snapshot, report, skippedEventIds);
+	}
+
+	private static String firstError(TimelineValidationReport report) {
+		return report.diagnostics().stream()
+			.filter(d -> d.severity() == TimelineDiagnosticSeverity.ERROR)
+			.map(TimelineDiagnostic::message)
+			.findFirst()
+			.orElse("Timeline validation failed");
+	}
+
+	private static Set<String> degradableEventIds(TimelineValidationReport report, CompilePolicy policy) {
+		if (policy != CompilePolicy.SKIP_INVALID_EVENTS) return Set.of();
+		Set<String> ids = new HashSet<>();
+		for (TimelineDiagnostic diagnostic : report.problems()) {
+			if (diagnostic.eventId() == null) continue;
+			String rule = diagnostic.ruleId();
+			if (TimelineValidator.RULE_UNBOUND_TARGET.equals(rule)
+				|| TimelineValidator.RULE_MISSING_STAGE_OBJECT.equals(rule)
+				|| TimelineValidator.RULE_MISSING_ANIMATION_PRESET.equals(rule)
+				|| TimelineValidator.RULE_MISSING_BUILD_LAYER.equals(rule)) {
+				ids.add(diagnostic.eventId());
+			}
+		}
+		return ids;
 	}
 
 	private static List<CompiledStageEvent> compileStageEvents(

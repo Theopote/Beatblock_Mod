@@ -174,4 +174,41 @@ class TimelineCompilerTest {
 		assertEquals(1, snapshot.buildLayers().size());
 		assertEquals(List.of(new BlockPos(1, 64, 2)), snapshot.buildLayers().getFirst().blocks());
 	}
+	@Test
+	void strictRejectsErrorsWhileSkipPolicyReturnsSkippedEventIds() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.setDurationSeconds(10);
+		BlockAnimationEngine engine = new BlockAnimationEngine();
+		String validAnimation = engine.getAnimationLibrary().getAll().keySet().iterator().next();
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"stage", "Stage", List.of(new BlockPos(0, 64, 0))));
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"valid", 1.0, 1.0, validAnimation, "stage", 1f, Map.of(
+				"animationType", validAnimation, "targetObject", "stage", "durationSeconds", 1.0)));
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"invalid", 2.0, 1.0, "missing-preset", "stage", 1f, Map.of(
+				"animationType", "missing-preset", "targetObject", "stage", "durationSeconds", 1.0)));
+
+		assertThrows(TimelineCompilationException.class,
+			() -> TimelineCompiler.compile(timeline, engine, null, CompilePolicy.STRICT));
+
+		CompileResult result = TimelineCompiler.compile(
+			timeline, engine, null, CompilePolicy.SKIP_INVALID_EVENTS);
+		String invalidId = timeline.getStageEvents().stream()
+			.filter(e -> "missing-preset".equals(e.getAnimationTypeId()))
+			.findFirst().orElseThrow().getEventId();
+		assertEquals(List.of(invalidId), result.skippedEventIds());
+		assertEquals(List.of(validAnimation), result.snapshot().stageEvents().stream()
+			.map(TimelineAnimationEvent::getAnimationTypeId).toList());
+		assertTrue(result.report().hasErrors());
+	}
+
+	@Test
+	void skipPolicyNeverBypassesFatalErrors() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.setDurationSeconds(Double.NaN);
+
+		assertThrows(TimelineCompilationException.class,
+			() -> TimelineCompiler.compile(timeline, null, null, CompilePolicy.SKIP_INVALID_EVENTS));
+	}
 }

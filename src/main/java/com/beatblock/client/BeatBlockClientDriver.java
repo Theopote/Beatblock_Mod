@@ -11,6 +11,8 @@ import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.playback.CompiledGlobalEvent;
 import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
 import com.beatblock.timeline.playback.CompiledStageEvent;
+import com.beatblock.timeline.playback.CompilePolicy;
+import com.beatblock.timeline.playback.PerformanceCheckController;
 import com.beatblock.timeline.playback.PlaybackEngine;
 import com.beatblock.timeline.playback.TimelineCompiler;
 import net.minecraft.block.BlockState;
@@ -180,11 +182,13 @@ public final class BeatBlockClientDriver {
 		lastTickNanos = 0;
 		resetTimelineAnimationScheduling();
 		// Phase B/C: full compile → load into PlaybackEngine
+		CompilePolicy policy = PerformanceCheckController.consumeNextCompilePolicy();
 		compiledPlayback = TimelineCompiler.compile(
 			ctx().timeline(),
 			ctx().blockAnimationEngine(),
-			ctx().buildLayerManager()
-		);
+			ctx().buildLayerManager(),
+			policy
+		).snapshot();
 		playbackEngine.load(compiledPlayback);
 		driving = true;
 	}

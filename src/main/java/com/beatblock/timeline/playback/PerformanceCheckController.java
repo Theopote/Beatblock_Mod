@@ -16,6 +16,7 @@ public final class PerformanceCheckController {
 	private static boolean showProblemsExpanded;
 	/** Play action deferred when blocked by errors; used by Force Play. */
 	private static @Nullable Runnable blockedPlayAction;
+	private static CompilePolicy nextCompilePolicy = CompilePolicy.STRICT;
 	/** Seek request from problem list (seconds); consumed by transport/UI. */
 	private static @Nullable Double pendingSeekTimeSeconds;
 	private static @Nullable String pendingSeekEventId;
@@ -40,6 +41,7 @@ public final class PerformanceCheckController {
 		pendingSeekTimeSeconds = null;
 		pendingSeekEventId = null;
 		problemFilterMode = FILTER_ALL;
+		nextCompilePolicy = CompilePolicy.STRICT;
 	}
 
 	public static int problemFilterMode() {
@@ -104,6 +106,7 @@ public final class PerformanceCheckController {
 		}
 
 		if (onAllowed != null) {
+			nextCompilePolicy = CompilePolicy.STRICT;
 			onAllowed.run();
 		}
 		return report;
@@ -152,8 +155,15 @@ public final class PerformanceCheckController {
 		Runnable action = blockedPlayAction;
 		blockedPlayAction = null;
 		if (action != null) {
+			nextCompilePolicy = CompilePolicy.SKIP_INVALID_EVENTS;
 			action.run();
 		}
+	}
+
+	public static CompilePolicy consumeNextCompilePolicy() {
+		CompilePolicy policy = nextCompilePolicy;
+		nextCompilePolicy = CompilePolicy.STRICT;
+		return policy;
 	}
 
 	public static boolean hasBlockedPlayAction() {
