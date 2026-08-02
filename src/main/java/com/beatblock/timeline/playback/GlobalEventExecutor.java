@@ -12,7 +12,7 @@ public final class GlobalEventExecutor {
 		default boolean applyScreenTint(GlobalEventPayload.ScreenTint payload) { return false; }
 		/** @deprecated Legacy ambiguous lighting payload. */
 		@Deprecated default boolean applyLighting(GlobalEventPayload.Lighting payload) { return false; }
-		boolean applyWeather(GlobalEventPayload.Weather payload);
+		boolean applyLocalVisualWeather(GlobalEventPayload.LocalVisualWeather payload);
 		boolean emitParticleBurst(GlobalEventPayload.ParticleBurst payload);
 		boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload);
 		boolean applyAudioMix(GlobalEventPayload.AudioMix payload);
@@ -37,8 +37,8 @@ public final class GlobalEventExecutor {
 			executed = backend.applyScreenTint(value);
 		} else if (payload instanceof GlobalEventPayload.Lighting value) {
 			executed = backend.applyLighting(value);
-		} else if (payload instanceof GlobalEventPayload.Weather value) {
-			executed = backend.applyWeather(value);
+		} else if (payload instanceof GlobalEventPayload.LocalVisualWeather value) {
+			executed = backend.applyLocalVisualWeather(value);
 		} else if (payload instanceof GlobalEventPayload.ParticleBurst value) {
 			executed = backend.emitParticleBurst(value);
 		} else if (payload instanceof GlobalEventPayload.ScreenFlash value) {

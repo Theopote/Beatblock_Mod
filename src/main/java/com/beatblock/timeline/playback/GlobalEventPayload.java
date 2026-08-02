@@ -14,8 +14,9 @@ public sealed interface GlobalEventPayload {
 	@Deprecated
 	record Lighting(String name, double intensity, float r, float g, float b, double durationSeconds)
 		implements GlobalEventPayload { public Lighting { name = name != null ? name : ""; } }
-	record Weather(String name, String weatherType, double transitionSeconds)
-		implements GlobalEventPayload { public Weather { name = name != null ? name : ""; } }
+	/** Client-only presentation weather; does not change authoritative or saved world weather. */
+	record LocalVisualWeather(String name, String weatherType, double transitionSeconds)
+		implements GlobalEventPayload { public LocalVisualWeather { name = name != null ? name : ""; } }
 	record ParticleBurst(String name, String particleType, double x, double y, double z, int count)
 		implements GlobalEventPayload { public ParticleBurst { name = name != null ? name : ""; } }
 	record ScreenFlash(String name, float r, float g, float b, double durationSeconds)

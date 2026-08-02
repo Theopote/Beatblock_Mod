@@ -20,8 +20,10 @@ class GlobalEventPayloadCodecTest {
 			GlobalEventPayloadCodec.decode(Map.of("type", "lighting", "intensity", 0.5)));
 		assertInstanceOf(GlobalEventPayload.ScreenTint.class,
 			GlobalEventPayloadCodec.decode(Map.of("type", "screen_tint", "intensity", 0.5)));
-		assertInstanceOf(GlobalEventPayload.Weather.class,
+		assertInstanceOf(GlobalEventPayload.LocalVisualWeather.class,
 			GlobalEventPayloadCodec.decode(Map.of("type", "WEATHER", "weatherType", "rain")));
+		assertInstanceOf(GlobalEventPayload.LocalVisualWeather.class,
+			GlobalEventPayloadCodec.decode(Map.of("type", "LOCAL_VISUAL_WEATHER", "weatherType", "clear")));
 		assertInstanceOf(GlobalEventPayload.ParticleBurst.class,
 			GlobalEventPayloadCodec.decode(Map.of("type", "particle", "count", 4)));
 		assertInstanceOf(GlobalEventPayload.ScreenFlash.class,

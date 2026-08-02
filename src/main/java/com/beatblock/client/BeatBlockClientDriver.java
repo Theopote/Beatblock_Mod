@@ -363,7 +363,7 @@ public final class BeatBlockClientDriver {
 		return new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
 			@Override public boolean applyEnvironmentLighting(GlobalEventPayload.@NotNull EnvironmentLighting payload) { return false; }
 			@Override public boolean applyScreenTint(GlobalEventPayload.@NotNull ScreenTint payload) { return GlobalVisualEffectOverlay.applyScreenTint(payload); }
-			@Override public boolean applyWeather(GlobalEventPayload.@NotNull Weather payload) { return applyGlobalWeather(payload); }
+			@Override public boolean applyLocalVisualWeather(GlobalEventPayload.@NotNull LocalVisualWeather payload) { return applyClientVisualWeather(payload); }
 			@Override public boolean emitParticleBurst(GlobalEventPayload.@NotNull ParticleBurst payload) { return emitGlobalParticles(payload); }
 			@Override public boolean applyScreenFlash(GlobalEventPayload.@NotNull ScreenFlash payload) { return GlobalVisualEffectOverlay.applyScreenFlash(payload); }
 			@Override public boolean applyAudioMix(GlobalEventPayload.@NotNull AudioMix payload) { return applyGlobalAudioMix(payload); }
@@ -383,7 +383,7 @@ public final class BeatBlockClientDriver {
 			execution.typeName() + ":" + event.name());
 	}
 
-	private boolean applyGlobalWeather(GlobalEventPayload.Weather payload) {
+	private boolean applyClientVisualWeather(GlobalEventPayload.LocalVisualWeather payload) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client == null || client.world == null) return false;
 		String weather = payload.weatherType().toLowerCase(Locale.ROOT);

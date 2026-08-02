@@ -17,7 +17,7 @@ class GlobalEventExecutorTest {
 		GlobalEventExecutor executor = new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
 			@Override public boolean applyEnvironmentLighting(GlobalEventPayload.EnvironmentLighting payload) { calls.incrementAndGet(); return true; }
 			@Override public boolean applyScreenTint(GlobalEventPayload.ScreenTint payload) { calls.incrementAndGet(); return true; }
-			@Override public boolean applyWeather(GlobalEventPayload.Weather payload) { calls.incrementAndGet(); return true; }
+			@Override public boolean applyLocalVisualWeather(GlobalEventPayload.LocalVisualWeather payload) { calls.incrementAndGet(); return true; }
 			@Override public boolean emitParticleBurst(GlobalEventPayload.ParticleBurst payload) { calls.incrementAndGet(); return true; }
 			@Override public boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload) { calls.incrementAndGet(); return true; }
 			@Override public boolean applyAudioMix(GlobalEventPayload.AudioMix payload) { calls.incrementAndGet(); return true; }
@@ -25,7 +25,7 @@ class GlobalEventExecutorTest {
 
 		assertTrue(executor.execute(event("light", new GlobalEventPayload.EnvironmentLighting("", 1, 1, 1, 1, 0))).executed());
 		assertTrue(executor.execute(event("tint", new GlobalEventPayload.ScreenTint("", 0.5, 1, 1, 1, 0))).executed());
-		assertTrue(executor.execute(event("weather", new GlobalEventPayload.Weather("", "rain", 0))).executed());
+		assertTrue(executor.execute(event("weather", new GlobalEventPayload.LocalVisualWeather("", "rain", 0))).executed());
 		assertTrue(executor.execute(event("particle", new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1))).executed());
 		assertTrue(executor.execute(event("flash", new GlobalEventPayload.ScreenFlash("", 1, 1, 1, 0.1))).executed());
 		assertTrue(executor.execute(event("audio", new GlobalEventPayload.AudioMix("", "master", 1, 0))).executed());
@@ -40,7 +40,7 @@ class GlobalEventExecutorTest {
 		assertEquals(PlaybackSemantics.STATEFUL,
 			event("tint", new GlobalEventPayload.ScreenTint("", 0.5, 1, 1, 1, 0)).semantics());
 		assertEquals(PlaybackSemantics.STATEFUL,
-			event("weather", new GlobalEventPayload.Weather("", "rain", 0)).semantics());
+			event("weather", new GlobalEventPayload.LocalVisualWeather("", "rain", 0)).semantics());
 		assertEquals(PlaybackSemantics.STATEFUL,
 			event("audio", new GlobalEventPayload.AudioMix("", "master", 1, 0)).semantics());
 		assertEquals(PlaybackSemantics.TRANSIENT,

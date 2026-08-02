@@ -29,7 +29,7 @@ public final class GlobalEventPayloadCodec {
 				(float) number(params, "g", 1.0),
 				(float) number(params, "b", 1.0),
 				nonNegative(params, "durationSeconds", 0.0));
-			case "WEATHER" -> new GlobalEventPayload.Weather(
+			case "WEATHER", "LOCAL_VISUAL_WEATHER" -> new GlobalEventPayload.LocalVisualWeather(
 				string(params, "name", ""),
 				string(params, "weatherType", "clear"),
 				nonNegative(params, "transitionSeconds", 0.0));
