@@ -17,5 +17,19 @@ public enum PlaybackSemantics {
 	/**
 	 * Idempotent mutations where repeated executions result in the same state (e.g. set/clear block).
 	 */
-	IDEMPOTENT
+	IDEMPOTENT;
+
+	public static java.util.Optional<PlaybackSemantics> fromValue(Object value) {
+		if (value instanceof PlaybackSemantics semantics) {
+			return java.util.Optional.of(semantics);
+		}
+		if (value == null) return java.util.Optional.empty();
+		String name = String.valueOf(value).trim();
+		if (name.isEmpty()) return java.util.Optional.empty();
+		try {
+			return java.util.Optional.of(valueOf(name.toUpperCase(java.util.Locale.ROOT)));
+		} catch (IllegalArgumentException ignored) {
+			return java.util.Optional.empty();
+		}
+	}
 }

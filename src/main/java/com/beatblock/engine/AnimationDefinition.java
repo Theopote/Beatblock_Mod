@@ -1,6 +1,7 @@
 package com.beatblock.engine;
 
 import com.beatblock.engine.influence.BlockInfluencePreset;
+import com.beatblock.timeline.playback.PlaybackSemantics;
 
 /**
  * 动画库中的模板：id、名称、时长、{@link BlockInfluencePreset} 通道组合。
@@ -32,6 +33,10 @@ public final class AnimationDefinition {
 
 	public float getDurationSeconds() {
 		return durationSeconds;
+	}
+
+	public java.util.Optional<PlaybackSemantics> getPlaybackSemantics() {
+		return preset.getPlaybackSemantics();
 	}
 
 	public BlockInfluencePreset getPreset() {

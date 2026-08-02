@@ -23,6 +23,17 @@ public record CompiledStageEvent(
 		if (event == null) {
 			return PlaybackSemantics.TRANSIENT;
 		}
+		PlaybackSemantics explicit = PlaybackSemantics.fromValue(
+			event.getParameters().get("playbackSemantics")).orElse(null);
+		if (explicit != null) {
+			return explicit;
+		}
+		if (animationDefinition != null) {
+			PlaybackSemantics presetDefault = animationDefinition.getPlaybackSemantics().orElse(null);
+			if (presetDefault != null) {
+				return presetDefault;
+			}
+		}
 		var mode = event.getActionMode();
 		if (mode == com.beatblock.timeline.TimelineAnimationActionMode.PLACE
 			|| mode == com.beatblock.timeline.TimelineAnimationActionMode.CLEAR) {

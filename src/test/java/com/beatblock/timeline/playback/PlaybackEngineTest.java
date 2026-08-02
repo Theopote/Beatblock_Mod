@@ -222,4 +222,48 @@ class PlaybackEngineTest {
 		assertEquals(1, stageHits.get());
 		assertEquals(1, globalHits.get());
 	}
+	@Test
+	void semanticsPriorityIsEventThenPresetThenActionMode() {
+		var preset = com.beatblock.engine.influence.BlockInfluencePreset
+			.builder("stateful-animation", "Stateful Animation")
+			.playbackSemantics(PlaybackSemantics.STATEFUL)
+			.build();
+		var definition = new com.beatblock.engine.AnimationDefinition(preset);
+		TimelineAnimationEvent presetDriven = new TimelineAnimationEvent(
+			"preset", 1.0, 1.0, "stateful-animation", "tower", 1f,
+			Map.of("actionMode", "ANIMATE"));
+		TimelineAnimationEvent explicitlyTransient = new TimelineAnimationEvent(
+			"explicit", 1.0, 1.0, "stateful-animation", "tower", 1f,
+			Map.of("actionMode", "ANIMATE", "playbackSemantics", "TRANSIENT"));
+		TimelineAnimationEvent fallbackBuild = new TimelineAnimationEvent(
+			"fallback", 1.0, 1.0, "unknown", "tower", 1f,
+			Map.of("actionMode", "BUILD"));
+
+		assertEquals(PlaybackSemantics.STATEFUL,
+			new CompiledStageEvent(presetDriven, definition, null, 0L).semantics());
+		assertEquals(PlaybackSemantics.TRANSIENT,
+			new CompiledStageEvent(explicitlyTransient, definition, null, 1L).semantics());
+		assertEquals(PlaybackSemantics.STATEFUL,
+			new CompiledStageEvent(fallbackBuild, null, null, 2L).semantics());
+	}
+
+	@Test
+	void reconstructSeekHonorsExplicitSemanticsForAnimateEvents() {
+		TimelineAnimationEvent event = new TimelineAnimationEvent(
+			"persistent-animation", 1.0, 1.0, "Rise", "tower", 1f,
+			Map.of("actionMode", "ANIMATE", "playbackSemantics", "STATEFUL"));
+		CompiledTimelineSnapshot program = new CompiledTimelineSnapshot(
+			List.of(event), List.of(new CompiledStageEvent(event, null, null, 0L)),
+			new CompiledCameraTrack(List.of()), List.of(), List.of(), List.of(),
+			CompiledAudioReference.empty(), new double[0], 120.0, 2.0, true, 0, null
+		);
+		PlaybackEngine engine = new PlaybackEngine();
+		engine.load(program);
+		AtomicInteger hits = new AtomicInteger();
+
+		engine.seek(2.0, SeekMode.RECONSTRUCT_STATE,
+			(compiled, source) -> hits.incrementAndGet(), null);
+
+		assertEquals(1, hits.get());
+	}
 }

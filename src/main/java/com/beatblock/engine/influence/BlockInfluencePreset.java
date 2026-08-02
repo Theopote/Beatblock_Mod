@@ -1,5 +1,7 @@
 package com.beatblock.engine.influence;
 
+import com.beatblock.timeline.playback.PlaybackSemantics;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -14,6 +16,7 @@ public final class BlockInfluencePreset {
 	private final String displayName;
 	private final float defaultDurationSeconds;
 	private final List<ChannelSpec> channels;
+	private final PlaybackSemantics playbackSemantics;
 
 	public BlockInfluencePreset(
 		String id,
@@ -21,12 +24,23 @@ public final class BlockInfluencePreset {
 		float defaultDurationSeconds,
 		List<ChannelSpec> channels
 	) {
+		this(id, displayName, defaultDurationSeconds, channels, null);
+	}
+
+	public BlockInfluencePreset(
+		String id,
+		String displayName,
+		float defaultDurationSeconds,
+		List<ChannelSpec> channels,
+		PlaybackSemantics playbackSemantics
+	) {
 		this.id = id != null ? id : "unknown";
 		this.displayName = displayName != null ? displayName : this.id;
 		this.defaultDurationSeconds = Math.max(0.01f, defaultDurationSeconds);
 		this.channels = channels != null
 			? List.copyOf(channels)
 			: List.of();
+		this.playbackSemantics = playbackSemantics;
 	}
 
 	public String getId() {
@@ -39,6 +53,10 @@ public final class BlockInfluencePreset {
 
 	public float getDefaultDurationSeconds() {
 		return defaultDurationSeconds;
+	}
+
+	public java.util.Optional<PlaybackSemantics> getPlaybackSemantics() {
+		return java.util.Optional.ofNullable(playbackSemantics);
 	}
 
 	public List<ChannelSpec> getChannels() {
@@ -67,6 +85,7 @@ public final class BlockInfluencePreset {
 		private final String displayName;
 		private float defaultDurationSeconds = 1f;
 		private final List<ChannelSpec> channels = new ArrayList<>();
+		private PlaybackSemantics playbackSemantics;
 
 		private Builder(String id, String displayName) {
 			this.id = id;
@@ -78,13 +97,18 @@ public final class BlockInfluencePreset {
 			return this;
 		}
 
+		public Builder playbackSemantics(PlaybackSemantics semantics) {
+			this.playbackSemantics = semantics;
+			return this;
+		}
+
 		public Builder channel(ChannelSpec channel) {
 			if (channel != null) channels.add(channel);
 			return this;
 		}
 
 		public BlockInfluencePreset build() {
-			return new BlockInfluencePreset(id, displayName, defaultDurationSeconds, channels);
+			return new BlockInfluencePreset(id, displayName, defaultDurationSeconds, channels, playbackSemantics);
 		}
 	}
 
