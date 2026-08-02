@@ -166,6 +166,7 @@ public class BeatBlockUIManager {
 		});
 
 		if (VideoExportCoordinator.getInstance().shouldHideEditorChrome()) {
+			com.beatblock.client.render.GlobalVisualEffectOverlay.render();
 			videoExportDialog.render();
 			return;
 		}

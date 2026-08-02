@@ -1306,6 +1306,7 @@
   "beatblock.export.cancelled": "导出已取消。",
   "beatblock.export.error.window_unavailable": "客户端窗口不可用，无法导出视频。",
   "beatblock.export.error.start_ffmpeg": "无法启动 ffmpeg: %s",
+  "beatblock.export.error.timeline_compile": "无法为视频导出编译时间线：%s",
   "beatblock.export.error.write_frame": "写入视频帧失败: %s",
   "beatblock.export.error.failed": "视频导出失败。",
   "beatblock.export.progress.starting_ffmpeg": "正在启动 FFmpeg...",

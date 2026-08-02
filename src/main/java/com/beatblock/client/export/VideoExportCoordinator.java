@@ -6,6 +6,8 @@ import com.beatblock.audio.ffmpeg.FfmpegTranscodeOutcome;
 import com.beatblock.audio.ffmpeg.FfmpegVideoEncoder;
 import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.client.camera.TimelineCameraController;
+import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
+import com.beatblock.timeline.playback.TimelineCompiler;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.video.VideoExportProgress;
@@ -44,6 +46,8 @@ public final class VideoExportCoordinator {
 	private int captureHeight;
 	private boolean cancelRequested;
 	private int pendingWarmupFrames;
+	private double pendingFrameTimeSeconds;
+	private CompiledTimelineSnapshot exportProgram;
 
 	private VideoExportCoordinator() {}
 
@@ -109,10 +113,19 @@ public final class VideoExportCoordinator {
 				(message, percent) -> updateProgress(VideoExportProgress.State.RUNNING, message, percent)
 			);
 			BeatBlockClientDriver.stopPlayback();
+			var context = BeatBlock.getContext();
+			this.exportProgram = TimelineCompiler.compile(
+				context.timeline(), context.blockAnimationEngine(), context.buildLayerManager());
 			scheduleNextFrame();
 		} catch (IOException e) {
+			closeEncoder();
 			cleanup();
 			failImmediately(exportSettings, exportService, BBTexts.get("beatblock.export.error.start_ffmpeg", e.getMessage()));
+		} catch (RuntimeException e) {
+			closeEncoder();
+			cleanup();
+			failImmediately(exportSettings, exportService,
+				BBTexts.get("beatblock.export.error.timeline_compile", e.getMessage()));
 		}
 	}
 
@@ -138,6 +151,10 @@ public final class VideoExportCoordinator {
 		}
 		try {
 			byte[] rgba = VideoFrameCapturer.captureRgbaTopDown(captureWidth, captureHeight);
+			if (exportProgram != null) {
+				GlobalVisualEffectFrameCompositor.composite(rgba, captureWidth, captureHeight,
+					exportProgram.globalEvents(), pendingFrameTimeSeconds);
+			}
 			encoder.writeFrame(rgba);
 			nextFrameIndex++;
 			updateProgress(
@@ -157,6 +174,7 @@ public final class VideoExportCoordinator {
 
 	private void scheduleNextFrame() {
 		double frameTime = settings.startTimeSeconds() + (nextFrameIndex / (double) settings.fps());
+		pendingFrameTimeSeconds = frameTime;
 		BeatBlockClientDriver.prepareExportFrame(frameTime);
 		TimelineCameraController.getInstance().sampleAtExportTime(frameTime);
 		phase = Phase.WAITING_FRAME;
@@ -228,11 +246,19 @@ public final class VideoExportCoordinator {
 		ToastNotificationSystem.showError(message);
 	}
 
+	private void closeEncoder() {
+		if (encoder != null) {
+			encoder.close();
+		}
+	}
+
 	private void cleanup() {
 		phase = Phase.IDLE;
 		settings = null;
 		service = null;
 		encoder = null;
+		exportProgram = null;
+		pendingFrameTimeSeconds = 0;
 		nextFrameIndex = 0;
 		cancelRequested = false;
 	}

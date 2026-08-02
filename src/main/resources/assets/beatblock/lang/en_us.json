@@ -1268,6 +1268,7 @@
   "beatblock.export.cancelled": "Export cancelled.",
   "beatblock.export.error.window_unavailable": "Client window unavailable; cannot export video.",
   "beatblock.export.error.start_ffmpeg": "Unable to start ffmpeg: %s",
+  "beatblock.export.error.timeline_compile": "Failed to compile timeline for video export: %s",
   "beatblock.export.error.write_frame": "Failed to write video frame: %s",
   "beatblock.export.error.failed": "Video export failed.",
   "beatblock.export.progress.starting_ffmpeg": "Starting FFmpeg...",
