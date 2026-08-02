@@ -72,6 +72,7 @@ public final class BeatBlockClientDriver {
 	private @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlayback;
 	/** Phase C: formal play advances only over the compiled program. */
 	private final PlaybackEngine playbackEngine = new PlaybackEngine();
+	private final GlobalEventExecutor globalEventExecutor;
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
 	private volatile double lastStageEventTime;
 	/**
@@ -87,6 +88,7 @@ public final class BeatBlockClientDriver {
 
 	public BeatBlockClientDriver(Supplier<BeatBlockContext> contextSource) {
 		this.contextSource = contextSource != null ? contextSource : BeatBlock::getContext;
+		this.globalEventExecutor = createGlobalEventExecutor();
 	}
 
 	public static void install(Supplier<BeatBlockContext> contextSource) {
@@ -356,15 +358,23 @@ public final class BeatBlockClientDriver {
 		lastStageEventTime = currentTime;
 	}
 
-	private void onCompiledGlobalEvent(CompiledGlobalEvent event) {
-		if (event == null) return;
-		GlobalEventExecutor.ExecutionResult execution = new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
+	private GlobalEventExecutor createGlobalEventExecutor() {
+		return new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
 			@Override public boolean applyLighting(GlobalEventPayload.Lighting payload) { return GlobalVisualEffectOverlay.applyLighting(payload); }
 			@Override public boolean applyWeather(GlobalEventPayload.Weather payload) { return applyGlobalWeather(payload); }
 			@Override public boolean emitParticleBurst(GlobalEventPayload.ParticleBurst payload) { return emitGlobalParticles(payload); }
 			@Override public boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload) { return GlobalVisualEffectOverlay.applyScreenFlash(payload); }
 			@Override public boolean applyAudioMix(GlobalEventPayload.AudioMix payload) { return applyGlobalAudioMix(payload); }
-		}).execute(event);
+		});
+	}
+
+	GlobalEventExecutor globalEventExecutorForTests() {
+		return globalEventExecutor;
+	}
+
+	private void onCompiledGlobalEvent(CompiledGlobalEvent event) {
+		if (event == null) return;
+		GlobalEventExecutor.ExecutionResult execution = globalEventExecutor.execute(event);
 		lastTimelineActionExecutionReport = new TimelineActionExecutionReport(
 			System.currentTimeMillis(), event.id(), "", TimelineAnimationActionMode.ANIMATE, 0,
 			execution.executed() ? "GLOBAL_EXECUTED" : "GLOBAL_UNSUPPORTED",
