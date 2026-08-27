@@ -197,17 +197,18 @@ public final class TimelineRowContentRenderer {
 		if (clipAudioKey == null) return null;
 
 		AudioAsset asset = TimelineAudioFeatureFillSupport.findAssetByAudioKey(clipAudioKey);
-		if (asset == null || asset.getBeatmap() == null) return null;
+		if (asset == null) return null;
 		com.beatblock.audio.beatmap.Beatmap beatmap = asset.getBeatmap();
-		com.beatblock.audio.beatmap.WaveformPreview preview;
-		if (stemKey == null) {
-			preview = beatmap.waveformPreview;
-		} else {
-			preview = beatmap.stemWaveforms.get(stemKey);
-		}
-		if (preview == null || preview.data() == null || preview.data().length == 0) return null;
+		if (beatmap == null) return null;
 
-		float[] peaks = preview.data().clone();
+		com.beatblock.audio.beatmap.WaveformPreview preview = stemKey == null
+			? beatmap.waveformPreview
+			: beatmap.stemWaveforms.get(stemKey);
+		if (preview == null) return null;
+		float[] rawData = preview.data();
+		if (rawData == null || rawData.length == 0) return null;
+
+		float[] peaks = rawData.clone();
 		float max = 0f;
 		for (float p : peaks) if (p > max) max = p;
 		if (max > 1e-6f && max != 1f) {
