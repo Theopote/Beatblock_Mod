@@ -1,0 +1,166 @@
+package com.beatblock.timeline.rendering;
+
+import com.beatblock.automap.choreography.SectionEditProfile;
+import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.presenter.TimelineSectionEditPresenter;
+import com.beatblock.ui.presenter.TimelineToolbarFeedbackPresenter;
+import imgui.ImGui;
+import imgui.type.ImBoolean;
+import imgui.type.ImFloat;
+import imgui.type.ImInt;
+
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Section 编舞编辑弹窗：按音乐段落调整 motion/camera/vfx 开关与覆盖参数。
+ */
+public final class TimelineSectionEditPopup {
+
+	public static final String POPUP_ID = "tlSectionEdit";
+
+	private final TimelineSectionEditPresenter presenter;
+	private final TimelineToolbarFeedbackPresenter feedback;
+	private final ImInt selectedSectionIndex = new ImInt(0);
+	private final ImBoolean motionEnabled = new ImBoolean(true);
+	private final ImBoolean cameraEnabled = new ImBoolean(true);
+	private final ImBoolean vfxEnabled = new ImBoolean(true);
+	private final ImInt animationTypeIndex = new ImInt(0);
+	private final ImFloat densityThreshold = new ImFloat(0.15f);
+	private final ImFloat timeOffsetSeconds = new ImFloat(0f);
+	private final ImFloat energyScale = new ImFloat(1f);
+	private boolean profileDirty;
+
+	public TimelineSectionEditPopup(
+		TimelineSectionEditPresenter presenter,
+		TimelineToolbarFeedbackPresenter feedback
+	) {
+		this.presenter = presenter;
+		this.feedback = feedback;
+	}
+
+	public void prepareForOpen(int sectionIndex) {
+		if (sectionIndex >= 0) {
+			selectedSectionIndex.set(sectionIndex);
+		}
+		profileDirty = false;
+		loadProfileForSelectedSection();
+	}
+
+	public void renderIfOpen() {
+		if (!ImGui.beginPopup(POPUP_ID)) return;
+		String blocked = presenter.unavailableReason();
+		if (blocked != null) {
+			ImGui.textDisabled(blocked);
+			ImGui.endPopup();
+			return;
+		}
+
+		List<TimelineSectionEditPresenter.SectionView> sections = presenter.listSections();
+		if (sections.isEmpty()) {
+			ImGui.textDisabled(BBTexts.get("beatblock.section_edit.no_sections"));
+			ImGui.endPopup();
+			return;
+		}
+
+		if (selectedSectionIndex.get() >= sections.size()) {
+			selectedSectionIndex.set(0);
+		}
+		if (!profileDirty) {
+			loadProfileForSelectedSection();
+		}
+
+		renderSectionSelector(sections);
+		ImGui.separator();
+		renderSelectedSectionSummary(sections.get(selectedSectionIndex.get()));
+		ImGui.separator();
+		renderEditFields();
+		ImGui.separator();
+		renderApplyButton();
+
+		ImGui.endPopup();
+	}
+
+	private void renderSectionSelector(List<TimelineSectionEditPresenter.SectionView> sections) {
+		ImGui.textDisabled(BBTexts.get("beatblock.section_edit.sections"));
+		for (TimelineSectionEditPresenter.SectionView section : sections) {
+			String label = String.format(Locale.ROOT, "%s (%.1f-%.1fs)",
+				section.label(), section.startSeconds(), section.endSeconds());
+			if (ImGui.selectable(label, selectedSectionIndex.get() == section.index())) {
+				selectedSectionIndex.set(section.index());
+				profileDirty = false;
+				loadProfileForSelectedSection();
+			}
+		}
+	}
+
+	private void renderSelectedSectionSummary(TimelineSectionEditPresenter.SectionView section) {
+		ImGui.text(BBTexts.get("beatblock.section_edit.summary",
+			section.motionCount(), section.cameraCount(), section.vfxCount()));
+	}
+
+	private void renderEditFields() {
+		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.motion_enabled"), motionEnabled)) profileDirty = true;
+		ImGui.sameLine();
+		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.camera_enabled"), cameraEnabled)) profileDirty = true;
+		ImGui.sameLine();
+		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.vfx_enabled"), vfxEnabled)) profileDirty = true;
+
+		if (ImGui.combo(BBTexts.get("beatblock.section_edit.motion_animation"), animationTypeIndex,
+			TimelineSectionEditPresenter.MOTION_ANIMATION_IDS)) {
+			profileDirty = true;
+		}
+		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.density_threshold"), densityThreshold, 0.01f, 0.05f, "%.2f")) {
+			profileDirty = true;
+		}
+		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.time_offset"), timeOffsetSeconds, 0.05f, 0.25f, "%.2f")) {
+			profileDirty = true;
+		}
+		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.energy_scale"), energyScale, 0.05f, 0.1f, "%.2f")) {
+			profileDirty = true;
+		}
+	}
+
+	private void renderApplyButton() {
+		if (ImGui.button(BBTexts.get("beatblock.section_edit.apply"), 140, 0)) {
+			int sectionIndex = selectedSectionIndex.get();
+			int animIndex = Math.max(0, Math.min(animationTypeIndex.get(),
+				TimelineSectionEditPresenter.MOTION_ANIMATION_IDS.length - 1));
+			SectionEditProfile edit = new SectionEditProfile(
+				sectionIndex,
+				motionEnabled.get(),
+				cameraEnabled.get(),
+				vfxEnabled.get(),
+				TimelineSectionEditPresenter.MOTION_ANIMATION_IDS[animIndex],
+				(double) densityThreshold.get(),
+				timeOffsetSeconds.get(),
+				energyScale.get()
+			);
+			var outcome = presenter.applySectionEdit(sectionIndex, edit);
+			feedback.setTemplateApplyFeedback(outcome.result().messageOrEmpty(), outcome.result().ok());
+			profileDirty = false;
+		}
+		TimelineToolbarImGui.renderFeedback(feedback.viewTemplateApplyFeedback());
+	}
+
+	private void loadProfileForSelectedSection() {
+		SectionEditProfile profile = presenter.loadEditProfile(selectedSectionIndex.get());
+		motionEnabled.set(profile.motionEnabled());
+		cameraEnabled.set(profile.cameraEnabled());
+		vfxEnabled.set(profile.vfxEnabled());
+		animationTypeIndex.set(indexOfAnimation(profile.motionAnimationTypeOverride()));
+		densityThreshold.set(profile.densityThresholdOverride() != null
+			? profile.densityThresholdOverride().floatValue()
+			: 0.15f);
+		timeOffsetSeconds.set((float) profile.timeOffsetSeconds());
+		energyScale.set(profile.energyScale());
+	}
+
+	private static int indexOfAnimation(String animationTypeId) {
+		if (animationTypeId == null) return 0;
+		for (int i = 0; i < TimelineSectionEditPresenter.MOTION_ANIMATION_IDS.length; i++) {
+			if (animationTypeId.equals(TimelineSectionEditPresenter.MOTION_ANIMATION_IDS[i])) return i;
+		}
+		return 0;
+	}
+}

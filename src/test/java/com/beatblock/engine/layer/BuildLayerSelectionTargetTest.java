@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Layer selection → preferred StageObject ids for animation preset drops.
+ * Layer selection → preferred RuntimeStageObject ids for animation preset drops.
  */
 class BuildLayerSelectionTargetTest {
 

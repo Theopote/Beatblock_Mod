@@ -15,5 +15,7 @@ public enum InteractionMode {
 	LOOP_IN_DRAG,
 	LOOP_OUT_DRAG,
 	/** 拖动轨道头与内容区之间的分割线 */
-	RESIZE_HEADER
+	RESIZE_HEADER,
+	/** 拖动编舞计划段落边界 */
+	SECTION_BOUNDARY_DRAG
 }

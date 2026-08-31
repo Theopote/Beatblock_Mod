@@ -2,7 +2,7 @@ package com.beatblock.timeline.generation;
 
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.GroupSpec;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
@@ -33,7 +33,7 @@ class StepSequenceBakerTest {
 		List<BlockPos> blocks = List.of(
 			new BlockPos(0, 64, 0),
 			new BlockPos(1, 64, 0));
-		StageObject stage = new StageObject(
+		RuntimeStageObject stage = new RuntimeStageObject(
 			"stage-a", "Stage", blocks, Vec3d.ZERO, GroupSpec.manualSnapshot());
 		engine.getStageObjectSystem().register(stage);
 

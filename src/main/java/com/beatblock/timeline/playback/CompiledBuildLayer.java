@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Immutable build-layer identity for formal playback (Phase B).
  * <p>
- * Captures layer ↔ StageObject binding and block positions at compile time so
+ * Captures layer ↔ RuntimeStageObject binding and block positions at compile time so
  * playback does not observe live {@code BuildLayerManager} mutations.
  */
 public record CompiledBuildLayer(

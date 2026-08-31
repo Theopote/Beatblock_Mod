@@ -15,7 +15,7 @@ final class ToolPanelPresenterFactory {
 
 	static ToolPanelPresenter create(BeatBlockContext context) {
 		return new ToolPanelPresenter(
-			BeatBlockSelectionManager::get,
+			context::selectionManager,
 			() -> context.blockAnimationEngine() != null
 				? context.blockAnimationEngine().getStageObjectSystem()
 				: null,

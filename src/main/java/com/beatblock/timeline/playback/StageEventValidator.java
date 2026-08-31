@@ -1,7 +1,7 @@
 package com.beatblock.timeline.playback;
 
 import com.beatblock.engine.AnimationDefinition;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.payload.StageEventPayload;
 
@@ -68,12 +68,12 @@ final class StageEventValidator implements TimelineValidationRule {
 		String targetId = event.getTargetObjectId();
 		if (targetId == null || targetId.isBlank()) {
 			diagnostics.add(TimelineDiagnostic.warning(TimelineValidator.RULE_UNBOUND_TARGET,
-				"Event " + label + " has no StageObject target (unbound)", eventId, time));
+				"Event " + label + " has no RuntimeStageObject target (unbound)", eventId, time));
 		} else if (context.engine() != null) {
-			StageObject stage = context.engine().getStageObjectSystem().get(targetId);
+			RuntimeStageObject stage = context.engine().getStageObjectSystem().get(targetId);
 			if (stage == null) {
 				diagnostics.add(TimelineDiagnostic.warning(TimelineValidator.RULE_MISSING_STAGE_OBJECT,
-					"Event " + label + " targets missing StageObject \"" + targetId + "\"", eventId, time));
+					"Event " + label + " targets missing RuntimeStageObject \"" + targetId + "\"", eventId, time));
 			}
 		}
 

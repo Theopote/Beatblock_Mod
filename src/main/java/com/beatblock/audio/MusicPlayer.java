@@ -27,21 +27,23 @@ import java.nio.file.Path;
 /**
  * 音乐播放与进度控制，与 BeatScheduler 同步驱动时间轴。
  * 播放后端：Clip / SourceDataLine / OpenAL（见 {@code com.beatblock.audio.playback}）。
+ * <p>
+ * 所有公共 API 在实例监视器上同步，可从 UI 线程与 OpenAL 恢复回调安全调用。
  */
 public class MusicPlayer implements IAudioPlayer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MusicPlayer.class);
 
-	private volatile boolean playing;
-	private volatile double currentTimeSeconds;
-	private volatile double durationSeconds;
-	private volatile double playbackSpeed = 1.0;
+	private boolean playing;
+	private double currentTimeSeconds;
+	private double durationSeconds;
+	private double playbackSpeed = 1.0;
 	private @Nullable Clip audioClip;
 	private final StreamMusicBackend streamBackend = new StreamMusicBackend();
 	private final OpenAlMusicBackend openAlBackend;
 	private @Nullable String loadedAudioPath;
 	private @Nullable String lastLoadError;
-	private volatile boolean muted;
-	private volatile boolean recoveringOpenAl;
+	private boolean muted;
+	private boolean recoveringOpenAl;
 
 	public MusicPlayer() {
 		this.playing = false;
@@ -54,21 +56,21 @@ public class MusicPlayer implements IAudioPlayer {
 		this.openAlBackend = new OpenAlMusicBackend(LOGGER, this::recoverOpenAlBackend);
 	}
 
-	public void setMuted(boolean muted) {
+	public synchronized void setMuted(boolean muted) {
 		this.muted = muted;
 		applyOutputGain();
 	}
 
-	public boolean isMuted() {
+	public synchronized boolean isMuted() {
 		return muted;
 	}
 
-	public boolean isPlaying() {
+	public synchronized boolean isPlaying() {
 		syncClipState();
 		return playing;
 	}
 
-	public void play() {
+	public synchronized void play() {
 		syncClipState();
 		if (audioClip != null) {
 			if (durationSeconds > 0 && currentTimeSeconds >= durationSeconds - 0.001) {
@@ -107,7 +109,7 @@ public class MusicPlayer implements IAudioPlayer {
 		playing = true;
 	}
 
-	public void pause() {
+	public synchronized void pause() {
 		if (audioClip != null) {
 			audioClip.stop();
 			currentTimeSeconds = clipPositionSeconds();
@@ -126,7 +128,7 @@ public class MusicPlayer implements IAudioPlayer {
 		playing = false;
 	}
 
-	public void stop() {
+	public synchronized void stop() {
 		if (audioClip != null) {
 			audioClip.stop();
 			audioClip.setMicrosecondPosition(0);
@@ -145,12 +147,12 @@ public class MusicPlayer implements IAudioPlayer {
 		currentTimeSeconds = 0;
 	}
 
-	public double getCurrentTimeSeconds() {
+	public synchronized double getCurrentTimeSeconds() {
 		syncClipState();
 		return currentTimeSeconds;
 	}
 
-	public void setCurrentTimeSeconds(double currentTimeSeconds) {
+	public synchronized void setCurrentTimeSeconds(double currentTimeSeconds) {
 		if (durationSeconds > 0) {
 			this.currentTimeSeconds = Math.max(0, Math.min(currentTimeSeconds, durationSeconds));
 		} else {
@@ -181,23 +183,23 @@ public class MusicPlayer implements IAudioPlayer {
 		}
 	}
 
-	public double getDurationSeconds() {
+	public synchronized double getDurationSeconds() {
 		return durationSeconds;
 	}
 
-	public void setDurationSeconds(double durationSeconds) {
+	public synchronized void setDurationSeconds(double durationSeconds) {
 		this.durationSeconds = Math.max(0, durationSeconds);
 	}
 
-	public double getPlaybackSpeed() {
+	public synchronized double getPlaybackSpeed() {
 		return playbackSpeed;
 	}
 
-	public void setPlaybackSpeed(double playbackSpeed) {
+	public synchronized void setPlaybackSpeed(double playbackSpeed) {
 		this.playbackSpeed = Math.max(0.25, Math.min(4.0, playbackSpeed));
 	}
 
-	public boolean loadAudio(@Nullable String path) {
+	public synchronized boolean loadAudio(@Nullable String path) {
 		closeAudioClip();
 		loadedAudioPath = null;
 		lastLoadError = null;
@@ -254,11 +256,11 @@ public class MusicPlayer implements IAudioPlayer {
 		}
 	}
 
-	public @Nullable String getLoadedAudioPath() {
+	public synchronized @Nullable String getLoadedAudioPath() {
 		return loadedAudioPath;
 	}
 
-	public @Nullable String getLastLoadError() {
+	public synchronized @Nullable String getLastLoadError() {
 		return lastLoadError;
 	}
 
@@ -369,7 +371,10 @@ public class MusicPlayer implements IAudioPlayer {
 		}
 	}
 
-	private boolean ensureOpenAlBackendReady() {
+	private synchronized boolean ensureOpenAlBackendReady() {
+		if (recoveringOpenAl) {
+			return false;
+		}
 		if (loadedAudioPath == null) {
 			lastLoadError = "未加载音频文件";
 			return false;
@@ -382,7 +387,7 @@ public class MusicPlayer implements IAudioPlayer {
 		return ready;
 	}
 
-	private boolean recoverOpenAlBackend() {
+	private synchronized boolean recoverOpenAlBackend() {
 		String path = loadedAudioPath;
 		if (path == null || path.isBlank()) {
 			openAlBackend.close();

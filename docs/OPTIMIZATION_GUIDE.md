@@ -23,7 +23,7 @@
 | P3 文档/命名/覆盖率 | ⬜ 未开始 | |
 | CI NullAway | 🟡 已配置 | `./gradlew compileJava -PenableNullaway=true` — **当前通过**（2026-06-27） |
 
-**测试基线**: `./gradlew test` — **758/758 通过**（2026-06-27）
+**测试基线**: `./gradlew test` — **989/989 通过**（2026-08-31）
 
 ### 已注解文件清单
 

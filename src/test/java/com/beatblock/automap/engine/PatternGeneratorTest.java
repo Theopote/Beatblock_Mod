@@ -26,9 +26,10 @@ class PatternGeneratorTest {
 
 		List<RhythmEvent> filtered = PatternGenerator.filter(input, Complexity.LOW);
 
-		assertEquals(2, filtered.size());
+		assertEquals(3, filtered.size());
 		assertEquals(1.0, filtered.get(0).getTimeSeconds(), 1e-6);
-		assertEquals(1.6, filtered.get(1).getTimeSeconds(), 1e-6);
+		assertEquals(RhythmType.SNARE, filtered.get(1).getType());
+		assertEquals(1.6, filtered.get(2).getTimeSeconds(), 1e-6);
 	}
 
 	@Test
@@ -53,5 +54,45 @@ class PatternGeneratorTest {
 	@Test
 	void filterReturnsEmptyForNullInput() {
 		assertTrue(PatternGenerator.filter(null, Complexity.MEDIUM).isEmpty());
+	}
+
+	@Test
+	void perFeatureMinGapAllowsKickAndSnareAtNearbyTimesForHighComplexity() {
+		List<RhythmEvent> input = List.of(
+			new RhythmEvent(1.0, RhythmType.KICK, 0.8f),
+			new RhythmEvent(1.05, RhythmType.SNARE, 0.8f),
+			new RhythmEvent(1.08, RhythmType.KICK, 0.8f)
+		);
+
+		List<RhythmEvent> filtered = PatternGenerator.filter(input, Complexity.HIGH);
+
+		assertEquals(3, filtered.size());
+	}
+
+	@Test
+	void settingsOverridePerFeatureMinGap() {
+		AutoMapSettings settings = new AutoMapSettings();
+		settings.setComplexity(Complexity.MEDIUM);
+		settings.setMinGapMid(0.2);
+
+		List<RhythmEvent> input = List.of(
+			new RhythmEvent(1.0, RhythmType.SNARE, 0.8f),
+			new RhythmEvent(1.05, RhythmType.SNARE, 0.8f),
+			new RhythmEvent(1.25, RhythmType.SNARE, 0.8f)
+		);
+
+		List<RhythmEvent> filtered = PatternGenerator.filter(input, settings);
+
+		assertEquals(2, filtered.size());
+		assertEquals(1.0, filtered.get(0).getTimeSeconds(), 1e-6);
+		assertEquals(1.25, filtered.get(1).getTimeSeconds(), 1e-6);
+	}
+
+	@Test
+	void featureMinGapsMatchAutoMapRuleDefaultsAtMediumComplexity() {
+		PatternGenerator.FeatureMinGaps gaps = PatternGenerator.featureMinGaps(Complexity.MEDIUM);
+		assertEquals(PatternGenerator.DEFAULT_LOW_GAP, gaps.low(), 1e-9);
+		assertEquals(PatternGenerator.DEFAULT_MID_GAP, gaps.mid(), 1e-9);
+		assertEquals(PatternGenerator.DEFAULT_HIGH_GAP, gaps.high(), 1e-9);
 	}
 }

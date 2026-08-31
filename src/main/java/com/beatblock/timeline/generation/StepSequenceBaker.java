@@ -1,7 +1,7 @@
 package com.beatblock.timeline.generation;
 
 import com.beatblock.BeatBlock;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
@@ -64,7 +64,7 @@ public final class StepSequenceBaker {
 				continue;
 			}
 
-			StageObject target = stageObjects != null
+			RuntimeStageObject target = stageObjects != null
 				? stageObjects.get(stepEvent.getTargetObjectId())
 				: null;
 			if (target == null || target.getBlocks().isEmpty()) {

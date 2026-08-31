@@ -19,7 +19,7 @@ import imgui.type.ImString;
  * 左侧工具面板：层次为「场景选区 → 自动化编排 → 动画场景对象」。
  * Marker 管理与时间线动作调试已拆分至 {@link MarkerPanel}；
  * 天降方块（RhythmDrop）已拆分至 {@link RhythmDropPanel}。
- * 方块选择由 {@link BeatBlockSelectionManager} 管理；StageObject 创建使用轴对齐包围盒，
+ * 方块选择由 {@link BeatBlockSelectionManager} 管理；RuntimeStageObject 创建使用轴对齐包围盒，
  * 默认从当前方块选区的外接 AABB 一键填入，避免与「框选工具」语义重复。
  */
 public class ToolPanel {

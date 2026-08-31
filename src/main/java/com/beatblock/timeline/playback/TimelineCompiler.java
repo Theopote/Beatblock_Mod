@@ -1,7 +1,7 @@
 package com.beatblock.timeline.playback;
 
 import com.beatblock.engine.BlockAnimationEngine;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.EventType;
@@ -187,7 +187,7 @@ public final class TimelineCompiler {
 			var definition = engine != null
 				? engine.getAnimationLibrary().get(event.getAnimationTypeId())
 				: null;
-			StageObject source = engine != null
+			RuntimeStageObject source = engine != null
 				? engine.getStageObjectSystem().get(event.getTargetObjectId())
 				: null;
 			CompiledStageTarget target = null;
@@ -242,7 +242,7 @@ public final class TimelineCompiler {
 			if (layer == null) {
 				continue;
 			}
-			StageObject stage = layer.getStageObject();
+			RuntimeStageObject stage = layer.getStageObject();
 			List<net.minecraft.util.math.BlockPos> blocks = stage != null
 				? List.copyOf(stage.getBlocks())
 				: List.of();

@@ -36,7 +36,7 @@ public interface TimelineAudioDropHost {
 		return List.of();
 	}
 
-	/** All registered StageObject ids (for the single-object auto-bind shortcut). */
+	/** All registered RuntimeStageObject ids (for the single-object auto-bind shortcut). */
 	default List<String> resolveRegisteredStageObjectIds() {
 		return List.of();
 	}

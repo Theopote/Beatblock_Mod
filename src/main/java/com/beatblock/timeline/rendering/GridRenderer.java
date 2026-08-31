@@ -93,6 +93,7 @@ public final class GridRenderer {
 		}
 
 		renderMarkers(view, layout, timeline, rTop, rBot, rLeft);
+		ChoreographySectionBandRenderer.render(timeline, view, layout, rTop, rBot, rLeft);
 		renderLoopOverlay(view, layout, toolbarState, rTop, rBot, rLeft);
 
 		// 3. 底部分隔线

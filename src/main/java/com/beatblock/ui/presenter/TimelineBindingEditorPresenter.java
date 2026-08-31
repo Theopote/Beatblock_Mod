@@ -2,7 +2,7 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.BlockAnimationEngine;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationActionMode;
@@ -466,9 +466,9 @@ public final class TimelineBindingEditorPresenter {
 		if (engine == null || outDisplayToId == null) {
 			return displays;
 		}
-		List<StageObject> objects = new ArrayList<>(engine.getStageObjectSystem().getAll());
-		objects.sort(Comparator.comparing(StageObject::getName, String.CASE_INSENSITIVE_ORDER));
-		for (StageObject object : objects) {
+		List<RuntimeStageObject> objects = new ArrayList<>(engine.getStageObjectSystem().getAll());
+		objects.sort(Comparator.comparing(RuntimeStageObject::getName, String.CASE_INSENSITIVE_ORDER));
+		for (RuntimeStageObject object : objects) {
 			String display = object.getName() + " [" + object.getId() + "]";
 			if (outDisplayToId.containsKey(display)) {
 				continue;

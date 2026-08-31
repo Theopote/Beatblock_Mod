@@ -2,7 +2,7 @@ package com.beatblock.engine.influence;
 
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.EngineAnimationInstance;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;

@@ -74,7 +74,8 @@
 
 | 概念 | 代码 | 说明 |
 |------|------|------|
-| **舞台对象** | `engine.StageObject` + `StageObjectSystem` | 一组方块 + 中心点 + 分组规格 |
+| **舞台对象** | `engine.RuntimeStageObject` + `StageObjectSystem` | 一组方块 + 中心点 + 分组规格 |
+| **时间轴对象引用** | `timeline.StageObjectRef` | 事件目标 id / 类型 / 显示名（UI 元数据） |
 | **动作模板** | `AnimationDefinition` + `BlockInfluencePresets` + `BlockInfluenceEvaluator` | preset 通道组合；`AnimationLibrary` 由内置 preset 注册 |
 | **StageEvent** | `TimelineAnimationEvent` | 时间点、目标对象 ID、动作类型、参数、`energy` |
 | 动作模式 | `TimelineAnimationActionMode` | `ANIMATE` / `BUILD` / 控制类变更 |

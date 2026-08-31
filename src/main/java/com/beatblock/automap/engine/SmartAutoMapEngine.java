@@ -4,6 +4,12 @@ import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.DetectedBeat;
 import com.beatblock.audio.analysis.EnergyFrame;
 import com.beatblock.audio.analysis.FrequencyBands;
+import com.beatblock.automap.AutoMapConfig;
+import com.beatblock.automap.AutoMapConfigFactory;
+import com.beatblock.automap.choreography.ChoreographyPlan;
+import com.beatblock.automap.choreography.ChoreographyPlanBuilder;
+import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
+import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.timeline.Timeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,8 +17,9 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
- * Smart Auto-Map Engine 门面：音乐 → 自动生成完整 Timeline（方块动画、摄像机、粒子、节奏结构）。
- * 流程：AudioFeatureTimeline → 音乐结构 → 节奏分类 → 模式过滤 → 动画映射 → 镜头/粒子 → 写入 Timeline。
+ * Smart Auto-Map Engine 门面：音乐 → 编舞计划 → Timeline（方块动画、摄像机、粒子）。
+ * <p>
+ * 流程：AudioFeatureTimeline → 音乐结构 → {@link ChoreographyPlan} → Timeline Draft。
  */
 public final class SmartAutoMapEngine {
 
@@ -40,24 +47,40 @@ public final class SmartAutoMapEngine {
 		List<DetectedBeat> beats = featureTimeline.getBeats();
 		List<EnergyFrame> energyFrames = featureTimeline.getEnergyFrames();
 
-		// 1. 音乐结构
 		List<StructuralSection> sections = MusicStructureAnalyzer.analyze(energyFrames, duration);
-		// 2. 节奏分类
 		List<RhythmEvent> rhythmEvents = RhythmClassifier.classify(beats, bands);
-		// 3. 按复杂度过滤
-		rhythmEvents = PatternGenerator.filter(rhythmEvents, settings.getComplexity());
-		// 4. 镜头
-		List<CameraEvent> cameraEvents = CameraDirector.generate(sections, bpm, duration, settings.getStyle(), settings.isCameraEnabled());
-		// 5. 粒子
-		List<ParticleEvent> particleEvents = ParticleDirector.generate(bands, settings.isParticlesEnabled());
+		rhythmEvents = PatternGenerator.filter(rhythmEvents, settings);
 
-		int animCount = TimelineBuilder.writeAnimationEvents(timeline, rhythmEvents, settings.getStyle(), settings.getTargetObjectIds());
-		int cameraCount = TimelineBuilder.writeCameraEvents(timeline, cameraEvents);
-		int particleCount = TimelineBuilder.writeParticleEvents(timeline, particleEvents);
+		List<CameraEvent> cameraEvents = settings.isCameraEnabled()
+			? CameraDirector.generate(sections, bpm, duration, settings.getStyle(), true)
+			: List.of();
+		List<ParticleEvent> particleEvents = settings.isParticlesEnabled()
+			? ParticleDirector.generate(bands, true)
+			: List.of();
 
-		result = new AutoMapResult(animCount, cameraCount, particleCount, sections.size());
+		AutoMapConfig config = AutoMapConfigFactory.fromSettings(settings);
+		ChoreographyPlan plan = ChoreographyPlanBuilder.fromRhythmAnalysis(
+			rhythmEvents,
+			sections,
+			cameraEvents,
+			particleEvents,
+			settings.getStyle(),
+			config
+		);
+
+		ChoreographyPlanCompiler.SmartAutoMapCompileResult compiled =
+			ChoreographyPlanCompiler.compileAll(timeline, plan, config, false);
+
+		ChoreographyPlanStore.save(timeline, plan, config);
+
+		result = new AutoMapResult(
+			compiled.animationEvents(),
+			compiled.cameraEvents(),
+			compiled.vfxEvents(),
+			sections.size()
+		);
 		LOGGER.info("BeatBlock Smart Auto-Map: 动画 {} 个, 镜头 {} 个, 粒子 {} 个, 段落 {} 个",
-			animCount, cameraCount, particleCount, sections.size());
+			compiled.animationEvents(), compiled.cameraEvents(), compiled.vfxEvents(), sections.size());
 		return result;
 	}
 

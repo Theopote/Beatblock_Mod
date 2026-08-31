@@ -9,14 +9,14 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Resolves which StageObject targets a newly dropped animation preset should bind to.
+ * Resolves which RuntimeStageObject targets a newly dropped animation preset should bind to.
  * <p>
  * Product model: {@code Preset + Target + Time = StageEvent}. See
  * {@code docs/animation-library-drag-ux.md}.
  * <ul>
  *   <li>explicit preferred ids (world / layer selection) win</li>
  *   <li>else unique targets from selected timeline animation events</li>
- *   <li>else if exactly one registered StageObject exists → bind it</li>
+ *   <li>else if exactly one registered RuntimeStageObject exists → bind it</li>
  *   <li>else UNBOUND (empty target; create event and bind later)</li>
  * </ul>
  * Never invents a fake id such as {@code "default"}.
@@ -59,7 +59,7 @@ public final class AnimationDropTargetResolver {
 	/**
 	 * @param preferredStageObjectIds  world/layer selection (may be null/empty)
 	 * @param targetsFromSelectedEvents targets taken from selected animation events
-	 * @param registeredStageObjectIds  all known StageObject ids (for the single-object shortcut)
+	 * @param registeredStageObjectIds  all known RuntimeStageObject ids (for the single-object shortcut)
 	 */
 	public static Result resolve(
 		@Nullable Collection<String> preferredStageObjectIds,
@@ -84,7 +84,7 @@ public final class AnimationDropTargetResolver {
 
 		List<String> registered = sanitize(registeredStageObjectIds);
 		if (registered.size() == 1) {
-			// Only unambiguous ambient StageObject — never pick first of many.
+			// Only unambiguous ambient RuntimeStageObject — never pick first of many.
 			return new Result(Mode.SINGLE, registered);
 		}
 

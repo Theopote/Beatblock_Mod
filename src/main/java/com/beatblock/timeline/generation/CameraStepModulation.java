@@ -69,15 +69,18 @@ public final class CameraStepModulation {
 
 		double anchor = planned.getFirst().startTimeSeconds();
 		List<StepSequencePlanner.PlannedStep> adjusted = new ArrayList<>(planned.size());
+		double previousTime = anchor;
 		for (int i = 0; i < planned.size(); i++) {
 			StepSequencePlanner.PlannedStep step = planned.get(i);
 			BlockPos block = i < orderedBlocks.size() ? orderedBlocks.get(i) : step.block();
 			double dist = CameraViewMath.distance3d(cameraPos, block);
 			double scale = CameraViewMath.adaptiveTimeScale(dist, nearDistance, farDistance, nearScale, farScale);
 			double offset = step.startTimeSeconds() - anchor;
+			double adjustedTime = Math.max(previousTime, anchor + offset * scale);
+			previousTime = adjustedTime;
 			adjusted.add(new StepSequencePlanner.PlannedStep(
 				step.block(),
-				anchor + offset * scale
+				adjustedTime
 			));
 		}
 		return adjusted;

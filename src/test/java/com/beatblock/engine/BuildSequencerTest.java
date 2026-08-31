@@ -130,7 +130,7 @@ class BuildSequencerTest {
 		BlockPos pos = new BlockPos(0, 64, 0);
 		BlockState air = Blocks.AIR.getDefaultState();
 		BlockState captured = Blocks.GOLD_BLOCK.getDefaultState();
-		StageObject stageObject = StageObjectSystem.fromBlocks("layer_stage", "Layer", List.of(pos));
+		RuntimeStageObject stageObject = StageObjectSystem.fromBlocks("layer_stage", "Layer", List.of(pos));
 		stageObjectSystem.register(stageObject);
 
 		Map<BlockPos, BlockState> capturedStates = new LinkedHashMap<>();

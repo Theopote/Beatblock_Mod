@@ -177,6 +177,8 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		}
 		drawGroupSectionSeparators(layout, x0, x1);
 
+		ChoreographySectionBandRenderer.renderContentBackground(timeline, viewState, layout);
+
 		// 网格竖线（仅时间轴方向，不画行间线）
 		gridRenderer.render(viewState, layout, layout.contentHeight);
 		TimelineRowHoverHighlighter.drawRowHoverHighlight(layout);
@@ -343,7 +345,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 
 	@Override
 	public List<String> resolvePreferredStageObjectIds() {
-		// Layer panel selection → StageObject ids (Animation Library drop preferred targets)
+		// Layer panel selection → RuntimeStageObject ids (Animation Library drop preferred targets)
 		var layers = ctx().buildLayerManager();
 		if (layers == null) {
 			return List.of();

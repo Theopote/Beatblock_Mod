@@ -22,7 +22,7 @@ public final class BlockBuildOrder {
 		BuildSequenceMode mode,
 		Vec3d center,
 		TimelineAnimationEvent event,
-		StageObject target
+		RuntimeStageObject target
 	) {
 		if (blocks == null || blocks.isEmpty()) return List.of();
 		List<BlockPos> ordered = new ArrayList<>(blocks);
@@ -67,7 +67,7 @@ public final class BlockBuildOrder {
 		return dx * dx + dz * dz;
 	}
 
-	private static long buildSeed(TimelineAnimationEvent event, StageObject target) {
+	private static long buildSeed(TimelineAnimationEvent event, RuntimeStageObject target) {
 		long t = event != null ? Double.doubleToLongBits(event.getTimeSeconds()) : 0L;
 		long id = event != null ? Objects.hashCode(event.getEventId()) : 0L;
 		long tid = target != null ? Objects.hashCode(target.getId()) : 0L;

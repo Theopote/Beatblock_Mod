@@ -1,6 +1,6 @@
 package com.beatblock.engine.layer;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.testutil.MinecraftTestBootstrap;
 import net.minecraft.block.BlockState;
@@ -37,7 +37,7 @@ class BuildLayerWorldPersistenceTest {
 	@Test
 	void roundTripsLayersToWorldFile() throws Exception {
 		BlockPos pos = new BlockPos(2, 64, 3);
-		StageObject stage = StageObjectSystem.fromBlocks("stage-a", "Tower", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("stage-a", "Tower", List.of(pos));
 		Map<BlockPos, BlockState> captured = new LinkedHashMap<>();
 		captured.put(pos, Blocks.STONE.getDefaultState());
 		BuildLayer layer = new BuildLayer(
@@ -81,7 +81,7 @@ class BuildLayerWorldPersistenceTest {
 	@Test
 	void loadFallsBackToBackupWhenPrimaryIsCorrupt() throws Exception {
 		BlockPos pos = new BlockPos(4, 64, 5);
-		StageObject stage = StageObjectSystem.fromBlocks("stage-backup", "Backup", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("stage-backup", "Backup", List.of(pos));
 		BuildLayerManager manager = new BuildLayerManager(new StageObjectSystem());
 		BuildLayer layer = new BuildLayer(
 			"layer-backup", "Original", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);

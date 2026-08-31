@@ -1,7 +1,7 @@
 package com.beatblock.ui.presenter;
 
 import com.beatblock.engine.GroupSortingStrategy;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
@@ -19,7 +19,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * 工具面板业务逻辑：选择工具切换、StageObject 角点与创建、对象列表管理。
+ * 工具面板业务逻辑：选择工具切换、RuntimeStageObject 角点与创建、对象列表管理。
  */
 public final class ToolPanelPresenter {
 
@@ -196,7 +196,7 @@ public final class ToolPanelPresenter {
 
 		String name = normalizeName(request.name());
 		String id = buildUniqueStageObjectId(system, name);
-		StageObject obj = StageObjectSystem.fromBlocks(
+		RuntimeStageObject obj = StageObjectSystem.fromBlocks(
 			id,
 			name,
 			blocks,
@@ -236,7 +236,7 @@ public final class ToolPanelPresenter {
 
 		String name = normalizeName(request.name());
 		String id = buildUniqueStageObjectId(system, name);
-		StageObject obj = StageObjectSystem.fromSelectionSnapshot(
+		RuntimeStageObject obj = StageObjectSystem.fromSelectionSnapshot(
 			id,
 			name,
 			blocks,
@@ -267,7 +267,7 @@ public final class ToolPanelPresenter {
 			return List.of();
 		}
 		List<StageObjectListItem> items = new ArrayList<>();
-		for (StageObject obj : system.getAll()) {
+		for (RuntimeStageObject obj : system.getAll()) {
 			items.add(new StageObjectListItem(
 				obj.getId(),
 				obj.getName(),

@@ -1,9 +1,15 @@
 package com.beatblock.timeline.generation;
 
 import com.beatblock.engine.GroupSpec;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
+import com.beatblock.timeline.payload.DispatchModel;
+import com.beatblock.timeline.payload.SingleBlockRef;
+import com.beatblock.timeline.payload.SpatialParams;
+import com.beatblock.timeline.payload.StageEventPayload;
+import com.beatblock.timeline.payload.StageEventPayloadCodec;
+import com.beatblock.timeline.payload.StepParams;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
@@ -25,18 +31,6 @@ import java.util.Set;
  */
 public final class StepBurstEventFactory {
 
-	private static final Set<String> STEP_ONLY_PARAMS = Set.of(
-		"blocksPerBeat",
-		"stepStartMode",
-		"stepCompletionMode",
-		"cameraAdaptiveStep",
-		"cameraFrustumGating",
-		"cameraEdgePriority",
-		"pacingMode",
-		"distancePaceSecondsPerBlock",
-		"distancePaceMinGapSeconds"
-	);
-
 	private StepBurstEventFactory() {}
 
 	public static boolean isStepDispatch(Map<String, Object> params) {
@@ -52,7 +46,7 @@ public final class StepBurstEventFactory {
 
 	public static List<TimelineAnimationEvent> expand(
 		TimelineAnimationEvent stepEvent,
-		StageObject target,
+		RuntimeStageObject target,
 		double[] referenceBeatTimesSeconds,
 		double timelineBpm,
 		Vec3d runtimeCameraPosition
@@ -62,7 +56,7 @@ public final class StepBurstEventFactory {
 
 	public static List<TimelineAnimationEvent> expand(
 		TimelineAnimationEvent stepEvent,
-		StageObject target,
+		RuntimeStageObject target,
 		double[] referenceBeatTimesSeconds,
 		double timelineBpm,
 		Vec3d runtimeCameraPosition,
@@ -113,19 +107,29 @@ public final class StepBurstEventFactory {
 		BlockPos block,
 		String sourceEventId
 	) {
-		Map<String, Object> params = new HashMap<>(sourceParams != null ? sourceParams : Map.of());
-		for (String key : STEP_ONLY_PARAMS) {
-			params.remove(key);
+		StageEventPayload payload = StageEventPayloadCodec.decode(sourceParams);
+		if (payload instanceof StageEventPayload.Animate animate) {
+			Map<String, Object> extensions = new HashMap<>(animate.extensions());
+			if (sourceEventId != null && !sourceEventId.isBlank()) {
+				extensions.put("bakedFromStepEventId", sourceEventId);
+			}
+			payload = new StageEventPayload.Animate(
+				animate.animationType(),
+				animate.targetObject(),
+				animate.energy(),
+				animate.durationSeconds(),
+				animate.eventOrigin(),
+				animate.energyThreshold(),
+				DispatchModel.BURST,
+				new SpatialParams(false, SpatialDispatchMode.ALL, -1.0),
+				StepParams.DEFAULT,
+				animate.flashBlockId(),
+				animate.vfxEnabled(),
+				new SingleBlockRef(block.getX(), block.getY(), block.getZ()),
+				extensions
+			);
 		}
-		params.put("dispatchModel", "BURST");
-		params.put("spatialMode", SpatialDispatchMode.ALL.name());
-		params.put("singleBlockX", block.getX());
-		params.put("singleBlockY", block.getY());
-		params.put("singleBlockZ", block.getZ());
-		if (sourceEventId != null && !sourceEventId.isBlank()) {
-			params.put("bakedFromStepEventId", sourceEventId);
-		}
-		return params;
+		return new HashMap<>(StageEventPayloadCodec.encode(payload));
 	}
 
 	public static @Nullable BlockPos readSingleBlockPos(@Nullable Map<String, Object> params) {
@@ -141,7 +145,7 @@ public final class StepBurstEventFactory {
 		}
 	}
 
-	private static SpatialDispatchMode resolveSpatialMode(Map<String, Object> params, StageObject target) {
+	private static SpatialDispatchMode resolveSpatialMode(Map<String, Object> params, RuntimeStageObject target) {
 		if (params != null && params.containsKey("spatialMode")) {
 			return SpatialDispatchMode.fromValue(params.get("spatialMode"));
 		}
@@ -154,7 +158,7 @@ public final class StepBurstEventFactory {
 	}
 
 	private static List<BlockPos> sortBlocksForSpatialMode(
-		StageObject target,
+		RuntimeStageObject target,
 		SpatialDispatchMode mode,
 		TimelineAnimationEvent event
 	) {
@@ -256,7 +260,7 @@ public final class StepBurstEventFactory {
 		return angle;
 	}
 
-	private static long spatialSeed(TimelineAnimationEvent event, StageObject target) {
+	private static long spatialSeed(TimelineAnimationEvent event, RuntimeStageObject target) {
 		long t = Double.doubleToLongBits(event.getTimeSeconds());
 		long id = Objects.hashCode(event.getEventId());
 		long targetId = Objects.hashCode(target.getId());

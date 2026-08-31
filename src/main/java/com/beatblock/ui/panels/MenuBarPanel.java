@@ -3,6 +3,8 @@ package com.beatblock.ui.panels;
 import com.beatblock.ui.BeatBlockPanelVisibility;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.timeline.rendering.TimelineBindingEditorPopup;
+import com.beatblock.timeline.rendering.TimelineSectionEditPopup;
+import com.beatblock.timeline.rendering.SectionEditPopupCoordinator;
 import com.beatblock.ui.presenter.MenuBarPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.TimelineActionDispatcher;
@@ -37,6 +39,7 @@ public class MenuBarPanel {
 	private final TimelineActionDispatcher timelineActions;
 	private final TimelineToolbarFeedbackPresenter showFeedback;
 	private final TimelineBindingEditorPopup bindingEditorPopup;
+	private final TimelineSectionEditPopup sectionEditPopup;
 	private boolean showImportDialog;
 	private boolean showOpenProjectDialog;
 	private boolean showSaveProjectDialog;
@@ -74,6 +77,8 @@ public class MenuBarPanel {
 		this.showFeedback = PresenterFactories.timelineToolbarFeedbackPresenter();
 		this.bindingEditorPopup = new TimelineBindingEditorPopup(
 			PresenterFactories.timelineBindingEditorPresenter(), showFeedback);
+		this.sectionEditPopup = new TimelineSectionEditPopup(
+			PresenterFactories.timelineSectionEditPresenter(), showFeedback);
 	}
 
 	public void render() {
@@ -202,6 +207,10 @@ public class MenuBarPanel {
 					requestBindingEditorPopup = true;
 				}
 				if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.timeline.binding_editor.tooltip"));
+				if (ImGui.menuItem(BBTexts.get("beatblock.section_edit.menu"))) {
+					SectionEditPopupCoordinator.requestOpen();
+				}
+				if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.section_edit.menu.tooltip"));
 				ImGui.endMenu();
 			}
 			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.help"))) {
@@ -234,7 +243,12 @@ public class MenuBarPanel {
 			ImGui.openPopup(TimelineBindingEditorPopup.POPUP_ID);
 			requestBindingEditorPopup = false;
 		}
+		if (SectionEditPopupCoordinator.consumeOpenRequest()) {
+			sectionEditPopup.prepareForOpen(SectionEditPopupCoordinator.consumeSectionIndex());
+			ImGui.openPopup(TimelineSectionEditPopup.POPUP_ID);
+		}
 		bindingEditorPopup.renderIfOpen();
+		sectionEditPopup.renderIfOpen();
 	}
 
 	private static void showOutcome(TimelineActionDispatcher.ActionResult outcome) {

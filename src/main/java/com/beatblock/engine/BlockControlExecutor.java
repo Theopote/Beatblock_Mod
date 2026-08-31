@@ -95,7 +95,7 @@ public final class BlockControlExecutor {
 				ControlSkipReason.ANIMATE_MODE, 0, 0);
 		}
 
-		StageObject target = stageObjectSystem != null ? stageObjectSystem.get(event.getTargetObjectId()) : null;
+		RuntimeStageObject target = stageObjectSystem != null ? stageObjectSystem.get(event.getTargetObjectId()) : null;
 		if (target == null) {
 			return new ControlPlan(actionMode, event.getTargetObjectId(), mutations,
 				ControlSkipReason.MISSING_TARGET, 0, 0);

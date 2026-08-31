@@ -2,7 +2,7 @@ package com.beatblock.selection;
 
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.runtime.BeatBlockContext;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.LayerVisibilityState;
@@ -27,16 +27,15 @@ class BeatBlockSelectionManagerTest {
 
 	@BeforeEach
 	void setUp() {
-		manager = BeatBlockSelectionManager.get();
-		manager.reset();
 		engine = new BlockAnimationEngine();
 		context = BeatBlockContext.builder().blockAnimationEngine(engine).build();
-		manager.bindContext(() -> context);
+		manager = new BeatBlockSelectionManager(() -> context);
+		manager.reset();
 	}
 
 	@AfterEach
 	void tearDown() {
-		BeatBlockSelectionManager.resetContextBindingForTests();
+		manager.reset();
 	}
 
 	@Test
@@ -108,7 +107,7 @@ class BeatBlockSelectionManagerTest {
 	void commitLassoSkipsBlocksClaimedByBuildLayer() {
 		BlockPos claimed = new BlockPos(0, 64, 0);
 		BlockPos free = new BlockPos(1, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Layer", List.of(claimed));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Layer", List.of(claimed));
 		engine.getBuildLayerManager().registerRestored(new BuildLayer(
 			"layer-1", "Layer", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
 

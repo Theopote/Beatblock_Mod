@@ -1,6 +1,6 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.EventType;
@@ -202,7 +202,7 @@ public final class EventLibraryPanelPresenter {
 		List<String> registered = new ArrayList<>();
 		StageObjectSystem system = stageObjectSystem.get();
 		if (system != null) {
-			for (StageObject obj : system.getAll()) {
+			for (RuntimeStageObject obj : system.getAll()) {
 				if (obj != null && obj.getId() != null && !obj.getId().isBlank()) {
 					registered.add(obj.getId());
 				}

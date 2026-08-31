@@ -1,6 +1,6 @@
 package com.beatblock.timeline.command.layer;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
@@ -97,7 +97,7 @@ class LayerCommandsTest {
 	@Test
 	void renameLayerCommandUndoRestoresPreviousName() {
 		BlockPos pos = new BlockPos(1, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Old Name", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Old Name", List.of(pos));
 		layerManager.registerRestored(new BuildLayer(
 			"layer-1", "Old Name", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
 
@@ -112,7 +112,7 @@ class LayerCommandsTest {
 	@Test
 	void deleteLayerCommandUndoRestoresLayerRegistration() {
 		BlockPos pos = new BlockPos(2, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "To Delete", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "To Delete", List.of(pos));
 		BuildLayer layer = new BuildLayer(
 			"layer-del", "To Delete", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);
 		layerManager.registerRestored(layer);
@@ -130,7 +130,7 @@ class LayerCommandsTest {
 	@Test
 	void deleteHiddenLayerUndoRestoresHiddenState() {
 		BlockPos pos = new BlockPos(3, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Hidden", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Hidden", List.of(pos));
 		BuildLayer layer = new BuildLayer(
 			"layer-hidden", "Hidden", stage, LayerVisibilityState.FREE_HIDDEN, Map.of(), null);
 		layerManager.registerRestored(layer);
@@ -148,7 +148,7 @@ class LayerCommandsTest {
 	@Test
 	void bindLayerToTrackCommandCreatesClipAndUndoRestoresBinding() {
 		BlockPos pos = new BlockPos(4, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("stage-x", "Bind Me", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("stage-x", "Bind Me", List.of(pos));
 		layerManager.registerRestored(new BuildLayer(
 			"layer-bind", "Bind Me", stage, LayerVisibilityState.FREE_HIDDEN, Map.of(), null));
 
@@ -175,7 +175,7 @@ class LayerCommandsTest {
 	@Test
 	void toggleVisibilityCommandNoOpsWithoutWorld() {
 		BlockPos pos = new BlockPos(5, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Visible", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Visible", List.of(pos));
 		layerManager.registerRestored(new BuildLayer(
 			"layer-vis", "Visible", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
 
@@ -190,8 +190,8 @@ class LayerCommandsTest {
 	@Test
 	void renameLayerCommandRejectsDuplicateName() {
 		BlockPos pos = new BlockPos(6, 64, 0);
-		StageObject a = StageObjectSystem.fromBlocks("s1", "Alpha", List.of(pos));
-		StageObject b = StageObjectSystem.fromBlocks("s2", "Beta", List.of(new BlockPos(7, 64, 0)));
+		RuntimeStageObject a = StageObjectSystem.fromBlocks("s1", "Alpha", List.of(pos));
+		RuntimeStageObject b = StageObjectSystem.fromBlocks("s2", "Beta", List.of(new BlockPos(7, 64, 0)));
 		layerManager.registerRestored(new BuildLayer(
 			"layer-a", "Alpha", a, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
 		layerManager.registerRestored(new BuildLayer(
@@ -205,7 +205,7 @@ class LayerCommandsTest {
 	@Test
 	void deleteLayerCommandSkipsBoundLayers() {
 		BlockPos pos = new BlockPos(8, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Bound", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Bound", List.of(pos));
 		layerManager.registerRestored(new BuildLayer(
 			"layer-bound", "Bound", stage, LayerVisibilityState.BOUND_TO_TRACK, Map.of(), "clip-x"));
 
@@ -245,7 +245,7 @@ class LayerCommandsTest {
 	}
 
 	private BuildLayer restoredLayer(String id, int x) {
-		StageObject stage = StageObjectSystem.fromBlocks(
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks(
 			"stage-" + id, id, List.of(new BlockPos(x, 64, 0)));
 		BuildLayer layer = new BuildLayer(
 			id, id, stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);

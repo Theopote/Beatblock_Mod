@@ -1,6 +1,6 @@
 package com.beatblock.selection;
 
-import com.beatblock.BeatBlock;
+import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.runtime.BeatBlockContext;
@@ -36,10 +36,12 @@ public final class BeatBlockSelectionManager implements SelectionToolHost {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(BeatBlockSelectionManager.class);
 
-	private static final BeatBlockSelectionManager INSTANCE = new BeatBlockSelectionManager();
-
+	/**
+	 * 便捷访问：返回 {@link com.beatblock.BeatBlock#getContext()} 中的选区管理器。
+	 * 新代码请优先通过 {@link com.beatblock.runtime.BeatBlockContext#selectionManager()} 注入。
+	 */
 	public static BeatBlockSelectionManager get() {
-		return INSTANCE;
+		return com.beatblock.BeatBlock.getContext().selectionManager();
 	}
 
 	// ── 常量定义 ──
@@ -83,16 +85,17 @@ public final class BeatBlockSelectionManager implements SelectionToolHost {
 	/** 逐块半透明填充（仅当选区不大时绘制，开销高） */
 	private boolean selectionFillEnabled;
 	private String lastMessage = "";
-	private Supplier<BeatBlockContext> contextSource = BeatBlock::getContext;
+	private Supplier<BeatBlockContext> contextSource = com.beatblock.BeatBlock::getContext;
 
-	private BeatBlockSelectionManager() {}
-
-	public void bindContext(Supplier<BeatBlockContext> source) {
-		this.contextSource = source != null ? source : BeatBlock::getContext;
+	public BeatBlockSelectionManager() {
 	}
 
-	static void resetContextBindingForTests() {
-		INSTANCE.bindContext(BeatBlock::getContext);
+	public BeatBlockSelectionManager(Supplier<BeatBlockContext> contextSource) {
+		this.contextSource = contextSource != null ? contextSource : com.beatblock.BeatBlock::getContext;
+	}
+
+	public void bindContext(Supplier<BeatBlockContext> source) {
+		this.contextSource = source != null ? source : com.beatblock.BeatBlock::getContext;
 	}
 
 	private BeatBlockContext ctx() {

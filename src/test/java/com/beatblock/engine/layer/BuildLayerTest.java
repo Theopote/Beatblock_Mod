@@ -1,6 +1,6 @@
 package com.beatblock.engine.layer;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.testutil.MinecraftTestBootstrap;
 import net.minecraft.util.math.BlockPos;
@@ -24,7 +24,7 @@ class BuildLayerTest {
 	@Test
 	void visibilityCapabilitiesDependOnState() {
 		BlockPos pos = new BlockPos(0, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Layer", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Layer", List.of(pos));
 
 		BuildLayer visible = new BuildLayer(
 			"v", "Visible", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);
@@ -46,7 +46,7 @@ class BuildLayerTest {
 
 	@Test
 	void nameDefaultsToIdAndIgnoresBlankRename() {
-		StageObject stage = StageObjectSystem.fromBlocks("layer-x", "Layer", List.of(new BlockPos(0, 64, 0)));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("layer-x", "Layer", List.of(new BlockPos(0, 64, 0)));
 		BuildLayer layer = new BuildLayer("layer-x", null, stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);
 		assertEquals("layer-x", layer.getName());
 		layer.setName("   ");

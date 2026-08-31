@@ -65,7 +65,7 @@ public final class RhythmDropGenerator {
 		List<BlockPos> ordered = sortLandingPositions(landingPositions);
 		String targetId = resolveTargetObjectId(stageObjects, ordered, effective.targetObjectId());
 		if (stageObjects.get(targetId) == null) {
-			return new Outcome(0, targetId, "目标 StageObject 不存在: " + targetId);
+			return new Outcome(0, targetId, "目标 RuntimeStageObject 不存在: " + targetId);
 		}
 
 		double[] beats = ReferenceBeatResolver.resolveBeatTimesSeconds(timeline);

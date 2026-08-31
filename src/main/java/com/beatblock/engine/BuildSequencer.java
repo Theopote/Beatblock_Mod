@@ -21,7 +21,7 @@ import java.util.*;
 import java.util.function.Predicate;
 
 /**
- * 累积式建造序列器：将 StageObject 的方块按 BuildSequenceMode 排序，
+ * 累积式建造序列器：将 RuntimeStageObject 的方块按 BuildSequenceMode 排序，
  * 根据事件时长逐步放置（BUILD）或逐步移除（DISSOLVE 反向），
  * 每帧由 BeatBlockClientDriver 驱动 tick，随时间推进逐块出现。
  * <p>
@@ -141,7 +141,7 @@ public final class BuildSequencer {
 		}
 		BuildLayer layer = layerId != null && buildLayerManager != null ? buildLayerManager.get(layerId) : null;
 
-		StageObject target;
+		RuntimeStageObject target;
 		Map<BlockPos, BlockState> perBlockTargets = null;
 		boolean layerReveal = false;
 

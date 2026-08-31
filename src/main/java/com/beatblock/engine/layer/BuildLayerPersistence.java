@@ -2,7 +2,7 @@ package com.beatblock.engine.layer;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.engine.GroupSortingStrategy;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -81,7 +81,7 @@ public final class BuildLayerPersistence {
 		if (layer.getColorArgb() != 0) {
 			root.addProperty("colorArgb", layer.getColorArgb());
 		}
-		StageObject stage = layer.getStageObject();
+		RuntimeStageObject stage = layer.getStageObject();
 		root.addProperty("stageObjectId", stage.getId());
 		root.addProperty("stageObjectName", stage.getName());
 
@@ -131,7 +131,7 @@ public final class BuildLayerPersistence {
 		if (blocks.isEmpty()) return null;
 
 		String stageId = root.has("stageObjectId") ? root.get("stageObjectId").getAsString() : id + "_stage";
-		StageObject stageObject = StageObjectSystem.fromSelectionSnapshot(
+		RuntimeStageObject stageObject = StageObjectSystem.fromSelectionSnapshot(
 			stageId, name, blocks, GroupSortingStrategy.SEQUENTIAL, 0.0);
 
 		Map<BlockPos, BlockState> captured = new LinkedHashMap<>();

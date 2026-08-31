@@ -34,8 +34,8 @@ class QuickStartWizardPresenterTest {
 
 	@BeforeEach
 	void setUp() {
-		com.beatblock.selection.BeatBlockSelectionManager.get().reset();
 		BeatBlock.installContext(BeatBlockTestSupport.minimalContext());
+		BeatBlock.getContext().selectionManager().reset();
 		var context = BeatBlock.getContext();
 		timeline = context.timeline();
 		editor = context.timelineEditor();
@@ -51,7 +51,11 @@ class QuickStartWizardPresenterTest {
 
 	@AfterEach
 	void tearDown() {
-		com.beatblock.selection.BeatBlockSelectionManager.get().reset();
+		try {
+			BeatBlock.getContext().selectionManager().reset();
+		} catch (IllegalStateException ignored) {
+			// context already cleared
+		}
 		for (AudioAsset asset : new ArrayList<>(manager.getAssets())) {
 			manager.remove(asset.getId());
 		}

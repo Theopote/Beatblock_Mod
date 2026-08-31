@@ -33,7 +33,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class OscProjectStore {
 
-	private static final int CURRENT_VERSION = 3;
+	private static final int CURRENT_VERSION = 4;
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
 	private OscProjectStore() {}
@@ -79,6 +79,8 @@ public final class OscProjectStore {
 			root.add("buildLayerGroups", BuildLayerPersistence.groupsToJson(layerManager));
 		}
 		root.add("animationTracks", TimelineAnimationPersistence.toJson(timeline));
+		JsonObject choreography = ChoreographyPlanPersistence.toJson(timeline);
+		if (choreography != null) root.add("choreography", choreography);
 
 		// 原子写入：唯一临时文件 + ATOMIC_MOVE（必要时回退）+ 失败清理，避免半写/冲突。
 		String json = GSON.toJson(root);
@@ -181,6 +183,9 @@ public final class OscProjectStore {
 				? root.getAsJsonArray("animationTracks")
 				: null;
 			TimelineAnimationPersistence.loadInto(timeline, animationTracks);
+			if (root.has("choreography")) {
+				ChoreographyPlanPersistence.loadInto(timeline, root.get("choreography"));
+			}
 		}
 
 		return new LoadedProject(projectId, projectPath, timelineName, audioPath, markers);

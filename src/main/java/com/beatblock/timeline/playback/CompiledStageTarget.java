@@ -7,11 +7,11 @@ import net.minecraft.util.math.Vec3d;
 import java.util.List;
 
 /**
- * 播放阶段的舞台对象视图：只携带播放器真正需要的数据，不持有领域层 {@link com.beatblock.engine.StageObject}
+ * 播放阶段的舞台对象视图：只携带播放器真正需要的数据，不持有领域层 {@link com.beatblock.engine.RuntimeStageObject}
  * 或可能包含自定义可变 sourceParams 的 {@link com.beatblock.engine.GroupSpec}。
  * <p>
  * 这样 {@link CompiledStageEvent} 与编辑/运行时模型之间的边界保持清晰：
- * StageObject = 编辑/运行模型，CompiledStageTarget = 播放快照。
+ * RuntimeStageObject = 编辑/运行模型，CompiledStageTarget = 播放快照。
  */
 public record CompiledStageTarget(
 	String id,

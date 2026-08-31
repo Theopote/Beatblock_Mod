@@ -35,7 +35,7 @@ class AutoMapGeneratorTest {
 		TimelineAnimationEvent ev = timeline.getAutoAnimationEvents().getFirst();
 		assertEquals("bounce", ev.getAnimationTypeId());
 		assertEquals(1.0, ev.getTimeSeconds(), 1e-6);
-		assertEquals(AutoMapGenerator.DEFAULT_TARGET_ID, ev.getTargetObjectId());
+		assertTrue(ev.isUnboundTarget());
 	}
 
 	@Test
@@ -92,14 +92,53 @@ class AutoMapGeneratorTest {
 	}
 
 	@Test
-	void enforcesGlobalMinGapAcrossFeatureTracks() {
+	void allowsCloseEventsOnDifferentFeatureTracks() {
 		Timeline timeline = Timeline.createDefault();
 		timeline.addFeatureEvent("kick", new FeatureEvent(1.0, 0.8f));
 		timeline.addFeatureEvent("snare", new FeatureEvent(1.05, 0.8f));
 
 		int count = AutoMapGenerator.generate(timeline, AutoMapConfig.createDefault(), false);
 
-		assertEquals(1, count);
-		assertEquals(1, timeline.getAutoAnimationEvents().size());
+		assertEquals(2, count);
+		assertEquals(2, timeline.getAutoAnimationEvents().size());
+	}
+
+	@Test
+	void retainsLaterFeatureTracksAfterEarlierTrackSpansTimeline() {
+		Timeline timeline = Timeline.createDefault();
+		for (int i = 0; i < 60; i++) {
+			timeline.addFeatureEvent("low", new FeatureEvent(i + 0.5, 0.9f));
+		}
+		timeline.addFeatureEvent("mid", new FeatureEvent(1.0, 0.5f));
+		timeline.addFeatureEvent("high", new FeatureEvent(2.0, 0.8f));
+
+		int count = AutoMapGenerator.generate(timeline, AutoMapConfig.createDefault(), false);
+
+		assertTrue(count > 60);
+		assertTrue(timeline.getAutoAnimationEvents().stream()
+			.anyMatch(ev -> "slide".equals(ev.getAnimationTypeId())));
+		assertTrue(timeline.getAutoAnimationEvents().stream()
+			.anyMatch(ev -> "pulse".equals(ev.getAnimationTypeId())));
+	}
+
+	@Test
+	void assignsPerFeatureTargetsFromConfig() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addFeatureEvent("kick", new FeatureEvent(1.0, 0.8f));
+		timeline.addFeatureEvent("snare", new FeatureEvent(2.0, 0.8f));
+
+		AutoMapConfig config = AutoMapConfig.builder()
+			.rule(new AutoMapRule("low", 0.15f, "bounce", 0.5, true, 4f, 0.12, null))
+			.rule(new AutoMapRule("mid", 0.2f, "slide", 0.4, true, 3f, 0.08, null))
+			.rule(new AutoMapRule("high", 0.15f, "pulse", 0.3, false, 1f, 0.04, null))
+			.targetForFeature("low", "stage-low")
+			.targetForFeature("mid", "stage-mid")
+			.build();
+
+		int count = AutoMapGenerator.generate(timeline, config, false);
+
+		assertEquals(2, count);
+		assertEquals("stage-low", timeline.getAutoAnimationEvents().get(0).getTargetObjectId());
+		assertEquals("stage-mid", timeline.getAutoAnimationEvents().get(1).getTargetObjectId());
 	}
 }

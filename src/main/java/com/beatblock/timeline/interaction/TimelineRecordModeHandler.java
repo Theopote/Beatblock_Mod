@@ -1,6 +1,6 @@
 package com.beatblock.timeline.interaction;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
@@ -97,8 +97,8 @@ public final class TimelineRecordModeHandler {
 	}
 
 	private static @Nullable String resolveTargetObjectId(StageObjectSystem system) {
-		StageObject first = null;
-		for (StageObject obj : system.getAll()) {
+		RuntimeStageObject first = null;
+		for (RuntimeStageObject obj : system.getAll()) {
 			if (obj != null) {
 				first = obj;
 				break;

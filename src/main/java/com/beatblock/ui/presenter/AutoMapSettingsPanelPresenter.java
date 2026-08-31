@@ -3,10 +3,12 @@ package com.beatblock.ui.presenter;
 import com.beatblock.automap.engine.AutoMapSettings;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
+import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.ui.i18n.BBTexts;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -32,6 +34,18 @@ public final class AutoMapSettingsPanelPresenter {
 
 	public Timeline timeline() {
 		return context.get().timeline();
+	}
+
+	public List<StageTargetOption> listStageTargets() {
+		var engine = context.get().blockAnimationEngine();
+		StageObjectSystem system = engine != null ? engine.getStageObjectSystem() : null;
+		return StageTargetOption.fromSystem(system);
+	}
+
+	public void applyDefaultTargets(AutoMapSettings settings) {
+		if (settings == null) return;
+		if (!settings.getTargetObjectIds().isEmpty()) return;
+		settings.setTargetObjectIds(StageTargetOption.defaultTargetIds(listStageTargets()));
 	}
 
 	public String generateBlockedReason() {

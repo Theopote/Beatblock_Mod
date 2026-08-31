@@ -2,6 +2,11 @@ package com.beatblock.timeline.interaction;
 
 import com.beatblock.BeatBlockClient;
 import com.beatblock.audio.MusicPlayer;
+import com.beatblock.automap.AutoMapConfig;
+import com.beatblock.automap.choreography.ChoreographyPlan;
+import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
+import com.beatblock.automap.choreography.ChoreographyPlanEditor;
+import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.timeline.camera.CameraPathMetadata;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.IAudioPlayer;
@@ -554,6 +559,11 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			return;
 		}
 
+		if (interactionState.getMode() == InteractionMode.SECTION_BOUNDARY_DRAG) {
+			handleSectionBoundaryDrag(timeline, viewState, interactionState, layout, mx);
+			return;
+		}
+
 		if (toolbarState != null && interactionState.getMode() == InteractionMode.LOOP_OUT_DRAG) {
 			double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
 			double loopIn = toolbarState.getLoopInSeconds();
@@ -591,6 +601,14 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			if (TimelineRulerHitTest.isMouseOverLoopInHandle(mx, my, layout, viewState, toolbarState)
 				|| TimelineRulerHitTest.isMouseOverLoopOutHandle(mx, my, layout, viewState, toolbarState)) {
 				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+			}
+		}
+
+		ChoreographySectionHitTest.Hit sectionHit = ChoreographySectionHitTest.hit(timeline, viewState, layout, mx, my);
+		if (interactionState.getMode() == InteractionMode.NONE && sectionHit.kind() != ChoreographySectionHitTest.HitKind.NONE) {
+			ChoreographySectionBandRenderer.applyHoverCursor(sectionHit);
+			if (ImGui.isWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenBlockedByPopup)) {
+				ChoreographySectionBandRenderer.renderHoverTooltip(timeline, sectionHit);
 			}
 		}
 
@@ -652,6 +670,14 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				beginMarkerDrag(interactionState, marker, mx, my);
 				return;
 			}
+			if (!alt && sectionHit.isBoundary()) {
+				beginSectionBoundaryDrag(timeline, interactionState, sectionHit.boundaryIndex());
+				return;
+			}
+			if (!alt && sectionHit.isBody()) {
+				SectionEditPopupCoordinator.requestOpen(sectionHit.sectionIndex());
+				return;
+			}
 			if (alt && toolbarState != null) {
 				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
 				toolbarState.setLoopInSeconds(t);
@@ -674,6 +700,58 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		interactionState.setActiveMarkerId(marker.getId());
 		interactionState.setMarkerDragStartTimeSeconds(marker.getTimeSeconds());
 		interactionState.setMarkerDragName(marker.getName());
+	}
+
+	private static void beginSectionBoundaryDrag(
+		Timeline timeline,
+		InteractionState interactionState,
+		int boundaryIndex
+	) {
+		if (interactionState == null || timeline == null || boundaryIndex < 1) return;
+		var plan = ChoreographyPlanStore.loadPlan(timeline);
+		if (plan == null || boundaryIndex >= plan.sections().size()) return;
+		interactionState.setMode(InteractionMode.SECTION_BOUNDARY_DRAG);
+		interactionState.setSectionBoundaryIndex(boundaryIndex);
+		interactionState.setSectionBoundaryDragStartSeconds(plan.sections().get(boundaryIndex).startSeconds());
+	}
+
+	private void handleSectionBoundaryDrag(
+		Timeline timeline,
+		TimelineViewState viewState,
+		InteractionState interactionState,
+		TimelineLayout layout,
+		float mx
+	) {
+		int boundaryIndex = interactionState.getSectionBoundaryIndex();
+		var plan = ChoreographyPlanStore.loadPlan(timeline);
+		if (plan == null || boundaryIndex < 1 || boundaryIndex >= plan.sections().size()) {
+			interactionState.setMode(InteractionMode.NONE);
+			interactionState.clearActive();
+			return;
+		}
+		double newTime = viewState.screenToTime(mx - layout.contentLeft);
+		plan = ChoreographyPlanEditor.moveSectionBoundary(plan, boundaryIndex, newTime);
+		ChoreographyPlanStore.save(timeline, plan, ChoreographyPlanStore.loadConfig(timeline));
+		if (ImGui.isMouseReleased(0)) {
+			double originalTime = interactionState.getSectionBoundaryDragStartSeconds();
+			double finalTime = plan.sections().get(boundaryIndex).startSeconds();
+			if (Math.abs(finalTime - originalTime) > 1e-6) {
+				recompileChoreographyPlan(timeline, plan);
+			}
+			interactionState.setMode(InteractionMode.NONE);
+			interactionState.clearActive();
+		}
+	}
+
+	private void recompileChoreographyPlan(Timeline timeline, ChoreographyPlan plan) {
+		AutoMapConfig config = ChoreographyPlanStore.loadConfig(timeline);
+		if (config == null) {
+			config = AutoMapConfig.createDefault();
+		}
+		ChoreographyPlanCompiler.compileAll(timeline, plan, config, true);
+		if (timelineEditor != null) {
+			timelineEditor.syncClockDuration();
+		}
 	}
 
 	private void handleMarkerDrag(

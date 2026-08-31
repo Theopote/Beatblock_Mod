@@ -1,6 +1,12 @@
 package com.beatblock.timeline.project;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.automap.AutoMapConfig;
+import com.beatblock.automap.choreography.ChoreographyPlan;
+import com.beatblock.automap.choreography.ChoreographyPlanStore;
+import com.beatblock.automap.choreography.DensityCurve;
+import com.beatblock.automap.choreography.SectionEditProfile;
+import com.beatblock.automap.engine.SectionType;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
@@ -103,7 +109,7 @@ class OscProjectStoreTest {
 		Path file = tempDir.resolve("layers.osc");
 		StageObjectSystem stageObjects = new StageObjectSystem();
 		BlockPos pos = new BlockPos(1, 64, 2);
-		StageObject stage = StageObjectSystem.fromBlocks("stage-1", "Layer Object", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("stage-1", "Layer Object", List.of(pos));
 		stageObjects.register(stage);
 		BuildLayerManager layers = new BuildLayerManager(stageObjects);
 		layers.registerRestored(new BuildLayer(
@@ -132,7 +138,7 @@ class OscProjectStoreTest {
 		Path file = tempDir.resolve("layers-capture.osc");
 		BlockPos pos = new BlockPos(2, 64, 3);
 		StageObjectSystem stageObjects = new StageObjectSystem();
-		StageObject stage = StageObjectSystem.fromBlocks("stage-cap", "Captured", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("stage-cap", "Captured", List.of(pos));
 		stageObjects.register(stage);
 		BuildLayerManager layers = new BuildLayerManager(stageObjects);
 		layers.registerRestored(new BuildLayer(
@@ -190,6 +196,33 @@ class OscProjectStoreTest {
 		assertEquals(1, restored.getCameraKeyframes().size());
 		assertEquals(1, restored.getGlobalEvents().size());
 		assertEquals("Strobe", restored.getGlobalEvents().getFirst().getName());
+	}
+
+	@Test
+	void roundTripsChoreographyPlanInOsc() throws Exception {
+		Path file = tempDir.resolve("choreography.osc");
+		Timeline timeline = Timeline.createDefault();
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 16, SectionType.VERSE, "verse")),
+			List.of(new ChoreographyPlan.StageRoleAssignment("low", "stage-a")),
+			List.of(new ChoreographyPlan.MotionPhrase(2.0, "kick", "low", 0.8f, "bounce", 0.5, true, 4f, 0)),
+			List.of(),
+			List.of(),
+			DensityCurve.uniform(1.0),
+			List.of(SectionEditProfile.defaults(0).withCameraEnabled(false))
+		);
+		AutoMapConfig config = AutoMapConfig.builder().targetForFeature("low", "stage-a").build();
+		ChoreographyPlanStore.save(timeline, plan, config);
+		OscProjectStore.save(file, timeline);
+
+		Timeline restored = Timeline.createDefault();
+		OscProjectStore.load(file, null, restored);
+
+		ChoreographyPlan loaded = ChoreographyPlanStore.loadPlan(restored);
+		assertEquals(1, loaded.sections().size());
+		assertEquals("verse", loaded.sections().getFirst().label());
+		assertFalse(loaded.sectionEdits().getFirst().cameraEnabled());
+		assertEquals("stage-a", ChoreographyPlanStore.loadConfig(restored).getTargetByNormalizedFeature().get("low"));
 	}
 
 	@Test

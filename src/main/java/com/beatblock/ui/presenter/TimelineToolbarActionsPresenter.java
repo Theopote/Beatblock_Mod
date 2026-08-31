@@ -1,6 +1,6 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.automap.AutoMapConfig;
+import com.beatblock.automap.AutoMapConfigFactory;
 import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
@@ -60,7 +60,7 @@ public final class TimelineToolbarActionsPresenter {
 		if (current == null) {
 			return new ActionOutcome(BBTexts.get("beatblock.message.auto_map_skipped"), false, -1);
 		}
-		AutoMapConfig config = AutoMapConfig.createDefault();
+		var config = AutoMapConfigFactory.forToolbar();
 		int count = AutoMapGenerator.generate(current, config, true);
 		syncClockDuration();
 		return new ActionOutcome(BBTexts.get("beatblock.message.auto_map_generated", count), count > 0, count);

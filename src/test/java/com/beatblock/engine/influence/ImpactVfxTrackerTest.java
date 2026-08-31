@@ -3,7 +3,7 @@ package com.beatblock.engine.influence;
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.EffectContext;
 import com.beatblock.engine.EngineAnimationInstance;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -20,7 +20,7 @@ class ImpactVfxTrackerTest {
 	@Test
 	void contributeFiresOnceWhenThresholdCrossed() {
 		BlockInfluencePreset preset = BlockInfluencePresets.get("RhythmDrop");
-		StageObject target = StageObjectSystem.fromBlocks("t1", "Target", List.of(new BlockPos(0, 64, 0)));
+		RuntimeStageObject target = StageObjectSystem.fromBlocks("t1", "Target", List.of(new BlockPos(0, 64, 0)));
 		AnimationDefinition def = new AnimationDefinition(preset);
 		EngineAnimationInstance instance = new EngineAnimationInstance(
 			def, target, 0.0, 1.0, 1f, Map.of("impactThreshold", 0.92, "impactVfxKind", "rhythm_impact")

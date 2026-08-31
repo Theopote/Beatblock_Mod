@@ -3,7 +3,7 @@ package com.beatblock.engine;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
 
 /**
- * StageObject 组内排序策略（第 1 阶段）：先映射到现有 SpatialDispatchMode，后续可扩展更丰富路径策略。
+ * RuntimeStageObject 组内排序策略（第 1 阶段）：先映射到现有 SpatialDispatchMode，后续可扩展更丰富路径策略。
  */
 public enum GroupSortingStrategy {
 	SEQUENTIAL("SEQUENTIAL", SpatialDispatchMode.SEQUENTIAL),

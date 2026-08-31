@@ -2,7 +2,7 @@ package com.beatblock.engine.layer;
 
 import com.beatblock.client.BeatBlockAuthoritativeWorldMutator;
 import com.beatblock.engine.BlockControlExecutor;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -133,7 +133,7 @@ public final class BuildLayerManager {
 		return id != null ? layers.get(id) : null;
 	}
 
-	// ── Layer selection (preferred StageObject targets for animation drops) ──
+	// ── Layer selection (preferred RuntimeStageObject targets for animation drops) ──
 
 	public Set<String> getSelectedLayerIds() {
 		pruneMissingSelection();
@@ -201,7 +201,7 @@ public final class BuildLayerManager {
 	}
 
 	/**
-	 * StageObject ids for currently selected layers — preferred targets for
+	 * RuntimeStageObject ids for currently selected layers — preferred targets for
 	 * {@code AnimationDropTargetResolver} (Preset + Target + Time).
 	 */
 	public List<String> getSelectedStageObjectIds() {
@@ -241,7 +241,7 @@ public final class BuildLayerManager {
 		String layerName = uniqueLayerName(name);
 		String id = uniqueLayerId(layerName);
 		String stageId = id + "_stage";
-		StageObject stageObject = StageObjectSystem.fromSelectionSnapshot(
+		RuntimeStageObject stageObject = StageObjectSystem.fromSelectionSnapshot(
 			stageId, layerName, available, com.beatblock.engine.GroupSortingStrategy.SEQUENTIAL, 0.0);
 		stageObjectSystem.register(stageObject);
 
@@ -552,7 +552,7 @@ public final class BuildLayerManager {
 			: sources.getFirst().getName() + "_merged";
 		String layerName = uniqueLayerName(baseName);
 		String id = uniqueLayerId(layerName);
-		StageObject stageObject = StageObjectSystem.fromSelectionSnapshot(
+		RuntimeStageObject stageObject = StageObjectSystem.fromSelectionSnapshot(
 			id + "_stage", layerName, mergedBlocks, com.beatblock.engine.GroupSortingStrategy.SEQUENTIAL, 0.0);
 		stageObjectSystem.register(stageObject);
 		BuildLayer merged = new BuildLayer(id, layerName, stageObject, state, mergedCapture, null);

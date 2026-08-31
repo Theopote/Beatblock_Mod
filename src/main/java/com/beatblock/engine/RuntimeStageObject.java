@@ -10,15 +10,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 第 2 层 — 舞台对象：参与演出的一组方块（概念模型中的「对象」）。
+ * 第 2 层 — 运行时舞台对象：参与演出的一组方块（概念模型中的「对象」）。
  * <p>
  * 动画与建造动作通过 {@link com.beatblock.timeline.TimelineAnimationEvent#getTargetObjectId()}
- * 引用本类实例。与 {@link com.beatblock.timeline.StageObject}（时间轴 UI 侧）对应，
+ * 引用本类实例。与时间轴侧 {@link com.beatblock.timeline.StageObjectRef} 对应，
  * 由 {@link StageObjectSystem} 管理运行时副本。
  * <p>
  * 性能优化：缓存按不同策略排序的方块列表，避免每次播放重复计算。
  */
-public final class StageObject {
+public final class RuntimeStageObject {
 
 	private final String id;
 	private final String name;
@@ -28,11 +28,11 @@ public final class StageObject {
 	/** 排序结果缓存：策略 → 排序后的方块列表 */
 	private final Map<GroupSortingStrategy, List<BlockPos>> sortedBlocksCache = new ConcurrentHashMap<>();
 
-	public StageObject(String id, String name, List<BlockPos> blocks, Vec3d center) {
+	public RuntimeStageObject(String id, String name, List<BlockPos> blocks, Vec3d center) {
 		this(id, name, blocks, center, null);
 	}
 
-	public StageObject(String id, String name, List<BlockPos> blocks, Vec3d center, GroupSpec groupSpec) {
+	public RuntimeStageObject(String id, String name, List<BlockPos> blocks, Vec3d center, GroupSpec groupSpec) {
 		this.id = id != null ? id : "";
 		this.name = name != null ? name : id;
 		this.blocks = blocks != null ? new ArrayList<>(blocks) : new ArrayList<>();

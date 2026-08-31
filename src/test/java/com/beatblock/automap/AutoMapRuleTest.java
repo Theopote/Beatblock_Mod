@@ -28,9 +28,14 @@ class AutoMapRuleTest {
 	}
 
 	@Test
-	void clampsEnergyAboveOne() {
-		AutoMapRule rule = new AutoMapRule("snare", 1.5f, "wave", 1.0, false, 0f);
-		assertEquals(1f, rule.getMinEnergy(), 1e-6f);
-		assertFalse(rule.isUseEnergyForHeight());
+	void resolveMinGapUsesRuleOverrideWhenPositive() {
+		AutoMapRule rule = new AutoMapRule("high", 0.1f, "pulse", 0.3, false, 1f, 0.04, null);
+		assertEquals(0.04, rule.resolveMinGap(0.12), 1e-9);
+	}
+
+	@Test
+	void resolveMinGapFallsBackToConfigDefault() {
+		AutoMapRule rule = new AutoMapRule("low", 0.1f, "bounce", 0.5, true, 4f);
+		assertEquals(0.12, rule.resolveMinGap(0.12), 1e-9);
 	}
 }

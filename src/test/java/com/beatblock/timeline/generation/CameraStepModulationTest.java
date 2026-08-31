@@ -57,4 +57,38 @@ class CameraStepModulationTest {
 
 		assertTrue(adjusted.get(1).startTimeSeconds() > planned.get(1).startTimeSeconds());
 	}
+
+	@Test
+	void adaptiveTimingPreservesNonDecreasingStartTimes() {
+		var event = new TimelineAnimationEvent(
+			"e1", 0.0, 0.5, "WaveMotion", "stage", 1f,
+			Map.of(
+				"dispatchModel", "STEP",
+				"stepStartMode", "IMMEDIATE",
+				"blocksPerBeat", 1,
+				"cameraAdaptiveStep", true,
+				"cameraNearDistance", 8.0,
+				"cameraFarDistance", 48.0,
+				"cameraNearScale", 0.5,
+				"cameraFarScale", 2.0
+			)
+		);
+		// Near / far alternating: without monotonic clamp, far-first block can end up later than near-second.
+		List<BlockPos> blocks = List.of(
+			new BlockPos(0, 64, 40),
+			new BlockPos(0, 64, 2),
+			new BlockPos(0, 64, 42),
+			new BlockPos(0, 64, 4)
+		);
+		var planned = StepSequencePlanner.plan(blocks, event, new double[] {0.0, 0.5, 1.0, 1.5}, 120);
+		Vec3d camera = new Vec3d(0, 64, 0);
+		var adjusted = CameraStepModulation.applyAdaptiveTiming(planned, blocks, camera, event.getParameters());
+
+		for (int i = 1; i < adjusted.size(); i++) {
+			assertTrue(
+				adjusted.get(i).startTimeSeconds() + 1e-9 >= adjusted.get(i - 1).startTimeSeconds(),
+				"Adaptive timing must stay non-decreasing at index " + i
+			);
+		}
+	}
 }

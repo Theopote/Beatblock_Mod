@@ -53,7 +53,11 @@ public final class PresenterFactories {
 	}
 
 	public static SelectionPropertiesPresenter selectionPropertiesPresenter() {
-		return new SelectionPropertiesPresenter(BeatBlockSelectionManager::get);
+		return selectionPropertiesPresenter(ctx());
+	}
+
+	public static SelectionPropertiesPresenter selectionPropertiesPresenter(BeatBlockContext context) {
+		return new SelectionPropertiesPresenter(context::selectionManager);
 	}
 
 	public static ToolPanelPresenter toolPanelPresenter() {
@@ -70,7 +74,7 @@ public final class PresenterFactories {
 
 	public static RhythmDropPanelPresenter rhythmDropPanelPresenter(BeatBlockContext context) {
 		return new RhythmDropPanelPresenter(
-			BeatBlockSelectionManager::get,
+			context::selectionManager,
 			context::timeline,
 			context::timelineEditor,
 			() -> context.blockAnimationEngine() != null
@@ -220,6 +224,14 @@ public final class PresenterFactories {
 			context::timelineEditor,
 			context::blockAnimationEngine
 		);
+	}
+
+	public static TimelineSectionEditPresenter timelineSectionEditPresenter() {
+		return timelineSectionEditPresenter(ctx());
+	}
+
+	public static TimelineSectionEditPresenter timelineSectionEditPresenter(BeatBlockContext context) {
+		return new TimelineSectionEditPresenter(() -> context);
 	}
 
 	public static TimelineToolbarFeedbackPresenter timelineToolbarFeedbackPresenter() {

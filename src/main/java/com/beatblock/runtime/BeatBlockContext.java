@@ -1,5 +1,6 @@
 package com.beatblock.runtime;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import com.beatblock.audio.AudioAnalysisService;
 import com.beatblock.audio.AudioConversionService;
@@ -9,6 +10,7 @@ import com.beatblock.audio.StemMixer;
 import com.beatblock.audio.analysis.AudioAnalysisEngine;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.layer.BuildLayerManager;
+import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.stage.StageManager;
 import com.beatblock.timeline.IAudioPlayer;
 import com.beatblock.timeline.Timeline;
@@ -39,6 +41,7 @@ public final class BeatBlockContext implements AutoCloseable {
 	private final @Nullable AudioAnalysisService externalAudioAnalyzer;
 	private final @Nullable AudioConversionService audioConversionService;
 	private final @Nullable VideoExportService videoExportService;
+	private final @Nullable BeatBlockSelectionManager selectionManager;
 	private final AtomicBoolean closed = new AtomicBoolean();
 
 	public BeatBlockContext(
@@ -52,7 +55,8 @@ public final class BeatBlockContext implements AutoCloseable {
 		@Nullable AudioAnalysisEngine audioAnalysisEngine,
 		@Nullable AudioAnalysisService externalAudioAnalyzer,
 		@Nullable AudioConversionService audioConversionService,
-		@Nullable VideoExportService videoExportService
+		@Nullable VideoExportService videoExportService,
+		@Nullable BeatBlockSelectionManager selectionManager
 	) {
 		this.audioLoader = audioLoader;
 		this.musicPlayer = musicPlayer;
@@ -65,6 +69,7 @@ public final class BeatBlockContext implements AutoCloseable {
 		this.externalAudioAnalyzer = externalAudioAnalyzer;
 		this.audioConversionService = audioConversionService;
 		this.videoExportService = videoExportService;
+		this.selectionManager = selectionManager;
 	}
 
 	public static Builder builder() {
@@ -147,6 +152,13 @@ public final class BeatBlockContext implements AutoCloseable {
 		return videoExportService;
 	}
 
+	public @NonNull BeatBlockSelectionManager selectionManager() {
+		if (selectionManager == null) {
+			throw new IllegalStateException("BeatBlockContext has no selection manager");
+		}
+		return selectionManager;
+	}
+
 	public @Nullable CommandManager commandManager() {
 		return timelineEditor != null ? timelineEditor.getCommandManager() : null;
 	}
@@ -198,6 +210,7 @@ public final class BeatBlockContext implements AutoCloseable {
 		private @Nullable AudioAnalysisService externalAudioAnalyzer;
 		private @Nullable AudioConversionService audioConversionService;
 		private @Nullable VideoExportService videoExportService;
+		private @Nullable BeatBlockSelectionManager selectionManager;
 
 		public Builder audioLoader(AudioLoader audioLoader) {
 			this.audioLoader = audioLoader;
@@ -254,7 +267,15 @@ public final class BeatBlockContext implements AutoCloseable {
 			return this;
 		}
 
+		public Builder selectionManager(BeatBlockSelectionManager selectionManager) {
+			this.selectionManager = selectionManager;
+			return this;
+		}
+
 		public BeatBlockContext build() {
+			BeatBlockSelectionManager resolvedSelection = selectionManager != null
+				? selectionManager
+				: new BeatBlockSelectionManager();
 			return new BeatBlockContext(
 				audioLoader,
 				musicPlayer,
@@ -266,7 +287,8 @@ public final class BeatBlockContext implements AutoCloseable {
 				audioAnalysisEngine,
 				externalAudioAnalyzer,
 				audioConversionService,
-				videoExportService
+				videoExportService,
+				resolvedSelection
 			);
 		}
 	}

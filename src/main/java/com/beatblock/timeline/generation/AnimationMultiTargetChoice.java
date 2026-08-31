@@ -5,7 +5,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * User choice when an animation preset placement resolves to multiple StageObject targets.
+ * User choice when an animation preset placement resolves to multiple RuntimeStageObject targets.
  * See {@code docs/animation-library-drag-ux.md}.
  */
 public enum AnimationMultiTargetChoice {

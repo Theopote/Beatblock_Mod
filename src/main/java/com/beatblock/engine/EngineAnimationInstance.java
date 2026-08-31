@@ -11,18 +11,18 @@ import java.util.Map;
 public final class EngineAnimationInstance {
 
 	private final AnimationDefinition definition;
-	private final StageObject target;
+	private final RuntimeStageObject target;
 	private final double startTimeSeconds;
 	private final double endTimeSeconds;
 	private final float energy;
 	private final Map<String, Object> extraParams;
 
-	public EngineAnimationInstance(AnimationDefinition definition, StageObject target,
+	public EngineAnimationInstance(AnimationDefinition definition, RuntimeStageObject target,
 	                               double startTimeSeconds, double endTimeSeconds, float energy) {
 		this(definition, target, startTimeSeconds, endTimeSeconds, energy, Collections.emptyMap());
 	}
 
-	public EngineAnimationInstance(AnimationDefinition definition, StageObject target,
+	public EngineAnimationInstance(AnimationDefinition definition, RuntimeStageObject target,
 	                               double startTimeSeconds, double endTimeSeconds, float energy,
 	                               Map<String, Object> extraParams) {
 		this.definition = definition;
@@ -39,7 +39,7 @@ public final class EngineAnimationInstance {
 		return definition;
 	}
 
-	public StageObject getTarget() {
+	public RuntimeStageObject getTarget() {
 		return target;
 	}
 

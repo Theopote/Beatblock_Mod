@@ -3,7 +3,7 @@ package com.beatblock.ui.properties.editors;
 import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
 
-/** StageObject target combo. */
+/** RuntimeStageObject target combo. */
 public final class TargetSection implements EventPropertySection {
 
 	@Override

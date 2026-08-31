@@ -17,8 +17,6 @@ import java.util.Map;
  */
 public final class TimelineBuilder {
 
-	private static final String DEFAULT_TARGET_ID = "default";
-
 	/**
 	 * 清空自动动画、摄像机、全局事件轨道（为重新生成做准备）。
 	 */

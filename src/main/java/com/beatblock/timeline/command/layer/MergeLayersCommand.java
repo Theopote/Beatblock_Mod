@@ -4,7 +4,7 @@ import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 
@@ -21,7 +21,7 @@ public final class MergeLayersCommand implements com.beatblock.timeline.command.
 	private record LayerSnapshot(
 		String id,
 		String name,
-		StageObject stageObject,
+		RuntimeStageObject stageObject,
 		LayerVisibilityState state,
 		Map<BlockPos, BlockState> capturedStates,
 		String boundClipId,

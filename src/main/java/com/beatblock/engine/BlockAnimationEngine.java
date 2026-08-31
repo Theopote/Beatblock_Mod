@@ -122,11 +122,11 @@ public final class BlockAnimationEngine {
 	}
 
 	/**
-	 * 将 Timeline 动画事件加入播放器（需将 targetObjectId 解析为 StageObject，animationTypeId 解析为 AnimationDefinition）。
+	 * 将 Timeline 动画事件加入播放器（需将 targetObjectId 解析为 RuntimeStageObject，animationTypeId 解析为 AnimationDefinition）。
 	 */
 	public void scheduleFromTimelineEvent(String animationTypeId, String targetObjectId, double startTimeSeconds, double durationSeconds, float energy) {
 		AnimationDefinition def = animationLibrary.get(animationTypeId);
-		StageObject target = stageObjectSystem.get(targetObjectId);
+		RuntimeStageObject target = stageObjectSystem.get(targetObjectId);
 		if (def == null || target == null) return;
 		double endTime = startTimeSeconds + Math.max(0.01, durationSeconds);
 		animationPlayer.addInstance(new EngineAnimationInstance(def, target, startTimeSeconds, endTime, energy));
@@ -157,7 +157,7 @@ public final class BlockAnimationEngine {
 		}
 	}
 
-	private static CompiledStageTarget toCompiledStageTarget(StageObject source) {
+	private static CompiledStageTarget toCompiledStageTarget(RuntimeStageObject source) {
 		if (source == null) return null;
 		var groupSpec = source.getGroupSpec();
 		return new CompiledStageTarget(
@@ -219,7 +219,7 @@ public final class BlockAnimationEngine {
 		Vec3d center = target.center();
 		for (int i = 0; i < planned.size(); i++) {
 			var step = planned.get(i);
-			StageObject perBlockTarget = new StageObject(
+			RuntimeStageObject perBlockTarget = new RuntimeStageObject(
 				target.id() + "#step#" + i,
 				target.name(),
 				List.of(step.block()),
@@ -257,7 +257,7 @@ public final class BlockAnimationEngine {
 		double stepDelay = resolveSpatialStepDelay(event, target, spatialMode, event.getDurationSeconds(), target.blocks().size());
 		if (spatialMode == SpatialDispatchMode.ALL || stepDelay <= 0.0 || target.blocks().size() <= 1) {
 			double endTime = event.getTimeSeconds() + Math.max(0.01, event.getDurationSeconds());
-			StageObject allBlocksTarget = new StageObject(
+			RuntimeStageObject allBlocksTarget = new RuntimeStageObject(
 				target.id(),
 				target.name(),
 				target.blocks(),
@@ -278,7 +278,7 @@ public final class BlockAnimationEngine {
 			BlockPos block = ordered.get(i);
 			double start = baseStart + i * stepDelay;
 			double end = start + duration;
-			StageObject perBlockTarget = new StageObject(
+			RuntimeStageObject perBlockTarget = new RuntimeStageObject(
 				target.id() + "#" + i,
 				target.name(),
 				List.of(block),
@@ -295,7 +295,7 @@ public final class BlockAnimationEngine {
 		AnimationDefinition def,
 		net.minecraft.util.math.BlockPos block
 	) {
-		StageObject perBlockTarget = new StageObject(
+		RuntimeStageObject perBlockTarget = new RuntimeStageObject(
 			target.id() + "#block",
 			target.name(),
 			List.of(block),

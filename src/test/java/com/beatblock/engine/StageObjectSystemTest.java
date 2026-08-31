@@ -22,7 +22,7 @@ class StageObjectSystemTest {
 
 	@Test
 	void registerGetAndRemove() {
-		StageObject obj = StageObjectSystem.fromBlocks("s1", "Tower", List.of(new BlockPos(0, 64, 0)));
+		RuntimeStageObject obj = StageObjectSystem.fromBlocks("s1", "Tower", List.of(new BlockPos(0, 64, 0)));
 		system.register(obj);
 
 		assertEquals(1, system.size());
@@ -35,7 +35,7 @@ class StageObjectSystemTest {
 	@Test
 	void fromSelectionSnapshotComputesCenter() {
 		List<BlockPos> blocks = List.of(new BlockPos(0, 64, 0), new BlockPos(2, 64, 0));
-		StageObject obj = StageObjectSystem.fromSelectionSnapshot(
+		RuntimeStageObject obj = StageObjectSystem.fromSelectionSnapshot(
 			"snap", "Snap", blocks, GroupSortingStrategy.RADIAL, 0.25);
 
 		assertNotNull(obj.getCenter());
@@ -56,7 +56,7 @@ class StageObjectSystemTest {
 	void fromSelectionCuboidEmbedsCuboidSpec() {
 		BlockPos a = new BlockPos(1, 64, 2);
 		BlockPos b = new BlockPos(3, 66, 4);
-		StageObject obj = StageObjectSystem.fromSelectionCuboid(
+		RuntimeStageObject obj = StageObjectSystem.fromSelectionCuboid(
 			"cube", "Cube", List.of(a, b), a, b, false);
 		assertEquals("selection_cuboid", obj.getGroupSpec().getSourceType());
 	}

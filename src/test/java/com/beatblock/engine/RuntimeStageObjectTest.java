@@ -9,11 +9,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-class StageObjectTest {
+class RuntimeStageObjectTest {
 
 	@Test
 	void computesCenterFromBlocksWhenNotProvided() {
-		StageObject object = new StageObject(
+		RuntimeStageObject object = new RuntimeStageObject(
 			"s1",
 			"Stage",
 			List.of(new BlockPos(0, 64, 0), new BlockPos(2, 64, 0)),
@@ -28,7 +28,7 @@ class StageObjectTest {
 
 	@Test
 	void defaultsEmptyIdAndUsesManualGroupSpec() {
-		StageObject object = new StageObject(null, null, List.of(), Vec3d.ZERO);
+		RuntimeStageObject object = new RuntimeStageObject(null, null, List.of(), Vec3d.ZERO);
 		assertEquals("", object.getId());
 		assertNull(object.getName());
 		assertEquals("manual_snapshot", object.getGroupSpec().getSourceType());

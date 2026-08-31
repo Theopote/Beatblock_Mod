@@ -172,7 +172,7 @@ public final class StemMixer implements IAudioPlayer {
 		return applied;
 	}
 	@Override
-	public boolean isPlaying() {
+	public synchronized boolean isPlaying() {
 		ensureOpenAlBackendReady();
 		return playing;
 	}

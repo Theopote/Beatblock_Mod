@@ -44,7 +44,7 @@ public final class EventRenderer {
 	private static final int DISPATCH_BURST_BADGE_COLOR = 0xFF_CC_AA_FF;
 	private static final int FRUSTUM_GATING_BADGE_COLOR = 0xFF_FF_66_66;
 	private static final int EDGE_PRIORITY_BADGE_COLOR = 0xFF_FF_AA_33;
-	/** Unbound StageEvent (no target StageObject) — yellow/amber warning. */
+	/** Unbound StageEvent (no target RuntimeStageObject) — yellow/amber warning. */
 	private static final int UNBOUND_TARGET_BADGE_COLOR = 0xFF_33_CC_FF;
 	private static final int UNBOUND_EVENT_OUTLINE_COLOR = 0xFF_33_AA_FF;
 	private static final float MIN_BAR_HALF_WIDTH = 1.25f;
@@ -172,7 +172,7 @@ public final class EventRenderer {
 	private void renderUnboundTargetBadge(float x0, float y0, float x1, float y1, TimelineAnimationEvent event) {
 		if (event == null || !event.isUnboundTarget()) return;
 
-		// Bottom-left “!” — unbound StageObject target
+		// Bottom-left “!” — unbound RuntimeStageObject target
 		float bx0 = x0 + 2f;
 		float by1 = y1 - 2f;
 		float bx1 = Math.min(x1 - 2f, bx0 + 10f);

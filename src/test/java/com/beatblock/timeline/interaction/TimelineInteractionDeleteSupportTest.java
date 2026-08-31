@@ -1,6 +1,6 @@
 package com.beatblock.timeline.interaction;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
@@ -61,7 +61,7 @@ class TimelineInteractionDeleteSupportTest {
 		timeline.addTrack(track);
 
 		BuildLayerManager manager = new BuildLayerManager(new StageObjectSystem());
-		StageObject stage = StageObjectSystem.fromBlocks(
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks(
 			"stage-one", "Layer", List.of(new BlockPos(0, 64, 0)));
 		BuildLayer layer = new BuildLayer(
 			"layer-one", "Layer", stage, LayerVisibilityState.BOUND_TO_TRACK, Map.of(), clip.getId());

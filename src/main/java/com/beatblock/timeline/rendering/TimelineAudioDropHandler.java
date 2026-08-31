@@ -230,7 +230,7 @@ public final class TimelineAudioDropHandler {
 	}
 
 	/**
-	 * Preferred: host world/layer selection → selected events' targets → single registered StageObject → unbound.
+	 * Preferred: host world/layer selection → selected events' targets → single registered RuntimeStageObject → unbound.
 	 * Does not use fake {@code "default"} ids.
 	 */
 	static AnimationDropTargetResolver.Result resolveDropTargets(

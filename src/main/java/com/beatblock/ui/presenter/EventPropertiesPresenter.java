@@ -1,7 +1,7 @@
 package com.beatblock.ui.presenter;
 
 import com.beatblock.engine.AnimationDefinition;
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.AnimationEventParams;
@@ -956,16 +956,16 @@ public final class EventPropertiesPresenter {
 	}
 
 	/** 从舞台对象系统收集目标选项（无引擎时仅「未绑定」）。 */
-	public static List<EventPropertiesOption> collectTargetOptions(Supplier<List<StageObject>> objectsSupplier) {
+	public static List<EventPropertiesOption> collectTargetOptions(Supplier<List<RuntimeStageObject>> objectsSupplier) {
 		List<EventPropertiesOption> options = new ArrayList<>();
 		options.add(new EventPropertiesOption("", BBTexts.get("beatblock.common.unbound")));
-		List<StageObject> objects = objectsSupplier != null ? objectsSupplier.get() : null;
+		List<RuntimeStageObject> objects = objectsSupplier != null ? objectsSupplier.get() : null;
 		if (objects == null || objects.isEmpty()) {
 			return options;
 		}
-		List<StageObject> sorted = new ArrayList<>(objects);
-		sorted.sort(Comparator.comparing(StageObject::getName, String.CASE_INSENSITIVE_ORDER));
-		for (StageObject object : sorted) {
+		List<RuntimeStageObject> sorted = new ArrayList<>(objects);
+		sorted.sort(Comparator.comparing(RuntimeStageObject::getName, String.CASE_INSENSITIVE_ORDER));
+		for (RuntimeStageObject object : sorted) {
 			options.add(new EventPropertiesOption(
 				object.getId(),
 				object.getName() + " [" + object.getId() + "]"

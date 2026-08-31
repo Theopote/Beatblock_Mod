@@ -1,6 +1,6 @@
 package com.beatblock.engine.layer;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 
@@ -9,13 +9,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * BUILD 专属图层：包裹一个 {@link StageObject}，管理隐藏快照与轨道绑定。
+ * BUILD 专属图层：包裹一个 {@link RuntimeStageObject}，管理隐藏快照与轨道绑定。
  */
 public final class BuildLayer {
 
 	private final String id;
 	private String name;
-	private final StageObject stageObject;
+	private final RuntimeStageObject stageObject;
 	private LayerVisibilityState state;
 	private final Map<BlockPos, BlockState> capturedStates;
 	private String boundClipId;
@@ -25,7 +25,7 @@ public final class BuildLayer {
 	public BuildLayer(
 		String id,
 		String name,
-		StageObject stageObject,
+		RuntimeStageObject stageObject,
 		LayerVisibilityState state,
 		Map<BlockPos, BlockState> capturedStates,
 		String boundClipId
@@ -59,7 +59,7 @@ public final class BuildLayer {
 	public void setName(String name) {
 		if (name != null && !name.isBlank()) this.name = name.trim();
 	}
-	public StageObject getStageObject() { return stageObject; }
+	public RuntimeStageObject getStageObject() { return stageObject; }
 	public String getStageObjectId() {
 		return stageObject != null ? stageObject.getId() : "";
 	}

@@ -27,11 +27,10 @@ class LassoBrushSelectionIntegrationTest {
 
 	@BeforeEach
 	void setUp() {
-		manager = BeatBlockSelectionManager.get();
-		manager.reset();
 		BlockAnimationEngine engine = new BlockAnimationEngine();
 		BeatBlockContext context = BeatBlockContext.builder().blockAnimationEngine(engine).build();
-		manager.bindContext(() -> context);
+		manager = new BeatBlockSelectionManager(() -> context);
+		manager.reset();
 		manager.setInteractionCameraPos(new Vec3d(2.5, 64.5, 2.5));
 		manager.setSphereBrushRadius(1);
 		manager.setMaxBlocks(4096);
@@ -39,7 +38,7 @@ class LassoBrushSelectionIntegrationTest {
 
 	@AfterEach
 	void tearDown() {
-		BeatBlockSelectionManager.resetContextBindingForTests();
+		manager.reset();
 	}
 
 	@Test

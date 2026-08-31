@@ -1,6 +1,6 @@
 package com.beatblock.engine.layer;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +30,7 @@ class BuildLayerManagerTest {
 	void registerRestoredClaimsBlocksForLookup() {
 		BlockPos shared = new BlockPos(0, 64, 0);
 		BlockPos unique = new BlockPos(1, 64, 0);
-		StageObject layerOne = StageObjectSystem.fromBlocks("s1", "L1", List.of(shared, unique));
+		RuntimeStageObject layerOne = StageObjectSystem.fromBlocks("s1", "L1", List.of(shared, unique));
 		manager.registerRestored(new BuildLayer(
 			"layer-1", "Layer 1", layerOne, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
 
@@ -45,7 +45,7 @@ class BuildLayerManagerTest {
 	void countClaimedBlocksAndFilterUnclaimed() {
 		BlockPos claimed = new BlockPos(0, 64, 0);
 		BlockPos free = new BlockPos(2, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "L1", List.of(claimed));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "L1", List.of(claimed));
 		manager.registerRestored(new BuildLayer(
 			"layer-1", "Layer 1", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
 
@@ -57,8 +57,8 @@ class BuildLayerManagerTest {
 	@Test
 	void overlappingRegistrationUpdatesOwnerToLatestLayer() {
 		BlockPos pos = new BlockPos(0, 64, 0);
-		StageObject first = StageObjectSystem.fromBlocks("s1", "First", List.of(pos));
-		StageObject second = StageObjectSystem.fromBlocks("s2", "Second", List.of(pos));
+		RuntimeStageObject first = StageObjectSystem.fromBlocks("s1", "First", List.of(pos));
+		RuntimeStageObject second = StageObjectSystem.fromBlocks("s2", "Second", List.of(pos));
 		manager.registerRestored(new BuildLayer(
 			"layer-a", "A", first, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
 		manager.registerRestored(new BuildLayer(
@@ -69,7 +69,7 @@ class BuildLayerManagerTest {
 
 	@Test
 	void isNameTakenIgnoresExcludedLayerId() {
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Stage", List.of(new BlockPos(0, 64, 0)));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Stage", List.of(new BlockPos(0, 64, 0)));
 		manager.registerRestored(new BuildLayer(
 			"layer-1", "Build A", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
 
@@ -81,7 +81,7 @@ class BuildLayerManagerTest {
 	@Test
 	void getByClipIdFindsBoundLayer() {
 		BlockPos pos = new BlockPos(0, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Stage", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Stage", List.of(pos));
 		manager.registerRestored(new BuildLayer(
 			"layer-1", "Layer", stage, LayerVisibilityState.BOUND_TO_TRACK, Map.of(), "clip-99"));
 
@@ -114,7 +114,7 @@ class BuildLayerManagerTest {
 	@Test
 	void hideAndShowLayerReturnFalseWithoutWorld() {
 		BlockPos pos = new BlockPos(0, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Stage", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Stage", List.of(pos));
 		BuildLayer layer = new BuildLayer(
 			"layer-vis", "Stage", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);
 		manager.registerRestored(layer);
@@ -162,7 +162,7 @@ class BuildLayerManagerTest {
 	}
 
 	private BuildLayer restoredLayer(String id, int x) {
-		StageObject stage = StageObjectSystem.fromBlocks(
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks(
 			"stage-" + id, id, List.of(new BlockPos(x, 64, 0)));
 		BuildLayer layer = new BuildLayer(
 			id, id, stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null);

@@ -1,6 +1,6 @@
 package com.beatblock.engine.layer;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.testutil.MinecraftTestBootstrap;
 import com.google.gson.JsonArray;
@@ -28,7 +28,7 @@ class BuildLayerPersistenceTest {
 	void roundTripsLayerWithCapturedStates() {
 		BlockPos pos = new BlockPos(4, 64, -2);
 		BlockState captured = Blocks.GOLD_BLOCK.getDefaultState();
-		StageObject stage = StageObjectSystem.fromBlocks("stage-a", "Stage A", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("stage-a", "Stage A", List.of(pos));
 
 		Map<BlockPos, BlockState> capturedStates = new LinkedHashMap<>();
 		capturedStates.put(pos, captured);
@@ -67,11 +67,11 @@ class BuildLayerPersistenceTest {
 		StageObjectSystem stageObjects = new StageObjectSystem();
 		BuildLayerManager manager = new BuildLayerManager(stageObjects);
 		BlockPos pos = new BlockPos(0, 64, 0);
-		StageObject stage = StageObjectSystem.fromBlocks("s1", "Old", List.of(pos));
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s1", "Old", List.of(pos));
 		manager.registerRestored(new BuildLayer(
 			"old", "Old", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
 
-		StageObject newStage = StageObjectSystem.fromBlocks("s2", "New", List.of(new BlockPos(1, 64, 0)));
+		RuntimeStageObject newStage = StageObjectSystem.fromBlocks("s2", "New", List.of(new BlockPos(1, 64, 0)));
 		JsonArray arr = new JsonArray();
 		arr.add(manualLayerJson("new-layer", "New Layer", newStage));
 
@@ -81,7 +81,7 @@ class BuildLayerPersistenceTest {
 		assertEquals("new-layer", manager.getAll().iterator().next().getId());
 	}
 
-	private static com.google.gson.JsonObject manualLayerJson(String id, String name, StageObject stage) {
+	private static com.google.gson.JsonObject manualLayerJson(String id, String name, RuntimeStageObject stage) {
 		com.google.gson.JsonObject root = new com.google.gson.JsonObject();
 		root.addProperty("id", id);
 		root.addProperty("name", name);

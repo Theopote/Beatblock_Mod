@@ -87,19 +87,20 @@ public class BeatBlock implements ModInitializer {
 		VideoExportService videoExportService = VideoExportService.createForClient(
 			com.beatblock.client.export.ClientThreadExecutor::run
 		);
-		context = new BeatBlockContext(
-			loader,
-			player,
-			mixer,
-			stage,
-			timelineModel,
-			editor,
-			animationEngine,
-			analysisEngine,
-			analyzer,
-			conversionService,
-			videoExportService
-		);
+		context = BeatBlockContext.builder()
+			.audioLoader(loader)
+			.musicPlayer(player)
+			.stemMixer(mixer)
+			.stageManager(stage)
+			.timeline(timelineModel)
+			.timelineEditor(editor)
+			.blockAnimationEngine(animationEngine)
+			.audioAnalysisEngine(analysisEngine)
+			.externalAudioAnalyzer(analyzer)
+			.audioConversionService(conversionService)
+			.videoExportService(videoExportService)
+			.selectionManager(new com.beatblock.selection.BeatBlockSelectionManager())
+			.build();
 	}
 
 	private static void registerAssetConversionHandler() {

@@ -1,6 +1,6 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.engine.StageObject;
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.timeline.ReferenceBeatResolver;
@@ -127,7 +127,7 @@ public final class RhythmDropPanelPresenter {
 		StageObjectSystem system = stageObjectSystem.get();
 		if (system == null) return List.of();
 		List<ToolPanelPresenter.StageObjectListItem> out = new ArrayList<>();
-		for (StageObject obj : system.getAll()) {
+		for (RuntimeStageObject obj : system.getAll()) {
 			if (obj == null) continue;
 			String source = obj.getGroupSpec() != null ? obj.getGroupSpec().getSourceType() : "manual";
 			out.add(new ToolPanelPresenter.StageObjectListItem(

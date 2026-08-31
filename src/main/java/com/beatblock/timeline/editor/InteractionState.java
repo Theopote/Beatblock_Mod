@@ -17,6 +17,9 @@ public class InteractionState {
 	private String markerDragName = "";
 	private boolean resizeLeft; // RESIZE_CLIP 时 true=左边缘
 	private float resizeStartHeaderWidth; // RESIZE_HEADER 时按下时的轨道头宽度
+	/** SECTION_BOUNDARY_DRAG：边界 index（section[i-1] | section[i]）。 */
+	private int sectionBoundaryIndex = -1;
+	private double sectionBoundaryDragStartSeconds;
 	private double[] alignmentGuideTimes = new double[0];
 
 	public double[] getAlignmentGuideTimes() {
@@ -67,6 +70,12 @@ public class InteractionState {
 	public float getResizeStartHeaderWidth() { return resizeStartHeaderWidth; }
 	public void setResizeStartHeaderWidth(float w) { resizeStartHeaderWidth = w; }
 
+	public int getSectionBoundaryIndex() { return sectionBoundaryIndex; }
+	public void setSectionBoundaryIndex(int index) { sectionBoundaryIndex = index; }
+
+	public double getSectionBoundaryDragStartSeconds() { return sectionBoundaryDragStartSeconds; }
+	public void setSectionBoundaryDragStartSeconds(double seconds) { sectionBoundaryDragStartSeconds = seconds; }
+
 	public void clearActive() {
 		activeEventId = null;
 		activeClipId = null;
@@ -74,6 +83,8 @@ public class InteractionState {
 		activeMarkerId = null;
 		markerDragStartTimeSeconds = 0;
 		markerDragName = "";
+		sectionBoundaryIndex = -1;
+		sectionBoundaryDragStartSeconds = 0;
 		clearAlignmentGuideTimes();
 	}
 }

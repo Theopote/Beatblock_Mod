@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * StageObject 的可复用编排定义（第 1 阶段）：
+ * RuntimeStageObject 的可复用编排定义（第 1 阶段）：
  * - sourceType/sourceParams: 该组来自哪里（如手动 AABB、选区快照）
  * - sortingStrategy/staggerDelaySeconds: 组内执行顺序策略与时间偏移策略
  *

@@ -58,7 +58,7 @@ public final class AnimationPlayer {
 	 */
 	void applyAnimation(EngineAnimationInstance anim, float t) {
 		if (anim == null || anim.getDefinition() == null || anim.getDefinition().getPreset() == null) return;
-		StageObject target = anim.getTarget();
+		RuntimeStageObject target = anim.getTarget();
 		if (target == null) return;
 		float energy = anim.getEnergy();
 		EffectContext ctx = new EffectContext(target.getCenter(), anim.getExtraParams());
