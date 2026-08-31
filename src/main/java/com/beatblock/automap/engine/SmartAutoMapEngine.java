@@ -6,6 +6,8 @@ import com.beatblock.audio.analysis.EnergyFrame;
 import com.beatblock.audio.analysis.FrequencyBands;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapConfigFactory;
+import com.beatblock.automap.camera.CameraPlanningContext;
+import com.beatblock.automap.camera.CameraShot;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanBuilder;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
@@ -51,8 +53,10 @@ public final class SmartAutoMapEngine {
 		List<RhythmEvent> rhythmEvents = RhythmClassifier.classify(beats, bands);
 		rhythmEvents = PatternGenerator.filter(rhythmEvents, settings);
 
-		List<CameraEvent> cameraEvents = settings.isCameraEnabled()
-			? CameraDirector.generate(sections, bpm, duration, settings.getStyle(), true)
+		CameraPlanningContext cameraContext = new CameraPlanningContext(
+			bpm, duration, settings.getStyle(), settings.getTargetObjectIds());
+		List<CameraShot> cameraShots = settings.isCameraEnabled()
+			? CameraDirector.generateShots(sections, cameraContext, true)
 			: List.of();
 		List<ParticleEvent> particleEvents = settings.isParticlesEnabled()
 			? ParticleDirector.generate(bands, true)
@@ -62,7 +66,7 @@ public final class SmartAutoMapEngine {
 		ChoreographyPlan plan = ChoreographyPlanBuilder.fromRhythmAnalysis(
 			rhythmEvents,
 			sections,
-			cameraEvents,
+			cameraShots,
 			particleEvents,
 			settings.getStyle(),
 			config

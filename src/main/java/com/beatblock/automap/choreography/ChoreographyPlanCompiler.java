@@ -5,6 +5,9 @@ import com.beatblock.automap.AutoMapCandidateResolver;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.automap.AutoMapRule;
+import com.beatblock.automap.camera.CameraShot;
+import com.beatblock.automap.camera.CameraShotCodec;
+import com.beatblock.automap.camera.CameraShotTimelineWriter;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
@@ -100,13 +103,12 @@ public final class ChoreographyPlanCompiler {
 
 	public static int compileCameraEvents(Timeline timeline, ChoreographyPlan plan) {
 		if (timeline == null || plan == null || plan.cameraPhrases().isEmpty()) return 0;
-		int count = 0;
+		List<CameraShot> shots = new ArrayList<>();
 		for (ChoreographyPlan.CameraPhrase phrase : plan.cameraPhrases()) {
 			if (!ChoreographyPlanEditor.isCameraEnabled(plan, phrase)) continue;
-			timeline.addCameraKeyframe(new com.beatblock.timeline.CameraKeyframe(phrase.timeSeconds()));
-			count++;
+			shots.add(CameraShotCodec.fromPhrase(phrase));
 		}
-		return count;
+		return CameraShotTimelineWriter.write(timeline, shots);
 	}
 
 	public static int compileVfxEvents(Timeline timeline, ChoreographyPlan plan) {

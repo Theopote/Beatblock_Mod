@@ -5,7 +5,8 @@ import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.automap.AutoMapRule;
 import com.beatblock.automap.engine.AnimationMapper;
 import com.beatblock.automap.engine.AutoMapStyle;
-import com.beatblock.automap.engine.CameraEvent;
+import com.beatblock.automap.camera.CameraShot;
+import com.beatblock.automap.camera.CameraShotCodec;
 import com.beatblock.automap.engine.ParticleEvent;
 import com.beatblock.automap.engine.RhythmEvent;
 import com.beatblock.automap.engine.StructuralSection;
@@ -78,7 +79,7 @@ public final class ChoreographyPlanBuilder {
 	public static ChoreographyPlan fromRhythmAnalysis(
 		List<RhythmEvent> rhythmEvents,
 		@Nullable List<StructuralSection> sections,
-		@Nullable List<CameraEvent> cameraEvents,
+		@Nullable List<CameraShot> cameraShots,
 		@Nullable List<ParticleEvent> particleEvents,
 		AutoMapStyle style,
 		AutoMapConfig config
@@ -114,13 +115,9 @@ public final class ChoreographyPlanBuilder {
 		}
 
 		List<ChoreographyPlan.CameraPhrase> cameras = new ArrayList<>();
-		if (cameraEvents != null) {
-			for (CameraEvent event : cameraEvents) {
-				cameras.add(new ChoreographyPlan.CameraPhrase(
-					event.getTimeSeconds(),
-					event.getAction().name(),
-					resolveSectionIndex(sectionPlans, event.getTimeSeconds())
-				));
+		if (cameraShots != null) {
+			for (CameraShot shot : cameraShots) {
+				cameras.add(CameraShotCodec.toPhrase(shot));
 			}
 		}
 

@@ -58,7 +58,7 @@ class SmartAutoMapEngineTest {
 		assertTrue(result.getCameraEvents() > 0);
 		assertEquals(0, result.getParticleEvents());
 		assertTrue(timeline.getAutoAnimationEvents().size() >= result.getAnimationEvents());
-		assertTrue(timeline.getCameraKeyframes().size() >= result.getCameraEvents());
+		assertTrue(timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size() >= result.getCameraEvents());
 	}
 
 	@Test

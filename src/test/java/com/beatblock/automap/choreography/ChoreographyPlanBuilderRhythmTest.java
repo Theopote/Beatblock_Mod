@@ -1,9 +1,10 @@
 package com.beatblock.automap.choreography;
 
 import com.beatblock.automap.AutoMapConfig;
+import com.beatblock.automap.camera.CameraShotCodec;
 import com.beatblock.automap.engine.AutoMapStyle;
-import com.beatblock.automap.engine.CameraEvent;
 import com.beatblock.automap.engine.CameraAction;
+import com.beatblock.automap.engine.CameraEvent;
 import com.beatblock.automap.engine.ParticleEvent;
 import com.beatblock.automap.engine.ParticleType;
 import com.beatblock.automap.engine.RhythmEvent;
@@ -28,7 +29,9 @@ class ChoreographyPlanBuilderRhythmTest {
 		List<StructuralSection> sections = List.of(
 			new StructuralSection(0, 16, SectionType.VERSE)
 		);
-		List<CameraEvent> cameras = List.of(new CameraEvent(4.0, CameraAction.PAN));
+		List<com.beatblock.automap.camera.CameraShot> cameras = List.of(
+			CameraShotCodec.legacyShot(4.0, CameraAction.PAN, -1)
+		);
 		List<ParticleEvent> particles = List.of(new ParticleEvent(2.0, ParticleType.SPARK));
 
 		AutoMapConfig config = AutoMapConfig.builder()
@@ -44,7 +47,7 @@ class ChoreographyPlanBuilderRhythmTest {
 		assertEquals("mid", plan.motionPhrases().get(1).normalizedFeatureKey());
 		assertEquals(2, plan.stageRoles().size());
 		assertEquals(1, plan.cameraPhrases().size());
-		assertEquals("PAN", plan.cameraPhrases().getFirst().action());
+		assertTrue(plan.cameraPhrases().getFirst().action().contains("PAN"));
 		assertEquals(1, plan.vfxPhrases().size());
 		assertEquals("particle_spark", plan.vfxPhrases().getFirst().vfxKind());
 		assertTrue(plan.densityCurve().sampleAt(0) > 0);

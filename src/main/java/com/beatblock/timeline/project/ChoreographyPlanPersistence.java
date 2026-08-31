@@ -244,6 +244,13 @@ public final class ChoreographyPlanPersistence {
 			obj.addProperty("timeSeconds", phrase.timeSeconds());
 			obj.addProperty("action", phrase.action());
 			obj.addProperty("sectionIndex", phrase.sectionIndex());
+			if (!phrase.subjectKind().isBlank()) obj.addProperty("subjectKind", phrase.subjectKind());
+			if (!phrase.subjectRef().isBlank()) obj.addProperty("subjectRef", phrase.subjectRef());
+			if (phrase.durationSeconds() != 3.0) obj.addProperty("durationSeconds", phrase.durationSeconds());
+			if (!phrase.framing().isBlank()) obj.addProperty("framing", phrase.framing());
+			if (!phrase.movement().isBlank()) obj.addProperty("movement", phrase.movement());
+			if (!phrase.easing().isBlank()) obj.addProperty("easing", phrase.easing());
+			if (phrase.beatAligned()) obj.addProperty("beatAligned", true);
 			arr.add(obj);
 		}
 		return arr;
@@ -259,7 +266,14 @@ public final class ChoreographyPlanPersistence {
 			out.add(new ChoreographyPlan.CameraPhrase(
 				getDouble(obj, "timeSeconds", 0.0),
 				getString(obj, "action", ""),
-				getInt(obj, "sectionIndex", -1)
+				getInt(obj, "sectionIndex", -1),
+				getString(obj, "subjectKind", ""),
+				getString(obj, "subjectRef", ""),
+				getDouble(obj, "durationSeconds", 3.0),
+				getString(obj, "framing", ""),
+				getString(obj, "movement", ""),
+				getString(obj, "easing", ""),
+				getBool(obj, "beatAligned", false)
 			));
 		}
 		return out;

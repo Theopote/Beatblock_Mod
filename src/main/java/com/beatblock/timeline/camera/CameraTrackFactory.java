@@ -22,15 +22,20 @@ public final class CameraTrackFactory {
 
 	public static void addPathSegment(Timeline timeline, double timeSeconds,
 		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg) {
+		addPathSegment(timeline, timeSeconds, DEFAULT_PATH_DURATION, anchorX, anchorY, anchorZ, yawDeg, pitchDeg, "SMOOTH");
+	}
+
+	public static void addPathSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg, String ease) {
 		Track t = timeline != null ? timeline.getTrack(Timeline.TRACK_ID_CAMERA) : null;
 		if (t == null) return;
 		double start = Math.max(0, timeSeconds);
-		double end = start + DEFAULT_PATH_DURATION;
+		double end = start + Math.max(0.05, durationSeconds);
 		Clip clip = TimelineOperations.addClip(t, start, end);
 		if (clip == null) return;
 		TimelineOperations.addEvent(clip, start, EventType.CAMERA_SEGMENT, segmentParams(CameraSegmentKind.PATH));
 		TimelineOperations.addEvent(clip, start, EventType.CAMERA_KEYFRAME,
-			keyframeParams(anchorX, anchorY, anchorZ, yawDeg, pitchDeg, "SMOOTH"));
+			keyframeParams(anchorX, anchorY, anchorZ, yawDeg, pitchDeg, ease));
 		extendDuration(timeline, end);
 	}
 
@@ -38,6 +43,11 @@ public final class CameraTrackFactory {
 	 * 推拉：世界空间直线，起点为当前摄像机（眼点），沿水平朝向前进 {@code reachBlocks} 米到终点。
 	 */
 	public static void addDollySegment(Timeline timeline, double timeSeconds,
+		double startX, double startY, double startZ, double yawDeg, double reachBlocks) {
+		addDollySegment(timeline, timeSeconds, DEFAULT_PROC_DURATION, startX, startY, startZ, yawDeg, reachBlocks);
+	}
+
+	public static void addDollySegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double startX, double startY, double startZ, double yawDeg, double reachBlocks) {
 		double rad = Math.toRadians(-yawDeg);
 		double fx = -Math.sin(rad);
@@ -63,13 +73,19 @@ public final class CameraTrackFactory {
 		p.put("endZ", endZ);
 		p.put("baseYawDeg", yawDeg);
 		p.put("basePitchDeg", 0.0);
-		addProcSegment(timeline, timeSeconds, CameraSegmentKind.DOLLY, p);
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.DOLLY, p);
 	}
 
 	/**
 	 * 环绕：目标点（看向）、半径、摄像机相对目标的高度、水平环绕角起止（度，可小于 360）。
 	 */
 	public static void addOrbitSegment(Timeline timeline, double timeSeconds,
+		double targetX, double targetY, double targetZ,
+		double radius, double height, double yawStartDeg, double yawEndDeg) {
+		addOrbitSegment(timeline, timeSeconds, DEFAULT_PROC_DURATION, targetX, targetY, targetZ, radius, height, yawStartDeg, yawEndDeg);
+	}
+
+	public static void addOrbitSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double targetX, double targetY, double targetZ,
 		double radius, double height, double yawStartDeg, double yawEndDeg) {
 		Map<String, Object> p = new HashMap<>();
@@ -80,13 +96,18 @@ public final class CameraTrackFactory {
 		p.put("height", height);
 		p.put("yawStartDeg", yawStartDeg);
 		p.put("yawEndDeg", yawEndDeg);
-		addProcSegment(timeline, timeSeconds, CameraSegmentKind.ORBIT, p);
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.ORBIT, p);
 	}
 
 	/**
 	 * 升降：世界空间直线，从当前摄像机眼点到沿 Y 轴平移 {@code deltaY} 的终点；朝向由 yaw/pitch 固定。
 	 */
 	public static void addCraneSegment(Timeline timeline, double timeSeconds,
+		double startX, double startY, double startZ, double yawDeg, double pitchDeg, double deltaY) {
+		addCraneSegment(timeline, timeSeconds, DEFAULT_PROC_DURATION, startX, startY, startZ, yawDeg, pitchDeg, deltaY);
+	}
+
+	public static void addCraneSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double startX, double startY, double startZ, double yawDeg, double pitchDeg, double deltaY) {
 		Map<String, Object> p = new HashMap<>();
 		p.put("startX", startX);
@@ -97,12 +118,17 @@ public final class CameraTrackFactory {
 		p.put("endZ", startZ);
 		p.put("yawDeg", yawDeg);
 		p.put("pitchDeg", pitchDeg);
-		addProcSegment(timeline, timeSeconds, CameraSegmentKind.CRANE, p);
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.CRANE, p);
 	}
 
 	public static void addShakeSegment(Timeline timeline, double timeSeconds,
 		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg) {
-		addProcSegment(timeline, timeSeconds, CameraSegmentKind.SHAKE, Map.of(
+		addShakeSegment(timeline, timeSeconds, DEFAULT_PROC_DURATION, anchorX, anchorY, anchorZ, yawDeg, pitchDeg);
+	}
+
+	public static void addShakeSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg) {
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.SHAKE, Map.of(
 			"anchorX", anchorX,
 			"anchorY", anchorY,
 			"anchorZ", anchorZ,
@@ -117,10 +143,15 @@ public final class CameraTrackFactory {
 	}
 
 	private static void addProcSegment(Timeline timeline, double timeSeconds, CameraSegmentKind kind, Map<String, Object> extra) {
+		addProcSegment(timeline, timeSeconds, DEFAULT_PROC_DURATION, kind, extra);
+	}
+
+	private static void addProcSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		CameraSegmentKind kind, Map<String, Object> extra) {
 		Track t = timeline != null ? timeline.getTrack(Timeline.TRACK_ID_CAMERA) : null;
 		if (t == null) return;
 		double start = Math.max(0, timeSeconds);
-		double end = start + DEFAULT_PROC_DURATION;
+		double end = start + Math.max(0.05, durationSeconds);
 		Clip clip = TimelineOperations.addClip(t, start, end);
 		if (clip == null) return;
 		Map<String, Object> p = segmentParams(kind);

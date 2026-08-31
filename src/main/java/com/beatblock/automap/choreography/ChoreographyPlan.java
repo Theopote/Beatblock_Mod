@@ -106,13 +106,34 @@ public record ChoreographyPlan(
 		}
 	}
 
-	public record CameraPhrase(double timeSeconds, String action, int sectionIndex) {
+	public record CameraPhrase(
+		double timeSeconds,
+		String action,
+		int sectionIndex,
+		String subjectKind,
+		String subjectRef,
+		double durationSeconds,
+		String framing,
+		String movement,
+		String easing,
+		boolean beatAligned
+	) {
 		public CameraPhrase(double timeSeconds, String action) {
 			this(timeSeconds, action, -1);
 		}
 
+		public CameraPhrase(double timeSeconds, String action, int sectionIndex) {
+			this(timeSeconds, action, sectionIndex, "", "", 3.0, "", "", "", false);
+		}
+
 		public CameraPhrase {
 			action = action != null ? action : "";
+			subjectKind = subjectKind != null ? subjectKind : "";
+			subjectRef = subjectRef != null ? subjectRef : "";
+			durationSeconds = durationSeconds > 0 ? durationSeconds : 3.0;
+			framing = framing != null ? framing : "";
+			movement = movement != null ? movement : "";
+			easing = easing != null ? easing : "";
 			sectionIndex = Math.max(-1, sectionIndex);
 		}
 	}

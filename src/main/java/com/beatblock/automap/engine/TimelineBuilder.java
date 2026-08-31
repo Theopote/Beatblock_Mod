@@ -1,7 +1,8 @@
 package com.beatblock.automap.engine;
 
 import com.beatblock.BeatBlock;
-import com.beatblock.timeline.CameraKeyframe;
+import com.beatblock.automap.camera.CameraShot;
+import com.beatblock.automap.camera.CameraShotTimelineWriter;
 import com.beatblock.timeline.GlobalEvent;
 import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.Timeline;
@@ -54,16 +55,15 @@ public final class TimelineBuilder {
 	}
 
 	/**
-	 * 写入镜头关键帧（仅时间点；动作类型可后续由摄像机系统解析 metadata）。
+	 * 写入带主体语义的镜头片段到摄像机轨道。
 	 */
 	public static int writeCameraEvents(Timeline timeline, List<CameraEvent> cameraEvents) {
 		if (timeline == null || cameraEvents == null) return 0;
-		int count = 0;
-		for (CameraEvent e : cameraEvents) {
-			timeline.addCameraKeyframe(new CameraKeyframe(e.getTimeSeconds()));
-			count++;
+		List<CameraShot> shots = new java.util.ArrayList<>(cameraEvents.size());
+		for (CameraEvent event : cameraEvents) {
+			if (event != null) shots.add(event.getShot());
 		}
-		return count;
+		return CameraShotTimelineWriter.write(timeline, shots);
 	}
 
 	/**
