@@ -119,6 +119,7 @@ STEP 序列有两种落地方式（均无 `StepSequenceState` 运行时状态机
 
 ## 相关文档
 
+- [线程模型契约（Threading Contract）](THREADING_CONTRACT.md)
 - [方块影响维度（动作类型统一抽象）](block-influence-dimensions.md)
 - [STEP 三段式动画与参数](step-phase-animation-and-cleanup.md)
 - [README](../README.md)

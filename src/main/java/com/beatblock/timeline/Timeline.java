@@ -9,14 +9,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
+import com.beatblock.client.ClientThreadGuard;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
  * 时间线根对象：名称、时长、轨道列表、元数据。单一时序数据源，替代原 TimelineModel。
  * <p>
- * 线程模型：仅在客户端主线程（ImGui 编辑器 tick / 播放驱动）访问，无需额外同步。
- * {@link ConcurrentHashMap} 用于 metadata 以支持异步分析回调写入 BPM 等参考数据。
+ * 线程模型：结构编辑与播放仅在客户端主线程；详见 {@code docs/THREADING_CONTRACT.md}。
+ * {@link ConcurrentHashMap} 仅用于 metadata，以支持异步分析回调写入 BPM 等标量键（非整树线程安全）。
  */
 public class Timeline {
 
@@ -52,18 +53,30 @@ public class Timeline {
 	/** 每次舞台事件缓存重建递增，供播放游标在编辑后回退重扫。 */
 	private int stageEventsGeneration;
 
+	private static void requireClientThread() {
+		ClientThreadGuard.assertClientThread();
+	}
+
 	public @NonNull String getName() { return name; }
-	public void setName(@Nullable String name) { this.name = name != null ? name : ""; }
+	public void setName(@Nullable String name) {
+		requireClientThread();
+		this.name = name != null ? name : "";
+	}
 	public double getDurationSeconds() { return durationSeconds; }
-	public void setDurationSeconds(double durationSeconds) { this.durationSeconds = Math.max(0, durationSeconds); }
+	public void setDurationSeconds(double durationSeconds) {
+		requireClientThread();
+		this.durationSeconds = Math.max(0, durationSeconds);
+	}
 	public @NonNull List<Track> getTracks() { return Collections.unmodifiableList(tracks); }
 	public void addTrack(@Nullable Track track) {
+		requireClientThread();
 		if (track != null) {
 			tracks.add(track);
 			markAnimationEventsDirty(track.getId());
 		}
 	}
 	public boolean removeTrack(@Nullable String trackId) {
+		requireClientThread();
 		boolean removed = tracks.removeIf(t -> trackId != null && trackId.equals(t.getId()));
 		if (removed) markAnimationEventsDirty(trackId);
 		return removed;
@@ -97,16 +110,19 @@ public class Timeline {
 	}
 
 	public void addMarker(@Nullable TimelineMarker marker) {
+		requireClientThread();
 		if (marker == null) return;
 		markers.add(marker);
 		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
 	}
 
 	public void clearMarkers() {
+		requireClientThread();
 		markers.clear();
 	}
 
 	public void setMarkers(@Nullable List<TimelineMarker> newMarkers) {
+		requireClientThread();
 		markers.clear();
 		if (newMarkers != null) {
 			markers.addAll(newMarkers);
@@ -124,6 +140,7 @@ public class Timeline {
 	}
 
 	public boolean removeMarker(int index) {
+		requireClientThread();
 		if (index < 0 || index >= markers.size()) return false;
 		markers.remove(index);
 		return true;
@@ -135,6 +152,7 @@ public class Timeline {
 	}
 
 	public boolean updateMarker(int index, double timeSeconds, String name) {
+		requireClientThread();
 		if (index < 0 || index >= markers.size()) return false;
 		TimelineMarker prev = markers.get(index);
 		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, prev.getType()));
@@ -143,6 +161,7 @@ public class Timeline {
 	}
 
 	public boolean updateMarker(int index, double timeSeconds, String name, MarkerType type) {
+		requireClientThread();
 		if (index < 0 || index >= markers.size()) return false;
 		TimelineMarker prev = markers.get(index);
 		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, type));
@@ -175,6 +194,7 @@ public class Timeline {
 		return ad != null ? ad.getWaveform() : null;
 	}
 	public void setWaveform(@Nullable WaveformData waveform) {
+		requireClientThread();
 		AudioTrackData ad = getAudioTrackData();
 		if (ad != null) ad.setWaveform(waveform);
 	}
@@ -188,6 +208,7 @@ public class Timeline {
 	 * @param event 特征事件
 	 */
 	public void addFeatureEvent(String key, FeatureEvent event) {
+		requireClientThread();
 		AudioTrackData ad = getAudioTrackData();
 		if (ad != null) ad.addFeatureEvent(key, event);
 	}
@@ -196,6 +217,7 @@ public class Timeline {
 	 * 向命名特征轨道追加事件，并指定显示名称（首次创建时生效）。
 	 */
 	public void addFeatureEvent(String key, String label, FeatureEvent event) {
+		requireClientThread();
 		AudioTrackData ad = getAudioTrackData();
 		if (ad != null) ad.addFeatureEvent(key, label, event);
 	}
@@ -223,6 +245,7 @@ public class Timeline {
 
 	/** 清空所有命名特征轨道（不清除遗留频段）。 */
 	public void clearFeatureTracks() {
+		requireClientThread();
 		AudioTrackData ad = getAudioTrackData();
 		if (ad != null) ad.clearFeatureTracks();
 	}
@@ -230,6 +253,7 @@ public class Timeline {
 	// ── 茎波形委托（Demucs 模式）──────────────────────────────────────────
 
 	public void setStemWaveform(@Nullable String stemKey, @Nullable WaveformData data) {
+		requireClientThread();
 		AudioTrackData ad = getAudioTrackData();
 		if (ad != null) ad.setStemWaveform(stemKey, data);
 	}
@@ -324,6 +348,7 @@ public class Timeline {
 	}
 
 	public void addAnimationEvent(String trackId, TimelineAnimationEvent e) {
+		requireClientThread();
 		addAnimationEventInternal(trackId, e);
 	}
 
@@ -350,10 +375,12 @@ public class Timeline {
 	}
 
 	public void markAnimationEventsDirty(@Nullable String trackId) {
+		requireClientThread();
 		animationCachesDirty = true;
 	}
 
 	public void markAnimationEventsDirty() {
+		requireClientThread();
 		animationCachesDirty = true;
 	}
 
@@ -422,6 +449,7 @@ public class Timeline {
 		return out;
 	}
 	public void addCameraKeyframe(CameraKeyframe k) {
+		requireClientThread();
 		if (k == null) return;
 		Track t = getTrack(TRACK_ID_CAMERA);
 		if (t == null) return;
@@ -451,6 +479,7 @@ public class Timeline {
 		return out;
 	}
 	public void addGlobalEvent(GlobalEvent e) {
+		requireClientThread();
 		if (e == null) return;
 		Track t = getTrack(TRACK_ID_GLOBAL);
 		if (t == null) return;
@@ -465,6 +494,7 @@ public class Timeline {
 	public void clearGlobalEvents() { clearClips(TRACK_ID_GLOBAL); }
 
 	public void sortAll() {
+		requireClientThread();
 		// 便捷 getter 已按时间排序返回；若需对 Clip 内 events 原地排序可扩展 Clip.sortEvents()
 	}
 

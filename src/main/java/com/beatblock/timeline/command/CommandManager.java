@@ -1,5 +1,6 @@
 package com.beatblock.timeline.command;
 
+import com.beatblock.client.ClientThreadGuard;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayDeque;
@@ -17,6 +18,7 @@ public final class CommandManager {
 	private static final int MAX_UNDO = 128;
 
 	public void execute(@Nullable Command cmd) {
+		ClientThreadGuard.assertClientThread();
 		if (cmd == null) return;
 		Command toExecute = cmd;
 		if (!undoStack.isEmpty()) {
@@ -33,6 +35,7 @@ public final class CommandManager {
 	}
 
 	public void undo() {
+		ClientThreadGuard.assertClientThread();
 		if (undoStack.isEmpty()) return;
 		Command cmd = undoStack.pop();
 		cmd.undo();
@@ -40,6 +43,7 @@ public final class CommandManager {
 	}
 
 	public void redo() {
+		ClientThreadGuard.assertClientThread();
 		if (redoStack.isEmpty()) return;
 		Command cmd = redoStack.pop();
 		cmd.execute();

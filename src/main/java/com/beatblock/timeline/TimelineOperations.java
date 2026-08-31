@@ -1,5 +1,6 @@
 package com.beatblock.timeline;
 
+import com.beatblock.client.ClientThreadGuard;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -18,6 +19,7 @@ public final class TimelineOperations {
 	}
 
 	public static @Nullable Track addTrack(@Nullable Timeline timeline, @Nullable String name, @Nullable TrackType type) {
+		ClientThreadGuard.assertClientThread();
 		if (timeline == null) return null;
 		String id = nextId();
 		TrackType resolvedType = type != null ? type : TrackType.ANIMATION;
@@ -27,6 +29,7 @@ public final class TimelineOperations {
 	}
 
 	public static boolean removeTrack(@Nullable Timeline timeline, @Nullable String trackId) {
+		ClientThreadGuard.assertClientThread();
 		return timeline != null && timeline.removeTrack(trackId);
 	}
 
@@ -36,12 +39,14 @@ public final class TimelineOperations {
 		double startTimeSeconds,
 		double endTimeSeconds
 	) {
+		ClientThreadGuard.assertClientThread();
 		if (timeline == null || trackId == null) return null;
 		Track track = timeline.getTrack(trackId);
 		return track != null ? addClip(track, startTimeSeconds, endTimeSeconds) : null;
 	}
 
 	public static @Nullable Clip addClip(@Nullable Track track, double startTimeSeconds, double endTimeSeconds) {
+		ClientThreadGuard.assertClientThread();
 		if (track == null) return null;
 		String id = nextId();
 		Clip clip = new Clip(id, startTimeSeconds, endTimeSeconds);
@@ -50,12 +55,14 @@ public final class TimelineOperations {
 	}
 
 	public static boolean removeClip(@Nullable Timeline timeline, @Nullable String trackId, @Nullable String clipId) {
+		ClientThreadGuard.assertClientThread();
 		if (timeline == null) return false;
 		Track track = timeline.getTrack(trackId);
 		return track != null && track.removeClip(clipId);
 	}
 
 	public static boolean moveClip(@Nullable Clip clip, double newStartTimeSeconds) {
+		ClientThreadGuard.assertClientThread();
 		if (clip == null) return false;
 		double dur = clip.getDurationSeconds();
 		clip.setStartTimeSeconds(newStartTimeSeconds);
@@ -69,6 +76,7 @@ public final class TimelineOperations {
 		@Nullable EventType type,
 		@Nullable Map<String, Object> parameters
 	) {
+		ClientThreadGuard.assertClientThread();
 		if (clip == null) return null;
 		String id = nextId();
 		TimelineEvent event = new TimelineEvent(id, timeSeconds, type, parameters);
@@ -84,6 +92,7 @@ public final class TimelineOperations {
 		@Nullable EventType type,
 		@Nullable Map<String, Object> parameters
 	) {
+		ClientThreadGuard.assertClientThread();
 		if (timeline == null || trackId == null || clipId == null) return null;
 		Track track = timeline.getTrack(trackId);
 		if (track == null) return null;
@@ -92,10 +101,12 @@ public final class TimelineOperations {
 	}
 
 	public static boolean removeEvent(@Nullable Clip clip, @Nullable String eventId) {
+		ClientThreadGuard.assertClientThread();
 		return clip != null && clip.removeEvent(eventId);
 	}
 
 	public static boolean moveEvent(@Nullable TimelineEvent event, double newTimeSeconds) {
+		ClientThreadGuard.assertClientThread();
 		if (event == null) return false;
 		event.setTimeSeconds(newTimeSeconds);
 		return true;

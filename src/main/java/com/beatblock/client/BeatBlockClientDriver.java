@@ -35,6 +35,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /**
@@ -67,9 +68,9 @@ public final class BeatBlockClientDriver {
 	 * 预览路径：统一事件列表上的双指针游标。
 	 * 正式播放使用 {@link #playbackEngine}。
 	 */
-	private int stageEventCursor;
+	private final AtomicInteger stageEventCursor = new AtomicInteger(0);
 	/** 实时预览时与 Timeline generation 对齐；正式播放固定使用 compiledPlayback。 */
-	private int lastStageEventsGeneration = -1;
+	private volatile int lastStageEventsGeneration = -1;
 	private @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlayback;
 	/** Phase C: formal play advances only over the compiled program. */
 	private final PlaybackEngine playbackEngine = new PlaybackEngine();
@@ -124,6 +125,7 @@ public final class BeatBlockClientDriver {
 	}
 
 	void tick() {
+		ClientThreadGuard.assertClientThread();
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
 		var engine = ctx().blockAnimationEngine();
@@ -188,6 +190,7 @@ public final class BeatBlockClientDriver {
 	}
 
 	private void startDrivingInternal() {
+		ClientThreadGuard.assertClientThread();
 		lastTickNanos = 0;
 		resetTimelineAnimationScheduling();
 		// Phase B/C: full compile → load into PlaybackEngine
@@ -207,6 +210,7 @@ public final class BeatBlockClientDriver {
 	}
 
 	private void stopDrivingInternal() {
+		ClientThreadGuard.assertClientThread();
 		driving = false;
 		resetTimelineAnimationScheduling();
 		playbackEngine.reset();
@@ -222,6 +226,7 @@ public final class BeatBlockClientDriver {
 	}
 
 	private void stopPlaybackInternal() {
+		ClientThreadGuard.assertClientThread();
 		var musicPlayer = ctx().musicPlayer();
 		if (musicPlayer != null) {
 			musicPlayer.pause();
@@ -247,6 +252,7 @@ public final class BeatBlockClientDriver {
 	}
 
 	private void prepareExportFrameInternal(double timeSeconds) {
+		ClientThreadGuard.assertClientThread();
 		stopPlaybackInternal();
 		var editor = ctx().timelineEditor();
 		if (editor != null) {
@@ -339,14 +345,16 @@ public final class BeatBlockClientDriver {
 		double bpm = timeline.getBpm() > 0 ? timeline.getBpm() : 120.0;
 		int generation = timeline.getStageEventsGeneration();
 		if (generation != lastStageEventsGeneration) {
-			stageEventCursor = 0;
+			stageEventCursor.set(0);
 			lastStageEventsGeneration = generation;
 		}
-		if (stageEventCursor < 0 || stageEventCursor > events.size()) {
-			stageEventCursor = 0;
+		int cursor = stageEventCursor.get();
+		if (cursor < 0 || cursor > events.size()) {
+			cursor = 0;
+			stageEventCursor.set(0);
 		}
-		while (stageEventCursor < events.size()) {
-			TimelineAnimationEvent event = events.get(stageEventCursor);
+		while (cursor < events.size()) {
+			TimelineAnimationEvent event = events.get(cursor);
 			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
 				break;
 			}
@@ -354,8 +362,9 @@ public final class BeatBlockClientDriver {
 			if (scheduledStageEventIds.add(key)) {
 				applyTimelineActionEvent(event, null, true, referenceBeats, bpm);
 			}
-			stageEventCursor++;
+			cursor++;
 		}
+		stageEventCursor.set(cursor);
 		lastStageEventTime = currentTime;
 	}
 
@@ -568,9 +577,10 @@ public final class BeatBlockClientDriver {
 	}
 
 	private void resetTimelineAnimationScheduling() {
+		ClientThreadGuard.assertClientThread();
 		restoreTimelineMutationSnapshot();
 		scheduledStageEventIds.clear();
-		stageEventCursor = 0;
+		stageEventCursor.set(0);
 		lastStageEventsGeneration = -1;
 		lastStageEventTime = 0.0;
 		// Keep loaded program; only clear engine scheduling state on hard stop via playbackEngine.reset()
