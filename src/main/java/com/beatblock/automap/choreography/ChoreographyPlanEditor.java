@@ -423,8 +423,10 @@ public final class ChoreographyPlanEditor {
 		for (ChoreographyPlan.SectionPlan section : sections) {
 			double density = switch (section.sectionType()) {
 				case INTRO, OUTRO -> 0.25;
-				case VERSE, BREAK -> 0.45;
+				case VERSE, BREAK, BRIDGE -> 0.45;
+				case PRE_CHORUS -> 0.55;
 				case BUILD -> 0.65;
+				case CHORUS -> 0.85;
 				case DROP -> 0.95;
 			};
 			points.add(new DensityCurve.Point(section.startSeconds(), density));

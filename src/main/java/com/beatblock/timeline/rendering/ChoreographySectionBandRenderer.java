@@ -198,8 +198,9 @@ public final class ChoreographySectionBandRenderer {
 		int rgb = switch (type) {
 			case INTRO, OUTRO -> 0x88_AA_FF;
 			case VERSE, BREAK -> 0x66_CC_FF;
-			case BUILD -> 0x66_FF_CC;
-			case DROP -> 0x66_66_FF;
+			case PRE_CHORUS, BUILD -> 0x66_FF_CC;
+			case CHORUS, DROP -> 0x66_66_FF;
+			case BRIDGE -> 0xAA_88_FF;
 		};
 		return (alpha << 24) | rgb;
 	}

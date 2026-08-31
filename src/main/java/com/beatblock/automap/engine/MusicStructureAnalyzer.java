@@ -1,96 +1,84 @@
 package com.beatblock.automap.engine;
 
+import com.beatblock.audio.analysis.AudioFeatureTimeline;
+import com.beatblock.audio.analysis.BeatGrid;
 import com.beatblock.audio.analysis.EnergyFrame;
+import com.beatblock.audio.analysis.WaveformExtractor;
+import com.beatblock.audio.analysis.structure.BarGridBuilder;
+import com.beatblock.audio.analysis.structure.MusicStructure;
+import com.beatblock.audio.analysis.structure.NoveltyCurve;
+import com.beatblock.audio.analysis.structure.SectionLabeler;
+import com.beatblock.audio.analysis.structure.SelfSimilarityMatrix;
+import com.beatblock.audio.analysis.structure.StructureBoundaryDetector;
+import com.beatblock.audio.analysis.structure.StructureFeatureExtractor;
+import com.beatblock.audio.analysis.structure.StructureFeatureFrame;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 音乐结构分析：从能量曲线 Energy(t) 划分段落（Intro / Verse / Build / Drop / Break / Outro）。
- * 平缓→Intro；逐渐增强→Build；爆发→Drop；降低→Break；结尾→Outro。
+ * 音乐结构分析门面：Beat → Bar → Phrase → Section。
+ * <p>
+ * 段落边界主要依赖 novelty 曲线与自相似矩阵（checkerboard），并结合能量 / onset 打标签；
+ * 重复段落用于识别 Verse / Chorus，而非固定时间窗口。
  */
 public final class MusicStructureAnalyzer {
 
-	private static final double SECTION_MIN_DURATION = 4.0;
-	private static final double SMOOTH_WINDOW = 2.0;
+	private static final double SMOOTH_WINDOW_SECONDS = 2.0;
+	private static final int CHECKERBOARD_RADIUS = 6;
 
-	/**
-	 * 根据能量帧与总时长划分段落。
-	 */
+	private MusicStructureAnalyzer() {}
+
+	public static MusicStructure analyze(AudioFeatureTimeline timeline) {
+		if (timeline == null || timeline.getDurationSeconds() <= 0) {
+			return MusicStructure.fallback(timeline != null ? timeline.getDurationSeconds() : 0);
+		}
+
+		List<StructureFeatureFrame> frames = StructureFeatureExtractor.extract(timeline);
+		if (frames.isEmpty()) {
+			return MusicStructure.fallback(timeline.getDurationSeconds());
+		}
+
+		double[] novelty = NoveltyCurve.compute(frames);
+		double[] smoothed = NoveltyCurve.smooth(novelty, frames, SMOOTH_WINDOW_SECONDS);
+		double[][] similarity = SelfSimilarityMatrix.compute(frames);
+		double[] checkerboard = SelfSimilarityMatrix.checkerboardNovelty(similarity, CHECKERBOARD_RADIUS);
+
+		BeatGrid grid = timeline.getBeatGrid();
+		double barDuration = BarGridBuilder.barDuration(grid);
+		List<BarGridBuilder.BarSpan> bars = BarGridBuilder.build(grid, timeline.getDurationSeconds());
+		List<Double> phraseBounds = StructureBoundaryDetector.detectPhraseBoundaries(
+			smoothed, frames, barDuration);
+		List<Double> sectionBounds = StructureBoundaryDetector.detectSectionBoundaries(
+			smoothed, checkerboard, frames, barDuration, timeline.getDurationSeconds());
+
+		List<StructuralSection> sections = SectionLabeler.label(
+			frames, similarity, sectionBounds, timeline.getDurationSeconds());
+		List<MusicStructure.PhraseSpan> phrases = MusicStructure.buildPhrases(phraseBounds, frames, similarity);
+
+		return new MusicStructure(
+			timeline.getDurationSeconds(),
+			MusicStructure.collectBeatTimes(grid, timeline.getBeats(), timeline.getDurationSeconds()),
+			bars,
+			phrases,
+			sections
+		);
+	}
+
+	public static List<StructuralSection> analyzeSections(AudioFeatureTimeline timeline) {
+		return analyze(timeline).sections();
+	}
+
+	/** 兼容旧 API：仅能量帧时退化为简化特征分析。 */
 	public static List<StructuralSection> analyze(List<EnergyFrame> energyFrames, double durationSeconds) {
-		List<StructuralSection> sections = new ArrayList<>();
-		if (energyFrames == null || energyFrames.isEmpty() || durationSeconds <= 0) {
-			sections.add(new StructuralSection(0, durationSeconds, SectionType.VERSE));
-			return sections;
-		}
-		float[] energies = new float[energyFrames.size()];
-		double[] times = new double[energyFrames.size()];
-		for (int i = 0; i < energyFrames.size(); i++) {
-			EnergyFrame f = energyFrames.get(i);
-			times[i] = f.getTimeSeconds();
-			energies[i] = f.getEnergy();
-		}
-		float maxE = 0;
-		for (float e : energies) if (e > maxE) maxE = e;
-		if (maxE < 1e-6f) maxE = 1f;
-		// 归一化
-		for (int i = 0; i < energies.length; i++) energies[i] /= maxE;
-
-		double t = 0;
-		int idx = 0;
-		while (t < durationSeconds && idx < times.length) {
-			double segmentEnd = Math.min(t + SECTION_MIN_DURATION, durationSeconds);
-			float avg = averageIn(energies, times, t, segmentEnd);
-			float trend = trendIn(energies, times, t, segmentEnd);
-			SectionType type = classifySegment(avg, trend, t, durationSeconds);
-			sections.add(new StructuralSection(t, segmentEnd, type));
-			t = segmentEnd;
-			if (t >= durationSeconds) break;
-			idx++;
-		}
-		mergeAdjacentSameType(sections);
-		return sections;
-	}
-
-	private static float averageIn(float[] e, double[] t, double from, double to) {
-		float sum = 0;
-		int n = 0;
-		for (int i = 0; i < t.length; i++) {
-			if (t[i] >= from && t[i] <= to) { sum += e[i]; n++; }
-		}
-		return n > 0 ? sum / n : 0;
-	}
-
-	private static float trendIn(float[] e, double[] t, double from, double to) {
-		int first = -1, last = -1;
-		for (int i = 0; i < t.length; i++) {
-			if (t[i] >= from && t[i] <= to) {
-				if (first < 0) first = i;
-				last = i;
-			}
-		}
-		if (first < 0 || last <= first) return 0;
-		return (e[last] - e[first]) / (last - first + 1e-6f);
-	}
-
-	private static SectionType classifySegment(float avg, float trend, double segmentStart, double totalDuration) {
-		double progress = segmentStart / Math.max(0.01, totalDuration);
-		if (progress < 0.08) return SectionType.INTRO;
-		if (progress > 0.92) return SectionType.OUTRO;
-		if (trend > 0.05f && avg < 0.6f) return SectionType.BUILD;
-		if (avg > 0.7f) return SectionType.DROP;
-		if (avg < 0.25f) return SectionType.BREAK;
-		return SectionType.VERSE;
-	}
-
-	private static void mergeAdjacentSameType(List<StructuralSection> sections) {
-		for (int i = sections.size() - 1; i > 0; i--) {
-			StructuralSection cur = sections.get(i);
-			StructuralSection prev = sections.get(i - 1);
-			if (prev.getType() == cur.getType() && Math.abs(prev.getEndSeconds() - cur.getStartSeconds()) < 0.5) {
-				sections.set(i - 1, new StructuralSection(prev.getStartSeconds(), cur.getEndSeconds(), prev.getType()));
-				sections.remove(i);
-			}
-		}
+		AudioFeatureTimeline timeline = new AudioFeatureTimeline(
+			durationSeconds,
+			List.of(),
+			energyFrames != null ? energyFrames : List.of(),
+			List.of(),
+			new WaveformExtractor.WaveformFrame[0],
+			0f,
+			null
+		);
+		return analyze(timeline).sections();
 	}
 }

@@ -47,7 +47,7 @@ public final class SmartAutoMapEngine {
 		List<DetectedBeat> beats = featureTimeline.getBeats();
 		List<EnergyFrame> energyFrames = featureTimeline.getEnergyFrames();
 
-		List<StructuralSection> sections = MusicStructureAnalyzer.analyze(energyFrames, duration);
+		List<StructuralSection> sections = MusicStructureAnalyzer.analyzeSections(featureTimeline);
 		List<RhythmEvent> rhythmEvents = RhythmClassifier.classify(beats, bands);
 		rhythmEvents = PatternGenerator.filter(rhythmEvents, settings);
 

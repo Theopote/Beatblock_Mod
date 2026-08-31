@@ -23,16 +23,16 @@ public final class CameraDirector {
 					out.add(new CameraEvent(sec.getStartSeconds(), CameraAction.HOLD));
 					out.add(new CameraEvent(sec.getStartSeconds() + sec.getDurationSeconds() * 0.5, CameraAction.PAN));
 				}
-				case BUILD -> {
-					out.add(new CameraEvent(sec.getStartSeconds(), CameraAction.ZOOM_IN));
-					out.add(new CameraEvent(sec.getEndSeconds() - 0.5, CameraAction.HOLD));
-				}
-				case DROP -> {
+				case DROP, CHORUS -> {
 					out.add(new CameraEvent(sec.getStartSeconds(), CameraAction.ORBIT));
 					out.add(new CameraEvent(sec.getStartSeconds() + beatDuration * 4, CameraAction.SHAKE));
 					out.add(new CameraEvent(sec.getEndSeconds() - 0.3, CameraAction.HOLD));
 				}
-				case BREAK -> {
+				case PRE_CHORUS, BUILD -> {
+					out.add(new CameraEvent(sec.getStartSeconds(), CameraAction.ZOOM_IN));
+					out.add(new CameraEvent(sec.getEndSeconds() - 0.5, CameraAction.HOLD));
+				}
+				case BRIDGE, BREAK -> {
 					out.add(new CameraEvent(sec.getStartSeconds(), CameraAction.ZOOM_OUT));
 					out.add(new CameraEvent(sec.getEndSeconds(), CameraAction.HOLD));
 				}
