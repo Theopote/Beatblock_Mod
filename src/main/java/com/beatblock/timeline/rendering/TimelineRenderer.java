@@ -394,10 +394,12 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		java.nio.file.Path beatmapDir = beatmap.beatmapFilePath.getParent();
 		if (beatmapDir == null) return;
 
+		var stems = beatmap.meta.stems();
 		boolean anyLoaded = false;
 		int loadedCount = 0;
-		for (java.util.Map.Entry<String, String> entry : beatmap.meta.stems().entrySet()) {
+		for (java.util.Map.Entry<String, String> entry : stems.entrySet()) {
 			String stemKey = entry.getKey();
+			if (stemKey == null) continue;
 			String relativePath = entry.getValue();
 			if (relativePath == null || relativePath.isBlank()) continue;
 			java.nio.file.Path stemPath = beatmapDir.resolve(relativePath).normalize();

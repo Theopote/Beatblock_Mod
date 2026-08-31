@@ -29,8 +29,8 @@ final class StageEventValidator implements TimelineValidationRule {
 	) {
 		String eventId = event.getEventId();
 		double time = event.getTimeSeconds();
-		String label = eventId != null && !eventId.isBlank() ? eventId : "(no-id)";
-		if (eventId != null && !eventId.isBlank() && !seenIds.add(eventId)) {
+		String label = eventId.isBlank() ? "(no-id)" : eventId;
+		if (!eventId.isBlank() && !seenIds.add(eventId)) {
 			diagnostics.add(TimelineDiagnostic.error(TimelineValidator.RULE_DUPLICATE_EVENT_ID,
 				"Duplicate event id: " + eventId, eventId, time));
 		}
@@ -69,11 +69,17 @@ final class StageEventValidator implements TimelineValidationRule {
 		if (targetId == null || targetId.isBlank()) {
 			diagnostics.add(TimelineDiagnostic.warning(TimelineValidator.RULE_UNBOUND_TARGET,
 				"Event " + label + " has no RuntimeStageObject target (unbound)", eventId, time));
-		} else if (context.engine() != null) {
-			RuntimeStageObject stage = context.engine().getStageObjectSystem().get(targetId);
-			if (stage == null) {
-				diagnostics.add(TimelineDiagnostic.warning(TimelineValidator.RULE_MISSING_STAGE_OBJECT,
-					"Event " + label + " targets missing RuntimeStageObject \"" + targetId + "\"", eventId, time));
+		} else {
+			var engine = context.engine();
+			if (engine != null) {
+				var stageSystem = engine.getStageObjectSystem();
+				if (stageSystem != null) {
+					RuntimeStageObject stage = stageSystem.get(targetId);
+					if (stage == null) {
+						diagnostics.add(TimelineDiagnostic.warning(TimelineValidator.RULE_MISSING_STAGE_OBJECT,
+							"Event " + label + " targets missing RuntimeStageObject \"" + targetId + "\"", eventId, time));
+					}
+				}
 			}
 		}
 
@@ -81,15 +87,21 @@ final class StageEventValidator implements TimelineValidationRule {
 		if (animationType == null || animationType.isBlank()) {
 			diagnostics.add(TimelineDiagnostic.error(TimelineValidator.RULE_MISSING_ANIMATION_PRESET,
 				"Event " + label + " has empty animation preset id", eventId, time));
-		} else if (context.engine() != null) {
-			AnimationDefinition definition = context.engine().getAnimationLibrary().get(animationType);
-			if (definition == null) {
-				boolean found = context.engine().getAnimationLibrary().getAll().keySet().stream()
-					.anyMatch(key -> key != null && key.equalsIgnoreCase(animationType));
-				if (!found) {
-					diagnostics.add(TimelineDiagnostic.error(TimelineValidator.RULE_MISSING_ANIMATION_PRESET,
-						"Event " + label + " references unknown animation preset \"" + animationType + "\"",
-						eventId, time));
+		} else {
+			var engine = context.engine();
+			if (engine != null) {
+				var library = engine.getAnimationLibrary();
+				if (library != null) {
+					AnimationDefinition definition = library.get(animationType);
+					if (definition == null) {
+						boolean found = library.getAll().keySet().stream()
+							.anyMatch(key -> key != null && key.equalsIgnoreCase(animationType));
+						if (!found) {
+							diagnostics.add(TimelineDiagnostic.error(TimelineValidator.RULE_MISSING_ANIMATION_PRESET,
+								"Event " + label + " references unknown animation preset \"" + animationType + "\"",
+								eventId, time));
+						}
+					}
 				}
 			}
 		}

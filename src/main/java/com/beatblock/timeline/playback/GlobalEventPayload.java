@@ -24,5 +24,11 @@ public sealed interface GlobalEventPayload {
 	record AudioMix(String name, String channel, float volume, double fadeSeconds)
 		implements GlobalEventPayload { public AudioMix { name = name != null ? name : ""; } }
 	record Generic(String typeName, String name, Map<String, Object> parameters)
-		implements GlobalEventPayload {}
+		implements GlobalEventPayload {
+		public Generic {
+			typeName = typeName != null ? typeName : "";
+			name = name != null ? name : "";
+			parameters = parameters != null ? Map.copyOf(parameters) : Map.of();
+		}
+	}
 }

@@ -171,8 +171,9 @@ public final class ChoreographyPlanEditor {
 
 	static double resolveDensityThreshold(ChoreographyPlan plan, ChoreographyPlan.MotionPhrase phrase, double fallback) {
 		SectionEditProfile edit = editForSection(plan, phrase.sectionIndex());
-		if (edit != null && edit.densityThresholdOverride() != null) {
-			return edit.densityThresholdOverride();
+		Double override = edit != null ? edit.densityThresholdOverride() : null;
+		if (override != null) {
+			return override;
 		}
 		return fallback;
 	}

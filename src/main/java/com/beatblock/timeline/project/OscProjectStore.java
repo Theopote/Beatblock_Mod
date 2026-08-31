@@ -54,7 +54,6 @@ public final class OscProjectStore {
 		if (projectId.isBlank()) projectId = UUID.randomUUID().toString();
 		String audioPath = stringMeta(timeline, "audioPath");
 		String timelineName = timeline.getName() == null ? "" : timeline.getName();
-
 		JsonObject root = new JsonObject();
 		root.addProperty("version", CURRENT_VERSION);
 		root.addProperty("projectId", projectId);
@@ -105,7 +104,8 @@ public final class OscProjectStore {
 			Files.createDirectories(parent);
 		}
 
-		String fileName = abs.getFileName() != null ? abs.getFileName().toString() : "project.osc";
+		Path fileNamePath = abs.getFileName();
+		String fileName = fileNamePath != null ? fileNamePath.toString() : "project.osc";
 		Path temp = null;
 		try {
 			// 唯一临时名，避免并发保存争用固定的 "*.osc.tmp"

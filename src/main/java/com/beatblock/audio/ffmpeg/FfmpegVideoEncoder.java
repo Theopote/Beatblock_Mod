@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 通过 ffmpeg 将 raw RGBA 帧流编码为 MP4，可选混入音频轨。
@@ -30,7 +31,7 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 	private final ProgressListener progressListener;
 	private final Path outputPath;
 	private final int totalFrames;
-	private int framesWritten;
+	private final AtomicInteger framesWritten = new AtomicInteger(0);
 	private volatile boolean closed;
 
 	public FfmpegVideoEncoder(
@@ -144,7 +145,8 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 	}
 
 	private void onFfmpegLine(String message, int percent) {
-		int framePercent = (int) Math.round((framesWritten * 100.0) / totalFrames);
+		int written = framesWritten.get();
+		int framePercent = (int) Math.round((written * 100.0) / totalFrames);
 		int merged = Math.max(framePercent, Math.min(percent, 99));
 		notifyProgress(message, merged);
 	}
@@ -154,9 +156,9 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 			throw new IOException("FFmpeg encoder already closed.");
 		}
 		stdin.write(rgba);
-		framesWritten++;
-		int percent = Math.min(99, (int) Math.round((framesWritten * 100.0) / totalFrames));
-		notifyProgress(BBTexts.get("beatblock.export.progress.writing_frame", framesWritten, totalFrames), percent);
+		int written = framesWritten.incrementAndGet();
+		int percent = Math.min(99, (int) Math.round((written * 100.0) / totalFrames));
+		notifyProgress(BBTexts.get("beatblock.export.progress.writing_frame", written, totalFrames), percent);
 	}
 
 	public FfmpegTranscodeOutcome finishAndAwait() {

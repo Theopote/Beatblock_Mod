@@ -118,6 +118,7 @@ public final class RuntimeStageObject {
 				java.util.Random rng = new java.util.Random(id.hashCode());
 				Collections.shuffle(blockList, rng);
 			}
+			default -> { }
 		}
 	}
 

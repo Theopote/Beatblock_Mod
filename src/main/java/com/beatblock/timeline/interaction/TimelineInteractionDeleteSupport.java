@@ -183,8 +183,7 @@ public final class TimelineInteractionDeleteSupport {
 
 	private static BuildLayerManager currentLayerManager() {
 		try {
-			var context = BeatBlock.getContext();
-			return context != null ? context.buildLayerManager() : null;
+			return BeatBlock.getContext().buildLayerManager();
 		} catch (IllegalStateException ignored) {
 			return null;
 		}

@@ -89,14 +89,11 @@ public final class CameraSubjectResolver {
 	}
 
 	private static StageObjectSystem currentStageObjectSystem() {
-		var context = BeatBlock.getContext();
-		if (context == null) return null;
-		var engine = context.blockAnimationEngine();
+		var engine = BeatBlock.getContext().blockAnimationEngine();
 		return engine != null ? engine.getStageObjectSystem() : null;
 	}
 
 	private static BuildLayerManager currentLayerManager() {
-		var context = BeatBlock.getContext();
-		return context != null ? context.buildLayerManager() : null;
+		return BeatBlock.getContext().buildLayerManager();
 	}
 }

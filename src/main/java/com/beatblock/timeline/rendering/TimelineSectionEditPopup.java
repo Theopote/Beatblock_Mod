@@ -149,9 +149,8 @@ public final class TimelineSectionEditPopup {
 		cameraEnabled.set(profile.cameraEnabled());
 		vfxEnabled.set(profile.vfxEnabled());
 		animationTypeIndex.set(indexOfAnimation(profile.motionAnimationTypeOverride()));
-		densityThreshold.set(profile.densityThresholdOverride() != null
-			? profile.densityThresholdOverride().floatValue()
-			: 0.15f);
+		Double densityOverride = profile.densityThresholdOverride();
+		densityThreshold.set(densityOverride != null ? densityOverride.floatValue() : 0.15f);
 		timeOffsetSeconds.set((float) profile.timeOffsetSeconds());
 		energyScale.set(profile.energyScale());
 	}

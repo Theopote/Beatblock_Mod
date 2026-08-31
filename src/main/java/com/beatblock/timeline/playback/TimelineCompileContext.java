@@ -42,12 +42,11 @@ public record TimelineCompileContext(
 
 	public static TimelineCompileContext of(Timeline document, @Nullable BlockAnimationEngine engine,
 		@Nullable BuildLayerManager layerManager) {
-		List<TimelineAnimationEvent> events = document.getStageEvents();
-		List<TimelineAnimationEvent> safeEvents = events != null ? events : List.of();
+		List<TimelineAnimationEvent> safeEvents = document.getStageEvents();
 		return new TimelineCompileContext(document, engine, layerManager, safeEvents,
 			locateStageEvents(document, safeEvents), countCameraKeyframes(document),
 			layerManager != null ? layerManager.getAll().size() : 0,
-			document.getMarkers() != null ? document.getMarkers().size() : 0);
+			document.getMarkers().size());
 	}
 
 	public int animationEventCount() { return stageEvents.size(); }

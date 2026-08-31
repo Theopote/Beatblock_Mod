@@ -249,7 +249,6 @@ public final class GridRenderer {
 		float barTextY = rBot - 13;                         // 小节号标签
 
 		float beatPx = (float) (secondsPerBeat * view.getZoom());
-		float barPx  = (float) (secondsPerBar  * view.getZoom());
 
 		// 小节主刻度：蓝色线 + mm:ss 标签 + 小节号
 		int barStartIndex = (int) Math.floor(viewStart / secondsPerBar);

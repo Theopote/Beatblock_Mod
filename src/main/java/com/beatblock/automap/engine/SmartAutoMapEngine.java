@@ -2,7 +2,6 @@ package com.beatblock.automap.engine;
 
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.DetectedBeat;
-import com.beatblock.audio.analysis.EnergyFrame;
 import com.beatblock.audio.analysis.FrequencyBands;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapConfigFactory;
@@ -47,7 +46,6 @@ public final class SmartAutoMapEngine {
 		float bpm = featureTimeline.getBpm();
 		List<FrequencyBands> bands = featureTimeline.getBands();
 		List<DetectedBeat> beats = featureTimeline.getBeats();
-		List<EnergyFrame> energyFrames = featureTimeline.getEnergyFrames();
 
 		List<StructuralSection> sections = MusicStructureAnalyzer.analyzeSections(featureTimeline);
 		List<RhythmEvent> rhythmEvents = RhythmClassifier.classify(beats, bands);

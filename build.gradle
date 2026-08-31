@@ -231,6 +231,23 @@ tasks.named('test') {
 
 def spotbugsReportDir = layout.buildDirectory.dir('reports/spotbugs/main')
 
+/** Stable fingerprint: type + class + method/field (no source line — avoids false "new" on edits). */
+def spotbugsFingerprint = { bug ->
+	def type = bug.@type
+	def clazzNode = bug.Class.find { c -> c.'@role' == null || c.'@role' == '' } ?: bug.Class[0]
+	def clazz = clazzNode?.'@classname' ?: ''
+	def method = bug.Method.find { it.'@role' != 'METHOD_CALLED' }?.'@name' ?: ''
+	def field = bug.Field[0]?.'@name' ?: ''
+	if (field) {
+		return "${type}|${clazz}|${field}".toString()
+	}
+	return "${type}|${clazz}|${method}".toString()
+}
+
+def spotbugsCollectFingerprints = { root ->
+	root.BugInstance.collect(spotbugsFingerprint).toSorted().unique()
+}
+
 tasks.register('spotbugsMain', JavaExec) {
 	group = 'verification'
 	description = 'Run SpotBugs static analysis on main classes'
@@ -281,13 +298,14 @@ tasks.register('spotbugsUpdateBaseline') {
 			throw new GradleException("SpotBugs XML report not found: ${reportFile}")
 		}
 		def root = new groovy.xml.XmlParser().parse(reportFile)
-		def fingerprints = root.BugInstance.collect { bug ->
-			def type = bug.@type
-			def clazz = bug.Class[0]?.'@classname' ?: ''
-			def method = bug.Method.find { it.'@role' != 'METHOD_CALLED' }?.'@name' ?: bug.Method[0]?.'@name' ?: ''
-			def line = bug.SourceLine.find { it.'@role' == 'SOURCE_LINE_DEREF' }?.'@start' ?: bug.SourceLine[0]?.'@start' ?: '0'
-			String.valueOf(type) + '|' + String.valueOf(clazz) + '|' + String.valueOf(method) + '|' + String.valueOf(line)
-		}.toSorted()
+		def fingerprints = spotbugsCollectFingerprints(root)
+		def previousCount = countFile.exists() ? countFile.text.trim().toInteger() : Integer.MAX_VALUE
+		if (fingerprints.size() > previousCount && !project.hasProperty('spotbugsAllowIncrease')) {
+			throw new GradleException(
+				"Refusing to raise SpotBugs baseline from ${previousCount} to ${fingerprints.size()}. " +
+				"Fix findings first; burn-down only. To override: ./gradlew spotbugsUpdateBaseline -PspotbugsAllowIncrease"
+			)
+		}
 		countFile.text = "${fingerprints.size()}\n"
 		fingerprintsFile.text = fingerprints.join('\n') + '\n'
 		logger.lifecycle("SpotBugs baseline regenerated: ${fingerprints.size()} fingerprints")
@@ -318,16 +336,10 @@ tasks.register('spotbugsCheck') {
 			throw new GradleException("SpotBugs fingerprint baseline file not found: ${fingerprintsFile}. Run ./gradlew spotbugsUpdateBaseline.")
 		}
 		def baselineCount = countFile.text.trim().toInteger()
-		def baselineFingerprints = fingerprintsFile.readLines().toSet()
+		def baselineFingerprints = fingerprintsFile.readLines().findAll { it.trim() }.toSet()
 
 		def root = new groovy.xml.XmlParser().parse(reportFile)
-		def current = root.BugInstance.collect { bug ->
-			def type = bug.@type
-			def clazz = bug.Class[0]?.'@classname' ?: ''
-			def method = bug.Method.find { it.'@role' != 'METHOD_CALLED' }?.'@name' ?: bug.Method[0]?.'@name' ?: ''
-			def line = bug.SourceLine.find { it.'@role' == 'SOURCE_LINE_DEREF' }?.'@start' ?: bug.SourceLine[0]?.'@start' ?: '0'
-			String.valueOf(type) + '|' + String.valueOf(clazz) + '|' + String.valueOf(method) + '|' + String.valueOf(line)
-		}
+		def current = spotbugsCollectFingerprints(root)
 		def bugCount = current.size()
 		def newFindings = current.findAll { !baselineFingerprints.contains(it) }
 
@@ -335,12 +347,12 @@ tasks.register('spotbugsCheck') {
 		resultFileObj.parentFile.mkdirs()
 		resultFileObj.text = "SpotBugs bugs: ${bugCount} (baseline count: ${baselineCount}, new findings: ${newFindings.size()})\n"
 		if (!newFindings.isEmpty()) {
-			throw new GradleException("SpotBugs introduced ${newFindings.size()} new finding(s):\n" + newFindings.join('\n') + "\nFix the new findings or run ./gradlew spotbugsUpdateBaseline after reviewing.")
+			throw new GradleException("SpotBugs introduced ${newFindings.size()} new finding(s):\n" + newFindings.take(20).join('\n') + (newFindings.size() > 20 ? "\n..." : "") + "\nFix the new findings; burn-down only — do not raise baseline without -PspotbugsAllowIncrease.")
 		}
 		if (bugCount > baselineCount) {
-			throw new GradleException("SpotBugs bug count ${bugCount} exceeds baseline count ${baselineCount}. Fix or run ./gradlew spotbugsUpdateBaseline.")
+			throw new GradleException("SpotBugs bug count ${bugCount} exceeds baseline count ${baselineCount}. Fix findings before updating baseline.")
 		}
-		logger.lifecycle("SpotBugs: ${bugCount} bugs, ${newFindings.size()} new, within baseline count ${baselineCount}.")
+		logger.lifecycle("SpotBugs: ${bugCount} bugs (${baselineCount - bugCount} below baseline cap), ${newFindings.size()} new.")
 	}
 }
 
