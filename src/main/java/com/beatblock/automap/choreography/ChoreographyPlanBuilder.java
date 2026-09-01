@@ -3,6 +3,7 @@ package com.beatblock.automap.choreography;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.automap.AutoMapRule;
+import com.beatblock.audio.analysis.structure.MusicStructure;
 import com.beatblock.automap.engine.AnimationMapper;
 import com.beatblock.automap.engine.AutoMapStyle;
 import com.beatblock.automap.camera.CameraShot;
@@ -61,15 +62,40 @@ public final class ChoreographyPlanBuilder {
 			));
 		}
 
-		DensityCurve density = buildDensityCurve(sectionPlans);
-
 		return new ChoreographyPlan(
 			sectionPlans,
 			roles,
 			motions,
 			List.of(),
 			List.of(),
-			density
+			buildDensityCurve(sectionPlans, ChoreographyPlan.MusicalStructure.empty()),
+			List.of(),
+			ChoreographyPlan.MusicalStructure.empty()
+		);
+	}
+
+	/**
+	 * 从完整 {@link MusicStructure}（Bar / Phrase / Section / Repeat）构建编舞计划。
+	 */
+	public static ChoreographyPlan fromMusicStructure(
+		MusicStructure musicStructure,
+		List<RhythmEvent> rhythmEvents,
+		@Nullable List<CameraShot> cameraShots,
+		@Nullable List<ParticleEvent> particleEvents,
+		AutoMapStyle style,
+		AutoMapConfig config
+	) {
+		if (musicStructure == null) {
+			return fromRhythmAnalysis(rhythmEvents, null, cameraShots, particleEvents, style, config);
+		}
+		return fromRhythmAnalysis(
+			rhythmEvents,
+			musicStructure.sections(),
+			cameraShots,
+			particleEvents,
+			style,
+			config,
+			musicStructure
 		);
 	}
 
@@ -83,6 +109,19 @@ public final class ChoreographyPlanBuilder {
 		@Nullable List<ParticleEvent> particleEvents,
 		AutoMapStyle style,
 		AutoMapConfig config
+	) {
+		return fromRhythmAnalysis(
+			rhythmEvents, sections, cameraShots, particleEvents, style, config, null);
+	}
+
+	private static ChoreographyPlan fromRhythmAnalysis(
+		List<RhythmEvent> rhythmEvents,
+		@Nullable List<StructuralSection> sections,
+		@Nullable List<CameraShot> cameraShots,
+		@Nullable List<ParticleEvent> particleEvents,
+		AutoMapStyle style,
+		AutoMapConfig config,
+		@Nullable MusicStructure musicStructure
 	) {
 		if (rhythmEvents == null) rhythmEvents = List.of();
 		if (config == null) config = AutoMapConfig.createDefault();
@@ -132,7 +171,15 @@ public final class ChoreographyPlanBuilder {
 			}
 		}
 
-		DensityCurve density = buildDensityCurve(sectionPlans);
+		DensityCurve density;
+		ChoreographyPlan.MusicalStructure musical;
+		if (musicStructure != null) {
+			musical = MusicalStructureMapper.fromAnalysis(musicStructure, sectionPlans);
+			density = buildDensityCurve(sectionPlans, musical);
+		} else {
+			musical = ChoreographyPlan.MusicalStructure.empty();
+			density = buildDensityCurve(sectionPlans, musical);
+		}
 
 		return new ChoreographyPlan(
 			sectionPlans,
@@ -140,7 +187,9 @@ public final class ChoreographyPlanBuilder {
 			motions,
 			cameras,
 			vfx,
-			density
+			density,
+			List.of(),
+			musical
 		);
 	}
 
@@ -164,6 +213,22 @@ public final class ChoreographyPlanBuilder {
 			));
 		}
 		return out;
+	}
+
+	private static DensityCurve buildDensityCurve(
+		List<ChoreographyPlan.SectionPlan> sections,
+		ChoreographyPlan.MusicalStructure musical
+	) {
+		DensityCurve base = buildDensityCurve(sections);
+		if (musical.phrases().isEmpty()) return base;
+		List<DensityCurve.Point> points = new ArrayList<>(base.points());
+		for (ChoreographyPlan.MusicalPhrasePlan phrase : musical.phrases()) {
+			double mid = (phrase.startSeconds() + phrase.endSeconds()) * 0.5;
+			double sectionDensity = base.sampleAt(mid);
+			double noveltyBoost = (1.0 - phrase.repetitionScore()) * 0.12;
+			points.add(new DensityCurve.Point(mid, Math.min(1.0, sectionDensity + noveltyBoost)));
+		}
+		return DensityCurve.ofPoints(points);
 	}
 
 	private static DensityCurve buildDensityCurve(List<ChoreographyPlan.SectionPlan> sections) {

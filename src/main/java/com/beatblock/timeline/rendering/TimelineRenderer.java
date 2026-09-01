@@ -4,6 +4,7 @@ import com.beatblock.BeatBlock;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.timeline.*;
+import com.beatblock.timeline.generation.AnimationDropTargetResolver;
 import com.beatblock.timeline.editor.SelectionBox;
 import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.layer.BuildLayerDragDropHandler;
@@ -332,15 +333,7 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 
 	@Override
 	public String resolveDefaultTargetObjectId() {
-		List<String> registered = resolveRegisteredStageObjectIds();
-		if (registered.size() == 1) {
-			return registered.getFirst();
-		}
-		if (!registered.isEmpty()) {
-			// Feature-mapper fallback only: first registered id. Animation drops no longer use this.
-			return registered.getFirst();
-		}
-		return "";
+		return AnimationDropTargetResolver.soleRegisteredTargetOrEmpty(resolveRegisteredStageObjectIds());
 	}
 
 	@Override

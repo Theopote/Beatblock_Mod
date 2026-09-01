@@ -88,6 +88,13 @@ class AnimationDropTargetResolverTest {
 	}
 
 	@Test
+	void soleRegisteredTargetOrEmptyReturnsIdOnlyWhenUnique() {
+		assertEquals("", AnimationDropTargetResolver.soleRegisteredTargetOrEmpty(List.of()));
+		assertEquals("", AnimationDropTargetResolver.soleRegisteredTargetOrEmpty(List.of("a", "b")));
+		assertEquals("only", AnimationDropTargetResolver.soleRegisteredTargetOrEmpty(List.of("only")));
+	}
+
+	@Test
 	void isUnboundTargetHelpers() {
 		assertTrue(AnimationDropTargetResolver.isUnboundTarget(null));
 		assertTrue(AnimationDropTargetResolver.isUnboundTarget(""));

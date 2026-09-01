@@ -33,7 +33,12 @@ class ChoreographyPlanPersistenceTest {
 				new DensityCurve.Point(0.0, 0.2),
 				new DensityCurve.Point(12.0, 0.9)
 			)),
-			List.of(SectionEditProfile.defaults(0).withMotionAnimationType("spin"))
+			List.of(SectionEditProfile.defaults(0).withMotionAnimationType("spin")),
+			new ChoreographyPlan.MusicalStructure(
+				List.of(new ChoreographyPlan.BarPlan(0, 3, 0, 0)),
+				List.of(new ChoreographyPlan.MusicalPhrasePlan(0, 12, 0, 0, 0.3, -1)),
+				List.of(new ChoreographyPlan.RepeatGroup(0, 0, List.of(0, 1), 0.7))
+			)
 		);
 		AutoMapConfig config = AutoMapConfig.builder()
 			.targetForFeature("low", "stage-kick")
@@ -56,5 +61,8 @@ class ChoreographyPlanPersistenceTest {
 		assertEquals(1, loadedPlan.motionPhrases().size());
 		assertEquals("spin", loadedPlan.sectionEdits().getFirst().motionAnimationTypeOverride());
 		assertEquals("stage-kick", loadedConfig.getTargetByNormalizedFeature().get("low"));
+		assertEquals(1, loadedPlan.musicalStructure().bars().size());
+		assertEquals(1, loadedPlan.musicalStructure().phrases().size());
+		assertEquals(1, loadedPlan.musicalStructure().repeats().size());
 	}
 }

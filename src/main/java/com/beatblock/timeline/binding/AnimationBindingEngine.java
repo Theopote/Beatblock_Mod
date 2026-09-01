@@ -4,6 +4,7 @@ import com.beatblock.BeatBlock;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.FeatureTrack;
+import com.beatblock.timeline.generation.AnimationDropTargetResolver;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.AnimationEventParams;
@@ -387,9 +388,15 @@ public final class AnimationBindingEngine {
 		if (engine == null) {
 			return "";
 		}
-		var all = engine.getStageObjectSystem().getAll();
-		if (all.isEmpty()) return "";
-		return all.iterator().next().getId();
+		var sys = engine.getStageObjectSystem();
+		if (sys == null) return "";
+		List<String> ids = new ArrayList<>();
+		for (var obj : sys.getAll()) {
+			if (obj != null && obj.getId() != null && !obj.getId().isBlank()) {
+				ids.add(obj.getId().trim());
+			}
+		}
+		return AnimationDropTargetResolver.soleRegisteredTargetOrEmpty(ids);
 	}
 
 	private static boolean passesThreshold(AnimationBindingRule rule, FeatureEvent event) {

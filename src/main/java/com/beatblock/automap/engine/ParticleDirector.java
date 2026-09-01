@@ -7,6 +7,9 @@ import java.util.List;
 
 /**
  * 自动粒子：根据高频能量峰值生成粒子事件（Spark / Dust / Flash）。
+ * <p>
+ * 仅处理单一高频粒子流，全局 minGap 合理；多频段动画间隔见
+ * {@link com.beatblock.automap.AutoMapCandidateResolver}。
  */
 public final class ParticleDirector {
 

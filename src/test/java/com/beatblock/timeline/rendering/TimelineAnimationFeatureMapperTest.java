@@ -72,4 +72,33 @@ class TimelineAnimationFeatureMapperTest {
 		assertEquals("stage-a", ev.getTargetObjectId());
 		assertEquals(1.0, ev.getTimeSeconds(), 1e-6);
 	}
+
+	@Test
+	void populateFromAudioFeaturesCreatesUnboundWhenNoTarget() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.setMetadata("separationMode", "demucs");
+		timeline.addFeatureEvent("kick", new FeatureEvent(1.0, 0.9f));
+
+		TimelineAnimationFeatureMapper.populateFromAudioFeatures(
+			timeline, TimelineTrackMeta.ROW_ANIM_BLOCK, () -> "");
+
+		TimelineAnimationEvent ev = timeline.getAnimationEvents(
+			Timeline.blockAnimationFeatureTrackId("kick")).getFirst();
+		assertTrue(ev.isUnboundTarget());
+	}
+
+	@Test
+	void populateFromAudioFeaturesNeverUsesDefaultPlaceholder() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.setMetadata("separationMode", "demucs");
+		timeline.addFeatureEvent("kick", new FeatureEvent(1.0, 0.9f));
+
+		TimelineAnimationFeatureMapper.populateFromAudioFeatures(
+			timeline, TimelineTrackMeta.ROW_ANIM_BLOCK, null);
+
+		TimelineAnimationEvent ev = timeline.getAnimationEvents(
+			Timeline.blockAnimationFeatureTrackId("kick")).getFirst();
+		assertTrue(ev.isUnboundTarget());
+		assertFalse("default".equals(ev.getTargetObjectId()));
+	}
 }

@@ -7,7 +7,9 @@ Smart Auto Map 在**编辑时**根据音乐结构与舞台资源生成时间轴*
 ```
 Beatmap + StageObject / BuildLayer
         ↓
-ChoreographyPlan（段落、角色分配、动作短语、镜头短语）
+MusicStructure（Bar / Phrase / Section / Repeat）
+        ↓
+ChoreographyPlan（含 musicalStructure 段）
         ↓
 SmartAutoMapEngine / AnimationBindingEngine
         ↓
@@ -19,6 +21,8 @@ Timeline 动画轨 / 摄像机轨 / 全局事件初稿
 | 类型 | 作用 |
 |------|------|
 | `ChoreographyPlan` | 段落计划、动作/镜头短语、密度曲线 |
+| `ChoreographyPlan.MusicalStructure` | Bar / MusicalPhrase / RepeatGroup（structure v2） |
+| `MusicalStructureMapper` | `MusicStructure` 分析结果 → 编舞计划音乐层 |
 | `AutoMapConfig` | 特征 → 舞台目标映射 |
 | `AutoMapRule` | 频段阈值、动画类型、强度 |
 | `CameraShot` | 带主体的镜头（subject / framing / movement） |

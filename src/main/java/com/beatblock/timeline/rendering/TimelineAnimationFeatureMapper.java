@@ -12,7 +12,9 @@ import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.TrackType;
 import com.beatblock.timeline.binding.AnimationBindingEngine;
+import com.beatblock.timeline.generation.AnimationDropTargetResolver;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +62,7 @@ public final class TimelineAnimationFeatureMapper {
 			pruneGeneratedAnimationEventsOnTrack(timeline, Timeline.TRACK_ID_ANIMATION_AUTO);
 		}
 
-		String targetObjectId = targetObjectIdSupplier != null ? targetObjectIdSupplier.get() : "default";
+		String targetObjectId = resolveMappedTargetObjectId(targetObjectIdSupplier);
 		int added = 0;
 		Map<String, Double> lastAcceptedTimeByFeature = new HashMap<>();
 
@@ -568,6 +570,14 @@ public final class TimelineAnimationFeatureMapper {
 		if (s == null || s.isBlank()) return "";
 		if (s.length() == 1) return s.toUpperCase();
 		return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+	}
+
+	/** Never invents fake ids such as {@code "default"}; blank means UNBOUND. */
+	private static String resolveMappedTargetObjectId(@Nullable Supplier<String> supplier) {
+		if (supplier == null) return "";
+		String raw = supplier.get();
+		if (AnimationDropTargetResolver.isUnboundTarget(raw)) return "";
+		return raw.trim();
 	}
 
 	public record AnimationMappingRule(

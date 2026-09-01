@@ -3,6 +3,7 @@ package com.beatblock.automap.engine;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.DetectedBeat;
 import com.beatblock.audio.analysis.FrequencyBands;
+import com.beatblock.audio.analysis.structure.MusicStructure;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapConfigFactory;
 import com.beatblock.automap.camera.CameraPlanningContext;
@@ -47,7 +48,8 @@ public final class SmartAutoMapEngine {
 		List<FrequencyBands> bands = featureTimeline.getBands();
 		List<DetectedBeat> beats = featureTimeline.getBeats();
 
-		List<StructuralSection> sections = MusicStructureAnalyzer.analyzeSections(featureTimeline);
+		MusicStructure musicStructure = MusicStructureAnalyzer.analyze(featureTimeline);
+		List<StructuralSection> sections = musicStructure.sections();
 		List<RhythmEvent> rhythmEvents = RhythmClassifier.classify(beats, bands);
 		rhythmEvents = PatternGenerator.filter(rhythmEvents, settings);
 
@@ -61,9 +63,9 @@ public final class SmartAutoMapEngine {
 			: List.of();
 
 		AutoMapConfig config = AutoMapConfigFactory.fromSettings(settings);
-		ChoreographyPlan plan = ChoreographyPlanBuilder.fromRhythmAnalysis(
+		ChoreographyPlan plan = ChoreographyPlanBuilder.fromMusicStructure(
+			musicStructure,
 			rhythmEvents,
-			sections,
 			cameraShots,
 			particleEvents,
 			settings.getStyle(),
@@ -81,8 +83,10 @@ public final class SmartAutoMapEngine {
 			compiled.vfxEvents(),
 			sections.size()
 		);
-		LOGGER.info("BeatBlock Smart Auto-Map: 动画 {} 个, 镜头 {} 个, 粒子 {} 个, 段落 {} 个",
-			compiled.animationEvents(), compiled.cameraEvents(), compiled.vfxEvents(), sections.size());
+		LOGGER.info(
+			"BeatBlock Smart Auto-Map: 动画 {} 个, 镜头 {} 个, 粒子 {} 个, 段落 {} 个, 小节 {} 个, 乐句 {} 个",
+			compiled.animationEvents(), compiled.cameraEvents(), compiled.vfxEvents(), sections.size(),
+			plan.musicalStructure().bars().size(), plan.musicalStructure().phrases().size());
 		return result;
 	}
 

@@ -445,6 +445,6 @@ public final class ChoreographyPlanEditor {
 		DensityCurve density,
 		List<SectionEditProfile> edits
 	) {
-		return new ChoreographyPlan(sections, roles, motions, cameras, vfx, density, edits);
+		return new ChoreographyPlan(sections, roles, motions, cameras, vfx, density, edits, source.musicalStructure());
 	}
 }

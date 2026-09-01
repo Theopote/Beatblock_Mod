@@ -47,6 +47,7 @@ public final class ChoreographyPlanPersistence {
 
 	private static JsonObject planToJson(ChoreographyPlan plan) {
 		JsonObject root = new JsonObject();
+		root.addProperty("structureVersion", 2);
 		root.add("sections", sectionsToJson(plan.sections()));
 		root.add("stageRoles", stageRolesToJson(plan.stageRoles()));
 		root.add("motionPhrases", motionPhrasesToJson(plan.motionPhrases()));
@@ -54,6 +55,9 @@ public final class ChoreographyPlanPersistence {
 		root.add("vfxPhrases", vfxPhrasesToJson(plan.vfxPhrases()));
 		root.add("densityCurve", densityCurveToJson(plan.densityCurve()));
 		root.add("sectionEdits", sectionEditsToJson(plan.sectionEdits()));
+		if (!plan.musicalStructure().isEmpty()) {
+			root.add("musicalStructure", musicalStructureToJson(plan.musicalStructure()));
+		}
 		return root;
 	}
 
@@ -67,8 +71,136 @@ public final class ChoreographyPlanPersistence {
 			cameraPhrasesFromJson(root.get("cameraPhrases")),
 			vfxPhrasesFromJson(root.get("vfxPhrases")),
 			densityCurveFromJson(root.get("densityCurve")),
-			sectionEditsFromJson(root.get("sectionEdits"))
+			sectionEditsFromJson(root.get("sectionEdits")),
+			musicalStructureFromJson(root.get("musicalStructure"))
 		);
+	}
+
+	private static JsonObject musicalStructureToJson(ChoreographyPlan.MusicalStructure musical) {
+		JsonObject root = new JsonObject();
+		root.add("bars", barsToJson(musical.bars()));
+		root.add("phrases", musicalPhrasesToJson(musical.phrases()));
+		root.add("repeats", repeatsToJson(musical.repeats()));
+		return root;
+	}
+
+	private static ChoreographyPlan.MusicalStructure musicalStructureFromJson(@Nullable JsonElement element) {
+		if (element == null || !element.isJsonObject()) {
+			return ChoreographyPlan.MusicalStructure.empty();
+		}
+		JsonObject root = element.getAsJsonObject();
+		return new ChoreographyPlan.MusicalStructure(
+			barsFromJson(root.get("bars")),
+			musicalPhrasesFromJson(root.get("phrases")),
+			repeatsFromJson(root.get("repeats"))
+		);
+	}
+
+	private static JsonArray barsToJson(List<ChoreographyPlan.BarPlan> bars) {
+		JsonArray arr = new JsonArray();
+		for (ChoreographyPlan.BarPlan bar : bars) {
+			JsonObject obj = new JsonObject();
+			obj.addProperty("startSeconds", bar.startSeconds());
+			obj.addProperty("endSeconds", bar.endSeconds());
+			obj.addProperty("barIndex", bar.barIndex());
+			obj.addProperty("sectionIndex", bar.sectionIndex());
+			arr.add(obj);
+		}
+		return arr;
+	}
+
+	private static List<ChoreographyPlan.BarPlan> barsFromJson(@Nullable JsonElement element) {
+		List<ChoreographyPlan.BarPlan> out = new ArrayList<>();
+		if (element == null || !element.isJsonArray()) return out;
+		JsonArray arr = element.getAsJsonArray();
+		for (int i = 0; i < arr.size(); i++) {
+			if (!arr.get(i).isJsonObject()) continue;
+			JsonObject obj = arr.get(i).getAsJsonObject();
+			out.add(new ChoreographyPlan.BarPlan(
+				getDouble(obj, "startSeconds", 0.0),
+				getDouble(obj, "endSeconds", 0.0),
+				getInt(obj, "barIndex", 0),
+				getInt(obj, "sectionIndex", -1)
+			));
+		}
+		return out;
+	}
+
+	private static JsonArray musicalPhrasesToJson(List<ChoreographyPlan.MusicalPhrasePlan> phrases) {
+		JsonArray arr = new JsonArray();
+		for (ChoreographyPlan.MusicalPhrasePlan phrase : phrases) {
+			JsonObject obj = new JsonObject();
+			obj.addProperty("startSeconds", phrase.startSeconds());
+			obj.addProperty("endSeconds", phrase.endSeconds());
+			obj.addProperty("phraseIndex", phrase.phraseIndex());
+			obj.addProperty("sectionIndex", phrase.sectionIndex());
+			obj.addProperty("repetitionScore", phrase.repetitionScore());
+			if (phrase.repeatAnchorPhraseIndex() >= 0) {
+				obj.addProperty("repeatAnchorPhraseIndex", phrase.repeatAnchorPhraseIndex());
+			}
+			arr.add(obj);
+		}
+		return arr;
+	}
+
+	private static List<ChoreographyPlan.MusicalPhrasePlan> musicalPhrasesFromJson(@Nullable JsonElement element) {
+		List<ChoreographyPlan.MusicalPhrasePlan> out = new ArrayList<>();
+		if (element == null || !element.isJsonArray()) return out;
+		JsonArray arr = element.getAsJsonArray();
+		for (int i = 0; i < arr.size(); i++) {
+			if (!arr.get(i).isJsonObject()) continue;
+			JsonObject obj = arr.get(i).getAsJsonObject();
+			out.add(new ChoreographyPlan.MusicalPhrasePlan(
+				getDouble(obj, "startSeconds", 0.0),
+				getDouble(obj, "endSeconds", 0.0),
+				getInt(obj, "phraseIndex", 0),
+				getInt(obj, "sectionIndex", -1),
+				getDouble(obj, "repetitionScore", 0.0),
+				getInt(obj, "repeatAnchorPhraseIndex", -1)
+			));
+		}
+		return out;
+	}
+
+	private static JsonArray repeatsToJson(List<ChoreographyPlan.RepeatGroup> repeats) {
+		JsonArray arr = new JsonArray();
+		for (ChoreographyPlan.RepeatGroup repeat : repeats) {
+			JsonObject obj = new JsonObject();
+			obj.addProperty("repeatGroupId", repeat.repeatGroupId());
+			obj.addProperty("anchorPhraseIndex", repeat.anchorPhraseIndex());
+			obj.addProperty("similarityScore", repeat.similarityScore());
+			JsonArray indices = new JsonArray();
+			for (int index : repeat.phraseIndices()) {
+				indices.add(index);
+			}
+			obj.add("phraseIndices", indices);
+			arr.add(obj);
+		}
+		return arr;
+	}
+
+	private static List<ChoreographyPlan.RepeatGroup> repeatsFromJson(@Nullable JsonElement element) {
+		List<ChoreographyPlan.RepeatGroup> out = new ArrayList<>();
+		if (element == null || !element.isJsonArray()) return out;
+		JsonArray arr = element.getAsJsonArray();
+		for (int i = 0; i < arr.size(); i++) {
+			if (!arr.get(i).isJsonObject()) continue;
+			JsonObject obj = arr.get(i).getAsJsonObject();
+			List<Integer> indices = new ArrayList<>();
+			if (obj.has("phraseIndices") && obj.get("phraseIndices").isJsonArray()) {
+				JsonArray phraseIndices = obj.getAsJsonArray("phraseIndices");
+				for (int j = 0; j < phraseIndices.size(); j++) {
+					indices.add(phraseIndices.get(j).getAsInt());
+				}
+			}
+			out.add(new ChoreographyPlan.RepeatGroup(
+				getInt(obj, "repeatGroupId", 0),
+				getInt(obj, "anchorPhraseIndex", 0),
+				indices,
+				getDouble(obj, "similarityScore", 0.0)
+			));
+		}
+		return out;
 	}
 
 	private static JsonObject configToJson(AutoMapConfig config) {

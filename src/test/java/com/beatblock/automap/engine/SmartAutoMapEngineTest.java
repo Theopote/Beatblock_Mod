@@ -5,6 +5,7 @@ import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.DetectedBeat;
 import com.beatblock.audio.analysis.EnergyFrame;
 import com.beatblock.audio.analysis.FrequencyBands;
+import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.timeline.Timeline;
 import org.junit.jupiter.api.Test;
 
@@ -59,6 +60,8 @@ class SmartAutoMapEngineTest {
 		assertEquals(0, result.getParticleEvents());
 		assertTrue(timeline.getAutoAnimationEvents().size() >= result.getAnimationEvents());
 		assertTrue(timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size() >= result.getCameraEvents());
+		var plan = ChoreographyPlanStore.loadPlan(timeline);
+		assertTrue(plan != null && !plan.musicalStructure().bars().isEmpty());
 	}
 
 	@Test

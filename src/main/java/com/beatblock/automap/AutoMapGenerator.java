@@ -4,6 +4,7 @@ import com.beatblock.automap.engine.RhythmType;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanBuilder;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
+import com.beatblock.timeline.generation.AnimationDropTargetResolver;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.FeatureTrack;
 import com.beatblock.timeline.Timeline;
@@ -109,9 +110,14 @@ public final class AutoMapGenerator {
 		var engine = com.beatblock.BeatBlock.getContext().blockAnimationEngine();
 		if (engine != null) {
 			var sys = engine.getStageObjectSystem();
-			var all = sys != null ? sys.getAll() : null;
-			if (all != null && !all.isEmpty()) {
-				return all.iterator().next().getId();
+			if (sys != null) {
+				List<String> ids = new ArrayList<>();
+				for (var obj : sys.getAll()) {
+					if (obj != null && obj.getId() != null && !obj.getId().isBlank()) {
+						ids.add(obj.getId().trim());
+					}
+				}
+				return AnimationDropTargetResolver.soleRegisteredTargetOrEmpty(ids);
 			}
 		}
 		return "";

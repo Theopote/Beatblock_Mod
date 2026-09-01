@@ -96,6 +96,18 @@ public final class AnimationDropTargetResolver {
 		return targetObjectId == null || targetObjectId.isBlank();
 	}
 
+	/**
+	 * Returns the sole registered RuntimeStageObject id when exactly one exists;
+	 * otherwise empty string (UNBOUND). Never picks first of many.
+	 */
+	public static String soleRegisteredTargetOrEmpty(@Nullable Collection<String> registeredStageObjectIds) {
+		Result result = resolve(null, null, registeredStageObjectIds);
+		if (result.mode() == Mode.SINGLE) {
+			return result.targetObjectIds().getFirst();
+		}
+		return "";
+	}
+
 	private static List<String> sanitize(@Nullable Collection<String> raw) {
 		if (raw == null || raw.isEmpty()) {
 			return List.of();
