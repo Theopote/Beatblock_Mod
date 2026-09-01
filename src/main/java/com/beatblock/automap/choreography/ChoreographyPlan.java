@@ -14,7 +14,7 @@ public record ChoreographyPlan(
 	List<StageRoleAssignment> stageRoles,
 	List<MotionPhrase> motionPhrases,
 	List<CameraPhrase> cameraPhrases,
-	List<VfxPhrase> vfxPhrases,
+	List<ChoreographyVfx> vfxPhrases,
 	DensityCurve densityCurve,
 	List<SectionEditProfile> sectionEdits,
 	MusicalStructure musicalStructure
@@ -25,7 +25,7 @@ public record ChoreographyPlan(
 		List<StageRoleAssignment> stageRoles,
 		List<MotionPhrase> motionPhrases,
 		List<CameraPhrase> cameraPhrases,
-		List<VfxPhrase> vfxPhrases,
+		List<ChoreographyVfx> vfxPhrases,
 		DensityCurve densityCurve
 	) {
 		this(sections, stageRoles, motionPhrases, cameraPhrases, vfxPhrases, densityCurve, List.of());
@@ -36,7 +36,7 @@ public record ChoreographyPlan(
 		List<StageRoleAssignment> stageRoles,
 		List<MotionPhrase> motionPhrases,
 		List<CameraPhrase> cameraPhrases,
-		List<VfxPhrase> vfxPhrases,
+		List<ChoreographyVfx> vfxPhrases,
 		DensityCurve densityCurve,
 		List<SectionEditProfile> sectionEdits
 	) {
@@ -241,15 +241,5 @@ public record ChoreographyPlan(
 			sectionIndex = Math.max(-1, sectionIndex);
 		}
 	}
-
-	public record VfxPhrase(double timeSeconds, String vfxKind, int sectionIndex) {
-		public VfxPhrase(double timeSeconds, String vfxKind) {
-			this(timeSeconds, vfxKind, -1);
-		}
-
-		public VfxPhrase {
-			vfxKind = vfxKind != null ? vfxKind : "";
-			sectionIndex = Math.max(-1, sectionIndex);
-		}
-	}
 }
+

@@ -31,12 +31,12 @@
       "trackId": "animation_auto",
       "clips": [
         {
-          "id": "45d4691f42da",
+          "id": "e5090f29f0e0",
           "startTimeSeconds": 2.0,
           "endTimeSeconds": 3.0,
           "events": [
             {
-              "id": "b2852e97100f",
+              "id": "fd3974e8c7ce",
               "timeSeconds": 2.0,
               "type": "ANIMATION",
               "parameters": {
@@ -58,12 +58,12 @@
       "trackId": "camera",
       "clips": [
         {
-          "id": "e64a0652d070",
+          "id": "7848750e6a69",
           "startTimeSeconds": 0.0,
           "endTimeSeconds": 48.0,
           "events": [
             {
-              "id": "59a0a3192e2d",
+              "id": "998448ed3923",
               "timeSeconds": 0.0,
               "type": "CAMERA_KEYFRAME",
               "parameters": {
@@ -75,7 +75,7 @@
               }
             },
             {
-              "id": "50038d2359d9",
+              "id": "d6342641758a",
               "timeSeconds": 16.0,
               "type": "CAMERA_KEYFRAME",
               "parameters": {
@@ -87,7 +87,7 @@
               }
             },
             {
-              "id": "6436b9cc9b29",
+              "id": "be95b773ede5",
               "timeSeconds": 32.0,
               "type": "CAMERA_KEYFRAME",
               "parameters": {
@@ -106,12 +106,12 @@
       "trackId": "global",
       "clips": [
         {
-          "id": "0e6f8df88e20",
+          "id": "9445187b3b9c",
           "startTimeSeconds": 0.0,
           "endTimeSeconds": 48.0,
           "events": [
             {
-              "id": "9716934a1d4e",
+              "id": "d59de43cccac",
               "timeSeconds": 6.0,
               "type": "GLOBAL",
               "parameters": {
@@ -125,7 +125,7 @@
               }
             },
             {
-              "id": "b07a3a9c290f",
+              "id": "426467579199",
               "timeSeconds": 12.0,
               "type": "GLOBAL",
               "parameters": {
@@ -139,7 +139,7 @@
               }
             },
             {
-              "id": "4bd30cfe45eb",
+              "id": "ac24a816f826",
               "timeSeconds": 20.0,
               "type": "GLOBAL",
               "parameters": {
@@ -150,7 +150,7 @@
               }
             },
             {
-              "id": "756f725ea3b9",
+              "id": "204d1081ce9c",
               "timeSeconds": 28.0,
               "type": "GLOBAL",
               "parameters": {

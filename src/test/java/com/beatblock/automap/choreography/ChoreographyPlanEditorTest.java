@@ -165,7 +165,7 @@ class ChoreographyPlanEditorTest {
 				new ChoreographyPlan.MotionPhrase(14.0, "snare", "mid", 0.7f, "slide", 0.4, true, 3f, 1)
 			),
 			List.of(new ChoreographyPlan.CameraPhrase(4.0, "PAN", 0)),
-			List.of(new ChoreographyPlan.VfxPhrase(3.0, "particle_spark", 0)),
+			List.of(ChoreographyVfxFactory.fromLegacyVfxKind(3.0, "particle_spark", 0)),
 			DensityCurve.uniform(1.0)
 		);
 	}

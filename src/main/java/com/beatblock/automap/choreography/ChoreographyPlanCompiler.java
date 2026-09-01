@@ -11,6 +11,7 @@ import com.beatblock.automap.camera.CameraShotTimelineWriter;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
+import com.beatblock.timeline.playback.GlobalEventPayload;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 
 import java.util.ArrayList;
@@ -149,16 +150,10 @@ public final class ChoreographyPlanCompiler {
 		ReplaceMode replaceMode = mode != null ? mode : ReplaceMode.APPEND;
 		ChoreographyCompileApplicator.applyVfx(timeline, replaceMode);
 		int count = 0;
-		for (ChoreographyPlan.VfxPhrase phrase : plan.vfxPhrases()) {
+		for (ChoreographyVfx phrase : plan.vfxPhrases()) {
 			if (!ChoreographyPlanEditor.isVfxEnabled(plan, phrase)) continue;
-			timeline.addGlobalEvent(
-				new com.beatblock.timeline.GlobalEvent(
-					phrase.timeSeconds(),
-					com.beatblock.timeline.GlobalEventType.SPECIAL,
-					phrase.vfxKind()
-				),
-				TimelineEventOrigin.AUTO_GENERATED
-			);
+			GlobalEventPayload payload = ChoreographyVfxPayloadMapper.toPayload(phrase);
+			timeline.addGlobalPayloadEvent(phrase.timeSeconds(), payload, TimelineEventOrigin.AUTO_GENERATED);
 			count++;
 		}
 		return count;

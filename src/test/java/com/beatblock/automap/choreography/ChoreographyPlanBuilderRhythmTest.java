@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChoreographyPlanBuilderRhythmTest {
@@ -49,7 +50,11 @@ class ChoreographyPlanBuilderRhythmTest {
 		assertEquals(1, plan.cameraPhrases().size());
 		assertTrue(plan.cameraPhrases().getFirst().action().contains("PAN"));
 		assertEquals(1, plan.vfxPhrases().size());
-		assertEquals("particle_spark", plan.vfxPhrases().getFirst().vfxKind());
+		ChoreographyVfx.ParticleBurst burst = assertInstanceOf(
+			ChoreographyVfx.ParticleBurst.class, plan.vfxPhrases().getFirst());
+		assertEquals("SPARK", burst.name());
+		assertEquals("minecraft:crit", burst.particleType());
+		assertEquals(12, burst.count());
 		assertTrue(plan.densityCurve().sampleAt(0) > 0);
 	}
 }

@@ -2,18 +2,24 @@ package com.beatblock.automap.choreography;
 
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapRule;
+import com.beatblock.automap.choreography.ChoreographyCompileOptions;
+import com.beatblock.automap.choreography.ChoreographyVfxFactory;
 import com.beatblock.automap.engine.SectionType;
 import com.beatblock.timeline.CameraKeyframe;
+import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.GlobalEvent;
 import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.playback.GlobalEventPayload;
+import com.beatblock.timeline.playback.GlobalEventPayloadCodec;
 import com.beatblock.test.WithBeatBlockContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 @WithBeatBlockContext
 class ChoreographyPlanCompilerTest {
@@ -71,8 +77,8 @@ class ChoreographyPlanCompilerTest {
 			List.of(),
 			List.of(new ChoreographyPlan.CameraPhrase(4.0, "PAN", 0)),
 			List.of(
-				new ChoreographyPlan.VfxPhrase(2.0, "particle_spark", 0),
-				new ChoreographyPlan.VfxPhrase(8.0, "particle_burst", 0)
+				ChoreographyVfxFactory.fromLegacyVfxKind(2.0, "particle_spark", 0),
+				ChoreographyVfxFactory.fromLegacyVfxKind(8.0, "particle_burst", 0)
 			),
 			DensityCurve.uniform(1.0)
 		);
@@ -101,7 +107,7 @@ class ChoreographyPlanCompilerTest {
 			List.of(),
 			List.of(),
 			List.of(new ChoreographyPlan.CameraPhrase(4.0, "PAN", 0)),
-			List.of(new ChoreographyPlan.VfxPhrase(6.0, "particle_spark", 0)),
+			List.of(ChoreographyVfxFactory.fromLegacyVfxKind(6.0, "particle_spark", 0)),
 			DensityCurve.uniform(1.0)
 		);
 
@@ -119,5 +125,31 @@ class ChoreographyPlanCompilerTest {
 			.findFirst()
 			.orElseThrow()
 			.getName());
+	}
+
+	@Test
+	void compilesVfxAsTypedParticleBurstPayload() {
+		Timeline timeline = Timeline.createDefault();
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 16, SectionType.INTRO, "intro")),
+			List.of(),
+			List.of(),
+			List.of(),
+			List.of(ChoreographyVfxFactory.fromLegacyVfxKind(2.0, "particle_spark", 0)),
+			DensityCurve.uniform(1.0)
+		);
+
+		ChoreographyPlanCompiler.compileAll(
+			timeline, plan, AutoMapConfig.createDefault(), ChoreographyCompileOptions.smartAutoMap());
+
+		var event = timeline.getTrack(Timeline.TRACK_ID_GLOBAL).getClips().getFirst().getEvents().getFirst();
+		assertEquals("PARTICLE_BURST", event.getParameters().get("type"));
+		GlobalEventPayload.ParticleBurst payload = assertInstanceOf(
+			GlobalEventPayload.ParticleBurst.class,
+			GlobalEventPayloadCodec.decode(event.getParameters())
+		);
+		assertEquals("spark", payload.name());
+		assertEquals("minecraft:crit", payload.particleType());
+		assertEquals(12, payload.count());
 	}
 }

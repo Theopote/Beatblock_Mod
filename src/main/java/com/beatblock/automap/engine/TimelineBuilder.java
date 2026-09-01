@@ -3,11 +3,13 @@ package com.beatblock.automap.engine;
 import com.beatblock.BeatBlock;
 import com.beatblock.automap.camera.CameraShot;
 import com.beatblock.automap.camera.CameraShotTimelineWriter;
-import com.beatblock.timeline.GlobalEvent;
-import com.beatblock.timeline.GlobalEventType;
+import com.beatblock.automap.choreography.ChoreographyVfx;
+import com.beatblock.automap.choreography.ChoreographyVfxFactory;
+import com.beatblock.automap.choreography.ChoreographyVfxPayloadMapper;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
+import com.beatblock.timeline.playback.GlobalEventPayload;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 
 import java.util.HashMap;
@@ -68,17 +70,16 @@ public final class TimelineBuilder {
 	}
 
 	/**
-	 * 写入粒子/灯光为全局事件（name 标识类型，如 particle_spark）。
+	 * 写入粒子事件为强类型全局 payload（PARTICLE_BURST）。
 	 */
 	public static int writeParticleEvents(Timeline timeline, List<ParticleEvent> particleEvents) {
 		if (timeline == null || particleEvents == null) return 0;
 		int count = 0;
 		for (ParticleEvent e : particleEvents) {
-			String name = "particle_" + e.getType().name().toLowerCase();
-			timeline.addGlobalEvent(
-				new GlobalEvent(e.getTimeSeconds(), GlobalEventType.SPECIAL, name),
-				TimelineEventOrigin.AUTO_GENERATED
-			);
+			ChoreographyVfx.ParticleBurst phrase = ChoreographyVfxFactory.fromParticleEvent(
+				e, -1, List.of());
+			GlobalEventPayload payload = ChoreographyVfxPayloadMapper.toPayload(phrase);
+			timeline.addGlobalPayloadEvent(e.getTimeSeconds(), payload, TimelineEventOrigin.AUTO_GENERATED);
 			count++;
 		}
 		return count;

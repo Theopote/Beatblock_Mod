@@ -160,13 +160,16 @@ public final class ChoreographyPlanBuilder {
 			}
 		}
 
-		List<ChoreographyPlan.VfxPhrase> vfx = new ArrayList<>();
+		List<ChoreographyVfx> vfx = new ArrayList<>();
 		if (particleEvents != null) {
+			List<String> targetIds = config.getTargetByNormalizedFeature().values().stream()
+				.filter(id -> id != null && !id.isBlank())
+				.toList();
 			for (ParticleEvent event : particleEvents) {
-				vfx.add(new ChoreographyPlan.VfxPhrase(
-					event.getTimeSeconds(),
-					"particle_" + event.getType().name().toLowerCase(),
-					resolveSectionIndex(sectionPlans, event.getTimeSeconds())
+				vfx.add(ChoreographyVfxFactory.fromParticleEvent(
+					event,
+					resolveSectionIndex(sectionPlans, event.getTimeSeconds()),
+					targetIds
 				));
 			}
 		}

@@ -3,6 +3,7 @@ package com.beatblock.timeline.project;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
+import com.beatblock.automap.choreography.ChoreographyVfxFactory;
 import com.beatblock.automap.choreography.DensityCurve;
 import com.beatblock.automap.choreography.SectionEditProfile;
 import com.beatblock.automap.engine.SectionType;
@@ -28,7 +29,7 @@ class ChoreographyPlanPersistenceTest {
 			List.of(new ChoreographyPlan.StageRoleAssignment("low", "stage-kick")),
 			List.of(new ChoreographyPlan.MotionPhrase(2.0, "kick", "low", 0.8f, "bounce", 0.5, true, 4f, 0)),
 			List.of(new ChoreographyPlan.CameraPhrase(4.0, "PAN", 0)),
-			List.of(new ChoreographyPlan.VfxPhrase(3.0, "particle_spark", 0)),
+			List.of(ChoreographyVfxFactory.fromLegacyVfxKind(3.0, "particle_spark", 0)),
 			DensityCurve.ofPoints(List.of(
 				new DensityCurve.Point(0.0, 0.2),
 				new DensityCurve.Point(12.0, 0.9)

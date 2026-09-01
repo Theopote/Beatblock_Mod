@@ -56,6 +56,76 @@ public final class GlobalEventPayloadCodec {
 		};
 	}
 
+	public static Map<String, Object> encode(GlobalEventPayload payload) {
+		if (payload == null) return Map.of("type", "SPECIAL", "name", "");
+		Map<String, Object> params = new LinkedHashMap<>();
+		switch (payload) {
+			case GlobalEventPayload.EnvironmentLighting value -> {
+				params.put("type", "ENVIRONMENT_LIGHTING");
+				params.put("name", value.name());
+				params.put("intensity", value.intensity());
+				params.put("r", value.r());
+				params.put("g", value.g());
+				params.put("b", value.b());
+				params.put("durationSeconds", value.durationSeconds());
+			}
+			case GlobalEventPayload.ScreenTint value -> {
+				params.put("type", "SCREEN_TINT");
+				params.put("name", value.name());
+				params.put("intensity", value.intensity());
+				params.put("r", value.r());
+				params.put("g", value.g());
+				params.put("b", value.b());
+				params.put("durationSeconds", value.durationSeconds());
+			}
+			case GlobalEventPayload.Lighting value -> {
+				params.put("type", "LIGHTING");
+				params.put("name", value.name());
+				params.put("intensity", value.intensity());
+				params.put("r", value.r());
+				params.put("g", value.g());
+				params.put("b", value.b());
+				params.put("durationSeconds", value.durationSeconds());
+			}
+			case GlobalEventPayload.LocalVisualWeather value -> {
+				params.put("type", "LOCAL_VISUAL_WEATHER");
+				params.put("name", value.name());
+				params.put("weatherType", value.weatherType());
+				params.put("transitionSeconds", value.transitionSeconds());
+			}
+			case GlobalEventPayload.ParticleBurst value -> {
+				params.put("type", "PARTICLE_BURST");
+				params.put("name", value.name());
+				params.put("particleType", value.particleType());
+				params.put("x", value.x());
+				params.put("y", value.y());
+				params.put("z", value.z());
+				params.put("count", value.count());
+			}
+			case GlobalEventPayload.ScreenFlash value -> {
+				params.put("type", "SCREEN_FLASH");
+				params.put("name", value.name());
+				params.put("r", value.r());
+				params.put("g", value.g());
+				params.put("b", value.b());
+				params.put("durationSeconds", value.durationSeconds());
+			}
+			case GlobalEventPayload.AudioMix value -> {
+				params.put("type", "AUDIO_MIX");
+				params.put("name", value.name());
+				params.put("channel", value.channel());
+				params.put("volume", value.volume());
+				params.put("fadeSeconds", value.fadeSeconds());
+			}
+			case GlobalEventPayload.Generic value -> {
+				params.put("type", value.typeName());
+				params.put("name", value.name());
+				params.putAll(value.parameters());
+			}
+		}
+		return Map.copyOf(params);
+	}
+
 	static String normalizeType(@Nullable Object raw) {
 		String value = raw != null ? String.valueOf(raw).trim() : "SPECIAL";
 		if (value.isEmpty()) value = "SPECIAL";

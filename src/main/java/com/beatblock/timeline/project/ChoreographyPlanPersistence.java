@@ -4,6 +4,7 @@ import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapRule;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
+import com.beatblock.automap.choreography.ChoreographyVfxPersistence;
 import com.beatblock.automap.choreography.DensityCurve;
 import com.beatblock.automap.choreography.SectionEditProfile;
 import com.beatblock.automap.engine.SectionType;
@@ -52,7 +53,7 @@ public final class ChoreographyPlanPersistence {
 		root.add("stageRoles", stageRolesToJson(plan.stageRoles()));
 		root.add("motionPhrases", motionPhrasesToJson(plan.motionPhrases()));
 		root.add("cameraPhrases", cameraPhrasesToJson(plan.cameraPhrases()));
-		root.add("vfxPhrases", vfxPhrasesToJson(plan.vfxPhrases()));
+		root.add("vfxPhrases", ChoreographyVfxPersistence.toJson(plan.vfxPhrases()));
 		root.add("densityCurve", densityCurveToJson(plan.densityCurve()));
 		root.add("sectionEdits", sectionEditsToJson(plan.sectionEdits()));
 		if (!plan.musicalStructure().isEmpty()) {
@@ -69,7 +70,7 @@ public final class ChoreographyPlanPersistence {
 			stageRolesFromJson(root.get("stageRoles")),
 			motionPhrasesFromJson(root.get("motionPhrases")),
 			cameraPhrasesFromJson(root.get("cameraPhrases")),
-			vfxPhrasesFromJson(root.get("vfxPhrases")),
+			ChoreographyVfxPersistence.fromJson(root.get("vfxPhrases")),
 			densityCurveFromJson(root.get("densityCurve")),
 			sectionEditsFromJson(root.get("sectionEdits")),
 			musicalStructureFromJson(root.get("musicalStructure"))
@@ -406,34 +407,6 @@ public final class ChoreographyPlanPersistence {
 				getString(obj, "movement", ""),
 				getString(obj, "easing", ""),
 				getBool(obj, "beatAligned", false)
-			));
-		}
-		return out;
-	}
-
-	private static JsonArray vfxPhrasesToJson(List<ChoreographyPlan.VfxPhrase> phrases) {
-		JsonArray arr = new JsonArray();
-		for (ChoreographyPlan.VfxPhrase phrase : phrases) {
-			JsonObject obj = new JsonObject();
-			obj.addProperty("timeSeconds", phrase.timeSeconds());
-			obj.addProperty("vfxKind", phrase.vfxKind());
-			obj.addProperty("sectionIndex", phrase.sectionIndex());
-			arr.add(obj);
-		}
-		return arr;
-	}
-
-	private static List<ChoreographyPlan.VfxPhrase> vfxPhrasesFromJson(@Nullable JsonElement element) {
-		List<ChoreographyPlan.VfxPhrase> out = new ArrayList<>();
-		if (element == null || !element.isJsonArray()) return out;
-		JsonArray arr = element.getAsJsonArray();
-		for (int i = 0; i < arr.size(); i++) {
-			if (!arr.get(i).isJsonObject()) continue;
-			JsonObject obj = arr.get(i).getAsJsonObject();
-			out.add(new ChoreographyPlan.VfxPhrase(
-				getDouble(obj, "timeSeconds", 0.0),
-				getString(obj, "vfxKind", ""),
-				getInt(obj, "sectionIndex", -1)
 			));
 		}
 		return out;

@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
+import com.beatblock.timeline.playback.GlobalEventPayload;
+import com.beatblock.timeline.playback.GlobalEventPayloadCodec;
 import com.beatblock.client.ClientThreadGuard;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -503,6 +505,27 @@ public class Timeline {
 			TimelineOperations.addEvent(
 				clip,
 				e.getTimeSeconds(),
+				EventType.GLOBAL,
+				TimelineEventOriginSupport.withOrigin(params, origin)
+			);
+		}
+	}
+
+	public void addGlobalPayloadEvent(
+		double timeSeconds,
+		GlobalEventPayload payload,
+		TimelineEventOrigin origin
+	) {
+		requireClientThread();
+		if (payload == null) return;
+		Track t = getTrack(TRACK_ID_GLOBAL);
+		if (t == null) return;
+		Clip clip = TimelineOperations.addClip(t, timeSeconds, timeSeconds + 0.1);
+		if (clip != null) {
+			Map<String, Object> params = GlobalEventPayloadCodec.encode(payload);
+			TimelineOperations.addEvent(
+				clip,
+				timeSeconds,
 				EventType.GLOBAL,
 				TimelineEventOriginSupport.withOrigin(params, origin)
 			);

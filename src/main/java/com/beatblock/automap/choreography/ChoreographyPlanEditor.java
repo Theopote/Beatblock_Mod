@@ -32,11 +32,11 @@ public final class ChoreographyPlanEditor {
 		return filterBySection(plan.cameraPhrases(), sectionIndex, ChoreographyPlan.CameraPhrase::sectionIndex);
 	}
 
-	public static List<ChoreographyPlan.VfxPhrase> vfxPhrasesInSection(
+	public static List<ChoreographyVfx> vfxPhrasesInSection(
 		ChoreographyPlan plan,
 		int sectionIndex
 	) {
-		return filterBySection(plan.vfxPhrases(), sectionIndex, ChoreographyPlan.VfxPhrase::sectionIndex);
+		return filterBySection(plan.vfxPhrases(), sectionIndex, ChoreographyVfx::sectionIndex);
 	}
 
 	public static @Nullable SectionEditProfile editForSection(ChoreographyPlan plan, int sectionIndex) {
@@ -188,7 +188,7 @@ public final class ChoreographyPlanEditor {
 		return edit == null || edit.cameraEnabled();
 	}
 
-	static boolean isVfxEnabled(ChoreographyPlan plan, ChoreographyPlan.VfxPhrase phrase) {
+	static boolean isVfxEnabled(ChoreographyPlan plan, ChoreographyVfx phrase) {
 		SectionEditProfile edit = editForSection(plan, phrase.sectionIndex());
 		return edit == null || edit.vfxEnabled();
 	}
@@ -263,20 +263,19 @@ public final class ChoreographyPlanEditor {
 		return out;
 	}
 
-	private static List<ChoreographyPlan.VfxPhrase> applyVfxOverrides(
-		List<ChoreographyPlan.VfxPhrase> phrases,
+	private static List<ChoreographyVfx> applyVfxOverrides(
+		List<ChoreographyVfx> phrases,
 		Map<Integer, SectionEditProfile> edits
 	) {
-		List<ChoreographyPlan.VfxPhrase> out = new ArrayList<>(phrases.size());
-		for (ChoreographyPlan.VfxPhrase phrase : phrases) {
+		List<ChoreographyVfx> out = new ArrayList<>(phrases.size());
+		for (ChoreographyVfx phrase : phrases) {
 			SectionEditProfile edit = edits.get(phrase.sectionIndex());
 			if (edit == null) {
 				out.add(phrase);
 				continue;
 			}
-			out.add(new ChoreographyPlan.VfxPhrase(
+			out.add(phrase.withTiming(
 				phrase.timeSeconds() + edit.timeOffsetSeconds(),
-				phrase.vfxKind(),
 				phrase.sectionIndex()
 			));
 		}
@@ -332,24 +331,20 @@ public final class ChoreographyPlanEditor {
 		return out;
 	}
 
-	private static List<ChoreographyPlan.VfxPhrase> transformVfxPhrases(
+	private static List<ChoreographyVfx> transformVfxPhrases(
 		ChoreographyPlan plan,
 		int sectionIndex,
 		double deltaSeconds,
 		@Nullable String ignored
 	) {
-		List<ChoreographyPlan.VfxPhrase> out = new ArrayList<>(plan.vfxPhrases().size());
-		for (ChoreographyPlan.VfxPhrase phrase : plan.vfxPhrases()) {
+		List<ChoreographyVfx> out = new ArrayList<>(plan.vfxPhrases().size());
+		for (ChoreographyVfx phrase : plan.vfxPhrases()) {
 			if (phrase.sectionIndex() != sectionIndex) {
 				out.add(phrase);
 				continue;
 			}
 			double time = phrase.timeSeconds() + deltaSeconds;
-			out.add(new ChoreographyPlan.VfxPhrase(
-				time,
-				phrase.vfxKind(),
-				resolveSectionIndex(plan.sections(), time)
-			));
+			out.add(phrase.withTiming(time, resolveSectionIndex(plan.sections(), time)));
 		}
 		return out;
 	}
@@ -390,15 +385,14 @@ public final class ChoreographyPlanEditor {
 		return out;
 	}
 
-	private static List<ChoreographyPlan.VfxPhrase> rebindVfxPhrases(
-		List<ChoreographyPlan.VfxPhrase> phrases,
+	private static List<ChoreographyVfx> rebindVfxPhrases(
+		List<ChoreographyVfx> phrases,
 		List<ChoreographyPlan.SectionPlan> sections
 	) {
-		List<ChoreographyPlan.VfxPhrase> out = new ArrayList<>(phrases.size());
-		for (ChoreographyPlan.VfxPhrase phrase : phrases) {
-			out.add(new ChoreographyPlan.VfxPhrase(
+		List<ChoreographyVfx> out = new ArrayList<>(phrases.size());
+		for (ChoreographyVfx phrase : phrases) {
+			out.add(phrase.withTiming(
 				phrase.timeSeconds(),
-				phrase.vfxKind(),
 				resolveSectionIndex(sections, phrase.timeSeconds())
 			));
 		}
@@ -441,7 +435,7 @@ public final class ChoreographyPlanEditor {
 		List<ChoreographyPlan.StageRoleAssignment> roles,
 		List<ChoreographyPlan.MotionPhrase> motions,
 		List<ChoreographyPlan.CameraPhrase> cameras,
-		List<ChoreographyPlan.VfxPhrase> vfx,
+		List<ChoreographyVfx> vfx,
 		DensityCurve density,
 		List<SectionEditProfile> edits
 	) {
