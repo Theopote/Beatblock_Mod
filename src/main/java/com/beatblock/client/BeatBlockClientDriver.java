@@ -251,27 +251,62 @@ public final class BeatBlockClientDriver {
 		requireInstance().prepareExportFrameInternal(timeSeconds);
 	}
 
+	/**
+	 * 视频导出专用：基于冻结的编译快照 seek，确保舞台/镜头/VFX 与正式播放一致。
+	 */
+	public static void prepareExportFrameFromSnapshot(CompiledTimelineSnapshot snapshot, double timeSeconds) {
+		requireInstance().prepareExportFrameFromSnapshotInternal(snapshot, timeSeconds);
+	}
+
 	private void prepareExportFrameInternal(double timeSeconds) {
 		ClientThreadGuard.assertClientThread();
 		stopPlaybackInternal();
-		var editor = ctx().timelineEditor();
-		if (editor != null) {
-			editor.getPlaybackSession().seek(timeSeconds);
-		} else {
-			var musicPlayer = ctx().musicPlayer();
-			if (musicPlayer != null) {
-				musicPlayer.setCurrentTimeSeconds(timeSeconds);
-			}
-			var stemMixer = ctx().stemMixer();
-			if (stemMixer != null && stemMixer.hasStems()) {
-				stemMixer.setCurrentTimeSeconds(timeSeconds);
-			}
-		}
+		seekPreviewClock(timeSeconds);
 		resetTimelineAnimationScheduling();
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
 		if (world != null) {
 			tickBlockAnimationEngine(timeSeconds, true, world);
+		}
+	}
+
+	private void prepareExportFrameFromSnapshotInternal(CompiledTimelineSnapshot snapshot, double timeSeconds) {
+		ClientThreadGuard.assertClientThread();
+		if (snapshot == null) {
+			prepareExportFrameInternal(timeSeconds);
+			return;
+		}
+		stopPlaybackInternal();
+		seekPreviewClock(timeSeconds);
+		resetTimelineAnimationScheduling();
+		compiledPlayback = snapshot;
+		playbackEngine.load(snapshot);
+		MinecraftClient mc = MinecraftClient.getInstance();
+		World world = mc != null ? mc.world : null;
+		if (world != null) {
+			tickBlockAnimationEngine(timeSeconds, false, world);
+		} else {
+			syncStageEvents(timeSeconds, false);
+			var engine = ctx().blockAnimationEngine();
+			if (engine != null) {
+				engine.tick(timeSeconds, null, WorldMutationSink.NO_OP);
+			}
+		}
+	}
+
+	private void seekPreviewClock(double timeSeconds) {
+		var editor = ctx().timelineEditor();
+		if (editor != null) {
+			editor.getPlaybackSession().seek(timeSeconds);
+			return;
+		}
+		var musicPlayer = ctx().musicPlayer();
+		if (musicPlayer != null) {
+			musicPlayer.setCurrentTimeSeconds(timeSeconds);
+		}
+		var stemMixer = ctx().stemMixer();
+		if (stemMixer != null && stemMixer.hasStems()) {
+			stemMixer.setCurrentTimeSeconds(timeSeconds);
 		}
 	}
 

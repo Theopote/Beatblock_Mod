@@ -9,6 +9,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.engine.StageObjectSystem;
+import com.beatblock.timeline.playback.TimelineCompiler;
+import net.minecraft.util.math.BlockPos;
+
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -79,5 +85,35 @@ class BeatBlockClientDriverTest {
 			"during-play", 2.0, 1.0, "pulse", "stage", 1f, Map.of()));
 		assertEquals(1, snapshot.stageEvents().size());
 		assertEquals("pulse", snapshot.stageEvents().getFirst().getAnimationTypeId());
+	}
+
+	@Test
+	void prepareExportFrameFromSnapshotSeeksClockAndUsesFrozenCompiledProgram() {
+		BlockAnimationEngine engine = new BlockAnimationEngine();
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"stage", "Stage", List.of(new BlockPos(0, 64, 0))));
+		context = BeatBlockContext.builder()
+			.timeline(timeline)
+			.timelineEditor(editor)
+			.musicPlayer(musicPlayer)
+			.blockAnimationEngine(engine)
+			.build();
+		BeatBlockClientDriver.install(() -> context);
+
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"frozen", 1.0, 1.0, "Pulse", "stage", 1f, Map.of(
+				"animationType", "Pulse", "targetObject", "stage", "durationSeconds", 1.0)));
+		var frozen = TimelineCompiler.compile(timeline, engine, null);
+
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"live-edit", 2.0, 1.0, "Pulse", "stage", 1f, Map.of(
+				"animationType", "Pulse", "targetObject", "stage", "durationSeconds", 1.0)));
+
+		BeatBlockClientDriver.prepareExportFrameFromSnapshot(frozen, 10.0);
+
+		assertEquals(10.0, editor.getClock().getCurrentTimeSeconds(), 1e-9);
+		var compiled = BeatBlockClientDriver.compiledPlaybackForTests();
+		assertEquals(1, compiled.stageEvents().size());
+		assertEquals("Pulse", compiled.stageEvents().getFirst().getAnimationTypeId());
 	}
 }

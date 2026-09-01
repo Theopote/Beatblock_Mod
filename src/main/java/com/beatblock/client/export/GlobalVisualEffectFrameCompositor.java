@@ -23,33 +23,17 @@ public final class GlobalVisualEffectFrameCompositor {
 		if (!Double.isFinite(timelineTimeSeconds)) {
 			throw new IllegalArgumentException("timelineTimeSeconds must be finite");
 		}
-		if (events == null || events.isEmpty()) return rgba;
 
-		CompiledGlobalEvent activeTint = null;
-		CompiledGlobalEvent activeFlash = null;
-		for (CompiledGlobalEvent event : events) {
-			if (event == null || event.timeSeconds() > timelineTimeSeconds) break;
-			if (event.payload() instanceof GlobalEventPayload.ScreenTint tint) {
-				activeTint = isActive(event.timeSeconds(), tint.durationSeconds(), timelineTimeSeconds) ? event : null;
-			} else if (event.payload() instanceof GlobalEventPayload.ScreenFlash flash
-				&& isActive(event.timeSeconds(), Math.max(0.01, flash.durationSeconds()), timelineTimeSeconds)) {
-				activeFlash = event;
-			}
-		}
-
-		if (activeTint != null && activeTint.payload() instanceof GlobalEventPayload.ScreenTint tint) {
+		ExportVfxState active = ExportVfxState.resolve(events, timelineTimeSeconds);
+		if (active.activeTint() != null && active.activeTint().payload() instanceof GlobalEventPayload.ScreenTint tint) {
 			blend(rgba, tint.r(), tint.g(), tint.b(), clamp(tint.intensity(), 0, 1) * 0.35);
 		}
-		if (activeFlash != null && activeFlash.payload() instanceof GlobalEventPayload.ScreenFlash flash) {
+		if (active.activeFlash() != null && active.activeFlash().payload() instanceof GlobalEventPayload.ScreenFlash flash) {
 			double duration = Math.max(0.01, flash.durationSeconds());
-			double progress = clamp((timelineTimeSeconds - activeFlash.timeSeconds()) / duration, 0, 1);
+			double progress = clamp((timelineTimeSeconds - active.activeFlash().timeSeconds()) / duration, 0, 1);
 			blend(rgba, flash.r(), flash.g(), flash.b(), 0.85 * (1.0 - progress));
 		}
 		return rgba;
-	}
-
-	private static boolean isActive(double start, double duration, double time) {
-		return duration <= 0 || time < start + duration;
 	}
 
 	private static void blend(byte[] rgba, float red, float green, float blue, double alpha) {

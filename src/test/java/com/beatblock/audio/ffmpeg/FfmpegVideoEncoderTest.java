@@ -12,6 +12,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FfmpegVideoEncoderTest {
 
+	private static final int SAMPLE_RATE = 44_100;
+
+	@TempDir
+	Path tempDir;
+
+	@Test
+	void frameClockAlignsWithFfmpegAudioSeekBase() throws Exception {
+		Path audio = tempDir.resolve("track.wav");
+		Files.writeString(audio, "fake");
+		com.beatblock.video.VideoExportSettings settings = new com.beatblock.video.VideoExportSettings(
+			tempDir.resolve("out.mp4"), 1920, 1080, 60, 5.0, 25.0, true);
+
+		List<String> cmd = FfmpegVideoEncoder.buildVideoCommand(
+			"ffmpeg", settings.outputPath(), 1920, 1080, 60, audio, settings.startTimeSeconds());
+		int ssIndex = cmd.indexOf("-ss");
+		assertTrue(ssIndex >= 0);
+		assertEquals("5", cmd.get(ssIndex + 1));
+
+		long sampleAtProbe = com.beatblock.client.export.VideoExportFrameClock.audioSampleIndex(settings, 300, SAMPLE_RATE);
+		assertEquals(441_000L, sampleAtProbe);
+		assertEquals(10.0,
+			com.beatblock.client.export.VideoExportFrameClock.audioTimeFromSampleIndex(sampleAtProbe, SAMPLE_RATE),
+			1e-9);
+	}
+
 	@Test
 	void buildVideoCommandWithoutAudio() {
 		List<String> cmd = FfmpegVideoEncoder.buildVideoCommand(

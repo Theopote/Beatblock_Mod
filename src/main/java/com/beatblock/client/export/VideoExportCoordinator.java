@@ -173,9 +173,9 @@ public final class VideoExportCoordinator {
 	}
 
 	private void scheduleNextFrame() {
-		double frameTime = settings.startTimeSeconds() + (nextFrameIndex / (double) settings.fps());
+		double frameTime = VideoExportFrameClock.timelineTimeSeconds(settings, nextFrameIndex);
 		pendingFrameTimeSeconds = frameTime;
-		BeatBlockClientDriver.prepareExportFrame(frameTime);
+		BeatBlockClientDriver.prepareExportFrameFromSnapshot(exportProgram, frameTime);
 		TimelineCameraController.getInstance().sampleAtExportTime(frameTime);
 		phase = Phase.WAITING_FRAME;
 		pendingWarmupFrames = nextFrameIndex == 0 ? 2 : 1;
