@@ -215,11 +215,6 @@ public final class CameraTrackFactory {
 	}
 
 	private static void addProcSegment(Timeline timeline, double timeSeconds, double durationSeconds,
-		CameraSegmentKind kind, Map<String, Object> extra, TimelineEventOrigin origin) {
-		addProcSegment(timeline, timeSeconds, durationSeconds, kind, extra, origin, null);
-	}
-
-	private static void addProcSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		CameraSegmentKind kind, Map<String, Object> extra, TimelineEventOrigin origin,
 		@Nullable Map<String, Object> semantics) {
 		Track t = timeline != null ? timeline.getTrack(Timeline.TRACK_ID_CAMERA) : null;

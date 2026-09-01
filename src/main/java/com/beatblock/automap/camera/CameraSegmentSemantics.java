@@ -100,9 +100,9 @@ public final class CameraSegmentSemantics {
 		CameraSubject follow = followSubjectFrom(params);
 		if (follow == null) return Optional.empty();
 		CameraSubjectResolveResult live = CameraSubjectResolver.resolveResult(follow, CameraSubjectRole.LOOK_AT);
-		if (!live.resolved() || live.position() == null) return Optional.empty();
-		Vec3d baked = bakedTarget(params);
-		return Optional.of(live.position().subtract(baked));
+		Vec3d livePosition = live.position();
+		if (!live.resolved() || livePosition == null) return Optional.empty();
+		return Optional.of(livePosition.subtract(bakedTarget(params)));
 	}
 
 	public static Map<String, Object> withFollowDeltaApplied(@Nullable Map<String, Object> params) {
@@ -136,8 +136,8 @@ public final class CameraSegmentSemantics {
 	private static void writeFollowSubject(Map<String, Object> params, CameraSubject subject) {
 		if (params == null || subject == null) return;
 		CameraSubjectResolveResult baked = CameraSubjectResolver.resolveResult(subject, CameraSubjectRole.LOOK_AT);
-		if (!baked.resolved() || baked.position() == null) return;
 		Vec3d position = baked.position();
+		if (!baked.resolved() || position == null) return;
 		params.put(KEY_BAKED_TARGET_X, position.x);
 		params.put(KEY_BAKED_TARGET_Y, position.y);
 		params.put(KEY_BAKED_TARGET_Z, position.z);

@@ -26,7 +26,7 @@ public final class TimelineSectionEditPresenter {
 		"bounce", "slide", "pulse", "spin", "fade"
 	};
 
-	public static final SectionType[] SECTION_TYPES = SectionType.values();
+	public static final List<SectionType> SECTION_TYPES = List.of(SectionType.values());
 
 	public record SectionView(
 		int index,

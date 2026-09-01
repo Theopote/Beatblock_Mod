@@ -16,7 +16,11 @@
 1. Fork 仓库并基于 `master` 创建分支
 2. 小步提交，提交信息建议：`type(scope): 简述`（如 `feat(timeline): …`、`fix(export): …`）
 3. 运行测试：`./gradlew test`
-4. 若改动影响 SpotBugs 基线，需有理由并尽量**减少** baseline 计数，不要随意扩大
+4. SpotBugs：`./gradlew spotbugsCheck`（CI 门禁）
+   - **不得新增** fingerprint；计数不得超过 `config/spotbugs/baseline.txt`
+   - 更新基线：`./gradlew spotbugsUpdateBaseline`（**只允许下降**，禁止 `-PspotbugsAllowIncrease` 除非 PR 有充分说明）
+   - 分阶段上限见 `config/spotbugs/milestones.properties`（Creator Alpha ≤180，Beta ≤80，1.0 ≤20）
+   - 剩余告警须为已审查的 `exclude.xml` 规则或待消减的 baseline 债务，见 [config/spotbugs/README.md](config/spotbugs/README.md)
 5. 发起 Pull Request，说明动机、测试方式与已知限制
 
 ## 架构约束（提交前自检）

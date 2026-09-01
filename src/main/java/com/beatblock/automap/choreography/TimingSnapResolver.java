@@ -18,6 +18,11 @@ public final class TimingSnapResolver {
 		ChoreographyPlan.MusicalStructure musical,
 		List<ChoreographyPlan.SectionPlan> sections
 	) {
+		public SnapContext {
+			musical = musical != null ? musical : ChoreographyPlan.MusicalStructure.empty();
+			sections = sections != null ? List.copyOf(sections) : List.of();
+		}
+
 		public static SnapContext from(ChoreographyPlan plan) {
 			if (plan == null) {
 				return new SnapContext(ChoreographyPlan.MusicalStructure.empty(), List.of());

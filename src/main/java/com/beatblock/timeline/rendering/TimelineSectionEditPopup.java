@@ -152,8 +152,8 @@ public final class TimelineSectionEditPopup {
 			int sectionIndex = selectedSectionIndex.get();
 			int animIndex = Math.max(0, Math.min(animationTypeIndex.get(),
 				TimelineSectionEditPresenter.MOTION_ANIMATION_IDS.length - 1));
-			SectionType sectionType = TimelineSectionEditPresenter.SECTION_TYPES[
-				Math.max(0, Math.min(sectionTypeIndex.get(), TimelineSectionEditPresenter.SECTION_TYPES.length - 1))];
+			SectionType sectionType = TimelineSectionEditPresenter.SECTION_TYPES.get(
+				Math.max(0, Math.min(sectionTypeIndex.get(), TimelineSectionEditPresenter.SECTION_TYPES.size() - 1)));
 			SectionEditProfile edit = new SectionEditProfile(
 				sectionIndex,
 				motionEnabled.get(),
@@ -192,18 +192,18 @@ public final class TimelineSectionEditPopup {
 	}
 
 	private static String[] sectionTypeLabels() {
-		SectionType[] types = TimelineSectionEditPresenter.SECTION_TYPES;
-		String[] labels = new String[types.length];
-		for (int i = 0; i < types.length; i++) {
-			labels[i] = types[i].name();
+		List<SectionType> types = TimelineSectionEditPresenter.SECTION_TYPES;
+		String[] labels = new String[types.size()];
+		for (int i = 0; i < types.size(); i++) {
+			labels[i] = types.get(i).name();
 		}
 		return labels;
 	}
 
 	private static int indexOfSectionType(SectionType type) {
-		SectionType[] types = TimelineSectionEditPresenter.SECTION_TYPES;
-		for (int i = 0; i < types.length; i++) {
-			if (types[i] == type) return i;
+		List<SectionType> types = TimelineSectionEditPresenter.SECTION_TYPES;
+		for (int i = 0; i < types.size(); i++) {
+			if (types.get(i) == type) return i;
 		}
 		return 0;
 	}

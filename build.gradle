@@ -230,6 +230,49 @@ tasks.named('test') {
 }
 
 def spotbugsReportDir = layout.buildDirectory.dir('reports/spotbugs/main')
+def spotbugsMilestonesFile = file('config/spotbugs/milestones.properties')
+def spotbugsCountFile = file('config/spotbugs/baseline.txt')
+def spotbugsFingerprintsFile = file('config/spotbugs/baseline_fingerprints.txt')
+def spotbugsPreviousCountFile = file('config/spotbugs/baseline_previous.txt')
+
+def spotbugsLoadMilestones = {
+	def milestones = [current: 'creator-alpha', enforcePhaseCap: 'false']
+	if (spotbugsMilestonesFile.exists()) {
+		spotbugsMilestonesFile.eachLine { line ->
+			def trimmed = line.trim()
+			if (!trimmed || trimmed.startsWith('#')) return
+			def eq = trimmed.indexOf('=')
+			if (eq > 0) {
+				milestones[trimmed.substring(0, eq).trim()] = trimmed.substring(eq + 1).trim()
+			}
+		}
+	}
+	milestones
+}
+
+def spotbugsPhaseMax = { milestones ->
+	def phase = milestones.current ?: 'creator-alpha'
+	def max = milestones["${phase}.max"]
+	max != null ? max.toInteger() : null
+}
+
+def spotbugsEnforcePhaseCap = { milestones ->
+	project.hasProperty('spotbugsEnforcePhaseCap')
+		|| milestones.enforcePhaseCap == 'true'
+}
+
+def spotbugsFormatPhaseStatus = { int bugCount, Map milestones ->
+	def phase = milestones.current ?: 'creator-alpha'
+	def max = spotbugsPhaseMax(milestones)
+	if (max == null) {
+		return "phase=${phase}"
+	}
+	def delta = bugCount - max
+	if (delta <= 0) {
+		return "phase=${phase} ${bugCount}/${max} (${-delta} under cap)"
+	}
+	return "phase=${phase} ${bugCount}/${max} (${delta} over cap)"
+}
 
 /** Stable fingerprint: type + class + method/field (no source line — avoids false "new" on edits). */
 def spotbugsFingerprint = { bug ->
@@ -245,7 +288,10 @@ def spotbugsFingerprint = { bug ->
 }
 
 def spotbugsCollectFingerprints = { root ->
-	root.BugInstance.collect(spotbugsFingerprint).toSorted().unique()
+	root.BugInstance.findAll { bug ->
+		def type = bug.@type?.toString() ?: ''
+		!type.startsWith('SKIPPED_')
+	}.collect(spotbugsFingerprint).toSorted().unique()
 }
 
 tasks.register('spotbugsMain', JavaExec) {
@@ -287,8 +333,8 @@ tasks.register('spotbugsUpdateBaseline') {
 	dependsOn spotbugsMain
 
 	def reportFile = file(layout.buildDirectory.file('reports/spotbugs/main/spotbugs.xml'))
-	def countFile = file('config/spotbugs/baseline.txt')
-	def fingerprintsFile = file('config/spotbugs/baseline_fingerprints.txt')
+	def countFile = spotbugsCountFile
+	def fingerprintsFile = spotbugsFingerprintsFile
 
 	inputs.file reportFile
 	outputs.files countFile, fingerprintsFile
@@ -297,6 +343,8 @@ tasks.register('spotbugsUpdateBaseline') {
 		if (!reportFile.exists()) {
 			throw new GradleException("SpotBugs XML report not found: ${reportFile}")
 		}
+		def milestones = spotbugsLoadMilestones()
+		def phaseMax = spotbugsPhaseMax(milestones)
 		def root = new groovy.xml.XmlParser().parse(reportFile)
 		def fingerprints = spotbugsCollectFingerprints(root)
 		def previousCount = countFile.exists() ? countFile.text.trim().toInteger() : Integer.MAX_VALUE
@@ -306,9 +354,12 @@ tasks.register('spotbugsUpdateBaseline') {
 				"Fix findings first; burn-down only. To override: ./gradlew spotbugsUpdateBaseline -PspotbugsAllowIncrease"
 			)
 		}
+		if (fingerprints.size() < previousCount) {
+			spotbugsPreviousCountFile.text = "${previousCount}\n"
+		}
 		countFile.text = "${fingerprints.size()}\n"
 		fingerprintsFile.text = fingerprints.join('\n') + '\n'
-		logger.lifecycle("SpotBugs baseline regenerated: ${fingerprints.size()} fingerprints")
+		logger.lifecycle("SpotBugs baseline regenerated: ${fingerprints.size()} fingerprints (${spotbugsFormatPhaseStatus(fingerprints.size(), milestones)})")
 	}
 }
 
@@ -316,13 +367,14 @@ tasks.register('spotbugsCheck') {
 	group = 'verification'
 	description = 'Ensure SpotBugs does not introduce new findings and total count does not exceed baseline'
 	dependsOn spotbugsMain
+	outputs.upToDateWhen { false }
 
 	def reportFile = file(layout.buildDirectory.file('reports/spotbugs/main/spotbugs.xml'))
-	def countFile = file('config/spotbugs/baseline.txt')
-	def fingerprintsFile = file('config/spotbugs/baseline_fingerprints.txt')
+	def countFile = spotbugsCountFile
+	def fingerprintsFile = spotbugsFingerprintsFile
 	def resultFile = layout.buildDirectory.file('reports/spotbugs/spotbugs-check-result.txt')
 
-	inputs.files reportFile, countFile, fingerprintsFile
+	inputs.files reportFile, countFile, fingerprintsFile, spotbugsMilestonesFile
 	outputs.file resultFile
 
 	doLast {
@@ -335,6 +387,8 @@ tasks.register('spotbugsCheck') {
 		if (!fingerprintsFile.exists()) {
 			throw new GradleException("SpotBugs fingerprint baseline file not found: ${fingerprintsFile}. Run ./gradlew spotbugsUpdateBaseline.")
 		}
+		def milestones = spotbugsLoadMilestones()
+		def phaseMax = spotbugsPhaseMax(milestones)
 		def baselineCount = countFile.text.trim().toInteger()
 		def baselineFingerprints = fingerprintsFile.readLines().findAll { it.trim() }.toSet()
 
@@ -342,17 +396,32 @@ tasks.register('spotbugsCheck') {
 		def current = spotbugsCollectFingerprints(root)
 		def bugCount = current.size()
 		def newFindings = current.findAll { !baselineFingerprints.contains(it) }
+		def phaseStatus = spotbugsFormatPhaseStatus(bugCount, milestones)
 
 		def resultFileObj = resultFile.get().asFile
 		resultFileObj.parentFile.mkdirs()
-		resultFileObj.text = "SpotBugs bugs: ${bugCount} (baseline count: ${baselineCount}, new findings: ${newFindings.size()})\n"
+		resultFileObj.text = """SpotBugs bugs: ${bugCount}
+baseline count: ${baselineCount}
+new findings: ${newFindings.size()}
+${phaseStatus}
+enforcePhaseCap: ${spotbugsEnforcePhaseCap(milestones)}
+""".stripIndent()
 		if (!newFindings.isEmpty()) {
 			throw new GradleException("SpotBugs introduced ${newFindings.size()} new finding(s):\n" + newFindings.take(20).join('\n') + (newFindings.size() > 20 ? "\n..." : "") + "\nFix the new findings; burn-down only — do not raise baseline without -PspotbugsAllowIncrease.")
 		}
 		if (bugCount > baselineCount) {
 			throw new GradleException("SpotBugs bug count ${bugCount} exceeds baseline count ${baselineCount}. Fix findings before updating baseline.")
 		}
-		logger.lifecycle("SpotBugs: ${bugCount} bugs (${baselineCount - bugCount} below baseline cap), ${newFindings.size()} new.")
+		if (phaseMax != null && bugCount > phaseMax && spotbugsEnforcePhaseCap(milestones)) {
+			throw new GradleException(
+				"SpotBugs bug count ${bugCount} exceeds ${milestones.current} milestone cap ${phaseMax} (${bugCount - phaseMax} over). " +
+				"See config/spotbugs/README.md — burn down or document reviewed exclude.xml suppressions."
+			)
+		}
+		if (phaseMax != null && bugCount > phaseMax) {
+			logger.lifecycle("SpotBugs phase warning: ${phaseStatus} (set enforcePhaseCap=true in milestones.properties when ready to gate releases)")
+		}
+		logger.lifecycle("SpotBugs: ${bugCount} bugs (${baselineCount - bugCount} below baseline cap), ${newFindings.size()} new, ${phaseStatus}.")
 	}
 }
 

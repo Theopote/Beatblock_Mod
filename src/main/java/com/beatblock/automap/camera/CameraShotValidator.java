@@ -78,12 +78,15 @@ public final class CameraShotValidator {
 	) {
 		CameraSubjectResolveResult result = CameraSubjectResolver.resolveResult(subject, role, engine, layerManager);
 		if (result.resolved()) return;
-		diagnostics.add(TimelineDiagnostic.error(
-			result.ruleId() != null ? result.ruleId() : CameraValidationRules.MISSING_CAMERA_SUBJECT,
-			result.detail() != null ? result.detail() : "Camera subject could not be resolved",
-			eventId,
-			timeSeconds
-		));
+		String ruleId = result.ruleId();
+		if (ruleId == null || ruleId.isBlank()) {
+			ruleId = CameraValidationRules.MISSING_CAMERA_SUBJECT;
+		}
+		String detail = result.detail();
+		if (detail == null || detail.isBlank()) {
+			detail = "Camera subject could not be resolved";
+		}
+		diagnostics.add(TimelineDiagnostic.error(ruleId, detail, eventId, timeSeconds));
 	}
 
 	private static void validateFramingName(String framing, List<TimelineDiagnostic> diagnostics,

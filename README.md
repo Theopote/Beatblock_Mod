@@ -140,7 +140,7 @@ python -c "import demucs.api, torch; print('ok')"
 # 编译
 ./gradlew compileJava
 
-# 完整构建（含测试、JaCoCo 覆盖率、SpotBugs）
+# 完整构建（含测试、JaCoCo 覆盖率、SpotBugs 基线门禁）
 ./gradlew build
 
 # 或仅验证（测试 + 质量报告，不打包 remapJar 以外的产物）
@@ -159,6 +159,8 @@ python -c "import demucs.api, torch; print('ok')"
 **可复现构建：** Loom 固定为正式版 `1.15.5`（非 SNAPSHOT）；依赖图见 `gradle.lockfile`，校验和见 `gradle/verification-metadata.xml`。说明见 [docs/archive/2026-06/REPRODUCIBLE_BUILDS.md](docs/archive/2026-06/REPRODUCIBLE_BUILDS.md)。
 
 **跨平台：** ImGui JNI 已包含 Windows / Linux / macOS 三平台 natives，发布包可在对应系统上运行。
+
+**SpotBugs：** 基线 **252**（历史 285 → 254，只降不升）；分阶段上限见 [config/spotbugs/README.md](config/spotbugs/README.md)（Creator Alpha ≤180）。
 
 ---
 
