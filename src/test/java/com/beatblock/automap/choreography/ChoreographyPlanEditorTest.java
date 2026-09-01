@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @WithBeatBlockContext
@@ -151,6 +152,42 @@ class ChoreographyPlanEditorTest {
 		double expectedMin = ChoreographyPlanEditor.MIN_SECTION_DURATION_SECONDS;
 		assertEquals(expectedMin, plan.sections().get(0).endSeconds(), 1e-6);
 		assertEquals(expectedMin, plan.sections().get(1).startSeconds(), 1e-6);
+	}
+
+	@Test
+	void moveSectionBoundaryMarksSectionsUserEdited() {
+		ChoreographyPlan plan = samplePlan();
+		plan = ChoreographyPlanEditor.moveSectionBoundary(plan, 1, 14.0);
+
+		assertEquals(SectionPlanSource.USER_EDITED, plan.sections().get(0).source());
+		assertEquals(SectionPlanSource.USER_EDITED, plan.sections().get(1).source());
+	}
+
+	@Test
+	void cannotMoveBoundaryAdjacentToLockedSection() {
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(
+				new ChoreographyPlan.SectionPlan(0, 12, SectionType.INTRO, "intro", 0.8, SectionPlanSource.LOCKED),
+				new ChoreographyPlan.SectionPlan(12, 28, SectionType.DROP, "drop")
+			),
+			List.of(),
+			List.of(),
+			List.of(),
+			List.of(),
+			DensityCurve.uniform(1.0)
+		);
+
+		assertFalse(ChoreographyPlanEditor.canMoveBoundary(plan, 1));
+		assertEquals(12.0, ChoreographyPlanEditor.moveSectionBoundary(plan, 1, 14.0).sections().get(0).endSeconds(), 1e-6);
+	}
+
+	@Test
+	void updateSectionCanLockSection() {
+		ChoreographyPlan plan = samplePlan();
+		plan = ChoreographyPlanEditor.updateSection(plan, 0, SectionType.CHORUS, "chorus", true);
+
+		assertEquals(SectionType.CHORUS, plan.sections().get(0).sectionType());
+		assertEquals(SectionPlanSource.LOCKED, plan.sections().get(0).source());
 	}
 
 	private static ChoreographyPlan samplePlan() {

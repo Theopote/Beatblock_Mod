@@ -72,6 +72,7 @@ public final class ChoreographyPlanCompiler {
 			minGapSeconds > 0 ? minGapSeconds : ChoreographyCompileOptions.DEFAULT_MIN_GAP_SECONDS
 		);
 		List<TimelineAnimationEvent> draft = new ArrayList<>(resolved.size());
+		TimingSnapResolver.SnapContext snapContext = TimingSnapResolver.SnapContext.from(plan);
 		for (ChoreographyPlan.MotionPhrase phrase : resolved) {
 			Map<String, Object> params = new HashMap<>();
 			if (phrase.useEnergyForHeight()) {
@@ -82,10 +83,10 @@ public final class ChoreographyPlanCompiler {
 
 			String targetId = plan.resolveTargetObjectId(phrase.normalizedFeatureKey(), fallbackTarget);
 
-			double eventTime = BarSnapHelper.snapToNearestBarStart(
+			double eventTime = TimingSnapResolver.snap(
 				phrase.timeSeconds(),
-				plan.musicalStructure(),
-				BarSnapHelper.DEFAULT_TOLERANCE_SECONDS
+				phrase.timingSnap(),
+				snapContext
 			);
 
 			draft.add(new TimelineAnimationEvent(
@@ -122,10 +123,16 @@ public final class ChoreographyPlanCompiler {
 		if (timeline == null || plan == null || plan.cameraPhrases().isEmpty()) return 0;
 		ReplaceMode replaceMode = mode != null ? mode : ReplaceMode.APPEND;
 		ChoreographyCompileApplicator.applyCamera(timeline, replaceMode);
+		TimingSnapResolver.SnapContext snapContext = TimingSnapResolver.SnapContext.from(plan);
 		List<CameraShot> shots = new ArrayList<>();
 		for (ChoreographyPlan.CameraPhrase phrase : plan.cameraPhrases()) {
 			if (!ChoreographyPlanEditor.isCameraEnabled(plan, phrase)) continue;
-			shots.add(CameraShotCodec.fromPhrase(phrase));
+			double eventTime = TimingSnapResolver.snap(
+				phrase.timeSeconds(),
+				phrase.timingSnap(),
+				snapContext
+			);
+			shots.add(CameraShotCodec.fromPhrase(phrase.withTimeSeconds(eventTime)));
 		}
 		return CameraShotTimelineWriter.write(timeline, shots);
 	}
@@ -138,11 +145,17 @@ public final class ChoreographyPlanCompiler {
 		if (timeline == null || plan == null || plan.vfxPhrases().isEmpty()) return 0;
 		ReplaceMode replaceMode = mode != null ? mode : ReplaceMode.APPEND;
 		ChoreographyCompileApplicator.applyVfx(timeline, replaceMode);
+		TimingSnapResolver.SnapContext snapContext = TimingSnapResolver.SnapContext.from(plan);
 		int count = 0;
 		for (ChoreographyVfx phrase : plan.vfxPhrases()) {
 			if (!ChoreographyPlanEditor.isVfxEnabled(plan, phrase)) continue;
+			double eventTime = TimingSnapResolver.snap(
+				phrase.timeSeconds(),
+				TimingSnapDefaults.forVfx(phrase),
+				snapContext
+			);
 			GlobalEventPayload payload = ChoreographyVfxPayloadMapper.toPayload(phrase);
-			timeline.addGlobalPayloadEvent(phrase.timeSeconds(), payload, TimelineEventOrigin.AUTO_GENERATED);
+			timeline.addGlobalPayloadEvent(eventTime, payload, TimelineEventOrigin.AUTO_GENERATED);
 			count++;
 		}
 		return count;

@@ -1,6 +1,8 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.automap.choreography.SectionEditProfile;
+import com.beatblock.automap.choreography.SectionPlanSource;
+import com.beatblock.automap.engine.SectionType;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.TimelineSectionEditPresenter;
 import com.beatblock.ui.presenter.TimelineToolbarFeedbackPresenter;
@@ -13,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Section 编舞编辑弹窗：按音乐段落调整 motion/camera/vfx 开关与覆盖参数。
+ * Section 编舞编辑弹窗：按音乐段落调整类型、锁定、motion/camera/vfx 开关与覆盖参数。
  */
 public final class TimelineSectionEditPopup {
 
@@ -22,6 +24,8 @@ public final class TimelineSectionEditPopup {
 	private final TimelineSectionEditPresenter presenter;
 	private final TimelineToolbarFeedbackPresenter feedback;
 	private final ImInt selectedSectionIndex = new ImInt(0);
+	private final ImInt sectionTypeIndex = new ImInt(0);
+	private final ImBoolean sectionLocked = new ImBoolean(false);
 	private final ImBoolean motionEnabled = new ImBoolean(true);
 	private final ImBoolean cameraEnabled = new ImBoolean(true);
 	private final ImBoolean vfxEnabled = new ImBoolean(true);
@@ -74,6 +78,8 @@ public final class TimelineSectionEditPopup {
 		ImGui.separator();
 		renderSelectedSectionSummary(sections.get(selectedSectionIndex.get()));
 		ImGui.separator();
+		renderStructureFields();
+		ImGui.separator();
 		renderEditFields();
 		ImGui.separator();
 		renderApplyButton();
@@ -84,8 +90,9 @@ public final class TimelineSectionEditPopup {
 	private void renderSectionSelector(List<TimelineSectionEditPresenter.SectionView> sections) {
 		ImGui.textDisabled(BBTexts.get("beatblock.section_edit.sections"));
 		for (TimelineSectionEditPresenter.SectionView section : sections) {
-			String label = String.format(Locale.ROOT, "%s (%.1f-%.1fs)",
-				section.label(), section.startSeconds(), section.endSeconds());
+			String sourceTag = sourceLabel(section.source());
+			String label = String.format(Locale.ROOT, "%s (%.1f-%.1fs) %s",
+				section.label(), section.startSeconds(), section.endSeconds(), sourceTag);
 			if (ImGui.selectable(label, selectedSectionIndex.get() == section.index())) {
 				selectedSectionIndex.set(section.index());
 				profileDirty = false;
@@ -97,6 +104,25 @@ public final class TimelineSectionEditPopup {
 	private void renderSelectedSectionSummary(TimelineSectionEditPresenter.SectionView section) {
 		ImGui.text(BBTexts.get("beatblock.section_edit.summary",
 			section.motionCount(), section.cameraCount(), section.vfxCount()));
+		ImGui.textDisabled(BBTexts.get(
+			"beatblock.section_edit.confidence",
+			(int) Math.round(section.confidence() * 100.0),
+			sourceLabel(section.source())
+		));
+	}
+
+	private void renderStructureFields() {
+		String[] typeLabels = sectionTypeLabels();
+		if (ImGui.combo(BBTexts.get("beatblock.section_edit.section_type"), sectionTypeIndex, typeLabels)) {
+			profileDirty = true;
+		}
+		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.lock_section"), sectionLocked)) {
+			profileDirty = true;
+		}
+		if (sectionLocked.get()) {
+			ImGui.sameLine();
+			ImGui.textDisabled(BBTexts.get("beatblock.section_edit.lock_hint"));
+		}
 	}
 
 	private void renderEditFields() {
@@ -126,6 +152,8 @@ public final class TimelineSectionEditPopup {
 			int sectionIndex = selectedSectionIndex.get();
 			int animIndex = Math.max(0, Math.min(animationTypeIndex.get(),
 				TimelineSectionEditPresenter.MOTION_ANIMATION_IDS.length - 1));
+			SectionType sectionType = TimelineSectionEditPresenter.SECTION_TYPES[
+				Math.max(0, Math.min(sectionTypeIndex.get(), TimelineSectionEditPresenter.SECTION_TYPES.length - 1))];
 			SectionEditProfile edit = new SectionEditProfile(
 				sectionIndex,
 				motionEnabled.get(),
@@ -136,7 +164,8 @@ public final class TimelineSectionEditPopup {
 				timeOffsetSeconds.get(),
 				energyScale.get()
 			);
-			var outcome = presenter.applySectionEdit(sectionIndex, edit);
+			var outcome = presenter.applySectionEdit(
+				sectionIndex, sectionType, sectionLocked.get(), edit);
 			feedback.setTemplateApplyFeedback(outcome.result().messageOrEmpty(), outcome.result().ok());
 			profileDirty = false;
 		}
@@ -144,7 +173,14 @@ public final class TimelineSectionEditPopup {
 	}
 
 	private void loadProfileForSelectedSection() {
-		SectionEditProfile profile = presenter.loadEditProfile(selectedSectionIndex.get());
+		List<TimelineSectionEditPresenter.SectionView> sections = presenter.listSections();
+		int index = selectedSectionIndex.get();
+		if (index >= 0 && index < sections.size()) {
+			TimelineSectionEditPresenter.SectionView section = sections.get(index);
+			sectionTypeIndex.set(indexOfSectionType(section.sectionType()));
+			sectionLocked.set(section.source() == SectionPlanSource.LOCKED);
+		}
+		SectionEditProfile profile = presenter.loadEditProfile(index);
 		motionEnabled.set(profile.motionEnabled());
 		cameraEnabled.set(profile.cameraEnabled());
 		vfxEnabled.set(profile.vfxEnabled());
@@ -155,11 +191,37 @@ public final class TimelineSectionEditPopup {
 		energyScale.set(profile.energyScale());
 	}
 
+	private static String[] sectionTypeLabels() {
+		SectionType[] types = TimelineSectionEditPresenter.SECTION_TYPES;
+		String[] labels = new String[types.length];
+		for (int i = 0; i < types.length; i++) {
+			labels[i] = types[i].name();
+		}
+		return labels;
+	}
+
+	private static int indexOfSectionType(SectionType type) {
+		SectionType[] types = TimelineSectionEditPresenter.SECTION_TYPES;
+		for (int i = 0; i < types.length; i++) {
+			if (types[i] == type) return i;
+		}
+		return 0;
+	}
+
 	private static int indexOfAnimation(String animationTypeId) {
 		if (animationTypeId == null) return 0;
 		for (int i = 0; i < TimelineSectionEditPresenter.MOTION_ANIMATION_IDS.length; i++) {
 			if (animationTypeId.equals(TimelineSectionEditPresenter.MOTION_ANIMATION_IDS[i])) return i;
 		}
 		return 0;
+	}
+
+	private static String sourceLabel(SectionPlanSource source) {
+		if (source == null) return "";
+		return switch (source) {
+			case ANALYZED -> BBTexts.get("beatblock.section_edit.source.analyzed");
+			case USER_EDITED -> BBTexts.get("beatblock.section_edit.source.user_edited");
+			case LOCKED -> BBTexts.get("beatblock.section_edit.source.locked");
+		};
 	}
 }

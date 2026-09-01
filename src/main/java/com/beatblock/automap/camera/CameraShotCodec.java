@@ -1,6 +1,7 @@
 package com.beatblock.automap.camera;
 
 import com.beatblock.automap.choreography.ChoreographyPlan;
+import com.beatblock.automap.choreography.TimingSnapDefaults;
 import com.beatblock.automap.engine.CameraAction;
 
 /**
@@ -21,7 +22,8 @@ public final class CameraShotCodec {
 			shot.framing().name(),
 			shot.movement().name(),
 			shot.easing().name(),
-			shot.beatAlignment().snapStartToBeat()
+			shot.beatAlignment().snapStartToBeat(),
+			TimingSnapDefaults.forCameraShot(shot)
 		);
 	}
 

@@ -24,7 +24,7 @@ public final class MusicalStructureMapper {
 		List<ChoreographyPlan.MusicalPhrasePlan> rawPhrases = toPhrasePlans(structure.phrases(), sectionPlans);
 		List<ChoreographyPlan.MusicalPhrasePlan> phrases = RepeatGroupBuilder.annotateRepeatAnchors(rawPhrases);
 		List<ChoreographyPlan.RepeatGroup> repeats = RepeatGroupBuilder.buildFromAnnotated(phrases);
-		return new ChoreographyPlan.MusicalStructure(bars, phrases, repeats);
+		return new ChoreographyPlan.MusicalStructure(bars, phrases, repeats, structure.beatTimes());
 	}
 
 	private static List<ChoreographyPlan.BarPlan> toBarPlans(

@@ -6,7 +6,9 @@ import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyCompileOptions;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
 import com.beatblock.automap.choreography.ChoreographyPlanEditor;
+import com.beatblock.automap.choreography.ChoreographyPlanEditor;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
+import com.beatblock.automap.choreography.SectionPlanSource;
 import com.beatblock.timeline.camera.CameraPathMetadata;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.IAudioPlayer;
@@ -606,7 +608,8 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 
 		ChoreographySectionHitTest.Hit sectionHit = ChoreographySectionHitTest.hit(timeline, viewState, layout, mx, my);
 		if (interactionState.getMode() == InteractionMode.NONE && sectionHit.kind() != ChoreographySectionHitTest.HitKind.NONE) {
-			ChoreographySectionBandRenderer.applyHoverCursor(sectionHit);
+			ChoreographyPlan sectionPlan = ChoreographyPlanStore.loadPlan(timeline);
+			ChoreographySectionBandRenderer.applyHoverCursor(sectionPlan, sectionHit);
 			if (ImGui.isWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenBlockedByPopup)) {
 				ChoreographySectionBandRenderer.renderHoverTooltip(timeline, sectionHit);
 			}
@@ -734,6 +737,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		if (interactionState == null || timeline == null || boundaryIndex < 1) return;
 		var plan = ChoreographyPlanStore.loadPlan(timeline);
 		if (plan == null || boundaryIndex >= plan.sections().size()) return;
+		if (!ChoreographyPlanEditor.canMoveBoundary(plan, boundaryIndex)) return;
 		interactionState.setMode(InteractionMode.SECTION_BOUNDARY_DRAG);
 		interactionState.setSectionBoundaryIndex(boundaryIndex);
 		interactionState.setSectionBoundaryDragStartSeconds(plan.sections().get(boundaryIndex).startSeconds());

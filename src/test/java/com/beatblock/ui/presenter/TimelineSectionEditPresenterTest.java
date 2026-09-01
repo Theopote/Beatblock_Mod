@@ -52,7 +52,10 @@ class TimelineSectionEditPresenterTest {
 		assertTrue(presenter.canEdit());
 		assertEquals(1, presenter.listSections().size());
 
-		var outcome = presenter.applySectionEdit(0,
+		var outcome = presenter.applySectionEdit(
+			0,
+			SectionType.INTRO,
+			false,
 			SectionEditProfile.defaults(0)
 				.withMotionAnimationType("spin")
 				.withCameraEnabled(false)

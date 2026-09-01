@@ -59,7 +59,8 @@ public final class ChoreographyPlanBuilder {
 				rule.isUseEnergyForHeight(),
 				rule.getHeightMultiplier(),
 				rule.getMinGapSeconds(),
-				resolveSectionIndex(sectionPlans, candidate.timeSeconds())
+				resolveSectionIndex(sectionPlans, candidate.timeSeconds()),
+				rule.resolveTimingSnap()
 			));
 		}
 
@@ -151,7 +152,8 @@ public final class ChoreographyPlanBuilder {
 				useHeight,
 				heightMult,
 				rule != null ? rule.getMinGapSeconds() : 0.0,
-				resolveSectionIndex(sectionPlans, event.getTimeSeconds())
+				resolveSectionIndex(sectionPlans, event.getTimeSeconds()),
+				rule != null ? rule.resolveTimingSnap() : TimingSnapDefaults.forFeatureKey(normalized)
 			));
 		}
 
@@ -214,7 +216,9 @@ public final class ChoreographyPlanBuilder {
 				section.getStartSeconds(),
 				section.getEndSeconds(),
 				section.getType(),
-				section.getLabel()
+				section.getLabel(),
+				section.getConfidence(),
+				SectionPlanSource.ANALYZED
 			));
 		}
 		return out;

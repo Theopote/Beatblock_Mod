@@ -1,5 +1,7 @@
 package com.beatblock.automap;
 
+import com.beatblock.automap.choreography.ChoreographyTimingSnap;
+import com.beatblock.automap.choreography.TimingSnapDefaults;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -17,15 +19,25 @@ public final class AutoMapRule {
 	private final double minGapSeconds;
 	/** 非空时优先于 config 的 per-feature 映射。 */
 	private final @Nullable String targetObjectId;
+	/** 非空时覆盖 {@link TimingSnapDefaults#forFeatureKey(String)}。 */
+	private final @Nullable ChoreographyTimingSnap timingSnap;
 
 	public AutoMapRule(String featureKey, float minEnergy, String animationTypeId,
 	                   double durationSeconds, boolean useEnergyForHeight, float heightMultiplier) {
-		this(featureKey, minEnergy, animationTypeId, durationSeconds, useEnergyForHeight, heightMultiplier, 0.0, null);
+		this(featureKey, minEnergy, animationTypeId, durationSeconds, useEnergyForHeight, heightMultiplier, 0.0, null, null);
 	}
 
 	public AutoMapRule(String featureKey, float minEnergy, String animationTypeId,
 	                   double durationSeconds, boolean useEnergyForHeight, float heightMultiplier,
 	                   double minGapSeconds, @Nullable String targetObjectId) {
+		this(featureKey, minEnergy, animationTypeId, durationSeconds, useEnergyForHeight, heightMultiplier,
+			minGapSeconds, targetObjectId, null);
+	}
+
+	public AutoMapRule(String featureKey, float minEnergy, String animationTypeId,
+	                   double durationSeconds, boolean useEnergyForHeight, float heightMultiplier,
+	                   double minGapSeconds, @Nullable String targetObjectId,
+	                   @Nullable ChoreographyTimingSnap timingSnap) {
 		this.featureKey = featureKey != null && !featureKey.isBlank() ? featureKey : "low";
 		this.minEnergy = Math.max(0f, Math.min(1f, minEnergy));
 		this.animationTypeId = animationTypeId != null ? animationTypeId : "bounce";
@@ -34,6 +46,7 @@ public final class AutoMapRule {
 		this.heightMultiplier = heightMultiplier;
 		this.minGapSeconds = minGapSeconds > 0 ? minGapSeconds : 0.0;
 		this.targetObjectId = targetObjectId != null && !targetObjectId.isBlank() ? targetObjectId : null;
+		this.timingSnap = timingSnap;
 	}
 
 	public String getFeatureKey() {
@@ -66,6 +79,14 @@ public final class AutoMapRule {
 
 	public @Nullable String getTargetObjectId() {
 		return targetObjectId;
+	}
+
+	public @Nullable ChoreographyTimingSnap getTimingSnap() {
+		return timingSnap;
+	}
+
+	public ChoreographyTimingSnap resolveTimingSnap() {
+		return timingSnap != null ? timingSnap : TimingSnapDefaults.forFeatureKey(featureKey);
 	}
 
 	public double resolveMinGap(double configDefaultMinGap) {

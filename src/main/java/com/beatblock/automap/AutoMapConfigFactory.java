@@ -73,7 +73,8 @@ public final class AutoMapConfigFactory {
 			rule.isUseEnergyForHeight(),
 			rule.getHeightMultiplier(),
 			minGapSeconds,
-			rule.getTargetObjectId()
+			rule.getTargetObjectId(),
+			rule.getTimingSnap()
 		);
 	}
 

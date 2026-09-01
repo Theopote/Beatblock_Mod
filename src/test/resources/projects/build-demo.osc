@@ -120,9 +120,9 @@
                 "actionMode": "BUILD",
                 "buildMode": "WALL",
                 "buildDissolve": "false",
-                "energy": 1.0,
                 "animationType": "Pulse",
-                "eventOrigin": "MANUAL"
+                "eventOrigin": "MANUAL",
+                "energy": 1.0
               }
             }
           ]
@@ -144,9 +144,9 @@
                 "actionMode": "BUILD",
                 "buildMode": "WALL",
                 "buildDissolve": "false",
-                "energy": 1.0,
                 "animationType": "Pulse",
-                "eventOrigin": "MANUAL"
+                "eventOrigin": "MANUAL",
+                "energy": 1.0
               }
             }
           ]

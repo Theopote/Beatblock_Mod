@@ -38,12 +38,12 @@
       "trackId": "animation_block_feature_kick",
       "clips": [
         {
-          "id": "e5f5b46cb0e3",
+          "id": "324e01d926f2",
           "startTimeSeconds": 0.0,
           "endTimeSeconds": 1.0,
           "events": [
             {
-              "id": "c6a34628a9ec",
+              "id": "ae8d5b59822d",
               "timeSeconds": 0.0,
               "type": "ANIMATION",
               "parameters": {
@@ -65,12 +65,12 @@
       "trackId": "animation_block_feature_bass",
       "clips": [
         {
-          "id": "f1945d3bf74f",
+          "id": "3f4debbbdbf2",
           "startTimeSeconds": 8.0,
           "endTimeSeconds": 9.0,
           "events": [
             {
-              "id": "4c3163d6094e",
+              "id": "89b57751f8a2",
               "timeSeconds": 8.0,
               "type": "ANIMATION",
               "parameters": {
@@ -92,12 +92,12 @@
       "trackId": "animation_block_feature_hihat",
       "clips": [
         {
-          "id": "bffffddf13af",
+          "id": "b1f6d7d4f2d8",
           "startTimeSeconds": 16.0,
           "endTimeSeconds": 17.0,
           "events": [
             {
-              "id": "3b26afda7d4d",
+              "id": "dd28f0ecc3ba",
               "timeSeconds": 16.0,
               "type": "ANIMATION",
               "parameters": {

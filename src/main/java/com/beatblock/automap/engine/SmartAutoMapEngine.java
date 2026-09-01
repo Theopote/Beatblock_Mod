@@ -13,6 +13,7 @@ import com.beatblock.automap.choreography.ChoreographyPlanBuilder;
 import com.beatblock.automap.choreography.ChoreographyCompileOptions;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
+import com.beatblock.automap.choreography.ChoreographyStructureMerger;
 import com.beatblock.timeline.Timeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,7 @@ public final class SmartAutoMapEngine {
 			: List.of();
 
 		AutoMapConfig config = AutoMapConfigFactory.fromSettings(settings);
-		ChoreographyPlan plan = ChoreographyPlanBuilder.fromMusicStructure(
+		ChoreographyPlan analyzed = ChoreographyPlanBuilder.fromMusicStructure(
 			musicStructure,
 			rhythmEvents,
 			cameraShots,
@@ -72,6 +73,8 @@ public final class SmartAutoMapEngine {
 			settings.getStyle(),
 			config
 		);
+		ChoreographyPlan existing = ChoreographyPlanStore.loadPlan(timeline);
+		ChoreographyPlan plan = ChoreographyStructureMerger.merge(existing, analyzed);
 
 		ChoreographyPlanCompiler.SmartAutoMapCompileResult compiled =
 			ChoreographyPlanCompiler.compileAll(

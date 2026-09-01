@@ -42,18 +42,6 @@ public final class ChoreographyPlanSeeder {
 	}
 
 	static ChoreographyPlan mergeStructure(@Nullable ChoreographyPlan existing, ChoreographyPlan structurePlan) {
-		if (existing == null) {
-			return structurePlan;
-		}
-		return new ChoreographyPlan(
-			structurePlan.sections(),
-			existing.stageRoles().isEmpty() ? structurePlan.stageRoles() : existing.stageRoles(),
-			existing.motionPhrases(),
-			existing.cameraPhrases(),
-			existing.vfxPhrases(),
-			structurePlan.densityCurve(),
-			existing.sectionEdits(),
-			structurePlan.musicalStructure()
-		);
+		return ChoreographyStructureMerger.mergeStructureOnly(existing, structurePlan);
 	}
 }

@@ -7,6 +7,8 @@ import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
 import com.beatblock.automap.choreography.ChoreographyPlanEditor;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.choreography.SectionEditProfile;
+import com.beatblock.automap.choreography.SectionPlanSource;
+import com.beatblock.automap.engine.SectionType;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.ui.i18n.BBTexts;
@@ -24,11 +26,16 @@ public final class TimelineSectionEditPresenter {
 		"bounce", "slide", "pulse", "spin", "fade"
 	};
 
+	public static final SectionType[] SECTION_TYPES = SectionType.values();
+
 	public record SectionView(
 		int index,
 		String label,
+		SectionType sectionType,
 		double startSeconds,
 		double endSeconds,
+		double confidence,
+		SectionPlanSource source,
 		int motionCount,
 		int cameraCount,
 		int vfxCount
@@ -70,8 +77,11 @@ public final class TimelineSectionEditPresenter {
 			views.add(new SectionView(
 				i,
 				section.label().isBlank() ? section.sectionType().name() : section.label(),
+				section.sectionType(),
 				section.startSeconds(),
 				section.endSeconds(),
+				section.confidence(),
+				section.source(),
 				ChoreographyPlanEditor.motionPhrasesInSection(plan, i).size(),
 				ChoreographyPlanEditor.cameraPhrasesInSection(plan, i).size(),
 				ChoreographyPlanEditor.vfxPhrasesInSection(plan, i).size()
@@ -87,7 +97,12 @@ public final class TimelineSectionEditPresenter {
 		return existing != null ? existing : SectionEditProfile.defaults(sectionIndex);
 	}
 
-	public ApplyOutcome applySectionEdit(int sectionIndex, SectionEditProfile edit) {
+	public ApplyOutcome applySectionEdit(
+		int sectionIndex,
+		SectionType sectionType,
+		boolean locked,
+		SectionEditProfile edit
+	) {
 		String blocked = unavailableReason();
 		if (blocked != null) {
 			return new ApplyOutcome(PresenterResult.failure(blocked), 0, 0, 0);
@@ -99,6 +114,13 @@ public final class TimelineSectionEditPresenter {
 			return new ApplyOutcome(PresenterResult.failure(BBTexts.get("beatblock.section_edit.no_plan")), 0, 0, 0);
 		}
 
+		plan = ChoreographyPlanEditor.updateSection(
+			plan,
+			sectionIndex,
+			sectionType,
+			resolveSectionLabel(plan.sections().get(sectionIndex), sectionType),
+			locked
+		);
 		plan = ChoreographyPlanEditor.withSectionEdit(plan, edit.withSectionIndex(sectionIndex));
 		plan = ChoreographyPlanEditor.bakePhraseOverrides(plan);
 		ChoreographyPlanStore.save(timeline, plan, config);
@@ -124,5 +146,12 @@ public final class TimelineSectionEditPresenter {
 	private AutoMapConfig loadConfig() {
 		AutoMapConfig config = ChoreographyPlanStore.loadConfig(currentTimeline());
 		return config != null ? config : AutoMapConfig.createDefault();
+	}
+
+	private static String resolveSectionLabel(ChoreographyPlan.SectionPlan current, SectionType sectionType) {
+		if (sectionType == current.sectionType() && !current.label().isBlank()) {
+			return current.label();
+		}
+		return sectionType.name().toLowerCase(java.util.Locale.ROOT);
 	}
 }

@@ -31,12 +31,12 @@
       "trackId": "animation_auto",
       "clips": [
         {
-          "id": "e5090f29f0e0",
+          "id": "3bdd46239c9d",
           "startTimeSeconds": 2.0,
           "endTimeSeconds": 3.0,
           "events": [
             {
-              "id": "fd3974e8c7ce",
+              "id": "9dc321fd7877",
               "timeSeconds": 2.0,
               "type": "ANIMATION",
               "parameters": {
@@ -58,42 +58,42 @@
       "trackId": "camera",
       "clips": [
         {
-          "id": "7848750e6a69",
+          "id": "cb4fcabc6246",
           "startTimeSeconds": 0.0,
           "endTimeSeconds": 48.0,
           "events": [
             {
-              "id": "998448ed3923",
+              "id": "e84fe8be5244",
               "timeSeconds": 0.0,
               "type": "CAMERA_KEYFRAME",
               "parameters": {
                 "x": 0.0,
-                "y": 72.0,
                 "pitchDeg": -25.0,
+                "y": 72.0,
                 "z": 24.0,
                 "yawDeg": 0.0
               }
             },
             {
-              "id": "d6342641758a",
+              "id": "249b235bb46d",
               "timeSeconds": 16.0,
               "type": "CAMERA_KEYFRAME",
               "parameters": {
                 "x": 12.0,
-                "y": 66.0,
                 "pitchDeg": -12.0,
+                "y": 66.0,
                 "z": 8.0,
                 "yawDeg": 55.0
               }
             },
             {
-              "id": "be95b773ede5",
+              "id": "86008f76ca69",
               "timeSeconds": 32.0,
               "type": "CAMERA_KEYFRAME",
               "parameters": {
                 "x": -6.0,
-                "y": 70.0,
                 "pitchDeg": -18.0,
+                "y": 70.0,
                 "z": 18.0,
                 "yawDeg": -30.0
               }
@@ -106,12 +106,12 @@
       "trackId": "global",
       "clips": [
         {
-          "id": "9445187b3b9c",
+          "id": "05ada388fe95",
           "startTimeSeconds": 0.0,
           "endTimeSeconds": 48.0,
           "events": [
             {
-              "id": "d59de43cccac",
+              "id": "aadc698151eb",
               "timeSeconds": 6.0,
               "type": "GLOBAL",
               "parameters": {
@@ -125,7 +125,7 @@
               }
             },
             {
-              "id": "426467579199",
+              "id": "de25da41d82f",
               "timeSeconds": 12.0,
               "type": "GLOBAL",
               "parameters": {
@@ -139,7 +139,7 @@
               }
             },
             {
-              "id": "ac24a816f826",
+              "id": "c110fcd0348a",
               "timeSeconds": 20.0,
               "type": "GLOBAL",
               "parameters": {
@@ -150,7 +150,7 @@
               }
             },
             {
-              "id": "204d1081ce9c",
+              "id": "59e72d7074a6",
               "timeSeconds": 28.0,
               "type": "GLOBAL",
               "parameters": {

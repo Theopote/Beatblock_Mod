@@ -3,6 +3,7 @@ package com.beatblock.timeline.rendering;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanEditor;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
+import com.beatblock.automap.choreography.SectionPlanSource;
 import com.beatblock.automap.engine.SectionType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.editor.TimelineViewState;
@@ -115,12 +116,25 @@ public final class ChoreographySectionBandRenderer {
 
 			boolean hovered = i == hoveredSection;
 			int alpha = hovered ? fillAlphaHover : fillAlpha;
+			if (section.source() == SectionPlanSource.LOCKED) {
+				alpha = Math.min(0xFF, alpha + 0x18);
+			} else if (section.confidence() < 0.55) {
+				alpha = Math.max(0x22, alpha - 0x18);
+			}
 			int fillColor = colorForSection(section.sectionType(), alpha);
 			ImGui.getWindowDrawList().addRectFilled(left, top, right, bottom, fillColor);
 
 			if (drawBorders) {
 				int borderColor = colorForSection(section.sectionType(), 0xCC);
-				ImGui.getWindowDrawList().addRect(left, top, right, bottom, borderColor, 0f, 0, 1f);
+				if (section.source() == SectionPlanSource.LOCKED) {
+					borderColor = 0xCC_FF_D7_00;
+				} else if (section.source() == SectionPlanSource.USER_EDITED) {
+					borderColor = 0xCC_FF_FF_88;
+				} else if (section.confidence() < 0.55) {
+					borderColor = 0xCC_FF_88_44;
+				}
+				float borderWidth = section.source() == SectionPlanSource.LOCKED ? 2f : 1f;
+				ImGui.getWindowDrawList().addRect(left, top, right, bottom, borderColor, 0f, 0, borderWidth);
 			}
 
 			if (drawLabels) {
@@ -138,7 +152,10 @@ public final class ChoreographySectionBandRenderer {
 			float x = regionLeft + viewState.timeToScreen(boundaryTime);
 			if (x < regionLeft - 2 || x > regionRight + 2) continue;
 			boolean active = boundaryIndex == hoveredBoundary;
-			int color = active ? 0xFF_FF_CC_44 : (drawLabels ? 0xAA_FF_FF_FF : 0x55_FF_FF_FF);
+			ChoreographyPlan.SectionPlan left = plan.sections().get(boundaryIndex - 1);
+			ChoreographyPlan.SectionPlan right = plan.sections().get(boundaryIndex);
+			boolean locked = left.source() == SectionPlanSource.LOCKED || right.source() == SectionPlanSource.LOCKED;
+			int color = locked ? 0x55_FF_88_44 : (active ? 0xFF_FF_CC_44 : (drawLabels ? 0xAA_FF_FF_FF : 0x55_FF_FF_FF));
 			float width = active ? 2f : 1f;
 			ImGui.getWindowDrawList().addLine(x, top, x, bottom, color, width);
 		}
@@ -161,7 +178,10 @@ public final class ChoreographySectionBandRenderer {
 				"beatblock.section_edit.boundary.tooltip",
 				leftLabel,
 				rightLabel,
-				plan.sections().get(hit.boundaryIndex()).startSeconds()
+				plan.sections().get(hit.boundaryIndex()).startSeconds(),
+				ChoreographyPlanEditor.canMoveBoundary(plan, hit.boundaryIndex())
+					? BBTexts.get("beatblock.section_edit.boundary.draggable")
+					: BBTexts.get("beatblock.section_edit.boundary.locked")
 			));
 			return;
 		}
@@ -177,6 +197,8 @@ public final class ChoreographySectionBandRenderer {
 				section.sectionType().name(),
 				section.startSeconds(),
 				section.endSeconds(),
+				(int) Math.round(section.confidence() * 100.0),
+				sourceLabel(section.source()),
 				motion,
 				camera,
 				vfx
@@ -184,10 +206,21 @@ public final class ChoreographySectionBandRenderer {
 		}
 	}
 
-	public static void applyHoverCursor(ChoreographySectionHitTest.Hit hit) {
+	public static void applyHoverCursor(ChoreographyPlan plan, ChoreographySectionHitTest.Hit hit) {
 		if (hit != null && hit.isBoundary()) {
-			ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+			if (plan != null && ChoreographyPlanEditor.canMoveBoundary(plan, hit.boundaryIndex())) {
+				ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+			}
 		}
+	}
+
+	private static String sourceLabel(SectionPlanSource source) {
+		if (source == null) return "";
+		return switch (source) {
+			case ANALYZED -> BBTexts.get("beatblock.section_edit.source.analyzed");
+			case USER_EDITED -> BBTexts.get("beatblock.section_edit.source.user_edited");
+			case LOCKED -> BBTexts.get("beatblock.section_edit.source.locked");
+		};
 	}
 
 	private static String sectionLabel(ChoreographyPlan.SectionPlan section) {

@@ -47,7 +47,8 @@ public final class BeatmapStructureAdapter {
 			if (end <= start) continue;
 			SectionType type = mapSectionLabel(section.label());
 			String label = section.label().name().toLowerCase();
-			out.add(new StructuralSection(start, end, type, label));
+			double confidence = section.energyMean() > 0 ? Math.max(0.35, Math.min(1.0, section.energyMean())) : 0.75;
+			out.add(new StructuralSection(start, end, type, label, confidence));
 		}
 		if (out.isEmpty()) {
 			out.add(new StructuralSection(0, durationSeconds, SectionType.VERSE));

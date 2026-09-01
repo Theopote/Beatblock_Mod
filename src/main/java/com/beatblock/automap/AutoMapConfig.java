@@ -1,5 +1,6 @@
 package com.beatblock.automap;
 
+import com.beatblock.automap.choreography.ChoreographyTimingSnap;
 import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -80,9 +81,9 @@ public final class AutoMapConfig {
 		return builder()
 			.minGapSeconds(0.08)
 			.defaultHeightMultiplier(3f)
-			.rule(new AutoMapRule("low", 0.15f, "bounce", 0.5, true, 4f, 0.12, null))
-			.rule(new AutoMapRule("mid", 0.2f, "slide", 0.4, true, 3f, 0.08, null))
-			.rule(new AutoMapRule("high", 0.15f, "pulse", 0.3, false, 1f, 0.04, null))
+			.rule(new AutoMapRule("low", 0.15f, "bounce", 0.5, true, 4f, 0.12, null, ChoreographyTimingSnap.BEAT))
+			.rule(new AutoMapRule("mid", 0.2f, "slide", 0.4, true, 3f, 0.08, null, ChoreographyTimingSnap.BEAT))
+			.rule(new AutoMapRule("high", 0.15f, "pulse", 0.3, false, 1f, 0.04, null, ChoreographyTimingSnap.NONE))
 			.build();
 	}
 

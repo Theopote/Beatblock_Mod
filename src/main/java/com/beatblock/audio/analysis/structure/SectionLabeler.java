@@ -39,7 +39,8 @@ public final class SectionLabeler {
 			SectionType type = classifySegment(
 				stats, repetition, similarPriorCount, start, end, durationSeconds, sections.size());
 			String label = labelFor(type, repetition, stats, sections.size());
-			sections.add(new StructuralSection(start, end, type, label));
+			double confidence = confidenceFor(stats, repetition, similarPriorCount, type);
+			sections.add(new StructuralSection(start, end, type, label, confidence));
 		}
 		if (sections.isEmpty()) {
 			sections.add(new StructuralSection(0, durationSeconds, SectionType.VERSE));
@@ -115,6 +116,24 @@ public final class SectionLabeler {
 			case INTRO -> "intro";
 			case OUTRO -> "outro";
 		};
+	}
+
+	private static double confidenceFor(
+		SectionStats stats,
+		double repetition,
+		int similarPriorCount,
+		SectionType type
+	) {
+		double repetitionSignal = Math.min(1.0, repetition);
+		double energyClarity = Math.min(1.0, Math.abs(stats.energy - 0.5) * 2.0);
+		double labelClarity = switch (type) {
+			case INTRO, OUTRO, CHORUS, DROP -> 0.85;
+			case VERSE, BREAK -> repetitionSignal >= 0.55 ? 0.75 : 0.55;
+			default -> 0.65;
+		};
+		double repeatBoost = similarPriorCount > 0 ? 0.12 : 0.0;
+		return Math.max(0.2, Math.min(1.0,
+			0.35 * repetitionSignal + 0.25 * energyClarity + 0.4 * labelClarity + repeatBoost));
 	}
 
 	private static int frameIndexAt(List<StructureFeatureFrame> frames, double timeSeconds) {

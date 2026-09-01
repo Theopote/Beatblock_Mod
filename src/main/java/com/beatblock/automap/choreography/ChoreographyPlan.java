@@ -64,20 +64,30 @@ public record ChoreographyPlan(
 	public record MusicalStructure(
 		List<BarPlan> bars,
 		List<MusicalPhrasePlan> phrases,
-		List<RepeatGroup> repeats
+		List<RepeatGroup> repeats,
+		List<Double> beatTimes
 	) {
+		public MusicalStructure(
+			List<BarPlan> bars,
+			List<MusicalPhrasePlan> phrases,
+			List<RepeatGroup> repeats
+		) {
+			this(bars, phrases, repeats, List.of());
+		}
+
 		public MusicalStructure {
 			bars = bars != null ? List.copyOf(bars) : List.of();
 			phrases = phrases != null ? List.copyOf(phrases) : List.of();
 			repeats = repeats != null ? List.copyOf(repeats) : List.of();
+			beatTimes = beatTimes != null ? List.copyOf(beatTimes) : List.of();
 		}
 
 		public static MusicalStructure empty() {
-			return new MusicalStructure(List.of(), List.of(), List.of());
+			return new MusicalStructure(List.of(), List.of(), List.of(), List.of());
 		}
 
 		public boolean isEmpty() {
-			return bars.isEmpty() && phrases.isEmpty() && repeats.isEmpty();
+			return bars.isEmpty() && phrases.isEmpty() && repeats.isEmpty() && beatTimes.isEmpty();
 		}
 	}
 
@@ -153,14 +163,51 @@ public record ChoreographyPlan(
 		double startSeconds,
 		double endSeconds,
 		SectionType sectionType,
-		String label
+		String label,
+		double confidence,
+		SectionPlanSource source
 	) {
+		public SectionPlan(double startSeconds, double endSeconds, SectionType sectionType, String label) {
+			this(startSeconds, endSeconds, sectionType, label, 1.0, SectionPlanSource.ANALYZED);
+		}
+
 		public SectionPlan {
 			label = label != null ? label : "";
+			confidence = Math.max(0.0, Math.min(1.0, confidence));
+			source = source != null ? source : SectionPlanSource.ANALYZED;
 		}
 
 		public double durationSeconds() {
 			return Math.max(0.0, endSeconds - startSeconds);
+		}
+
+		public boolean isProtected() {
+			return source == SectionPlanSource.USER_EDITED || source == SectionPlanSource.LOCKED;
+		}
+
+		public SectionPlan withType(SectionType newType, String newLabel) {
+			return new SectionPlan(startSeconds, endSeconds, newType, newLabel, confidence, source);
+		}
+
+		public SectionPlan withSource(SectionPlanSource newSource) {
+			return new SectionPlan(startSeconds, endSeconds, sectionType, label, confidence, newSource);
+		}
+
+		public SectionPlan markedUserEdited() {
+			if (source == SectionPlanSource.LOCKED) return this;
+			return withSource(SectionPlanSource.USER_EDITED);
+		}
+
+		public SectionPlan markedLocked() {
+			return withSource(SectionPlanSource.LOCKED);
+		}
+
+		public SectionPlan markedAnalyzed(double newConfidence) {
+			return new SectionPlan(
+				startSeconds, endSeconds, sectionType, label,
+				Math.max(0.0, Math.min(1.0, newConfidence)),
+				SectionPlanSource.ANALYZED
+			);
 		}
 	}
 
@@ -193,7 +240,8 @@ public record ChoreographyPlan(
 		boolean useEnergyForHeight,
 		float heightMultiplier,
 		double minGapSeconds,
-		int sectionIndex
+		int sectionIndex,
+		ChoreographyTimingSnap timingSnap
 	) {
 		public MotionPhrase(
 			double timeSeconds,
@@ -215,7 +263,8 @@ public record ChoreographyPlan(
 				useEnergyForHeight,
 				heightMultiplier,
 				0.0,
-				-1
+				-1,
+				TimingSnapDefaults.forFeatureKey(normalizedFeatureKey)
 			);
 		}
 
@@ -240,7 +289,35 @@ public record ChoreographyPlan(
 				useEnergyForHeight,
 				heightMultiplier,
 				0.0,
-				sectionIndex
+				sectionIndex,
+				TimingSnapDefaults.forFeatureKey(normalizedFeatureKey)
+			);
+		}
+
+		public MotionPhrase(
+			double timeSeconds,
+			String trackKey,
+			String normalizedFeatureKey,
+			float energy,
+			String animationTypeId,
+			double durationSeconds,
+			boolean useEnergyForHeight,
+			float heightMultiplier,
+			double minGapSeconds,
+			int sectionIndex
+		) {
+			this(
+				timeSeconds,
+				trackKey,
+				normalizedFeatureKey,
+				energy,
+				animationTypeId,
+				durationSeconds,
+				useEnergyForHeight,
+				heightMultiplier,
+				minGapSeconds,
+				sectionIndex,
+				TimingSnapDefaults.forFeatureKey(normalizedFeatureKey)
 			);
 		}
 
@@ -252,6 +329,7 @@ public record ChoreographyPlan(
 			heightMultiplier = Math.max(0f, heightMultiplier);
 			minGapSeconds = Math.max(0.0, minGapSeconds);
 			sectionIndex = Math.max(-1, sectionIndex);
+			timingSnap = timingSnap != null ? timingSnap : TimingSnapDefaults.forFeatureKey(normalizedFeatureKey);
 		}
 
 		public double resolveMinGap(double defaultMinGapSeconds) {
@@ -269,14 +347,16 @@ public record ChoreographyPlan(
 		String framing,
 		String movement,
 		String easing,
-		boolean beatAligned
+		boolean beatAligned,
+		ChoreographyTimingSnap timingSnap
 	) {
 		public CameraPhrase(double timeSeconds, String action) {
 			this(timeSeconds, action, -1);
 		}
 
 		public CameraPhrase(double timeSeconds, String action, int sectionIndex) {
-			this(timeSeconds, action, sectionIndex, "", "", 3.0, "", "", "", false);
+			this(timeSeconds, action, sectionIndex, "", "", 3.0, "", "", "", false,
+				ChoreographyTimingSnap.BAR);
 		}
 
 		public CameraPhrase {
@@ -288,6 +368,14 @@ public record ChoreographyPlan(
 			movement = movement != null ? movement : "";
 			easing = easing != null ? easing : "";
 			sectionIndex = Math.max(-1, sectionIndex);
+			timingSnap = timingSnap != null ? timingSnap : ChoreographyTimingSnap.BAR;
+		}
+
+		public CameraPhrase withTimeSeconds(double newTimeSeconds) {
+			return new CameraPhrase(
+				newTimeSeconds, action, sectionIndex, subjectKind, subjectRef,
+				durationSeconds, framing, movement, easing, beatAligned, timingSnap
+			);
 		}
 	}
 }

@@ -153,6 +153,64 @@ class ChoreographyPlanCompilerTest {
 	}
 
 	@Test
+	void preservesOffBeatMotionTimesWhenTimingSnapIsNone() {
+		Timeline timeline = Timeline.createDefault();
+		var musical = new ChoreographyPlan.MusicalStructure(
+			List.of(new ChoreographyPlan.BarPlan(0.0, 2.0, 0, 0)),
+			List.of(),
+			List.of()
+		);
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 16, SectionType.INTRO, "intro")),
+			List.of(),
+			List.of(new ChoreographyPlan.MotionPhrase(
+				1.5, "hihat", "high", 0.6f, "pulse", 0.3, false, 1f, 0.0, 0,
+				ChoreographyTimingSnap.NONE
+			)),
+			List.of(),
+			List.of(),
+			DensityCurve.uniform(1.0),
+			List.of(),
+			musical
+		);
+
+		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, false);
+
+		assertEquals(1, count);
+		assertEquals(1.5, timeline.getAutoAnimationEvents().get(0).getTimeSeconds(), 1e-6);
+	}
+
+	@Test
+	void snapsMotionToBarStartOnlyWhenTimingSnapIsBar() {
+		Timeline timeline = Timeline.createDefault();
+		var musical = new ChoreographyPlan.MusicalStructure(
+			List.of(
+				new ChoreographyPlan.BarPlan(0.0, 2.0, 0, 0),
+				new ChoreographyPlan.BarPlan(2.0, 4.0, 1, 0)
+			),
+			List.of(),
+			List.of()
+		);
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 16, SectionType.BUILD, "build")),
+			List.of(),
+			List.of(new ChoreographyPlan.MotionPhrase(
+				2.05, "build", "low", 0.8f, "bounce", 0.5, true, 4f, 0.0, 0,
+				ChoreographyTimingSnap.BAR
+			)),
+			List.of(),
+			List.of(),
+			DensityCurve.uniform(1.0),
+			List.of(),
+			musical
+		);
+
+		ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, false);
+
+		assertEquals(2.0, timeline.getAutoAnimationEvents().get(0).getTimeSeconds(), 1e-6);
+	}
+
+	@Test
 	void compilesVfxAsTypedParticleBurstPayload() {
 		Timeline timeline = Timeline.createDefault();
 		ChoreographyPlan plan = new ChoreographyPlan(

@@ -4,9 +4,12 @@ import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapRule;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
+import com.beatblock.automap.choreography.ChoreographyTimingSnap;
 import com.beatblock.automap.choreography.ChoreographyVfxPersistence;
 import com.beatblock.automap.choreography.DensityCurve;
 import com.beatblock.automap.choreography.SectionEditProfile;
+import com.beatblock.automap.choreography.SectionPlanSource;
+import com.beatblock.automap.choreography.TimingSnapDefaults;
 import com.beatblock.automap.engine.SectionType;
 import com.beatblock.timeline.Timeline;
 import com.google.gson.JsonArray;
@@ -82,6 +85,13 @@ public final class ChoreographyPlanPersistence {
 		root.add("bars", barsToJson(musical.bars()));
 		root.add("phrases", musicalPhrasesToJson(musical.phrases()));
 		root.add("repeats", repeatsToJson(musical.repeats()));
+		if (!musical.beatTimes().isEmpty()) {
+			JsonArray beatTimes = new JsonArray();
+			for (double beatTime : musical.beatTimes()) {
+				beatTimes.add(beatTime);
+			}
+			root.add("beatTimes", beatTimes);
+		}
 		return root;
 	}
 
@@ -93,8 +103,20 @@ public final class ChoreographyPlanPersistence {
 		return new ChoreographyPlan.MusicalStructure(
 			barsFromJson(root.get("bars")),
 			musicalPhrasesFromJson(root.get("phrases")),
-			repeatsFromJson(root.get("repeats"))
+			repeatsFromJson(root.get("repeats")),
+			beatTimesFromJson(root.get("beatTimes"))
 		);
+	}
+
+	private static List<Double> beatTimesFromJson(@Nullable JsonElement element) {
+		if (element == null || !element.isJsonArray()) return List.of();
+		JsonArray arr = element.getAsJsonArray();
+		List<Double> out = new ArrayList<>(arr.size());
+		for (int i = 0; i < arr.size(); i++) {
+			if (!arr.get(i).isJsonPrimitive()) continue;
+			out.add(arr.get(i).getAsDouble());
+		}
+		return out;
 	}
 
 	private static JsonArray barsToJson(List<ChoreographyPlan.BarPlan> bars) {
@@ -276,6 +298,8 @@ public final class ChoreographyPlanPersistence {
 			obj.addProperty("endSeconds", section.endSeconds());
 			obj.addProperty("sectionType", section.sectionType().name());
 			obj.addProperty("label", section.label());
+			obj.addProperty("confidence", section.confidence());
+			obj.addProperty("source", section.source().name());
 			arr.add(obj);
 		}
 		return arr;
@@ -298,7 +322,9 @@ public final class ChoreographyPlanPersistence {
 				getDouble(obj, "startSeconds", 0.0),
 				getDouble(obj, "endSeconds", 0.0),
 				type,
-				getString(obj, "label", "")
+				getString(obj, "label", ""),
+				getDouble(obj, "confidence", 1.0),
+				parseSectionSource(getString(obj, "source", "ANALYZED"))
 			));
 		}
 		return out;
@@ -346,6 +372,9 @@ public final class ChoreographyPlanPersistence {
 				obj.addProperty("minGapSeconds", phrase.minGapSeconds());
 			}
 			obj.addProperty("sectionIndex", phrase.sectionIndex());
+			if (phrase.timingSnap() != TimingSnapDefaults.forFeatureKey(phrase.normalizedFeatureKey())) {
+				obj.addProperty("timingSnap", phrase.timingSnap().name());
+			}
 			arr.add(obj);
 		}
 		return arr;
@@ -368,7 +397,8 @@ public final class ChoreographyPlanPersistence {
 				getBool(obj, "useEnergyForHeight", true),
 				getFloat(obj, "heightMultiplier", 3f),
 				getDouble(obj, "minGapSeconds", 0.0),
-				getInt(obj, "sectionIndex", -1)
+				getInt(obj, "sectionIndex", -1),
+				parseTimingSnap(obj, getString(obj, "normalizedFeatureKey", "low"))
 			));
 		}
 		return out;
@@ -388,6 +418,9 @@ public final class ChoreographyPlanPersistence {
 			if (!phrase.movement().isBlank()) obj.addProperty("movement", phrase.movement());
 			if (!phrase.easing().isBlank()) obj.addProperty("easing", phrase.easing());
 			if (phrase.beatAligned()) obj.addProperty("beatAligned", true);
+			if (phrase.timingSnap() != ChoreographyTimingSnap.BAR) {
+				obj.addProperty("timingSnap", phrase.timingSnap().name());
+			}
 			arr.add(obj);
 		}
 		return arr;
@@ -410,7 +443,8 @@ public final class ChoreographyPlanPersistence {
 				getString(obj, "framing", ""),
 				getString(obj, "movement", ""),
 				getString(obj, "easing", ""),
-				getBool(obj, "beatAligned", false)
+				getBool(obj, "beatAligned", false),
+				parseTimingSnap(obj, ChoreographyTimingSnap.BAR)
 			));
 		}
 		return out;
@@ -486,6 +520,30 @@ public final class ChoreographyPlanPersistence {
 			));
 		}
 		return out;
+	}
+
+	private static SectionPlanSource parseSectionSource(String raw) {
+		if (raw == null || raw.isBlank()) return SectionPlanSource.ANALYZED;
+		try {
+			return SectionPlanSource.valueOf(raw.trim().toUpperCase(java.util.Locale.ROOT));
+		} catch (IllegalArgumentException ex) {
+			return SectionPlanSource.ANALYZED;
+		}
+	}
+
+	private static ChoreographyTimingSnap parseTimingSnap(JsonObject obj, String featureKey) {
+		return parseTimingSnap(obj, TimingSnapDefaults.forFeatureKey(featureKey));
+	}
+
+	private static ChoreographyTimingSnap parseTimingSnap(JsonObject obj, ChoreographyTimingSnap fallback) {
+		if (obj == null || !obj.has("timingSnap") || obj.get("timingSnap").isJsonNull()) {
+			return fallback;
+		}
+		try {
+			return ChoreographyTimingSnap.valueOf(obj.get("timingSnap").getAsString().trim().toUpperCase(java.util.Locale.ROOT));
+		} catch (IllegalArgumentException ex) {
+			return fallback;
+		}
 	}
 
 	private static String getString(JsonObject obj, String key, String def) {

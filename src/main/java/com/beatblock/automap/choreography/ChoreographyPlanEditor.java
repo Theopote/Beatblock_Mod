@@ -88,12 +88,53 @@ public final class ChoreographyPlanEditor {
 	}
 
 	/** 拖动段落边界：更新相邻 section 的 start/end，并重绑短语与密度曲线。 */
+	public static boolean canMoveBoundary(ChoreographyPlan plan, int boundaryIndex) {
+		if (plan == null || boundaryIndex < 1 || boundaryIndex >= plan.sections().size()) return false;
+		ChoreographyPlan.SectionPlan left = plan.sections().get(boundaryIndex - 1);
+		ChoreographyPlan.SectionPlan right = plan.sections().get(boundaryIndex);
+		return left.source() != SectionPlanSource.LOCKED && right.source() != SectionPlanSource.LOCKED;
+	}
+
+	public static ChoreographyPlan updateSection(
+		ChoreographyPlan plan,
+		int sectionIndex,
+		SectionType sectionType,
+		String label,
+		boolean locked
+	) {
+		if (plan == null || sectionIndex < 0 || sectionIndex >= plan.sections().size()) return plan;
+		ChoreographyPlan.SectionPlan current = plan.sections().get(sectionIndex);
+		SectionPlanSource source = locked
+			? SectionPlanSource.LOCKED
+			: SectionPlanSource.USER_EDITED;
+		List<ChoreographyPlan.SectionPlan> sections = new ArrayList<>(plan.sections());
+		sections.set(sectionIndex, new ChoreographyPlan.SectionPlan(
+			current.startSeconds(),
+			current.endSeconds(),
+			sectionType != null ? sectionType : current.sectionType(),
+			label != null ? label : current.label(),
+			current.confidence(),
+			source
+		));
+		return copyPlan(
+			plan,
+			sections,
+			plan.stageRoles(),
+			plan.motionPhrases(),
+			plan.cameraPhrases(),
+			plan.vfxPhrases(),
+			rebuildDensityCurve(sections),
+			plan.sectionEdits()
+		);
+	}
+
 	public static ChoreographyPlan moveSectionBoundary(
 		ChoreographyPlan plan,
 		int boundaryIndex,
 		double newTimeSeconds
 	) {
 		if (plan == null || boundaryIndex < 1 || boundaryIndex >= plan.sections().size()) return plan;
+		if (!canMoveBoundary(plan, boundaryIndex)) return plan;
 		List<ChoreographyPlan.SectionPlan> sections = new ArrayList<>(plan.sections());
 		ChoreographyPlan.SectionPlan left = sections.get(boundaryIndex - 1);
 		ChoreographyPlan.SectionPlan right = sections.get(boundaryIndex);
@@ -101,9 +142,21 @@ public final class ChoreographyPlanEditor {
 		double maxTime = right.endSeconds() - MIN_SECTION_DURATION_SECONDS;
 		double clamped = Math.max(minTime, Math.min(maxTime, newTimeSeconds));
 		sections.set(boundaryIndex - 1, new ChoreographyPlan.SectionPlan(
-			left.startSeconds(), clamped, left.sectionType(), left.label()));
+			left.startSeconds(),
+			clamped,
+			left.sectionType(),
+			left.label(),
+			left.confidence(),
+			SectionPlanSource.USER_EDITED
+		));
 		sections.set(boundaryIndex, new ChoreographyPlan.SectionPlan(
-			clamped, right.endSeconds(), right.sectionType(), right.label()));
+			clamped,
+			right.endSeconds(),
+			right.sectionType(),
+			right.label(),
+			right.confidence(),
+			SectionPlanSource.USER_EDITED
+		));
 		DensityCurve density = rebuildDensityCurve(sections);
 		return copyPlan(
 			plan,
@@ -238,7 +291,8 @@ public final class ChoreographyPlanEditor {
 				phrase.useEnergyForHeight(),
 				phrase.heightMultiplier(),
 				phrase.minGapSeconds(),
-				phrase.sectionIndex()
+				phrase.sectionIndex(),
+				phrase.timingSnap()
 			));
 		}
 		return out;
@@ -258,7 +312,15 @@ public final class ChoreographyPlanEditor {
 			out.add(new ChoreographyPlan.CameraPhrase(
 				phrase.timeSeconds() + edit.timeOffsetSeconds(),
 				phrase.action(),
-				phrase.sectionIndex()
+				phrase.sectionIndex(),
+				phrase.subjectKind(),
+				phrase.subjectRef(),
+				phrase.durationSeconds(),
+				phrase.framing(),
+				phrase.movement(),
+				phrase.easing(),
+				phrase.beatAligned(),
+				phrase.timingSnap()
 			));
 		}
 		return out;
@@ -305,7 +367,8 @@ public final class ChoreographyPlanEditor {
 				phrase.useEnergyForHeight(),
 				phrase.heightMultiplier(),
 				phrase.minGapSeconds(),
-				resolveSectionIndex(plan.sections(), phrase.timeSeconds() + deltaSeconds)
+				resolveSectionIndex(plan.sections(), phrase.timeSeconds() + deltaSeconds),
+				phrase.timingSnap()
 			));
 		}
 		return out;
@@ -327,7 +390,15 @@ public final class ChoreographyPlanEditor {
 			out.add(new ChoreographyPlan.CameraPhrase(
 				time,
 				phrase.action(),
-				resolveSectionIndex(plan.sections(), time)
+				resolveSectionIndex(plan.sections(), time),
+				phrase.subjectKind(),
+				phrase.subjectRef(),
+				phrase.durationSeconds(),
+				phrase.framing(),
+				phrase.movement(),
+				phrase.easing(),
+				phrase.beatAligned(),
+				phrase.timingSnap()
 			));
 		}
 		return out;
@@ -367,7 +438,8 @@ public final class ChoreographyPlanEditor {
 				phrase.useEnergyForHeight(),
 				phrase.heightMultiplier(),
 				phrase.minGapSeconds(),
-				resolveSectionIndex(sections, phrase.timeSeconds())
+				resolveSectionIndex(sections, phrase.timeSeconds()),
+				phrase.timingSnap()
 			));
 		}
 		return out;
@@ -382,7 +454,15 @@ public final class ChoreographyPlanEditor {
 			out.add(new ChoreographyPlan.CameraPhrase(
 				phrase.timeSeconds(),
 				phrase.action(),
-				resolveSectionIndex(sections, phrase.timeSeconds())
+				resolveSectionIndex(sections, phrase.timeSeconds()),
+				phrase.subjectKind(),
+				phrase.subjectRef(),
+				phrase.durationSeconds(),
+				phrase.framing(),
+				phrase.movement(),
+				phrase.easing(),
+				phrase.beatAligned(),
+				phrase.timingSnap()
 			));
 		}
 		return out;
