@@ -1,0 +1,122 @@
+{
+  "format": "beatblock.osc",
+  "schemaVersion": 3,
+  "projectId": "golden-broken-reference",
+  "projectPath": "projects/broken-reference.osc",
+  "timelineName": "Broken Reference",
+  "audioPath": "",
+  "durationSeconds": 32.0,
+  "bpm": 120.0,
+  "markers": [],
+  "buildLayers": [],
+  "buildLayerGroups": [],
+  "animationTracks": [
+    {
+      "trackId": "animation_auto",
+      "clips": [
+        {
+          "id": "0dfb913137bc",
+          "startTimeSeconds": 2.0,
+          "endTimeSeconds": 3.0,
+          "events": [
+            {
+              "id": "048804223f29",
+              "timeSeconds": 2.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "missing-stage",
+                "durationSeconds": 1.0,
+                "actionMode": "ANIMATE",
+                "animationType": "bounce",
+                "energy": 0.8,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "28c40586f91b",
+          "startTimeSeconds": 6.0,
+          "endTimeSeconds": 7.0,
+          "events": [
+            {
+              "id": "8b43db1c9e04",
+              "timeSeconds": 6.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "also-missing-stage",
+                "durationSeconds": 1.0,
+                "actionMode": "ANIMATE",
+                "animationType": "DefinitelyNotARealPreset",
+                "energy": 0.8,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "camera",
+      "clips": [
+        {
+          "id": "2d63e3c30b1d",
+          "startTimeSeconds": 18.0,
+          "endTimeSeconds": 21.0,
+          "events": [
+            {
+              "id": "145d0cc94938",
+              "timeSeconds": 18.0,
+              "type": "CAMERA_SEGMENT",
+              "parameters": {
+                "yawStartDeg": 0.0,
+                "yawEndDeg": 90.0,
+                "kind": "ORBIT",
+                "targetZ": 0.0,
+                "targetY": 64.0,
+                "followSubjectRef": "missing-camera-subject",
+                "targetX": 0.0,
+                "followSubjectKind": "STAGE_OBJECT",
+                "radius": 8.0,
+                "eventOrigin": "MANUAL",
+                "height": 3.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "build_layer_1",
+      "trackName": "beatblock.track.default.build_layer_numbered",
+      "clips": [
+        {
+          "id": "broken-build",
+          "startTimeSeconds": 10.0,
+          "endTimeSeconds": 14.0,
+          "events": [
+            {
+              "id": "broken-build-event",
+              "timeSeconds": 10.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "layerBound": "true",
+                "targetObject": "missing-build-stage",
+                "layerId": "missing-layer",
+                "durationSeconds": 4.0,
+                "actionMode": "BUILD",
+                "buildMode": "WALL",
+                "buildDissolve": "false",
+                "eventOrigin": "MANUAL",
+                "animationType": "Pulse",
+                "energy": 1.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -77,6 +77,17 @@ public final class GoldenProjectRegressionHarness {
 		return new RoundTripResult(report, compileFingerprint, reloadedCompileFingerprint, probes);
 	}
 
+	public static BlockAnimationEngine prepareEngine(Timeline timeline, BuildLayerManager layers) {
+		BlockAnimationEngine engine = createEngine(layers);
+		registerReferencedStages(timeline, engine);
+		return engine;
+	}
+
+	/** 仅注册 BuildLayer 舞台，不自动补齐缺失的 target 引用（用于 broken-reference 回归）。 */
+	public static BlockAnimationEngine engineFromLayersOnly(BuildLayerManager layers) {
+		return createEngine(layers);
+	}
+
 	public static Path copyResourceTo(Path targetDir, String resourceName) throws IOException {
 		String resourcePath = "/projects/" + resourceName;
 		try (var in = GoldenProjectRegressionHarness.class.getResourceAsStream(resourcePath)) {

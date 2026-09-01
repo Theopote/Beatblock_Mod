@@ -31,12 +31,12 @@
       "trackId": "animation_auto",
       "clips": [
         {
-          "id": "3bdd46239c9d",
+          "id": "72b122443527",
           "startTimeSeconds": 2.0,
           "endTimeSeconds": 3.0,
           "events": [
             {
-              "id": "9dc321fd7877",
+              "id": "e4d7527da814",
               "timeSeconds": 2.0,
               "type": "ANIMATION",
               "parameters": {
@@ -58,12 +58,12 @@
       "trackId": "camera",
       "clips": [
         {
-          "id": "cb4fcabc6246",
+          "id": "6644b0a6941b",
           "startTimeSeconds": 0.0,
           "endTimeSeconds": 48.0,
           "events": [
             {
-              "id": "e84fe8be5244",
+              "id": "ecb83869954e",
               "timeSeconds": 0.0,
               "type": "CAMERA_KEYFRAME",
               "parameters": {
@@ -75,7 +75,7 @@
               }
             },
             {
-              "id": "249b235bb46d",
+              "id": "549ec73a38cb",
               "timeSeconds": 16.0,
               "type": "CAMERA_KEYFRAME",
               "parameters": {
@@ -87,7 +87,7 @@
               }
             },
             {
-              "id": "86008f76ca69",
+              "id": "680876d1ca5e",
               "timeSeconds": 32.0,
               "type": "CAMERA_KEYFRAME",
               "parameters": {
@@ -106,18 +106,18 @@
       "trackId": "global",
       "clips": [
         {
-          "id": "05ada388fe95",
+          "id": "0b92ce8f1a82",
           "startTimeSeconds": 0.0,
           "endTimeSeconds": 48.0,
           "events": [
             {
-              "id": "aadc698151eb",
+              "id": "c52b7e5cbe1a",
               "timeSeconds": 6.0,
               "type": "GLOBAL",
               "parameters": {
                 "intensity": 0.65,
-                "r": 1.0,
                 "b": 0.6,
+                "r": 1.0,
                 "durationSeconds": 4.0,
                 "g": 0.85,
                 "name": "Verse Key",
@@ -125,13 +125,13 @@
               }
             },
             {
-              "id": "de25da41d82f",
+              "id": "eb27670379a1",
               "timeSeconds": 12.0,
               "type": "GLOBAL",
               "parameters": {
                 "intensity": 0.8,
-                "r": 1.0,
                 "b": 1.0,
+                "r": 1.0,
                 "durationSeconds": 0.25,
                 "g": 1.0,
                 "name": "Hit Flash",
@@ -139,7 +139,7 @@
               }
             },
             {
-              "id": "c110fcd0348a",
+              "id": "7e7ac86667c7",
               "timeSeconds": 20.0,
               "type": "GLOBAL",
               "parameters": {
@@ -150,13 +150,13 @@
               }
             },
             {
-              "id": "59e72d7074a6",
+              "id": "72e43b491dda",
               "timeSeconds": 28.0,
               "type": "GLOBAL",
               "parameters": {
                 "intensity": 0.35,
-                "r": 0.2,
                 "b": 1.0,
+                "r": 0.2,
                 "durationSeconds": 8.0,
                 "g": 0.4,
                 "name": "Chorus Tint",

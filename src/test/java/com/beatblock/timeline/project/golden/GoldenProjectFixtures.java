@@ -5,7 +5,8 @@ import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
-import com.beatblock.timeline.Clip;
+import com.beatblock.timeline.GlobalEvent;
+import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
@@ -16,11 +17,15 @@ import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.TrackType;
+import com.beatblock.automap.camera.CameraSegmentSemantics;
+import com.beatblock.timeline.Clip;
+import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -111,6 +116,76 @@ public final class GoldenProjectFixtures {
 		return GoldenProjectContext.of(timeline, layers);
 	}
 
+	public static GoldenProjectContext manualPlusAutomap() {
+		Timeline timeline = baseTimeline("Manual Plus Auto Map", "golden-manual-plus-automap", 48.0, 128.0);
+		BuildLayerManager layers = new BuildLayerManager(new StageObjectSystem());
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("stage-main", "Main Stage",
+			List.of(new BlockPos(0, 64, 0)));
+		layers.registerRestored(new BuildLayer(
+			"layer-main", "Main Stage", stage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
+
+		addFeatureBand(timeline, "kick", "kick-1", 1.0, stage.getId());
+		addFeatureBand(timeline, "bass", "bass-1", 8.0, stage.getId());
+		addFeatureBand(timeline, "hihat", "hihat-1", 16.0, stage.getId());
+
+		timeline.addCameraKeyframe(new com.beatblock.timeline.CameraKeyframe(4.0));
+		timeline.addCameraKeyframe(new com.beatblock.timeline.CameraKeyframe(20.0));
+
+		timeline.addGlobalEvent(new GlobalEvent(8.0, GlobalEventType.SCREEN_TINT, "Manual Tint A"));
+		timeline.addGlobalEvent(new GlobalEvent(28.0, GlobalEventType.SPECIAL, "Manual Flash B"));
+
+		timeline.addMarker(new TimelineMarker("intro", 0.0, "Intro", MarkerType.SECTION));
+		timeline.addMarker(new TimelineMarker("drop", 24.0, "Drop", MarkerType.DROP));
+		return GoldenProjectContext.of(timeline, layers);
+	}
+
+	public static GoldenProjectContext brokenReference() {
+		Timeline timeline = baseTimeline("Broken Reference", "golden-broken-reference", 32.0, 120.0);
+		timeline.setMetadata("audioPath", "");
+		BuildLayerManager layers = new BuildLayerManager(new StageObjectSystem());
+
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"missing-stage", 2.0, 1.0, "bounce", "missing-stage", 0.8f,
+			Map.of(
+				"animationType", "bounce",
+				"targetObject", "missing-stage",
+				"durationSeconds", 1.0,
+				"actionMode", "ANIMATE")));
+
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"unknown-preset", 6.0, 1.0, "DefinitelyNotARealPreset", "also-missing-stage", 0.8f,
+			Map.of(
+				"animationType", "DefinitelyNotARealPreset",
+				"targetObject", "also-missing-stage",
+				"durationSeconds", 1.0,
+				"actionMode", "ANIMATE")));
+
+		Track buildTrack = BuildLayerTrackSupport.ensureDefaultTrack(timeline);
+		Clip buildClip = new Clip("broken-build", 10.0, 14.0);
+		buildTrack.addClip(buildClip);
+		buildClip.addEvent(new TimelineEvent("broken-build-event", 10.0, EventType.ANIMATION, Map.of(
+			"actionMode", "BUILD",
+			"animationType", "Pulse",
+			"targetObject", "missing-build-stage",
+			"layerId", "missing-layer",
+			"durationSeconds", 4.0,
+			"energy", 1.0,
+			"eventOrigin", TimelineEventOrigin.MANUAL.name(),
+			"buildMode", "WALL",
+			"buildDissolve", "false",
+			"layerBound", "true")));
+		timeline.markAnimationEventsDirty(buildTrack.getId());
+
+		Map<String, Object> cameraSemantics = new HashMap<>();
+		cameraSemantics.put(CameraSegmentSemantics.KEY_FOLLOW_SUBJECT_KIND, "STAGE_OBJECT");
+		cameraSemantics.put(CameraSegmentSemantics.KEY_FOLLOW_SUBJECT_REF, "missing-camera-subject");
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 18.0, 3.0, 0, 64, 0, 8, 3, 0, 90,
+			TimelineEventOrigin.MANUAL, cameraSemantics);
+
+		return GoldenProjectContext.of(timeline, layers);
+	}
+
 	public static GoldenProjectContext stress10k() {
 		Timeline timeline = baseTimeline("Stress 10k", "golden-stress-10k", 10_000.0, 120.0);
 		BuildLayerManager layers = new BuildLayerManager(new StageObjectSystem());
@@ -197,6 +272,7 @@ public final class GoldenProjectFixtures {
 		projects.add(Map.entry("build-demo.osc", buildDemo()));
 		projects.add(Map.entry("three-band.osc", threeBand()));
 		projects.add(Map.entry("camera-vfx.osc", cameraVfx()));
+		projects.add(Map.entry("manual-plus-automap.osc", manualPlusAutomap()));
 		projects.add(Map.entry("stress-10k.osc", stress10k()));
 		return List.copyOf(projects);
 	}

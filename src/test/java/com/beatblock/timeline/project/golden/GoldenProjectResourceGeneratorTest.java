@@ -32,6 +32,14 @@ class GoldenProjectResourceGeneratorTest {
 			OscProjectStore.save(target, entry.getValue().timeline(), entry.getValue().layers());
 			normalizeCommittedProjectPath(target, "projects/" + entry.getKey());
 		}
+		writeBrokenReferenceProject(resourcesDir);
+	}
+
+	private static void writeBrokenReferenceProject(Path resourcesDir) throws Exception {
+		Path target = resourcesDir.resolve("broken-reference.osc");
+		GoldenProjectContext context = GoldenProjectFixtures.brokenReference();
+		OscProjectStore.save(target, context.timeline(), context.layers());
+		normalizeCommittedProjectPath(target, "projects/broken-reference.osc");
 	}
 
 	private static final Gson PRETTY_GSON = new GsonBuilder().setPrettyPrinting().create();

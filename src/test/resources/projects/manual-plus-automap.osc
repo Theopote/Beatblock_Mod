@@ -1,0 +1,199 @@
+{
+  "format": "beatblock.osc",
+  "schemaVersion": 3,
+  "projectId": "golden-manual-plus-automap",
+  "projectPath": "projects/manual-plus-automap.osc",
+  "timelineName": "Manual Plus Auto Map",
+  "audioPath": "golden://audio/placeholder.wav",
+  "durationSeconds": 48.0,
+  "bpm": 128.0,
+  "markers": [
+    {
+      "id": "intro",
+      "timeSeconds": 0.0,
+      "name": "Intro",
+      "type": "SECTION"
+    },
+    {
+      "id": "drop",
+      "timeSeconds": 24.0,
+      "name": "Drop",
+      "type": "DROP"
+    }
+  ],
+  "buildLayers": [
+    {
+      "id": "layer-main",
+      "name": "Main Stage",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "stage-main",
+      "stageObjectName": "Main Stage",
+      "blocks": [
+        {
+          "x": 0,
+          "y": 64,
+          "z": 0
+        }
+      ],
+      "capturedStates": []
+    }
+  ],
+  "buildLayerGroups": [],
+  "animationTracks": [
+    {
+      "trackId": "camera",
+      "clips": [
+        {
+          "id": "a2934fde0a63",
+          "startTimeSeconds": 4.0,
+          "endTimeSeconds": 4.1,
+          "events": [
+            {
+              "id": "4a6a4f8a9e10",
+              "timeSeconds": 4.0,
+              "type": "CAMERA_KEYFRAME",
+              "parameters": {
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "719f625c3b86",
+          "startTimeSeconds": 20.0,
+          "endTimeSeconds": 20.1,
+          "events": [
+            {
+              "id": "b60501dcece1",
+              "timeSeconds": 20.0,
+              "type": "CAMERA_KEYFRAME",
+              "parameters": {
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "global",
+      "clips": [
+        {
+          "id": "1b0cc85f5d29",
+          "startTimeSeconds": 8.0,
+          "endTimeSeconds": 8.1,
+          "events": [
+            {
+              "id": "d08fe1344ad8",
+              "timeSeconds": 8.0,
+              "type": "GLOBAL",
+              "parameters": {
+                "name": "Manual Tint A",
+                "type": "SCREEN_TINT",
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "1268fe0f48a6",
+          "startTimeSeconds": 28.0,
+          "endTimeSeconds": 28.1,
+          "events": [
+            {
+              "id": "3ab665fb08be",
+              "timeSeconds": 28.0,
+              "type": "GLOBAL",
+              "parameters": {
+                "name": "Manual Flash B",
+                "type": "SPECIAL",
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "animation_block_feature_kick",
+      "clips": [
+        {
+          "id": "3c467ed7d3de",
+          "startTimeSeconds": 1.0,
+          "endTimeSeconds": 2.0,
+          "events": [
+            {
+              "id": "1f6ef3663776",
+              "timeSeconds": 1.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "stage-main",
+                "playbackSemantics": "TRANSIENT",
+                "durationSeconds": 1.0,
+                "actionMode": "ANIMATE",
+                "animationType": "BlockTap",
+                "energy": 0.85,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "animation_block_feature_bass",
+      "clips": [
+        {
+          "id": "ba333a548242",
+          "startTimeSeconds": 8.0,
+          "endTimeSeconds": 9.0,
+          "events": [
+            {
+              "id": "f7f9a9c22ce4",
+              "timeSeconds": 8.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "stage-main",
+                "playbackSemantics": "TRANSIENT",
+                "durationSeconds": 1.0,
+                "actionMode": "ANIMATE",
+                "animationType": "BlockTap",
+                "energy": 0.85,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "animation_block_feature_hihat",
+      "clips": [
+        {
+          "id": "cf434ab9a82e",
+          "startTimeSeconds": 16.0,
+          "endTimeSeconds": 17.0,
+          "events": [
+            {
+              "id": "19736e429dda",
+              "timeSeconds": 16.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "stage-main",
+                "playbackSemantics": "TRANSIENT",
+                "durationSeconds": 1.0,
+                "actionMode": "ANIMATE",
+                "animationType": "BlockTap",
+                "energy": 0.85,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
