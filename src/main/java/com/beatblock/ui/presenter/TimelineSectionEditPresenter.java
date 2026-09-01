@@ -2,6 +2,7 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.choreography.ChoreographyPlan;
+import com.beatblock.automap.choreography.ChoreographyCompileOptions;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
 import com.beatblock.automap.choreography.ChoreographyPlanEditor;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
@@ -102,7 +103,8 @@ public final class TimelineSectionEditPresenter {
 		plan = ChoreographyPlanEditor.bakePhraseOverrides(plan);
 		ChoreographyPlanStore.save(timeline, plan, config);
 
-		var compiled = ChoreographyPlanCompiler.compileAll(timeline, plan, config, true);
+		var compiled = ChoreographyPlanCompiler.compileAll(
+			timeline, plan, config, ChoreographyCompileOptions.smartAutoMap());
 		var editor = context.get().timelineEditor();
 		if (editor != null) {
 			editor.syncClockDuration();

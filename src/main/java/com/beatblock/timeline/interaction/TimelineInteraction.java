@@ -4,6 +4,7 @@ import com.beatblock.BeatBlockClient;
 import com.beatblock.audio.MusicPlayer;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.choreography.ChoreographyPlan;
+import com.beatblock.automap.choreography.ChoreographyCompileOptions;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
 import com.beatblock.automap.choreography.ChoreographyPlanEditor;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
@@ -772,7 +773,8 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		if (config == null) {
 			config = AutoMapConfig.createDefault();
 		}
-		ChoreographyPlanCompiler.compileAll(timeline, plan, config, true);
+		ChoreographyPlanCompiler.compileAll(
+			timeline, plan, config, ChoreographyCompileOptions.smartAutoMap());
 		if (timelineEditor != null) {
 			timelineEditor.syncClockDuration();
 		}

@@ -10,6 +10,7 @@ import com.beatblock.automap.camera.CameraPlanningContext;
 import com.beatblock.automap.camera.CameraShot;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanBuilder;
+import com.beatblock.automap.choreography.ChoreographyCompileOptions;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.timeline.Timeline;
@@ -73,7 +74,8 @@ public final class SmartAutoMapEngine {
 		);
 
 		ChoreographyPlanCompiler.SmartAutoMapCompileResult compiled =
-			ChoreographyPlanCompiler.compileAll(timeline, plan, config, false);
+			ChoreographyPlanCompiler.compileAll(
+				timeline, plan, config, ChoreographyCompileOptions.smartAutoMap());
 
 		ChoreographyPlanStore.save(timeline, plan, config);
 

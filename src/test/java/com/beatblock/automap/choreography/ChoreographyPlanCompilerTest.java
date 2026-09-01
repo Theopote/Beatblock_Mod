@@ -2,7 +2,11 @@ package com.beatblock.automap.choreography;
 
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapRule;
+import com.beatblock.automap.engine.SectionType;
+import com.beatblock.timeline.CameraKeyframe;
 import com.beatblock.timeline.FeatureEvent;
+import com.beatblock.timeline.GlobalEvent;
+import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.test.WithBeatBlockContext;
 import org.junit.jupiter.api.Test;
@@ -56,5 +60,64 @@ class ChoreographyPlanCompilerTest {
 			timeline, plan, AutoMapConfig.createDefault(), false);
 
 		assertEquals(0, count);
+	}
+
+	@Test
+	void compileAllReplaceGeneratedIsIdempotentForCameraAndVfx() {
+		Timeline timeline = Timeline.createDefault();
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 16, SectionType.INTRO, "intro")),
+			List.of(),
+			List.of(),
+			List.of(new ChoreographyPlan.CameraPhrase(4.0, "PAN", 0)),
+			List.of(
+				new ChoreographyPlan.VfxPhrase(2.0, "particle_spark", 0),
+				new ChoreographyPlan.VfxPhrase(8.0, "particle_burst", 0)
+			),
+			DensityCurve.uniform(1.0)
+		);
+		AutoMapConfig config = AutoMapConfig.createDefault();
+		var options = ChoreographyCompileOptions.smartAutoMap();
+
+		var first = ChoreographyPlanCompiler.compileAll(timeline, plan, config, options);
+		var second = ChoreographyPlanCompiler.compileAll(timeline, plan, config, options);
+
+		assertEquals(1, first.cameraEvents());
+		assertEquals(2, first.vfxEvents());
+		assertEquals(first.cameraEvents(), second.cameraEvents());
+		assertEquals(first.vfxEvents(), second.vfxEvents());
+		assertEquals(1, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+		assertEquals(2, timeline.getGlobalEvents().size());
+	}
+
+	@Test
+	void compileAllReplaceGeneratedPreservesManualCameraAndVfx() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addCameraKeyframe(new CameraKeyframe(1.0));
+		timeline.addGlobalEvent(new GlobalEvent(1.5, GlobalEventType.SCREEN_TINT, "Manual"));
+
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 16, SectionType.INTRO, "intro")),
+			List.of(),
+			List.of(),
+			List.of(new ChoreographyPlan.CameraPhrase(4.0, "PAN", 0)),
+			List.of(new ChoreographyPlan.VfxPhrase(6.0, "particle_spark", 0)),
+			DensityCurve.uniform(1.0)
+		);
+
+		ChoreographyPlanCompiler.compileAll(
+			timeline, plan, AutoMapConfig.createDefault(), ChoreographyCompileOptions.smartAutoMap());
+		assertEquals(2, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+		assertEquals(2, timeline.getGlobalEvents().size());
+
+		ChoreographyPlanCompiler.compileAll(
+			timeline, plan, AutoMapConfig.createDefault(), ChoreographyCompileOptions.smartAutoMap());
+		assertEquals(2, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+		assertEquals(2, timeline.getGlobalEvents().size());
+		assertEquals("Manual", timeline.getGlobalEvents().stream()
+			.filter(event -> "Manual".equals(event.getName()))
+			.findFirst()
+			.orElseThrow()
+			.getName());
 	}
 }
