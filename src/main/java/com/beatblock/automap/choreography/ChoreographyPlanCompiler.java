@@ -87,9 +87,15 @@ public final class ChoreographyPlanCompiler {
 				fallbackTarget
 			);
 
+			double eventTime = BarSnapHelper.snapToNearestBarStart(
+				candidate.timeSeconds(),
+				plan.musicalStructure(),
+				BarSnapHelper.DEFAULT_TOLERANCE_SECONDS
+			);
+
 			draft.add(new TimelineAnimationEvent(
 				"",
-				candidate.timeSeconds(),
+				eventTime,
 				durationSeconds,
 				animationTypeId,
 				targetId,

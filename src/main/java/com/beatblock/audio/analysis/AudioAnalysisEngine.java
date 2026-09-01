@@ -3,6 +3,7 @@ package com.beatblock.audio.analysis;
 import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.audio.beatmap.BeatEvent;
 import com.beatblock.audio.beatmap.MusicSection;
+import com.beatblock.automap.choreography.ChoreographyPlanSeeder;
 import com.beatblock.timeline.*;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -229,6 +230,7 @@ public final class AudioAnalysisEngine {
 		}
 
 		timeline.sortAll();
+		ChoreographyPlanSeeder.seedFromBeatmap(timeline, beatmap);
 	}
 
 	/**

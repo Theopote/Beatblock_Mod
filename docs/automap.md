@@ -32,6 +32,8 @@ Timeline 动画轨 / 摄像机轨 / 全局事件初稿
 
 `ChoreographyPlanPersistence` 将计划写入 `.osc` 的 `choreography` 段（见 [project-format.md](project-format.md)）。
 
+Beatmap 导入时，`ChoreographyPlanSeeder` 会写入段落与小节结构；若已有动作/镜头短语则仅刷新结构层。
+
 ## 与播放器边界
 
 - 自动映射只在用户触发或导入时运行一次
