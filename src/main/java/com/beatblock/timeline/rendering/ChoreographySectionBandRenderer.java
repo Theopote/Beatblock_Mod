@@ -34,7 +34,7 @@ public final class ChoreographySectionBandRenderer {
 		ChoreographyPlan plan = ChoreographyPlanStore.loadPlan(timeline);
 		if (plan == null || plan.sections().isEmpty()) return;
 
-		float bandTop = ChoreographySectionBandLayout.bandTop(layout);
+		float bandTop = ChoreographySectionBandLayout.sectionBandTop(layout);
 		float clipRight = rLeft + layout.rulerWidth;
 		ChoreographySectionHitTest.Hit hit = ChoreographySectionHitTest.hit(
 			timeline, viewState, layout, ImGui.getMousePosX(), ImGui.getMousePosY());

@@ -652,6 +652,7 @@
   "beatblock.section_edit.applied": "段落编舞已应用。",
   "beatblock.section_edit.band.tooltip": "%s（%s）\n%.1f – %.1f 秒\nMotion %d，Camera %d，VFX %d\n点击编辑编舞",
   "beatblock.section_edit.boundary.tooltip": "段落边界：%s | %s\n%.1f 秒\n拖动调整段落长度",
+  "beatblock.musical_structure.phrase.tooltip": "乐句 P%d\n%.1f – %.1f 秒\n重复度 %.0f%%\n段落：%s\n重复锚点：P%d",
 
   "beatblock.audio.select_file": "选择音频文件",
   "beatblock.audio.collapse_detail": "折叠详情",

@@ -610,6 +610,10 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			if (ImGui.isWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenBlockedByPopup)) {
 				ChoreographySectionBandRenderer.renderHoverTooltip(timeline, sectionHit);
 			}
+		} else if (interactionState.getMode() == InteractionMode.NONE
+			&& layout.rulerContains(mx, my)
+			&& ImGui.isWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenBlockedByPopup)) {
+			ChoreographyMusicalStructureRenderer.renderPhraseHoverTooltip(timeline, viewState, layout, mx, my);
 		}
 
 		if (alt && toolbarState != null && layout.rulerContains(mx, my) && ImGui.isMouseClicked(1)) {

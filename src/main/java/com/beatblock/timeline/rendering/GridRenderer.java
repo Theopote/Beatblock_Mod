@@ -93,6 +93,8 @@ public final class GridRenderer {
 		}
 
 		renderMarkers(view, layout, timeline, rTop, rBot, rLeft);
+		ChoreographyMusicalStructureRenderer.renderPhraseBand(
+			timeline, view, layout, rLeft, rLeft + layout.rulerWidth);
 		ChoreographySectionBandRenderer.render(timeline, view, layout, rTop, rBot, rLeft);
 		renderLoopOverlay(view, layout, toolbarState, rTop, rBot, rLeft);
 

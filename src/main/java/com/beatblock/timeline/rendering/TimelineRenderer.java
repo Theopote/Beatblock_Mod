@@ -179,6 +179,8 @@ public final class TimelineRenderer implements TimelineAudioDropHost {
 		drawGroupSectionSeparators(layout, x0, x1);
 
 		ChoreographySectionBandRenderer.renderContentBackground(timeline, viewState, layout);
+		ChoreographyMusicalStructureRenderer.renderPhraseContentBackground(timeline, viewState, layout);
+		ChoreographyMusicalStructureRenderer.renderBarGrid(timeline, viewState, layout);
 
 		// 网格竖线（仅时间轴方向，不画行间线）
 		gridRenderer.render(viewState, layout, layout.contentHeight);
