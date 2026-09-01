@@ -1,0 +1,171 @@
+{
+  "format": "beatblock.osc",
+  "schemaVersion": 3,
+  "projectId": "golden-camera-vfx",
+  "projectPath": "projects/camera-vfx.osc",
+  "timelineName": "Camera VFX",
+  "audioPath": "golden://audio/placeholder.wav",
+  "durationSeconds": 48.0,
+  "bpm": 128.0,
+  "markers": [],
+  "buildLayers": [
+    {
+      "id": "layer-vfx",
+      "name": "VFX Stage",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "stage-vfx",
+      "stageObjectName": "VFX Stage",
+      "blocks": [
+        {
+          "x": 0,
+          "y": 64,
+          "z": 0
+        }
+      ],
+      "capturedStates": []
+    }
+  ],
+  "buildLayerGroups": [],
+  "animationTracks": [
+    {
+      "trackId": "animation_auto",
+      "clips": [
+        {
+          "id": "45d4691f42da",
+          "startTimeSeconds": 2.0,
+          "endTimeSeconds": 3.0,
+          "events": [
+            {
+              "id": "b2852e97100f",
+              "timeSeconds": 2.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "stage-vfx",
+                "playbackSemantics": "TRANSIENT",
+                "durationSeconds": 1.0,
+                "actionMode": "ANIMATE",
+                "animationType": "Pulse",
+                "energy": 0.85,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "camera",
+      "clips": [
+        {
+          "id": "e64a0652d070",
+          "startTimeSeconds": 0.0,
+          "endTimeSeconds": 48.0,
+          "events": [
+            {
+              "id": "59a0a3192e2d",
+              "timeSeconds": 0.0,
+              "type": "CAMERA_KEYFRAME",
+              "parameters": {
+                "x": 0.0,
+                "y": 72.0,
+                "pitchDeg": -25.0,
+                "z": 24.0,
+                "yawDeg": 0.0
+              }
+            },
+            {
+              "id": "50038d2359d9",
+              "timeSeconds": 16.0,
+              "type": "CAMERA_KEYFRAME",
+              "parameters": {
+                "x": 12.0,
+                "y": 66.0,
+                "pitchDeg": -12.0,
+                "z": 8.0,
+                "yawDeg": 55.0
+              }
+            },
+            {
+              "id": "6436b9cc9b29",
+              "timeSeconds": 32.0,
+              "type": "CAMERA_KEYFRAME",
+              "parameters": {
+                "x": -6.0,
+                "y": 70.0,
+                "pitchDeg": -18.0,
+                "z": 18.0,
+                "yawDeg": -30.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "global",
+      "clips": [
+        {
+          "id": "0e6f8df88e20",
+          "startTimeSeconds": 0.0,
+          "endTimeSeconds": 48.0,
+          "events": [
+            {
+              "id": "9716934a1d4e",
+              "timeSeconds": 6.0,
+              "type": "GLOBAL",
+              "parameters": {
+                "intensity": 0.65,
+                "r": 1.0,
+                "b": 0.6,
+                "durationSeconds": 4.0,
+                "g": 0.85,
+                "name": "Verse Key",
+                "type": "LIGHTING"
+              }
+            },
+            {
+              "id": "b07a3a9c290f",
+              "timeSeconds": 12.0,
+              "type": "GLOBAL",
+              "parameters": {
+                "intensity": 0.8,
+                "r": 1.0,
+                "b": 1.0,
+                "durationSeconds": 0.25,
+                "g": 1.0,
+                "name": "Hit Flash",
+                "type": "screen-flash"
+              }
+            },
+            {
+              "id": "4bd30cfe45eb",
+              "timeSeconds": 20.0,
+              "type": "GLOBAL",
+              "parameters": {
+                "name": "Rain Mood",
+                "weatherType": "rain",
+                "type": "WEATHER",
+                "durationSeconds": 6.0
+              }
+            },
+            {
+              "id": "756f725ea3b9",
+              "timeSeconds": 28.0,
+              "type": "GLOBAL",
+              "parameters": {
+                "intensity": 0.35,
+                "r": 0.2,
+                "b": 1.0,
+                "durationSeconds": 8.0,
+                "g": 0.4,
+                "name": "Chorus Tint",
+                "type": "screen_tint"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

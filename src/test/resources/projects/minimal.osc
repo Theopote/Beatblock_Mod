@@ -1,0 +1,21 @@
+{
+  "format": "beatblock.osc",
+  "schemaVersion": 3,
+  "projectId": "golden-minimal",
+  "projectPath": "projects/minimal.osc",
+  "timelineName": "Minimal Golden",
+  "audioPath": "golden://audio/placeholder.wav",
+  "durationSeconds": 60.0,
+  "bpm": 120.0,
+  "markers": [
+    {
+      "id": "intro",
+      "timeSeconds": 0.0,
+      "name": "Intro",
+      "type": "GENERIC"
+    }
+  ],
+  "buildLayers": [],
+  "buildLayerGroups": [],
+  "animationTracks": []
+}

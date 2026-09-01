@@ -1,0 +1,157 @@
+{
+  "format": "beatblock.osc",
+  "schemaVersion": 3,
+  "projectId": "golden-build-demo",
+  "projectPath": "projects/build-demo.osc",
+  "timelineName": "Build Demo",
+  "audioPath": "golden://audio/placeholder.wav",
+  "durationSeconds": 45.0,
+  "bpm": 128.0,
+  "markers": [
+    {
+      "id": "build-a",
+      "timeSeconds": 4.0,
+      "name": "Tower Build",
+      "type": "SECTION"
+    },
+    {
+      "id": "build-b",
+      "timeSeconds": 20.0,
+      "name": "Arch Build",
+      "type": "SECTION"
+    }
+  ],
+  "buildLayers": [
+    {
+      "id": "layer-tower",
+      "name": "Tower",
+      "state": "BOUND_TO_TRACK",
+      "boundClipId": "clip-tower",
+      "stageObjectId": "stage-tower",
+      "stageObjectName": "Tower",
+      "blocks": [
+        {
+          "x": 0,
+          "y": 64,
+          "z": 0
+        },
+        {
+          "x": 0,
+          "y": 65,
+          "z": 0
+        },
+        {
+          "x": 0,
+          "y": 66,
+          "z": 0
+        }
+      ],
+      "capturedStates": [
+        {
+          "pos": {
+            "x": 0,
+            "y": 64,
+            "z": 0
+          },
+          "state": {
+            "block": "minecraft:stone_bricks"
+          }
+        }
+      ]
+    },
+    {
+      "id": "layer-arch",
+      "name": "Arch",
+      "state": "BOUND_TO_TRACK",
+      "boundClipId": "clip-arch",
+      "stageObjectId": "stage-arch",
+      "stageObjectName": "Arch",
+      "blocks": [
+        {
+          "x": 4,
+          "y": 64,
+          "z": 0
+        },
+        {
+          "x": 5,
+          "y": 64,
+          "z": 0
+        },
+        {
+          "x": 4,
+          "y": 65,
+          "z": 0
+        }
+      ],
+      "capturedStates": [
+        {
+          "pos": {
+            "x": 4,
+            "y": 64,
+            "z": 0
+          },
+          "state": {
+            "block": "minecraft:quartz_block"
+          }
+        }
+      ]
+    }
+  ],
+  "buildLayerGroups": [],
+  "animationTracks": [
+    {
+      "trackId": "build_layer_1",
+      "trackName": "beatblock.track.default.build_layer_numbered",
+      "clips": [
+        {
+          "id": "clip-tower",
+          "startTimeSeconds": 4.0,
+          "endTimeSeconds": 18.0,
+          "events": [
+            {
+              "id": "evt-tower",
+              "timeSeconds": 4.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "layerBound": "true",
+                "targetObject": "stage-tower",
+                "layerId": "layer-tower",
+                "durationSeconds": 14.0,
+                "actionMode": "BUILD",
+                "buildMode": "WALL",
+                "buildDissolve": "false",
+                "energy": 1.0,
+                "animationType": "Pulse",
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        },
+        {
+          "id": "clip-arch",
+          "startTimeSeconds": 20.0,
+          "endTimeSeconds": 36.0,
+          "events": [
+            {
+              "id": "evt-arch",
+              "timeSeconds": 20.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "layerBound": "true",
+                "targetObject": "stage-arch",
+                "layerId": "layer-arch",
+                "durationSeconds": 16.0,
+                "actionMode": "BUILD",
+                "buildMode": "WALL",
+                "buildDissolve": "false",
+                "energy": 1.0,
+                "animationType": "Pulse",
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

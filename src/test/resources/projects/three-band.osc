@@ -1,0 +1,119 @@
+{
+  "format": "beatblock.osc",
+  "schemaVersion": 3,
+  "projectId": "golden-three-band",
+  "projectPath": "projects/three-band.osc",
+  "timelineName": "Three Band",
+  "audioPath": "golden://audio/placeholder.wav",
+  "durationSeconds": 32.0,
+  "bpm": 140.0,
+  "markers": [
+    {
+      "id": "drop",
+      "timeSeconds": 24.0,
+      "name": "Drop",
+      "type": "DROP"
+    }
+  ],
+  "buildLayers": [
+    {
+      "id": "layer-band",
+      "name": "Band Target",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "stage-band",
+      "stageObjectName": "Band Target",
+      "blocks": [
+        {
+          "x": 2,
+          "y": 64,
+          "z": 2
+        }
+      ],
+      "capturedStates": []
+    }
+  ],
+  "buildLayerGroups": [],
+  "animationTracks": [
+    {
+      "trackId": "animation_block_feature_kick",
+      "clips": [
+        {
+          "id": "edbaedd3b049",
+          "startTimeSeconds": 0.0,
+          "endTimeSeconds": 1.0,
+          "events": [
+            {
+              "id": "e33dba56e00d",
+              "timeSeconds": 0.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "stage-band",
+                "playbackSemantics": "TRANSIENT",
+                "durationSeconds": 1.0,
+                "actionMode": "ANIMATE",
+                "animationType": "BlockTap",
+                "energy": 0.85,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "animation_block_feature_bass",
+      "clips": [
+        {
+          "id": "e6e6a6b92890",
+          "startTimeSeconds": 8.0,
+          "endTimeSeconds": 9.0,
+          "events": [
+            {
+              "id": "e08525760ca1",
+              "timeSeconds": 8.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "stage-band",
+                "playbackSemantics": "TRANSIENT",
+                "durationSeconds": 1.0,
+                "actionMode": "ANIMATE",
+                "animationType": "BlockTap",
+                "energy": 0.85,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "animation_block_feature_hihat",
+      "clips": [
+        {
+          "id": "9419c2fd3aec",
+          "startTimeSeconds": 16.0,
+          "endTimeSeconds": 17.0,
+          "events": [
+            {
+              "id": "7043e833f164",
+              "timeSeconds": 16.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "stage-band",
+                "playbackSemantics": "TRANSIENT",
+                "durationSeconds": 1.0,
+                "actionMode": "ANIMATE",
+                "animationType": "BlockTap",
+                "energy": 0.85,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

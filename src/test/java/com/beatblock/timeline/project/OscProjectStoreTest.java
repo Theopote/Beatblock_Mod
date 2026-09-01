@@ -19,6 +19,9 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.timeline.project.migration.OscSchemaVersions;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeAll;
@@ -52,6 +55,19 @@ class OscProjectStoreTest {
 
 	@TempDir
 	Path tempDir;
+
+	@Test
+	void saveWritesSchemaVersion3NotLegacyVersion() throws Exception {
+		Path file = tempDir.resolve("schema.osc");
+		Timeline timeline = Timeline.createDefault();
+		timeline.setName("Schema");
+		OscProjectStore.save(file, timeline);
+
+		JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+		assertEquals(OscSchemaVersions.FORMAT, root.get("format").getAsString());
+		assertEquals(OscSchemaVersions.CURRENT, root.get("schemaVersion").getAsInt());
+		assertFalse(root.has("version"));
+	}
 
 	@Test
 	void roundTripsProjectMetadataAndMarkers() throws Exception {
@@ -96,12 +112,39 @@ class OscProjectStoreTest {
 
 	@Test
 	void rejectsUnsupportedFutureVersion() throws Exception {
-		Path file = tempDir.resolve("future.osc");
+		Path file = tempDir.resolve("future-legacy.osc");
 		Files.writeString(file, """
 			{"version": 99, "projectId": "x"}
 			""");
 
 		assertThrows(Exception.class, () -> OscProjectStore.load(file));
+
+		Path futureSchema = tempDir.resolve("future-schema.osc");
+		Files.writeString(futureSchema, """
+			{"schemaVersion": 99, "projectId": "x"}
+			""");
+
+		assertThrows(Exception.class, () -> OscProjectStore.load(futureSchema));
+	}
+
+	@Test
+	void loadsLegacyV2OscThroughMigrationChain() throws Exception {
+		Path file = tempDir.resolve("legacy-v2.osc");
+		Files.writeString(file, """
+			{
+			  "version": 2,
+			  "projectId": "v2-project",
+			  "timelineName": "V2 Show",
+			  "audioPath": "/music/v2.mp3",
+			  "buildLayers": []
+			}
+			""");
+
+		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file);
+
+		assertEquals("v2-project", loaded.getProjectId());
+		assertEquals("V2 Show", loaded.getTimelineName());
+		assertEquals("/music/v2.mp3", loaded.getAudioPath());
 	}
 
 	@Test

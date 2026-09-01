@@ -6,6 +6,8 @@ import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.BuildLayerPersistence;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.timeline.project.migration.OscProjectMigration;
+import com.beatblock.timeline.project.migration.OscSchemaVersions;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -33,7 +35,6 @@ import org.jspecify.annotations.Nullable;
  */
 public final class OscProjectStore {
 
-	private static final int CURRENT_VERSION = 4;
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
 	private OscProjectStore() {}
@@ -55,7 +56,8 @@ public final class OscProjectStore {
 		String audioPath = stringMeta(timeline, "audioPath");
 		String timelineName = timeline.getName() == null ? "" : timeline.getName();
 		JsonObject root = new JsonObject();
-		root.addProperty("version", CURRENT_VERSION);
+		root.addProperty("format", OscSchemaVersions.FORMAT);
+		root.addProperty("schemaVersion", OscSchemaVersions.CURRENT);
 		root.addProperty("projectId", projectId);
 		root.addProperty("projectPath", abs.toString());
 		root.addProperty("timelineName", timelineName);
@@ -149,11 +151,7 @@ public final class OscProjectStore {
 		if (!Files.exists(abs)) throw new IOException("打开失败：文件不存在 " + abs);
 
 		String json = Files.readString(abs, StandardCharsets.UTF_8);
-		JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-		int version = getInt(root, "version", 1);
-		if (version > CURRENT_VERSION) {
-			throw new IOException("不支持的 .osc 版本: " + version + " (当前支持 <= " + CURRENT_VERSION + ")");
-		}
+		JsonObject root = OscProjectMigration.migrateToCurrent(JsonParser.parseString(json).getAsJsonObject());
 
 		String projectId = getString(root, "projectId", "");
 		if (projectId.isBlank()) projectId = UUID.randomUUID().toString();
@@ -209,16 +207,6 @@ public final class OscProjectStore {
 		}
 		markers.sort(java.util.Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
 		return markers;
-	}
-
-	private static int getInt(JsonObject obj, String key, int def) {
-		if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) return def;
-		try {
-			return obj.get(key).getAsInt();
-		} catch (RuntimeException e) {
-			BeatBlock.LOGGER.debug("Invalid int for key '{}', using default {}", key, def, e);
-			return def;
-		}
 	}
 
 	private static double getDouble(JsonObject obj, String key, double def) {

@@ -247,7 +247,7 @@ python -c "import demucs.api, torch; print('ok')"
 - **删除**：右键行 → 确认删除（已绑定轨道的图层不可删）
 - **拖入时间线**：将图层拖到 **建造还原** 轨，生成 BUILD 片段并绑定
 
-图层数据随 `.osc` 工程 **v2** 格式持久化；打开工程时会恢复隐藏图层的空气状态。
+图层数据随 `.osc` 工程 **schemaVersion 3** 持久化；打开工程时会恢复隐藏图层的空气状态。旧版 legacy `version` 1–4 会在加载时自动链式迁移。
 
 ---
 
@@ -268,11 +268,15 @@ python -c "import demucs.api, torch; print('ok')"
 
 ## 工程文件（.osc）
 
-`.osc` 为 JSON 格式的轻量工程文件（当前 schema **version 2**），主要包含：
+`.osc` 为 JSON 格式的轻量工程文件（当前稳定 schema **`schemaVersion: 3`**，Creator Alpha），主要包含：
 
+- `format` / `schemaVersion`：格式标识与版本号
 - 项目 ID、时间线名称、关联音频路径
 - 时间轴轨道、片段、事件、标记
-- **buildLayers**：建造图层 id、名称、方块快照、可见性状态、绑定 clip 等
+- **buildLayers** / **buildLayerGroups**：建造图层与分组
+- **animationTracks**、**choreography**（编舞计划与 AutoMap 配置）
+
+**版本迁移：** 加载时由 `timeline.project.migration.OscProjectMigration` 将 legacy `version` 1→2→3→4 链式升级为当前 schema。新保存的工程只写入 `schemaVersion`，不再使用 legacy `version` 字段。
 
 读写入口：`timeline.project.OscProjectStore`。
 
@@ -337,7 +341,7 @@ beatblock/
 - **演出导向**：不适合作为实时音游或玩家交互玩法框架。
 - **音频格式**：导入对话框默认 WAV；其他格式依赖 ffmpeg 转换。
 - **Demucs 分轨**：可选、体积大，需 Python 3.10–3.12 与足够磁盘空间。
-- **工程格式**：`.osc` 仍在演进，跨版本打开旧工程请注意备份。
+- **工程格式**：`.osc` 使用链式迁移框架；打开旧工程前仍建议备份。
 
 ---
 
