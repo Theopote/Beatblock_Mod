@@ -1,6 +1,7 @@
 package com.beatblock.automap.camera;
 
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.camera.CameraTrackFactory;
 import net.minecraft.util.math.Vec3d;
 
@@ -22,6 +23,8 @@ public final class CameraShotTimelineWriter {
 		return count;
 	}
 
+	private static final TimelineEventOrigin AUTO_MAP_ORIGIN = TimelineEventOrigin.AUTO_GENERATED;
+
 	private static boolean writeOne(Timeline timeline, CameraShot shot) {
 		Vec3d target = CameraSubjectResolver.resolve(shot.effectiveLookAt());
 		double start = shot.startSeconds();
@@ -35,7 +38,8 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addOrbitSegment(
 					timeline, start, duration,
 					target.x, target.y, target.z,
-					radius, height, 0.0, 120.0
+					radius, height, 0.0, 120.0,
+					AUTO_MAP_ORIGIN
 				);
 				yield true;
 			}
@@ -43,7 +47,8 @@ public final class CameraShotTimelineWriter {
 				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks(), shot.framing().orbitHeightBlocks());
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, shot.framing().dollyReachBlocks()
+					eye.x, eye.y, eye.z, 0.0, shot.framing().dollyReachBlocks(),
+					AUTO_MAP_ORIGIN
 				);
 				yield true;
 			}
@@ -51,7 +56,8 @@ public final class CameraShotTimelineWriter {
 				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks() * 0.5, shot.framing().orbitHeightBlocks());
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 180.0, shot.framing().dollyReachBlocks()
+					eye.x, eye.y, eye.z, 180.0, shot.framing().dollyReachBlocks(),
+					AUTO_MAP_ORIGIN
 				);
 				yield true;
 			}
@@ -59,7 +65,8 @@ public final class CameraShotTimelineWriter {
 				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks(), shot.framing().orbitHeightBlocks());
 				CameraTrackFactory.addCraneSegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, -12.0, 2.5
+					eye.x, eye.y, eye.z, 0.0, -12.0, 2.5,
+					AUTO_MAP_ORIGIN
 				);
 				yield true;
 			}
@@ -67,7 +74,8 @@ public final class CameraShotTimelineWriter {
 				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks() * 0.7, shot.framing().orbitHeightBlocks());
 				CameraTrackFactory.addShakeSegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, -10.0
+					eye.x, eye.y, eye.z, 0.0, -10.0,
+					AUTO_MAP_ORIGIN
 				);
 				yield true;
 			}
@@ -75,7 +83,8 @@ public final class CameraShotTimelineWriter {
 				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks(), shot.framing().orbitHeightBlocks());
 				CameraTrackFactory.addPathSegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, -8.0, ease
+					eye.x, eye.y, eye.z, 0.0, -8.0, ease,
+					AUTO_MAP_ORIGIN
 				);
 				yield true;
 			}

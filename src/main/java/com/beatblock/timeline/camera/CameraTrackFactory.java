@@ -4,6 +4,8 @@ import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
+import com.beatblock.timeline.TimelineEventOrigin;
+import com.beatblock.timeline.TimelineEventOriginSupport;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 
@@ -27,13 +29,20 @@ public final class CameraTrackFactory {
 
 	public static void addPathSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg, String ease) {
+		addPathSegment(timeline, timeSeconds, durationSeconds, anchorX, anchorY, anchorZ, yawDeg, pitchDeg, ease,
+			TimelineEventOrigin.MANUAL);
+	}
+
+	public static void addPathSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg, String ease,
+		TimelineEventOrigin origin) {
 		Track t = timeline != null ? timeline.getTrack(Timeline.TRACK_ID_CAMERA) : null;
 		if (t == null) return;
 		double start = Math.max(0, timeSeconds);
 		double end = start + Math.max(0.05, durationSeconds);
 		Clip clip = TimelineOperations.addClip(t, start, end);
 		if (clip == null) return;
-		TimelineOperations.addEvent(clip, start, EventType.CAMERA_SEGMENT, segmentParams(CameraSegmentKind.PATH));
+		TimelineOperations.addEvent(clip, start, EventType.CAMERA_SEGMENT, segmentParams(CameraSegmentKind.PATH, origin));
 		TimelineOperations.addEvent(clip, start, EventType.CAMERA_KEYFRAME,
 			keyframeParams(anchorX, anchorY, anchorZ, yawDeg, pitchDeg, ease));
 		extendDuration(timeline, end);
@@ -49,6 +58,12 @@ public final class CameraTrackFactory {
 
 	public static void addDollySegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double startX, double startY, double startZ, double yawDeg, double reachBlocks) {
+		addDollySegment(timeline, timeSeconds, durationSeconds, startX, startY, startZ, yawDeg, reachBlocks,
+			TimelineEventOrigin.MANUAL);
+	}
+
+	public static void addDollySegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double startX, double startY, double startZ, double yawDeg, double reachBlocks, TimelineEventOrigin origin) {
 		double rad = Math.toRadians(-yawDeg);
 		double fx = -Math.sin(rad);
 		double fz = Math.cos(rad);
@@ -73,7 +88,7 @@ public final class CameraTrackFactory {
 		p.put("endZ", endZ);
 		p.put("baseYawDeg", yawDeg);
 		p.put("basePitchDeg", 0.0);
-		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.DOLLY, p);
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.DOLLY, p, origin);
 	}
 
 	/**
@@ -88,6 +103,13 @@ public final class CameraTrackFactory {
 	public static void addOrbitSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double targetX, double targetY, double targetZ,
 		double radius, double height, double yawStartDeg, double yawEndDeg) {
+		addOrbitSegment(timeline, timeSeconds, durationSeconds, targetX, targetY, targetZ, radius, height, yawStartDeg,
+			yawEndDeg, TimelineEventOrigin.MANUAL);
+	}
+
+	public static void addOrbitSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double targetX, double targetY, double targetZ,
+		double radius, double height, double yawStartDeg, double yawEndDeg, TimelineEventOrigin origin) {
 		Map<String, Object> p = new HashMap<>();
 		p.put("targetX", targetX);
 		p.put("targetY", targetY);
@@ -96,7 +118,7 @@ public final class CameraTrackFactory {
 		p.put("height", height);
 		p.put("yawStartDeg", yawStartDeg);
 		p.put("yawEndDeg", yawEndDeg);
-		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.ORBIT, p);
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.ORBIT, p, origin);
 	}
 
 	/**
@@ -109,6 +131,13 @@ public final class CameraTrackFactory {
 
 	public static void addCraneSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double startX, double startY, double startZ, double yawDeg, double pitchDeg, double deltaY) {
+		addCraneSegment(timeline, timeSeconds, durationSeconds, startX, startY, startZ, yawDeg, pitchDeg, deltaY,
+			TimelineEventOrigin.MANUAL);
+	}
+
+	public static void addCraneSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double startX, double startY, double startZ, double yawDeg, double pitchDeg, double deltaY,
+		TimelineEventOrigin origin) {
 		Map<String, Object> p = new HashMap<>();
 		p.put("startX", startX);
 		p.put("startY", startY);
@@ -118,7 +147,7 @@ public final class CameraTrackFactory {
 		p.put("endZ", startZ);
 		p.put("yawDeg", yawDeg);
 		p.put("pitchDeg", pitchDeg);
-		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.CRANE, p);
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.CRANE, p, origin);
 	}
 
 	public static void addShakeSegment(Timeline timeline, double timeSeconds,
@@ -128,6 +157,12 @@ public final class CameraTrackFactory {
 
 	public static void addShakeSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg) {
+		addShakeSegment(timeline, timeSeconds, durationSeconds, anchorX, anchorY, anchorZ, yawDeg, pitchDeg,
+			TimelineEventOrigin.MANUAL);
+	}
+
+	public static void addShakeSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg, TimelineEventOrigin origin) {
 		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.SHAKE, Map.of(
 			"anchorX", anchorX,
 			"anchorY", anchorY,
@@ -139,21 +174,25 @@ public final class CameraTrackFactory {
 			"frequencyHz", 18.0,
 			"beatSync", 1.0,
 			"beatsPerPulse", 0.5
-		));
+		), origin);
 	}
 
 	private static void addProcSegment(Timeline timeline, double timeSeconds, double durationSeconds,
-		CameraSegmentKind kind, Map<String, Object> extra) {
+		CameraSegmentKind kind, Map<String, Object> extra, TimelineEventOrigin origin) {
 		Track t = timeline != null ? timeline.getTrack(Timeline.TRACK_ID_CAMERA) : null;
 		if (t == null) return;
 		double start = Math.max(0, timeSeconds);
 		double end = start + Math.max(0.05, durationSeconds);
 		Clip clip = TimelineOperations.addClip(t, start, end);
 		if (clip == null) return;
-		Map<String, Object> p = segmentParams(kind);
+		Map<String, Object> p = segmentParams(kind, origin);
 		p.putAll(extra);
 		TimelineOperations.addEvent(clip, start, EventType.CAMERA_SEGMENT, p);
 		extendDuration(timeline, end);
+	}
+
+	private static Map<String, Object> segmentParams(CameraSegmentKind kind, TimelineEventOrigin origin) {
+		return TimelineEventOriginSupport.withOrigin(segmentParams(kind), origin);
 	}
 
 	private static Map<String, Object> segmentParams(CameraSegmentKind kind) {
