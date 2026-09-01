@@ -2,7 +2,7 @@ package com.beatblock.client.export;
 
 import java.util.function.Consumer;
 
-/** 客户端主线程调度入口，由 {@link com.beatblock.BeatBlockClient} 安装。异步 worker 须通过此处派发 UI / Timeline 变更，参见 {@code docs/THREADING_CONTRACT.md}。 */
+/** 客户端主线程调度入口，由 {@link com.beatblock.BeatBlockClient} 安装。异步 worker 须通过此处派发 UI / Timeline 变更，参见 {@code docs/playback-compiler.md}。 */
 public final class ClientThreadExecutor {
 
 	private static Consumer<Runnable> delegate = Runnable::run;

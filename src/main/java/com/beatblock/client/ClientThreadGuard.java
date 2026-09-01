@@ -6,7 +6,7 @@ import net.minecraft.client.MinecraftClient;
  * 客户端主线程契约断言：编辑、播放状态与 Timeline 结构变更必须在 Minecraft 客户端线程执行。
  * <p>
  * 异步 worker（Python / ffmpeg / 文件 IO）应通过 {@link ClientThreadExecutor#run(Runnable)}
- * 将 UI 与 Timeline 变更派发回主线程。参见 {@code docs/THREADING_CONTRACT.md}。
+ * 将 UI 与 Timeline 变更派发回主线程。参见 {@code docs/playback-compiler.md}。
  */
 public final class ClientThreadGuard {
 
@@ -21,7 +21,7 @@ public final class ClientThreadGuard {
 			throw new IllegalStateException(
 				"BeatBlock client-thread contract violation: this operation must run on the "
 					+ "Minecraft client thread. Dispatch async callbacks via ClientThreadExecutor.run(...). "
-					+ "See docs/THREADING_CONTRACT.md.");
+					+ "See docs/playback-compiler.md.");
 		}
 	}
 

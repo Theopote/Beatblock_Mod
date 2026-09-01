@@ -22,14 +22,14 @@
 
 > **Preset + Target + Time = StageEvent**
 
-禁止把「拖 preset」理解成只带 Time、Target 靠静默猜测。无选中对象时应允许 **UNBOUND** 事件后补绑定，而不是硬拒绝。详见 [Animation Library 拖拽 UX](animation-library-drag-ux.md)。
+禁止把「拖 preset」理解成只带 Time、Target 靠静默猜测。无选中对象时应允许 **UNBOUND** 事件后补绑定。详见 [timeline-model.md](timeline-model.md)。
 
 事件属性面板（`AnimationPropertyEditor`）按可插拔 **Section** 组织：
 `EventTiming` / `EventBinding` / `Preset` / `Target` / `SpatialDispatch` / `WorldTrajectory` /
 `StepSequence` / `PhaseAnimation` / `Vfx` / `EventDiagnostics`，经 `EventPropertySectionRegistry` 注册。
 未来自定义动画可 `registry.register(new CustomSection())` 扩展属性 UI，无需改主编辑器。
 
-播放器内部，「动作」进一步统一为 **对方块的影响维度 + 插值曲线 + 派发策略**（存在性 / 空间变换 / 外观 / 独立 VFX），三种演出是同一系统的参数预设，而非三套实现。详见 [方块影响维度](block-influence-dimensions.md)。
+播放器内部，「动作」进一步统一为 **对方块的影响维度 + 插值曲线 + 派发策略**（存在性 / 空间变换 / 外观 / 独立 VFX），三种演出是同一系统的参数预设，而非三套实现。详见 [timeline-model.md](timeline-model.md)。
 
 ## 三层模型（信息只能单向流动）
 
@@ -115,11 +115,29 @@ STEP 序列有两种落地方式（均无 `StepSequenceState` 运行时状态机
 | **跑酷敲击** | APPEARANCE ± TRANSFORM 短脉冲 | BURST / 单块事件时间 | 短 `durationSeconds`、高 `energy`；VFX 独立触发 | 跟随主体 |
 | **镜头跟随下落** | TRANSFORM.position 轨迹 | BURST 或 sequentialDelay | 长 `durationSeconds`、`Meteor`/下落类 preset | 主动下落/牵引路径 |
 
-参数细节与曲线形状见 [block-influence-dimensions.md](block-influence-dimensions.md)。
+参数细节与曲线形状见 [timeline-model.md](timeline-model.md)。
+
+## 线程模型（摘要）
+
+| 子系统 | 线程 |
+|--------|------|
+| Timeline 结构变更 | Client only |
+| 编译 / 播放驱动 | Client |
+| 世界方块写入 | Server |
+| Python / ffmpeg | Worker → Client 回调 |
+
+详见 [playback-compiler.md](playback-compiler.md)；历史全文见 [archive/2026-06/THREADING_CONTRACT.md](archive/2026-06/THREADING_CONTRACT.md)。
 
 ## 相关文档
 
-- [线程模型契约（Threading Contract）](THREADING_CONTRACT.md)
-- [方块影响维度（动作类型统一抽象）](block-influence-dimensions.md)
-- [STEP 三段式动画与参数](step-phase-animation-and-cleanup.md)
-- [README](../README.md)
+| 文档 | 内容 |
+|------|------|
+| [creator-workflow.md](creator-workflow.md) | 从选区到导出的创作路径 |
+| [timeline-model.md](timeline-model.md) | 轨道、StageEvent、影响维度 |
+| [playback-compiler.md](playback-compiler.md) | 编译、校验、播放隔离 |
+| [audio-analysis.md](audio-analysis.md) | Beatmap 与参考轨 |
+| [automap.md](automap.md) | Smart Auto Map |
+| [camera.md](camera.md) | 摄像机与 CameraShot |
+| [project-format.md](project-format.md) | `.osc` schema 与迁移 |
+| [video-export.md](video-export.md) | 导出帧同步 |
+| [README.md](../README.md) | 安装、构建、快速上手 |

@@ -16,7 +16,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * 时间线根对象：名称、时长、轨道列表、元数据。单一时序数据源，替代原 TimelineModel。
  * <p>
- * 线程模型：结构编辑与播放仅在客户端主线程；详见 {@code docs/THREADING_CONTRACT.md}。
+ * 线程模型：结构编辑与播放仅在客户端主线程；详见 {@code docs/playback-compiler.md}。
  * {@link ConcurrentHashMap} 仅用于 metadata，以支持异步分析回调写入 BPM 等标量键（非整树线程安全）。
  */
 public class Timeline {

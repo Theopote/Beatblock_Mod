@@ -156,7 +156,7 @@ python -c "import demucs.api, torch; print('ok')"
 构建产物位于 `build/libs/beatblock-<version>.jar`，放入 Fabric 模组的 `mods` 文件夹即可。  
 发布校验文件：`build/libs/beatblock-release.sha256`。
 
-**可复现构建：** Loom 固定为正式版 `1.15.5`（非 SNAPSHOT）；依赖图见 `gradle.lockfile`，校验和见 `gradle/verification-metadata.xml`。说明见 [docs/REPRODUCIBLE_BUILDS.md](docs/REPRODUCIBLE_BUILDS.md)。
+**可复现构建：** Loom 固定为正式版 `1.15.5`（非 SNAPSHOT）；依赖图见 `gradle.lockfile`，校验和见 `gradle/verification-metadata.xml`。说明见 [docs/archive/2026-06/REPRODUCIBLE_BUILDS.md](docs/archive/2026-06/REPRODUCIBLE_BUILDS.md)。
 
 **跨平台：** ImGui JNI 已包含 Windows / Linux / macOS 三平台 natives，发布包可在对应系统上运行。
 
@@ -309,7 +309,7 @@ python -c "import demucs.api, torch; print('ok')"
 ```
 
 概念类型与 Java 类映射、三种演出参数表见 **[架构文档](docs/architecture.md)**。  
-重构阶段与验收标准见 **[重构路线图](docs/REFACTOR_ROADMAP.md)**。
+完整设计文档索引见下方 [相关文档](#相关文档)。
 
 ---
 
@@ -349,13 +349,19 @@ beatblock/
 
 | 文档 | 内容 |
 |------|------|
-| [docs/architecture.md](docs/architecture.md) | 三层架构、概念 ↔ 代码映射、三种演出参数 |
-| [docs/REPRODUCIBLE_BUILDS.md](docs/REPRODUCIBLE_BUILDS.md) | 可复现构建：Loom/Gradle 固定、lock、verification、release 指纹 |
-| [docs/REFACTOR_ROADMAP.md](docs/REFACTOR_ROADMAP.md) | 重构阶段、进度快照、验收标准 |
-| [docs/OPTIMIZATION_GUIDE.md](docs/OPTIMIZATION_GUIDE.md) | 代码优化清单与 **完成进度**（P0/P1/P2） |
-| [docs/REVIEW_SUMMARY.md](docs/REVIEW_SUMMARY.md) | 2026-06 代码审查结论与路线图 |
-| [docs/step-phase-animation-and-cleanup.md](docs/step-phase-animation-and-cleanup.md) | STEP 三段式动画与参数 |
-| [docs/block-influence-dimensions.md](docs/block-influence-dimensions.md) | 方块影响维度统一抽象 |
+| [docs/architecture.md](docs/architecture.md) | 三层架构、概念 ↔ 代码映射 |
+| [docs/creator-workflow.md](docs/creator-workflow.md) | 从选区到导出的创作路径 |
+| [docs/timeline-model.md](docs/timeline-model.md) | 时间轴与事件模型 |
+| [docs/playback-compiler.md](docs/playback-compiler.md) | 编译、校验与正式播放 |
+| [docs/audio-analysis.md](docs/audio-analysis.md) | Python 分析与参考轨 |
+| [docs/automap.md](docs/automap.md) | Smart Auto Map |
+| [docs/camera.md](docs/camera.md) | 摄像机系统 |
+| [docs/project-format.md](docs/project-format.md) | `.osc` 格式与迁移 |
+| [docs/video-export.md](docs/video-export.md) | 视频导出与帧同步 |
+| [CHANGELOG.md](CHANGELOG.md) | 版本变更记录 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南 |
+
+历史审计与 2026-06 实施笔记见 [docs/archive/2026-06/](docs/archive/2026-06/)。
 
 ---
 
