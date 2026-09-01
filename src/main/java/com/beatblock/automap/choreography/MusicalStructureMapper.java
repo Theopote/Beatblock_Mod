@@ -65,7 +65,7 @@ public final class MusicalStructureMapper {
 		return out;
 	}
 
-	static int resolveSectionIndex(List<ChoreographyPlan.SectionPlan> sections, double timeSeconds) {
+	public static int resolveSectionIndex(List<ChoreographyPlan.SectionPlan> sections, double timeSeconds) {
 		for (int i = 0; i < sections.size(); i++) {
 			ChoreographyPlan.SectionPlan section = sections.get(i);
 			boolean withinEnd = i == sections.size() - 1

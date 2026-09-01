@@ -613,6 +613,10 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		} else if (interactionState.getMode() == InteractionMode.NONE
 			&& layout.rulerContains(mx, my)
 			&& ImGui.isWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenBlockedByPopup)) {
+			ChoreographyPlan phrasePlan = ChoreographyPlanStore.loadPlan(timeline);
+			if (phrasePlan != null) {
+				ChoreographyMusicalStructureRenderer.applyPhraseHoverCursor(phrasePlan, viewState, layout, mx, my);
+			}
 			ChoreographyMusicalStructureRenderer.renderPhraseHoverTooltip(timeline, viewState, layout, mx, my);
 		}
 
@@ -629,6 +633,14 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
 				popupState.markerNameBuffer.set(marker.getName());
 				ImGui.openPopup(POPUP_MARKER_CONTEXT);
+			} else if (sectionHit.isBody()) {
+				SectionEditPopupCoordinator.requestOpen(sectionHit.sectionIndex());
+			} else {
+				int phraseSectionIndex = ChoreographyMusicalStructureRenderer.resolveSectionIndexForPhraseClick(
+					timeline, viewState, layout, mx, my);
+				if (phraseSectionIndex >= 0) {
+					SectionEditPopupCoordinator.requestOpen(phraseSectionIndex);
+				}
 			}
 		}
 
@@ -681,6 +693,14 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			if (!alt && sectionHit.isBody()) {
 				SectionEditPopupCoordinator.requestOpen(sectionHit.sectionIndex());
 				return;
+			}
+			if (!alt) {
+				int phraseSectionIndex = ChoreographyMusicalStructureRenderer.resolveSectionIndexForPhraseClick(
+					timeline, viewState, layout, mx, my);
+				if (phraseSectionIndex >= 0) {
+					SectionEditPopupCoordinator.requestOpen(phraseSectionIndex);
+					return;
+				}
 			}
 			if (alt && toolbarState != null) {
 				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
