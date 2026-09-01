@@ -3,8 +3,8 @@ package com.beatblock.timeline.project.migration;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-/** legacy v1 → v2：引入 {@code buildLayers} 数组。 */
-final class V1ToV2OscMigration implements ProjectMigration {
+/** Legacy {@code version: 1} → {@code version: 2}：引入 {@code buildLayers} 数组。 */
+final class LegacyFormatV1ToV2Migration implements ProjectMigration {
 
 	@Override
 	public int fromVersion() {
@@ -14,6 +14,11 @@ final class V1ToV2OscMigration implements ProjectMigration {
 	@Override
 	public int toVersion() {
 		return 2;
+	}
+
+	@Override
+	public String describeStep() {
+		return "legacy format version 1 → 2";
 	}
 
 	@Override

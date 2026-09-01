@@ -278,7 +278,7 @@ python -c "import demucs.api, torch; print('ok')"
 - **buildLayers** / **buildLayerGroups**：建造图层与分组
 - **animationTracks**、**choreography**（编舞计划与 AutoMap 配置）
 
-**版本迁移：** 加载时由 `timeline.project.migration.OscProjectMigration` 将 legacy `version` 1→2→3→4 链式升级为当前 schema。新保存的工程只写入 `schemaVersion`，不再使用 legacy `version` 字段。
+**版本迁移：** 加载时由 `OscProjectMigration` 将 legacy `version` 1→2→3→4 链式升级，最后经 `LegacyFormatV4ToCreatorSchemaV3Migration` 写入 `schemaVersion: 3`（两套命名空间，数字 4 与 3 不对应同一刻度）。新保存只写 `schemaVersion`。
 
 读写入口：`timeline.project.OscProjectStore`。
 

@@ -11,19 +11,23 @@ import java.util.Map;
 /**
  * .osc 工程格式链式迁移入口。
  * <p>
- * 加载时先将任意受支持的旧格式归一化为当前 {@link OscSchemaVersions#CURRENT}，
- * 再由 {@link com.beatblock.timeline.project.OscProjectStore} 解析字段。
+ * 加载时先将任意受支持的 legacy {@code version}（1–4，已冻结）归一化为当前
+ * {@link OscSchemaVersions#CURRENT} {@code schemaVersion}，再由
+ * {@link com.beatblock.timeline.project.OscProjectStore} 解析字段。
+ * <p>
+ * Legacy 链：{@code version} 1→2→3→4，最后一步
+ * {@link LegacyFormatV4ToCreatorSchemaV3Migration} 跨命名空间写入 {@code schemaVersion}。
  */
 public final class OscProjectMigration {
 
-	private static final List<ProjectMigration> LEGACY_CHAIN = List.of(
-		new V1ToV2OscMigration(),
-		new V2ToV3OscMigration(),
-		new V3ToV4OscMigration(),
-		new LegacyV4ToSchema3OscMigration()
+	private static final List<ProjectMigration> LEGACY_FORMAT_CHAIN = List.of(
+		new LegacyFormatV1ToV2Migration(),
+		new LegacyFormatV2ToV3Migration(),
+		new LegacyFormatV3ToV4Migration(),
+		new LegacyFormatV4ToCreatorSchemaV3Migration()
 	);
 
-	private static final Map<Integer, ProjectMigration> LEGACY_BY_FROM = indexByFrom(LEGACY_CHAIN);
+	private static final Map<Integer, ProjectMigration> LEGACY_BY_FROM = indexByFrom(LEGACY_FORMAT_CHAIN);
 
 	private OscProjectMigration() {}
 
@@ -52,14 +56,14 @@ public final class OscProjectMigration {
 		JsonObject current = source.deepCopy();
 		while (!current.has("schemaVersion")) {
 			int legacyVersion = readLegacyVersion(current);
-			if (legacyVersion > OscSchemaVersions.LEGACY_MAX_VERSION) {
-				throw unsupportedVersion(legacyVersion, OscSchemaVersions.LEGACY_MAX_VERSION, false);
+			if (legacyVersion > OscSchemaVersions.LEGACY_FORMAT_MAX) {
+				throw unsupportedVersion(legacyVersion, OscSchemaVersions.LEGACY_FORMAT_MAX, false);
 			}
 			ProjectMigration step = LEGACY_BY_FROM.get(legacyVersion);
 			if (step == null) {
-				throw new IOException("缺少从 legacy version " + legacyVersion + " 的迁移步骤");
+				throw new IOException("缺少从 legacy format version " + legacyVersion + " 的迁移步骤");
 			}
-			BeatBlock.LOGGER.info("Migrating .osc project {} -> {}", step.fromVersion(), step.toVersion());
+			BeatBlock.LOGGER.info("Migrating .osc: {}", step.describeStep());
 			current = step.migrate(current);
 		}
 		return current;

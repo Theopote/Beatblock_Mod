@@ -4,9 +4,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 /**
- * legacy v2 → v3：引入 markers、animationTracks、durationSeconds、bpm、buildLayerGroups。
+ * Legacy {@code version: 2} → {@code version: 3}：
+ * 引入 markers、animationTracks、durationSeconds、bpm、buildLayerGroups。
  */
-final class V2ToV3OscMigration implements ProjectMigration {
+final class LegacyFormatV2ToV3Migration implements ProjectMigration {
 
 	@Override
 	public int fromVersion() {
@@ -16,6 +17,11 @@ final class V2ToV3OscMigration implements ProjectMigration {
 	@Override
 	public int toVersion() {
 		return 3;
+	}
+
+	@Override
+	public String describeStep() {
+		return "legacy format version 2 → 3";
 	}
 
 	@Override

@@ -2,8 +2,8 @@ package com.beatblock.timeline.project.migration;
 
 import com.google.gson.JsonObject;
 
-/** legacy v3 → v4：引入可选 {@code choreography} 段（缺失时由加载器容错）。 */
-final class V3ToV4OscMigration implements ProjectMigration {
+/** Legacy {@code version: 3} → {@code version: 4}：引入可选 {@code choreography} 段。 */
+final class LegacyFormatV3ToV4Migration implements ProjectMigration {
 
 	@Override
 	public int fromVersion() {
@@ -13,6 +13,11 @@ final class V3ToV4OscMigration implements ProjectMigration {
 	@Override
 	public int toVersion() {
 		return 4;
+	}
+
+	@Override
+	public String describeStep() {
+		return "legacy format version 3 → 4";
 	}
 
 	@Override

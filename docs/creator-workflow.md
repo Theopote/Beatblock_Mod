@@ -39,7 +39,7 @@
 ## 5. 保存与迁移
 
 - **Ctrl+S** 保存 `.osc` 工程（见 [project-format.md](project-format.md)）
-- 旧版 `version` 工程加载时自动链式迁移到 `schemaVersion: 3`
+- 旧版 legacy `version`（1–4，已冻结）工程加载时经 `OscProjectMigration` 链式迁移到 `schemaVersion: 3`（与 legacy `version: 4` 为不同命名空间，见 [project-format.md](project-format.md)）
 
 ## 6. 导出视频
 
