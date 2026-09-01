@@ -6,12 +6,20 @@ package com.beatblock.automap.choreography;
 public record ChoreographyCompileOptions(
 	ReplaceMode animationMode,
 	ReplaceMode cameraMode,
-	ReplaceMode vfxMode
+	ReplaceMode vfxMode,
+	double minGapSeconds
 ) {
+	public static final double DEFAULT_MIN_GAP_SECONDS = 0.08;
+
 	public ChoreographyCompileOptions {
 		animationMode = animationMode != null ? animationMode : ReplaceMode.APPEND;
 		cameraMode = cameraMode != null ? cameraMode : ReplaceMode.APPEND;
 		vfxMode = vfxMode != null ? vfxMode : ReplaceMode.APPEND;
+		minGapSeconds = minGapSeconds > 0 ? minGapSeconds : DEFAULT_MIN_GAP_SECONDS;
+	}
+
+	public ChoreographyCompileOptions(ReplaceMode animationMode, ReplaceMode cameraMode, ReplaceMode vfxMode) {
+		this(animationMode, cameraMode, vfxMode, DEFAULT_MIN_GAP_SECONDS);
 	}
 
 	/** Smart Auto Map 与段落编舞重编译默认：只替换自动生成草稿。 */
@@ -19,7 +27,8 @@ public record ChoreographyCompileOptions(
 		return new ChoreographyCompileOptions(
 			ReplaceMode.REPLACE_GENERATED,
 			ReplaceMode.REPLACE_GENERATED,
-			ReplaceMode.REPLACE_GENERATED
+			ReplaceMode.REPLACE_GENERATED,
+			DEFAULT_MIN_GAP_SECONDS
 		);
 	}
 }

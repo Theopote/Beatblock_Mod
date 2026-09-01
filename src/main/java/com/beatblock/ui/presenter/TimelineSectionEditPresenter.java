@@ -104,7 +104,7 @@ public final class TimelineSectionEditPresenter {
 		ChoreographyPlanStore.save(timeline, plan, config);
 
 		var compiled = ChoreographyPlanCompiler.compileAll(
-			timeline, plan, config, ChoreographyCompileOptions.smartAutoMap());
+			timeline, plan, ChoreographyCompileOptions.smartAutoMap());
 		var editor = context.get().timelineEditor();
 		if (editor != null) {
 			editor.syncClockDuration();

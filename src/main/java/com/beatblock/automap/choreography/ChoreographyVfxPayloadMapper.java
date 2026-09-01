@@ -1,6 +1,7 @@
 package com.beatblock.automap.choreography;
 
 import com.beatblock.automap.camera.CameraSubjectResolver;
+import com.beatblock.automap.camera.CameraSubjectRole;
 import com.beatblock.timeline.playback.GlobalEventPayload;
 import net.minecraft.util.math.Vec3d;
 
@@ -15,7 +16,7 @@ public final class ChoreographyVfxPayloadMapper {
 		}
 		return switch (vfx) {
 			case ChoreographyVfx.ParticleBurst particle -> {
-				Vec3d position = CameraSubjectResolver.resolve(particle.target());
+				Vec3d position = CameraSubjectResolver.resolveRequired(particle.target(), CameraSubjectRole.SUBJECT);
 				yield new GlobalEventPayload.ParticleBurst(
 					particle.name(),
 					particle.particleType(),

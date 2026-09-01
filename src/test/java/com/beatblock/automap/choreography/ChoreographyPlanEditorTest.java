@@ -89,7 +89,7 @@ class ChoreographyPlanEditorTest {
 
 		Timeline timeline = Timeline.createDefault();
 		int count = ChoreographyPlanCompiler.compileAnimationEvents(
-			timeline, plan, AutoMapConfig.createDefault(), false);
+			timeline, plan, false);
 
 		assertEquals(1, count);
 		assertTrue(timeline.getAutoAnimationEvents().get(0).getTimeSeconds() >= 12.0);

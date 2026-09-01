@@ -167,6 +167,7 @@ class TimelineBindingEditorPresenterTest {
 
 	@Test
 	void replaceWithTemplateReturnsFailureWhenEmpty() {
+		com.beatblock.BeatBlock.getContext().blockAnimationEngine().getStageObjectSystem().clear();
 		var outcome = presenter.replaceWithTemplate(timeline, List.of(), 0);
 		assertFalse(outcome.success());
 		assertNotNull(outcome.message());

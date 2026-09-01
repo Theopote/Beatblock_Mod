@@ -1,5 +1,6 @@
 package com.beatblock.timeline.playback;
 
+import com.beatblock.automap.camera.CameraValidationRules;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Timeline;
@@ -26,6 +27,11 @@ public final class TimelineValidator {
 	public static final String RULE_MISSING_AUDIO = "missing_audio_asset";
 	public static final String RULE_AUDIO_FILE_MISSING = "audio_file_missing";
 	public static final String RULE_MISSING_BUILD_LAYER = "missing_build_layer";
+	public static final String RULE_MISSING_CAMERA_SUBJECT = CameraValidationRules.MISSING_CAMERA_SUBJECT;
+	public static final String RULE_MISSING_CAMERA_LOOK_AT = CameraValidationRules.MISSING_CAMERA_LOOK_AT;
+	public static final String RULE_MISSING_CAMERA_BUILD_LAYER = CameraValidationRules.MISSING_CAMERA_BUILD_LAYER;
+	public static final String RULE_INVALID_CAMERA_FRAMING = CameraValidationRules.INVALID_CAMERA_FRAMING;
+	public static final String RULE_UNSUPPORTED_CAMERA_TRANSITION = CameraValidationRules.UNSUPPORTED_CAMERA_TRANSITION;
 	public static final String RULE_COUNT_ANIMATION = "count_animation_events";
 	public static final String RULE_COUNT_CAMERA = "count_camera_keyframes";
 	public static final String RULE_COUNT_LAYERS = "count_build_layers";

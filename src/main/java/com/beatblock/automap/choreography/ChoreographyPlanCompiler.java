@@ -1,10 +1,6 @@
 package com.beatblock.automap.choreography;
 
-import com.beatblock.automap.AutoMapCandidate;
-import com.beatblock.automap.AutoMapCandidateResolver;
-import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapGenerator;
-import com.beatblock.automap.AutoMapRule;
 import com.beatblock.automap.camera.CameraShot;
 import com.beatblock.automap.camera.CameraShotCodec;
 import com.beatblock.automap.camera.CameraShotTimelineWriter;
@@ -21,6 +17,8 @@ import java.util.Map;
 
 /**
  * 将 {@link ChoreographyPlan} 编译为 Timeline 草稿事件。
+ * <p>
+ * 编译只读取 Plan（含 {@link ChoreographyPlan#stageRoles()}），不依赖 {@link com.beatblock.automap.AutoMapConfig}。
  */
 public final class ChoreographyPlanCompiler {
 
@@ -29,17 +27,36 @@ public final class ChoreographyPlanCompiler {
 	public static int compileAnimationEvents(
 		Timeline timeline,
 		ChoreographyPlan plan,
-		AutoMapConfig config,
+		ChoreographyCompileOptions options
+	) {
+		if (timeline == null || plan == null || options == null) return 0;
+		return compileAnimationEvents(timeline, plan, options.animationMode(), options.minGapSeconds());
+	}
+
+	public static int compileAnimationEvents(
+		Timeline timeline,
+		ChoreographyPlan plan,
 		ReplaceMode mode
 	) {
-		if (timeline == null || plan == null || config == null) return 0;
+		return compileAnimationEvents(
+			timeline,
+			plan,
+			new ChoreographyCompileOptions(mode, ReplaceMode.APPEND, ReplaceMode.APPEND)
+		);
+	}
+
+	public static int compileAnimationEvents(
+		Timeline timeline,
+		ChoreographyPlan plan,
+		ReplaceMode mode,
+		double minGapSeconds
+	) {
+		if (timeline == null || plan == null) return 0;
 		ReplaceMode replaceMode = mode != null ? mode : ReplaceMode.APPEND;
 		ChoreographyCompileApplicator.applyAnimation(timeline, replaceMode);
 
 		String fallbackTarget = AutoMapGenerator.resolveTargetObjectId();
-		Map<String, AutoMapRule> ruleByFeature = indexRules(config);
-
-		List<AutoMapCandidate> candidates = new ArrayList<>(plan.motionPhrases().size());
+		List<ChoreographyPlan.MotionPhrase> candidates = new ArrayList<>();
 		for (ChoreographyPlan.MotionPhrase phrase : plan.motionPhrases()) {
 			if (!ChoreographyPlanEditor.isMotionEnabled(plan, phrase)) continue;
 
@@ -47,52 +64,26 @@ public final class ChoreographyPlanCompiler {
 			double densityThreshold = ChoreographyPlanEditor.resolveDensityThreshold(plan, phrase, 0.15);
 			if (density < densityThreshold) continue;
 
-			AutoMapRule rule = ruleByFeature.get(phrase.normalizedFeatureKey());
-			if (rule == null) {
-				rule = new AutoMapRule(
-					phrase.normalizedFeatureKey(),
-					0f,
-					phrase.animationTypeId(),
-					phrase.durationSeconds(),
-					phrase.useEnergyForHeight(),
-					phrase.heightMultiplier()
-				);
-			}
-			candidates.add(new AutoMapCandidate(
-				phrase.timeSeconds(),
-				phrase.trackKey(),
-				phrase.normalizedFeatureKey(),
-				phrase.energy(),
-				rule
-			));
+			candidates.add(phrase);
 		}
 
-		List<AutoMapCandidate> resolved = AutoMapCandidateResolver.resolve(candidates, config.getMinGapSeconds());
+		List<ChoreographyPlan.MotionPhrase> resolved = ChoreographyMotionGapResolver.resolve(
+			candidates,
+			minGapSeconds > 0 ? minGapSeconds : ChoreographyCompileOptions.DEFAULT_MIN_GAP_SECONDS
+		);
 		List<TimelineAnimationEvent> draft = new ArrayList<>(resolved.size());
-		for (AutoMapCandidate candidate : resolved) {
-			AutoMapRule rule = candidate.rule();
-			ChoreographyPlan.MotionPhrase sourcePhrase = findMotionPhrase(plan, candidate);
-			String animationTypeId = sourcePhrase != null
-				? sourcePhrase.animationTypeId()
-				: rule.getAnimationTypeId();
-			double durationSeconds = sourcePhrase != null
-				? sourcePhrase.durationSeconds()
-				: rule.getDurationSeconds();
+		for (ChoreographyPlan.MotionPhrase phrase : resolved) {
 			Map<String, Object> params = new HashMap<>();
-			if (rule.isUseEnergyForHeight()) {
-				float h = candidate.energy() * rule.getHeightMultiplier();
+			if (phrase.useEnergyForHeight()) {
+				float h = phrase.energy() * phrase.heightMultiplier();
 				params.put("height", h);
 			}
-			params.put("energy", candidate.energy());
+			params.put("energy", phrase.energy());
 
-			String targetId = config.resolveTargetObjectId(
-				rule,
-				candidate.normalizedFeatureKey(),
-				fallbackTarget
-			);
+			String targetId = plan.resolveTargetObjectId(phrase.normalizedFeatureKey(), fallbackTarget);
 
 			double eventTime = BarSnapHelper.snapToNearestBarStart(
-				candidate.timeSeconds(),
+				phrase.timeSeconds(),
 				plan.musicalStructure(),
 				BarSnapHelper.DEFAULT_TOLERANCE_SECONDS
 			);
@@ -100,10 +91,10 @@ public final class ChoreographyPlanCompiler {
 			draft.add(new TimelineAnimationEvent(
 				"",
 				eventTime,
-				durationSeconds,
-				animationTypeId,
+				phrase.durationSeconds(),
+				phrase.animationTypeId(),
 				targetId,
-				candidate.energy(),
+				phrase.energy(),
 				params
 			));
 		}
@@ -114,13 +105,11 @@ public final class ChoreographyPlanCompiler {
 	public static int compileAnimationEvents(
 		Timeline timeline,
 		ChoreographyPlan plan,
-		AutoMapConfig config,
 		boolean replace
 	) {
 		return compileAnimationEvents(
 			timeline,
 			plan,
-			config,
 			replace ? ReplaceMode.REPLACE_GENERATED : ReplaceMode.APPEND
 		);
 	}
@@ -163,11 +152,10 @@ public final class ChoreographyPlanCompiler {
 	public static SmartAutoMapCompileResult compileAll(
 		Timeline timeline,
 		ChoreographyPlan plan,
-		AutoMapConfig config,
 		ChoreographyCompileOptions options
 	) {
 		ChoreographyCompileOptions compileOptions = options != null ? options : ChoreographyCompileOptions.smartAutoMap();
-		int animations = compileAnimationEvents(timeline, plan, config, compileOptions.animationMode());
+		int animations = compileAnimationEvents(timeline, plan, compileOptions);
 		int cameras = compileCameraEvents(timeline, plan, compileOptions.cameraMode());
 		int vfx = compileVfxEvents(timeline, plan, compileOptions.vfxMode());
 		return new SmartAutoMapCompileResult(animations, cameras, vfx);
@@ -176,13 +164,11 @@ public final class ChoreographyPlanCompiler {
 	public static SmartAutoMapCompileResult compileAll(
 		Timeline timeline,
 		ChoreographyPlan plan,
-		AutoMapConfig config,
 		boolean replaceAnimations
 	) {
 		return compileAll(
 			timeline,
 			plan,
-			config,
 			replaceAnimations
 				? ChoreographyCompileOptions.smartAutoMap()
 				: new ChoreographyCompileOptions(
@@ -194,22 +180,4 @@ public final class ChoreographyPlanCompiler {
 	}
 
 	public record SmartAutoMapCompileResult(int animationEvents, int cameraEvents, int vfxEvents) {}
-
-	private static Map<String, AutoMapRule> indexRules(AutoMapConfig config) {
-		Map<String, AutoMapRule> byFeature = new HashMap<>();
-		for (AutoMapRule rule : config.getRules()) {
-			byFeature.put(AutoMapGenerator.normalizeFeatureKey(rule.getFeatureKey()), rule);
-		}
-		return byFeature;
-	}
-
-	private static ChoreographyPlan.MotionPhrase findMotionPhrase(ChoreographyPlan plan, AutoMapCandidate candidate) {
-		for (ChoreographyPlan.MotionPhrase phrase : plan.motionPhrases()) {
-			if (Math.abs(phrase.timeSeconds() - candidate.timeSeconds()) < 1e-6
-				&& phrase.normalizedFeatureKey().equals(candidate.normalizedFeatureKey())) {
-				return phrase;
-			}
-		}
-		return null;
-	}
 }

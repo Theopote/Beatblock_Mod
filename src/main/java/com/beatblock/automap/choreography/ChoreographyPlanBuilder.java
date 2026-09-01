@@ -58,6 +58,7 @@ public final class ChoreographyPlanBuilder {
 				rule.getDurationSeconds(),
 				rule.isUseEnergyForHeight(),
 				rule.getHeightMultiplier(),
+				rule.getMinGapSeconds(),
 				resolveSectionIndex(sectionPlans, candidate.timeSeconds())
 			));
 		}
@@ -149,6 +150,7 @@ public final class ChoreographyPlanBuilder {
 				AnimationMapper.getDurationSeconds(event.getType(), style),
 				useHeight,
 				heightMult,
+				rule != null ? rule.getMinGapSeconds() : 0.0,
 				resolveSectionIndex(sectionPlans, event.getTimeSeconds())
 			));
 		}

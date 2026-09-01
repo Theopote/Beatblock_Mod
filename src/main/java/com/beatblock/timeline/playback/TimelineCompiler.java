@@ -100,13 +100,23 @@ public final class TimelineCompiler {
 			.comparingDouble(TimelineAnimationEvent::getTimeSeconds)
 			.thenComparing(TimelineAnimationEvent::getEventId));
 
+		Set<String> stageEventIds = new HashSet<>();
+		for (TimelineAnimationEvent sourceEvent : sourceEvents) {
+			if (sourceEvent != null && !sourceEvent.getEventId().isBlank()) {
+				stageEventIds.add(sourceEvent.getEventId());
+			}
+		}
+		for (String skippedId : skipSelection.eventIds()) {
+			if (!stageEventIds.contains(skippedId)) skippedEventIds.add(skippedId);
+		}
+
 		double bpm = document.getBpm() > 0 ? document.getBpm() : 120.0;
 		double duration = Math.max(0, document.getDurationSeconds());
 
 		CompiledTimelineSnapshot snapshot = new CompiledTimelineSnapshot(
 			events,
 			compileStageEvents(events, engine),
-			compileCameraTrack(document.getTrack(Timeline.TRACK_ID_CAMERA)),
+			compileCameraTrack(document.getTrack(Timeline.TRACK_ID_CAMERA), skipSelection.eventIds()),
 			compileBuildLayers(layerManager),
 			compileMarkers(document),
 			compileGlobalEvents(document),
@@ -151,7 +161,7 @@ public final class TimelineCompiler {
 			String rule = diagnostic.ruleId();
 			if (!isDegradableRule(rule)) continue;
 			TimelineSourceLocation location = diagnostic.sourceLocation();
-			if (location != null) {
+			if (location != null && Timeline.isAnimationEventsTrackId(location.trackId())) {
 				sourceIndexes.add(location.sourceIndex());
 				locationsByIndex.putIfAbsent(location.sourceIndex(), location);
 			}
@@ -165,7 +175,12 @@ public final class TimelineCompiler {
 			|| TimelineValidator.RULE_MISSING_STAGE_OBJECT.equals(rule)
 			|| TimelineValidator.RULE_MISSING_ANIMATION_PRESET.equals(rule)
 			|| TimelineValidator.RULE_MISSING_BUILD_LAYER.equals(rule)
-			|| TimelineValidator.RULE_NON_POSITIVE_EVENT_DURATION.equals(rule);
+			|| TimelineValidator.RULE_NON_POSITIVE_EVENT_DURATION.equals(rule)
+			|| TimelineValidator.RULE_MISSING_CAMERA_SUBJECT.equals(rule)
+			|| TimelineValidator.RULE_MISSING_CAMERA_LOOK_AT.equals(rule)
+			|| TimelineValidator.RULE_MISSING_CAMERA_BUILD_LAYER.equals(rule)
+			|| TimelineValidator.RULE_INVALID_CAMERA_FRAMING.equals(rule)
+			|| TimelineValidator.RULE_UNSUPPORTED_CAMERA_TRANSITION.equals(rule);
 	}
 
 	private record SkipSelection(
@@ -206,14 +221,19 @@ public final class TimelineCompiler {
 		return List.copyOf(compiled);
 	}
 
-	private static CompiledCameraTrack compileCameraTrack(@Nullable Track track) {
+	private static CompiledCameraTrack compileCameraTrack(@Nullable Track track, Set<String> skipEventIds) {
 		if (track == null || !track.isEnabled()) {
 			return new CompiledCameraTrack(List.of());
 		}
+		Set<String> skipped = skipEventIds != null ? skipEventIds : Set.of();
 		List<CompiledCameraTrack.CameraClip> clips = new ArrayList<>();
 		for (var clip : track.getClips()) {
 			List<CompiledCameraTrack.CameraEvent> cameraEvents = new ArrayList<>();
+			int sourceEventCount = 0;
 			for (var event : clip.getEvents()) {
+				if (event == null) continue;
+				sourceEventCount++;
+				if (!event.getId().isBlank() && skipped.contains(event.getId())) continue;
 				cameraEvents.add(new CompiledCameraTrack.CameraEvent(
 					event.getId(),
 					event.getTimeSeconds(),
@@ -223,6 +243,7 @@ public final class TimelineCompiler {
 			}
 			cameraEvents.sort(Comparator.comparingDouble(CompiledCameraTrack.CameraEvent::timeSeconds)
 				.thenComparing(CompiledCameraTrack.CameraEvent::id));
+			if (sourceEventCount > 0 && cameraEvents.isEmpty()) continue;
 			clips.add(new CompiledCameraTrack.CameraClip(
 				clip.getStartTimeSeconds(),
 				clip.getEndTimeSeconds(),

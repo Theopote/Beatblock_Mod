@@ -166,6 +166,23 @@ public record ChoreographyPlan(
 
 	public record StageRoleAssignment(String normalizedFeatureKey, String targetObjectId) {}
 
+	/**
+	 * 从 {@link #stageRoles()} 解析舞台目标；编译器只读 Plan，不读 {@link com.beatblock.automap.AutoMapConfig}。
+	 */
+	public String resolveTargetObjectId(String normalizedFeatureKey, String fallbackTargetId) {
+		if (normalizedFeatureKey != null) {
+			for (StageRoleAssignment role : stageRoles) {
+				if (role.normalizedFeatureKey() != null
+					&& role.normalizedFeatureKey().equals(normalizedFeatureKey)
+					&& role.targetObjectId() != null
+					&& !role.targetObjectId().isBlank()) {
+					return role.targetObjectId();
+				}
+			}
+		}
+		return fallbackTargetId != null ? fallbackTargetId : "";
+	}
+
 	public record MotionPhrase(
 		double timeSeconds,
 		String trackKey,
@@ -175,6 +192,7 @@ public record ChoreographyPlan(
 		double durationSeconds,
 		boolean useEnergyForHeight,
 		float heightMultiplier,
+		double minGapSeconds,
 		int sectionIndex
 	) {
 		public MotionPhrase(
@@ -196,7 +214,33 @@ public record ChoreographyPlan(
 				durationSeconds,
 				useEnergyForHeight,
 				heightMultiplier,
+				0.0,
 				-1
+			);
+		}
+
+		public MotionPhrase(
+			double timeSeconds,
+			String trackKey,
+			String normalizedFeatureKey,
+			float energy,
+			String animationTypeId,
+			double durationSeconds,
+			boolean useEnergyForHeight,
+			float heightMultiplier,
+			int sectionIndex
+		) {
+			this(
+				timeSeconds,
+				trackKey,
+				normalizedFeatureKey,
+				energy,
+				animationTypeId,
+				durationSeconds,
+				useEnergyForHeight,
+				heightMultiplier,
+				0.0,
+				sectionIndex
 			);
 		}
 
@@ -206,7 +250,12 @@ public record ChoreographyPlan(
 			animationTypeId = animationTypeId != null ? animationTypeId : "";
 			durationSeconds = Math.max(0.01, durationSeconds);
 			heightMultiplier = Math.max(0f, heightMultiplier);
+			minGapSeconds = Math.max(0.0, minGapSeconds);
 			sectionIndex = Math.max(-1, sectionIndex);
+		}
+
+		public double resolveMinGap(double defaultMinGapSeconds) {
+			return minGapSeconds > 0 ? minGapSeconds : Math.max(0.0, defaultMinGapSeconds);
 		}
 	}
 

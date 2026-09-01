@@ -35,7 +35,7 @@ class AutoMapGeneratorTest {
 		TimelineAnimationEvent ev = timeline.getAutoAnimationEvents().getFirst();
 		assertEquals("bounce", ev.getAnimationTypeId());
 		assertEquals(1.0, ev.getTimeSeconds(), 1e-6);
-		assertTrue(ev.isUnboundTarget());
+		assertEquals("stage", ev.getTargetObjectId());
 	}
 
 	@Test

@@ -32,7 +32,7 @@ public final class AutoMapGenerator {
 		}
 
 		ChoreographyPlan plan = ChoreographyPlanBuilder.fromTimeline(timeline, config);
-		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, config, replace);
+		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, replace);
 
 		String fallbackTarget = resolveTargetObjectId();
 		String targetLabel = fallbackTarget.isBlank() ? "(unbound)" : fallbackTarget;

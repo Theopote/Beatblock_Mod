@@ -6,6 +6,7 @@ import com.beatblock.timeline.camera.CameraTrackFactory;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 将 {@link CameraShot} 编译为 Timeline 摄像机轨道片段。
@@ -26,10 +27,14 @@ public final class CameraShotTimelineWriter {
 	private static final TimelineEventOrigin AUTO_MAP_ORIGIN = TimelineEventOrigin.AUTO_GENERATED;
 
 	private static boolean writeOne(Timeline timeline, CameraShot shot) {
-		Vec3d target = CameraSubjectResolver.resolve(shot.effectiveLookAt());
+		if (CameraShotValidator.hasErrors(CameraShotValidator.validate(shot))) {
+			return false;
+		}
+		Vec3d target = CameraSubjectResolver.resolveRequired(shot.effectiveLookAt(), CameraSubjectRole.LOOK_AT);
 		double start = shot.startSeconds();
 		double duration = shot.durationSeconds();
 		String ease = shot.easing().name();
+		Map<String, Object> semantics = CameraSegmentSemantics.fromShot(shot);
 
 		return switch (shot.movement()) {
 			case ORBIT -> {
@@ -39,7 +44,8 @@ public final class CameraShotTimelineWriter {
 					timeline, start, duration,
 					target.x, target.y, target.z,
 					radius, height, 0.0, 120.0,
-					AUTO_MAP_ORIGIN
+					AUTO_MAP_ORIGIN,
+					semantics
 				);
 				yield true;
 			}
@@ -48,7 +54,8 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 0.0, shot.framing().dollyReachBlocks(),
-					AUTO_MAP_ORIGIN
+					AUTO_MAP_ORIGIN,
+					semantics
 				);
 				yield true;
 			}
@@ -57,7 +64,8 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 180.0, shot.framing().dollyReachBlocks(),
-					AUTO_MAP_ORIGIN
+					AUTO_MAP_ORIGIN,
+					semantics
 				);
 				yield true;
 			}
@@ -66,7 +74,8 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addCraneSegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 0.0, -12.0, 2.5,
-					AUTO_MAP_ORIGIN
+					AUTO_MAP_ORIGIN,
+					semantics
 				);
 				yield true;
 			}
@@ -75,7 +84,8 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addShakeSegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 0.0, -10.0,
-					AUTO_MAP_ORIGIN
+					AUTO_MAP_ORIGIN,
+					semantics
 				);
 				yield true;
 			}
@@ -84,7 +94,8 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addPathSegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 0.0, -8.0, ease,
-					AUTO_MAP_ORIGIN
+					AUTO_MAP_ORIGIN,
+					semantics
 				);
 				yield true;
 			}

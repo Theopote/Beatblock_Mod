@@ -342,6 +342,9 @@ public final class ChoreographyPlanPersistence {
 			obj.addProperty("durationSeconds", phrase.durationSeconds());
 			obj.addProperty("useEnergyForHeight", phrase.useEnergyForHeight());
 			obj.addProperty("heightMultiplier", phrase.heightMultiplier());
+			if (phrase.minGapSeconds() > 0) {
+				obj.addProperty("minGapSeconds", phrase.minGapSeconds());
+			}
 			obj.addProperty("sectionIndex", phrase.sectionIndex());
 			arr.add(obj);
 		}
@@ -364,6 +367,7 @@ public final class ChoreographyPlanPersistence {
 				getDouble(obj, "durationSeconds", 0.5),
 				getBool(obj, "useEnergyForHeight", true),
 				getFloat(obj, "heightMultiplier", 3f),
+				getDouble(obj, "minGapSeconds", 0.0),
 				getInt(obj, "sectionIndex", -1)
 			));
 		}

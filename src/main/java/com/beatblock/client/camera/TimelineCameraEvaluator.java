@@ -1,6 +1,10 @@
 package com.beatblock.client.camera;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.automap.camera.CameraEasing;
+import com.beatblock.automap.camera.CameraSegmentSemantics;
+import com.beatblock.automap.camera.CameraShotEasing;
+import com.beatblock.automap.camera.CameraShotTransition;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
@@ -15,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * 根据时间线摄像机轨计算当前时刻的世界坐标与 yaw/pitch（度）。
@@ -27,6 +32,17 @@ public final class TimelineCameraEvaluator {
 	private TimelineCameraEvaluator() {}
 
 	public static CameraSample evaluate(Timeline timeline, double timeSeconds, Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		return evaluate(timeline, timeSeconds, anchor, fallbackYaw, fallbackPitch, true);
+	}
+
+	private static CameraSample evaluate(
+		Timeline timeline,
+		double timeSeconds,
+		Vec3d anchor,
+		float fallbackYaw,
+		float fallbackPitch,
+		boolean blendTransition
+	) {
 		if (timeline == null) return null;
 		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
 		if (cam == null || cam.getClips().isEmpty()) return null;
@@ -37,7 +53,11 @@ public final class TimelineCameraEvaluator {
 			if (seg != null) {
 				CameraSegmentKind kind = CameraSegmentKind.fromParam(seg.getParameters().get("kind"));
 				CameraSample s = evaluateSegment(timeline, active, seg, kind, timeSeconds, anchor, fallbackYaw, fallbackPitch);
-				if (s != null) return s;
+				if (s != null) {
+					return blendTransition
+						? applyIncomingTransition(cam, active, seg, timeSeconds, s, timeline, anchor, fallbackYaw, fallbackPitch)
+						: s;
+				}
 			}
 			CameraSample legacy = evaluateKeyframeHoldInClip(active, timeSeconds, anchor, fallbackYaw, fallbackPitch);
 			if (legacy != null) return legacy;
@@ -47,6 +67,18 @@ public final class TimelineCameraEvaluator {
 
 	public static CameraSample evaluate(CompiledCameraTrack track, double bpm, double timeSeconds,
 		Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		return evaluate(track, bpm, timeSeconds, anchor, fallbackYaw, fallbackPitch, true);
+	}
+
+	private static CameraSample evaluate(
+		CompiledCameraTrack track,
+		double bpm,
+		double timeSeconds,
+		Vec3d anchor,
+		float fallbackYaw,
+		float fallbackPitch,
+		boolean blendTransition
+	) {
 		if (track == null || track.isEmpty()) return null;
 		CompiledCameraTrack.CameraClip active = findActiveClip(track, timeSeconds);
 		if (active != null) {
@@ -55,7 +87,11 @@ public final class TimelineCameraEvaluator {
 				CameraSegmentKind kind = CameraSegmentKind.fromParam(segment.parameters().get("kind"));
 				CameraSample sample = evaluateSegment(
 					active, segment, kind, bpm, timeSeconds, anchor, fallbackYaw, fallbackPitch);
-				if (sample != null) return sample;
+				if (sample != null) {
+					return blendTransition
+						? applyIncomingTransition(track, active, segment, timeSeconds, sample, bpm, anchor, fallbackYaw, fallbackPitch)
+						: sample;
+				}
 			}
 			CameraSample legacy = evaluateKeyframeHoldInClip(active, timeSeconds, anchor, fallbackYaw, fallbackPitch);
 			if (legacy != null) return legacy;
@@ -88,33 +124,36 @@ public final class TimelineCameraEvaluator {
 		Vec3d anchor, float fallbackYaw, float fallbackPitch) {
 		double duration = Math.max(1e-3, clip.endTimeSeconds() - clip.startTimeSeconds());
 		double u = Math.max(0.0, Math.min(1.0, (timeSeconds - clip.startTimeSeconds()) / duration));
-		return switch (kind) {
-			case PATH -> evaluatePath(clip, timeSeconds, anchor, fallbackYaw, fallbackPitch);
-			case DOLLY -> evaluateDolly(segment.parameters(), u, anchor, fallbackYaw, fallbackPitch);
-			case ORBIT -> evaluateOrbit(segment.parameters(), u, anchor, fallbackYaw, fallbackPitch);
-			case CRANE -> evaluateCrane(segment.parameters(), u, anchor, fallbackYaw, fallbackPitch);
-			case SHAKE -> evaluateShake(segment.parameters(), timeSeconds, anchor, fallbackYaw, fallbackPitch, bpm);
+		Map<String, Object> params = segment.parameters();
+		double easedU = CameraEasing.apply(u, CameraSegmentSemantics.easingFrom(params));
+		Map<String, Object> spatial = CameraSegmentSemantics.withFollowDeltaApplied(params);
+		CameraSample sample = switch (kind) {
+			case PATH -> evaluatePath(clip, timeSeconds, anchor, fallbackYaw, fallbackPitch, params);
+			case DOLLY -> evaluateDolly(spatial, easedU, anchor, fallbackYaw, fallbackPitch);
+			case ORBIT -> evaluateOrbit(spatial, easedU, anchor, fallbackYaw, fallbackPitch);
+			case CRANE -> evaluateCrane(spatial, easedU, anchor, fallbackYaw, fallbackPitch);
+			case SHAKE -> evaluateShake(spatial, timeSeconds, anchor, fallbackYaw, fallbackPitch, bpm);
 		};
+		return finalizeSample(sample, params, kind == CameraSegmentKind.PATH);
 	}
 
 	private static CameraSample evaluatePath(CompiledCameraTrack.CameraClip clip, double timeSeconds,
-		Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+		Vec3d anchor, float fallbackYaw, float fallbackPitch, Map<String, Object> segmentParams) {
 		List<CompiledCameraTrack.CameraEvent> keyframes = cameraKeyframes(clip.events());
-		if (keyframes.isEmpty()) return new CameraSample(anchor, fallbackYaw, fallbackPitch);
+		if (keyframes.isEmpty()) return finalizeSample(new CameraSample(anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 		if (keyframes.size() == 1 || timeSeconds <= keyframes.getFirst().timeSeconds() + 1e-6)
-			return sampleKeyframe(keyframes.getFirst(), anchor, fallbackYaw, fallbackPitch);
+			return finalizeSample(sampleKeyframe(keyframes.getFirst(), anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 		if (timeSeconds >= keyframes.getLast().timeSeconds() - 1e-6)
-			return sampleKeyframe(keyframes.getLast(), anchor, fallbackYaw, fallbackPitch);
+			return finalizeSample(sampleKeyframe(keyframes.getLast(), anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 		for (int i = 0; i < keyframes.size() - 1; i++) {
 			var a = keyframes.get(i);
 			var b = keyframes.get(i + 1);
 			if (timeSeconds < a.timeSeconds() - 1e-6 || timeSeconds > b.timeSeconds() + 1e-6) continue;
 			double t = (timeSeconds - a.timeSeconds()) / Math.max(1e-6, b.timeSeconds() - a.timeSeconds());
-			double weight = "LINEAR".equalsIgnoreCase(stringParam(a.parameters(), "ease", "SMOOTH"))
-				? t : smoothstep(t);
-			return blendKeyframes(a, b, weight, anchor, fallbackYaw, fallbackPitch);
+			double weight = CameraEasing.apply(t, stringParam(a.parameters(), "ease", "SMOOTH"));
+			return finalizeSample(blendKeyframes(a, b, weight, anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 		}
-		return sampleKeyframe(keyframes.getFirst(), anchor, fallbackYaw, fallbackPitch);
+		return finalizeSample(sampleKeyframe(keyframes.getFirst(), anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 	}
 
 	private static CameraSample evaluateKeyframeHoldInClip(CompiledCameraTrack.CameraClip clip, double timeSeconds,
@@ -211,30 +250,34 @@ public final class TimelineCameraEvaluator {
 		double u = (timeSeconds - s0) / dur;
 		u = Math.max(0.0, Math.min(1.0, u));
 		Map<String, Object> p = seg.getParameters();
+		double easedU = CameraEasing.apply(u, CameraSegmentSemantics.easingFrom(p));
+		Map<String, Object> spatial = CameraSegmentSemantics.withFollowDeltaApplied(p);
 		double bpm = timeline != null ? timeline.getBpm() : 0;
 
-		return switch (kind) {
-			case PATH -> evaluatePath(clip, timeSeconds, anchor, fallbackYaw, fallbackPitch);
-			case DOLLY -> evaluateDolly(p, u, anchor, fallbackYaw, fallbackPitch);
-			case ORBIT -> evaluateOrbit(p, u, anchor, fallbackYaw, fallbackPitch);
-			case CRANE -> evaluateCrane(p, u, anchor, fallbackYaw, fallbackPitch);
-			case SHAKE -> evaluateShake(p, timeSeconds, anchor, fallbackYaw, fallbackPitch, bpm);
+		CameraSample sample = switch (kind) {
+			case PATH -> evaluatePath(clip, timeSeconds, anchor, fallbackYaw, fallbackPitch, p);
+			case DOLLY -> evaluateDolly(spatial, easedU, anchor, fallbackYaw, fallbackPitch);
+			case ORBIT -> evaluateOrbit(spatial, easedU, anchor, fallbackYaw, fallbackPitch);
+			case CRANE -> evaluateCrane(spatial, easedU, anchor, fallbackYaw, fallbackPitch);
+			case SHAKE -> evaluateShake(spatial, timeSeconds, anchor, fallbackYaw, fallbackPitch, bpm);
 		};
+		return finalizeSample(sample, p, kind == CameraSegmentKind.PATH);
 	}
 
-	private static CameraSample evaluatePath(Clip clip, double timeSeconds, Vec3d anchor, float fallbackYaw, float fallbackPitch) {
+	private static CameraSample evaluatePath(Clip clip, double timeSeconds, Vec3d anchor, float fallbackYaw, float fallbackPitch,
+		Map<String, Object> segmentParams) {
 		List<TimelineEvent> kf = new ArrayList<>();
 		for (TimelineEvent e : clip.getEvents()) {
 			if (e.getType() == EventType.CAMERA_KEYFRAME) kf.add(e);
 		}
 		kf.sort(Comparator.comparingDouble(TimelineEvent::getTimeSeconds));
-		if (kf.isEmpty()) return new CameraSample(anchor, fallbackYaw, fallbackPitch);
-		if (kf.size() == 1) return sampleKeyframe(kf.getFirst(), anchor, fallbackYaw, fallbackPitch);
+		if (kf.isEmpty()) return finalizeSample(new CameraSample(anchor, fallbackYaw, fallbackPitch), segmentParams, true);
+		if (kf.size() == 1) return finalizeSample(sampleKeyframe(kf.getFirst(), anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 		if (timeSeconds <= kf.getFirst().getTimeSeconds() + 1e-6) {
-			return sampleKeyframe(kf.getFirst(), anchor, fallbackYaw, fallbackPitch);
+			return finalizeSample(sampleKeyframe(kf.getFirst(), anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 		}
 		if (timeSeconds >= kf.getLast().getTimeSeconds() - 1e-6) {
-			return sampleKeyframe(kf.getLast(), anchor, fallbackYaw, fallbackPitch);
+			return finalizeSample(sampleKeyframe(kf.getLast(), anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 		}
 		for (int i = 0; i < kf.size() - 1; i++) {
 			TimelineEvent a = kf.get(i);
@@ -246,10 +289,10 @@ public final class TimelineCameraEvaluator {
 			double t = (timeSeconds - ta) / span;
 			t = Math.max(0.0, Math.min(1.0, t));
 			String ease = stringParam(a.getParameters(), "ease", "SMOOTH");
-			double wt = "LINEAR".equalsIgnoreCase(ease) ? t : smoothstep(t);
-			return blendKeyframes(a, b, wt, anchor, fallbackYaw, fallbackPitch);
+			double wt = CameraEasing.apply(t, ease);
+			return finalizeSample(blendKeyframes(a, b, wt, anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 		}
-		return sampleKeyframe(kf.getFirst(), anchor, fallbackYaw, fallbackPitch);
+		return finalizeSample(sampleKeyframe(kf.getFirst(), anchor, fallbackYaw, fallbackPitch), segmentParams, true);
 	}
 
 	private static CameraSample evaluateKeyframeHoldInClip(Clip clip, double timeSeconds, Vec3d anchor, float fallbackYaw, float fallbackPitch) {
@@ -299,7 +342,7 @@ public final class TimelineCameraEvaluator {
 	}
 
 	private static CameraSample evaluateDolly(Map<String, Object> p, double u, Vec3d anchor, float yawDeg, float pitchDeg) {
-		double w = smoothstep(u);
+		double w = u;
 		if (p != null && p.containsKey("endX")) {
 			double sx = num(p, "startX", anchor.x);
 			double sy = num(p, "startY", anchor.y);
@@ -337,7 +380,7 @@ public final class TimelineCameraEvaluator {
 	}
 
 	private static CameraSample evaluateOrbit(Map<String, Object> p, double u, Vec3d anchor, float fallbackYaw, float fallbackPitch) {
-		double w = smoothstep(u);
+		double w = u;
 		double ax = num(p, "anchorX", anchor.x);
 		double ay = num(p, "anchorY", anchor.y);
 		double az = num(p, "anchorZ", anchor.z);
@@ -364,7 +407,7 @@ public final class TimelineCameraEvaluator {
 	}
 
 	private static CameraSample evaluateCrane(Map<String, Object> p, double u, Vec3d anchor, float fallbackYaw, float fallbackPitch) {
-		double w = smoothstep(u);
+		double w = u;
 		if (p != null && p.containsKey("endX")) {
 			double sx = num(p, "startX", anchor.x);
 			double sy = num(p, "startY", anchor.y);
@@ -481,5 +524,108 @@ public final class TimelineCameraEvaluator {
 		if (o == null) return def;
 		String s = String.valueOf(o).trim();
 		return s.isEmpty() ? def : s;
+	}
+
+	private static CameraSample finalizeSample(
+		CameraSample sample,
+		Map<String, Object> segmentParams,
+		boolean applyFollowOffset
+	) {
+		if (sample == null) return null;
+		CameraSample adjusted = sample;
+		if (applyFollowOffset) {
+			Optional<Vec3d> followDelta = CameraSegmentSemantics.followDelta(segmentParams);
+			if (followDelta.isPresent() && followDelta.get().lengthSquared() > 1e-12) {
+				adjusted = new CameraSample(
+					sample.position().add(followDelta.get()), sample.yawDeg(), sample.pitchDeg());
+			}
+		}
+		return CameraCollisionAdjuster.adjust(adjusted, CameraSegmentSemantics.collisionPolicyFrom(segmentParams));
+	}
+
+	private static CameraSample applyIncomingTransition(
+		Track cam,
+		Clip active,
+		TimelineEvent segment,
+		double timeSeconds,
+		CameraSample current,
+		Timeline timeline,
+		Vec3d anchor,
+		float fallbackYaw,
+		float fallbackPitch
+	) {
+		return blendIncomingTransition(
+			CameraSegmentSemantics.transitionFrom(segment.getParameters()),
+			active.getStartTimeSeconds(),
+			timeSeconds,
+			current,
+			findPreviousSample(cam, active.getStartTimeSeconds(), timeline, anchor, fallbackYaw, fallbackPitch)
+		);
+	}
+
+	private static CameraSample applyIncomingTransition(
+		CompiledCameraTrack track,
+		CompiledCameraTrack.CameraClip active,
+		CompiledCameraTrack.CameraEvent segment,
+		double timeSeconds,
+		CameraSample current,
+		double bpm,
+		Vec3d anchor,
+		float fallbackYaw,
+		float fallbackPitch
+	) {
+		return blendIncomingTransition(
+			CameraSegmentSemantics.transitionFrom(segment.parameters()),
+			active.startTimeSeconds(),
+			timeSeconds,
+			current,
+			findPreviousSample(track, active.startTimeSeconds(), bpm, anchor, fallbackYaw, fallbackPitch)
+		);
+	}
+
+	private static CameraSample blendIncomingTransition(
+		CameraShotTransition transition,
+		double clipStart,
+		double timeSeconds,
+		CameraSample current,
+		CameraSample previous
+	) {
+		if (current == null || previous == null || transition == CameraShotTransition.CUT) {
+			return current;
+		}
+		double blendSeconds = transition == CameraShotTransition.DISSOLVE ? 0.5 : 0.35;
+		if (timeSeconds <= clipStart || timeSeconds >= clipStart + blendSeconds) {
+			return current;
+		}
+		double weight = CameraEasing.apply((timeSeconds - clipStart) / blendSeconds, CameraShotEasing.SMOOTH);
+		return new CameraSample(
+			current.position().lerp(previous.position(), 1.0 - weight),
+			lerpAngleDeg(current.yawDeg(), previous.yawDeg(), 1.0 - weight),
+			(float) lerp(current.pitchDeg(), previous.pitchDeg(), 1.0 - weight)
+		);
+	}
+
+	private static CameraSample findPreviousSample(
+		Track cam,
+		double clipStart,
+		Timeline timeline,
+		Vec3d anchor,
+		float fallbackYaw,
+		float fallbackPitch
+	) {
+		double sampleTime = Math.max(0.0, clipStart - 1e-3);
+		return evaluate(timeline, sampleTime, anchor, fallbackYaw, fallbackPitch, false);
+	}
+
+	private static CameraSample findPreviousSample(
+		CompiledCameraTrack track,
+		double clipStart,
+		double bpm,
+		Vec3d anchor,
+		float fallbackYaw,
+		float fallbackPitch
+	) {
+		double sampleTime = Math.max(0.0, clipStart - 1e-3);
+		return evaluate(track, bpm, sampleTime, anchor, fallbackYaw, fallbackPitch, false);
 	}
 }

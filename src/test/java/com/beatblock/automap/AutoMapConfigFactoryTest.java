@@ -55,6 +55,7 @@ class AutoMapConfigFactoryTest {
 	void forToolbarMapsRegisteredStageObjectsInOrder() {
 		var engine = com.beatblock.BeatBlock.getContext().blockAnimationEngine();
 		StageObjectSystem system = engine.getStageObjectSystem();
+		system.clear();
 		system.register(new RuntimeStageObject(
 			"s-low", "Low", List.of(new BlockPos(0, 64, 0)), Vec3d.ZERO, GroupSpec.manualSnapshot()));
 		system.register(new RuntimeStageObject(

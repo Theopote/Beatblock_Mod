@@ -237,6 +237,7 @@ public final class ChoreographyPlanEditor {
 				phrase.durationSeconds(),
 				phrase.useEnergyForHeight(),
 				phrase.heightMultiplier(),
+				phrase.minGapSeconds(),
 				phrase.sectionIndex()
 			));
 		}
@@ -303,6 +304,7 @@ public final class ChoreographyPlanEditor {
 				phrase.durationSeconds(),
 				phrase.useEnergyForHeight(),
 				phrase.heightMultiplier(),
+				phrase.minGapSeconds(),
 				resolveSectionIndex(plan.sections(), phrase.timeSeconds() + deltaSeconds)
 			));
 		}
@@ -364,6 +366,7 @@ public final class ChoreographyPlanEditor {
 				phrase.durationSeconds(),
 				phrase.useEnergyForHeight(),
 				phrase.heightMultiplier(),
+				phrase.minGapSeconds(),
 				resolveSectionIndex(sections, phrase.timeSeconds())
 			));
 		}

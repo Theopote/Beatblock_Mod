@@ -8,10 +8,14 @@ import com.beatblock.audio.MusicPlayer;
 import com.beatblock.audio.StemMixer;
 import com.beatblock.audio.analysis.AudioAnalysisEngine;
 import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.stage.StageManager;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
+import net.minecraft.util.math.BlockPos;
+
+import java.util.List;
 
 /**
  * 单元测试用 {@link BeatBlockContext} 工厂；替代已删除的 {@code fromLegacyStatics}。
@@ -22,6 +26,8 @@ public final class BeatBlockTestSupport {
 
 	public static BeatBlockContext minimalContext() {
 		BlockAnimationEngine engine = new BlockAnimationEngine();
+		engine.getStageObjectSystem().register(
+			StageObjectSystem.fromBlocks("stage", "Stage", List.of(new BlockPos(0, 64, 0))));
 		StageManager stageManager = new StageManager();
 		Timeline timeline = Timeline.createDefault();
 		MusicPlayer musicPlayer = new MusicPlayer();

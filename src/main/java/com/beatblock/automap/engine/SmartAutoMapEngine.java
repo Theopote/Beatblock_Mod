@@ -75,7 +75,7 @@ public final class SmartAutoMapEngine {
 
 		ChoreographyPlanCompiler.SmartAutoMapCompileResult compiled =
 			ChoreographyPlanCompiler.compileAll(
-				timeline, plan, config, ChoreographyCompileOptions.smartAutoMap());
+				timeline, plan, ChoreographyCompileOptions.smartAutoMap());
 
 		ChoreographyPlanStore.save(timeline, plan, config);
 
