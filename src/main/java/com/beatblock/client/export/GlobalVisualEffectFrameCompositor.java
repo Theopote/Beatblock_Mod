@@ -2,6 +2,7 @@ package com.beatblock.client.export;
 
 import com.beatblock.timeline.playback.CompiledGlobalEvent;
 import com.beatblock.timeline.playback.GlobalEventPayload;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -25,12 +26,14 @@ public final class GlobalVisualEffectFrameCompositor {
 		}
 
 		ExportVfxState active = ExportVfxState.resolve(events, timelineTimeSeconds);
-		if (active.activeTint() != null && active.activeTint().payload() instanceof GlobalEventPayload.ScreenTint tint) {
+		@Nullable CompiledGlobalEvent tintEvent = active.activeTint();
+		if (tintEvent != null && tintEvent.payload() instanceof GlobalEventPayload.ScreenTint tint) {
 			blend(rgba, tint.r(), tint.g(), tint.b(), clamp(tint.intensity(), 0, 1) * 0.35);
 		}
-		if (active.activeFlash() != null && active.activeFlash().payload() instanceof GlobalEventPayload.ScreenFlash flash) {
+		@Nullable CompiledGlobalEvent flashEvent = active.activeFlash();
+		if (flashEvent != null && flashEvent.payload() instanceof GlobalEventPayload.ScreenFlash flash) {
 			double duration = Math.max(0.01, flash.durationSeconds());
-			double progress = clamp((timelineTimeSeconds - active.activeFlash().timeSeconds()) / duration, 0, 1);
+			double progress = clamp((timelineTimeSeconds - flashEvent.timeSeconds()) / duration, 0, 1);
 			blend(rgba, flash.r(), flash.g(), flash.b(), 0.85 * (1.0 - progress));
 		}
 		return rgba;
