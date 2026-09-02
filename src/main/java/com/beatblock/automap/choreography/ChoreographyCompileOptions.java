@@ -54,6 +54,26 @@ public record ChoreographyCompileOptions(
 		);
 	}
 
+	/**
+	 * 仅追加动画，同时替换 smart-automap 镜头与 VFX。
+	 * <p>
+	 * 用于需要「保留现有动画、重编镜头/粒子」的场景；勿用 boolean 参数表达此语义。
+	 */
+	public static ChoreographyCompileOptions appendAnimationsReplaceCameraAndVfx() {
+		ContentReplacePolicy replaceSmartAutomap = ContentReplacePolicy.replaceGenerator(TimelineGeneratorIds.SMART_AUTOMAP);
+		return new ChoreographyCompileOptions(
+			ContentReplacePolicy.append(),
+			replaceSmartAutomap,
+			replaceSmartAutomap
+		);
+	}
+
+	/** 仅编译动画轨道时的便捷选项（镜头 / VFX 策略不参与 {@link ChoreographyPlanCompiler#compileAnimationEvents}）。 */
+	public static ChoreographyCompileOptions animationOnly(ReplaceMode animationMode) {
+		ReplaceMode mode = animationMode != null ? animationMode : ReplaceMode.APPEND;
+		return new ChoreographyCompileOptions(mode, ReplaceMode.APPEND, ReplaceMode.APPEND);
+	}
+
 	public GenerationSession resolveSession(com.beatblock.timeline.Timeline timeline) {
 		if (generationSession != null) {
 			return generationSession;

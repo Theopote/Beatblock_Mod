@@ -4,6 +4,7 @@ import com.beatblock.automap.engine.RhythmType;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanBuilder;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
+import com.beatblock.automap.choreography.ReplaceMode;
 import com.beatblock.timeline.generation.AnimationDropTargetResolver;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.FeatureTrack;
@@ -32,7 +33,11 @@ public final class AutoMapGenerator {
 		}
 
 		ChoreographyPlan plan = ChoreographyPlanBuilder.fromTimeline(timeline, config);
-		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, replace);
+		int count = ChoreographyPlanCompiler.compileAnimationEvents(
+			timeline,
+			plan,
+			replace ? ReplaceMode.REPLACE_GENERATED : ReplaceMode.APPEND
+		);
 
 		String fallbackTarget = resolveTargetObjectId();
 		String targetLabel = fallbackTarget.isBlank() ? "(unbound)" : fallbackTarget;

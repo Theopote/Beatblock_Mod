@@ -38,7 +38,7 @@ class ChoreographyPlanCompilerTest {
 			.build();
 
 		ChoreographyPlan plan = ChoreographyPlanBuilder.fromTimeline(timeline, config);
-		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, false);
+		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, ReplaceMode.APPEND);
 
 		assertEquals(2, count);
 		assertEquals("stage-kick", timeline.getAutoAnimationEvents().get(0).getTargetObjectId());
@@ -64,8 +64,8 @@ class ChoreographyPlanCompilerTest {
 
 		Timeline timelineA = Timeline.createDefault();
 		Timeline timelineB = Timeline.createDefault();
-		ChoreographyPlanCompiler.compileAnimationEvents(timelineA, plan, false);
-		ChoreographyPlanCompiler.compileAnimationEvents(timelineB, plan, false);
+		ChoreographyPlanCompiler.compileAnimationEvents(timelineA, plan, ReplaceMode.APPEND);
+		ChoreographyPlanCompiler.compileAnimationEvents(timelineB, plan, ReplaceMode.APPEND);
 
 		assertEquals(
 			timelineA.getAutoAnimationEvents().get(0).getTargetObjectId(),
@@ -90,7 +90,7 @@ class ChoreographyPlanCompilerTest {
 			DensityCurve.uniform(0.1)
 		);
 
-		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, false);
+		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, ReplaceMode.APPEND);
 
 		assertEquals(0, count);
 	}
@@ -175,7 +175,7 @@ class ChoreographyPlanCompilerTest {
 			musical
 		);
 
-		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, false);
+		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, ReplaceMode.APPEND);
 
 		assertEquals(1, count);
 		assertEquals(1.5, timeline.getAutoAnimationEvents().get(0).getTimeSeconds(), 1e-6);
@@ -206,7 +206,7 @@ class ChoreographyPlanCompilerTest {
 			musical
 		);
 
-		ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, false);
+		ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, ReplaceMode.APPEND);
 
 		assertEquals(2.0, timeline.getAutoAnimationEvents().get(0).getTimeSeconds(), 1e-6);
 	}
@@ -237,6 +237,28 @@ class ChoreographyPlanCompilerTest {
 		assertEquals(12, payload.count());
 		assertEquals(0.5, payload.spread(), 1e-9);
 		assertEquals(0.04, payload.speed(), 1e-9);
+	}
+
+	@Test
+	void appendAnimationsReplaceCameraAndVfxPreservesExistingAnimations() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(new com.beatblock.timeline.TimelineAnimationEvent(
+			"manual-auto", 0.5, 1.0, "bounce", "stage", 1f, java.util.Map.of()));
+
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 16, SectionType.INTRO, "intro")),
+			List.of(),
+			List.of(new ChoreographyPlan.MotionPhrase(1.0, "kick", "low", 0.6f, "bounce", 0.5, true, 4f, 0.0, 0)),
+			List.of(new ChoreographyPlan.CameraPhrase(4.0, "PAN", 0)),
+			List.of(ChoreographyVfxFactory.fromLegacyVfxKind(2.0, "particle_spark", 0)),
+			DensityCurve.uniform(1.0)
+		);
+
+		ChoreographyPlanCompiler.compileAll(timeline, plan, ChoreographyCompileOptions.appendAnimationsReplaceCameraAndVfx());
+
+		assertEquals(2, timeline.getAutoAnimationEvents().size());
+		assertEquals(1, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+		assertEquals(1, timeline.getGlobalEvents().size());
 	}
 
 	@Test
