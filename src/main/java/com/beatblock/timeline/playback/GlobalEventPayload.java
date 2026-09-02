@@ -17,8 +17,27 @@ public sealed interface GlobalEventPayload {
 	/** Client-only presentation weather; does not change authoritative or saved world weather. */
 	record LocalVisualWeather(String name, String weatherType, double transitionSeconds)
 		implements GlobalEventPayload { public LocalVisualWeather { name = name != null ? name : ""; } }
-	record ParticleBurst(String name, String particleType, double x, double y, double z, int count)
-		implements GlobalEventPayload { public ParticleBurst { name = name != null ? name : ""; } }
+	record ParticleBurst(
+		String name,
+		String particleType,
+		double x,
+		double y,
+		double z,
+		int count,
+		double spread,
+		double speed
+	) implements GlobalEventPayload {
+		public static final double DEFAULT_SPREAD = 0.5;
+		public static final double DEFAULT_SPEED = 0.04;
+
+		public ParticleBurst {
+			name = name != null ? name : "";
+			particleType = particleType != null && !particleType.isBlank() ? particleType : "minecraft:poof";
+			count = Math.max(1, count);
+			spread = Math.max(0.0, spread);
+			speed = Math.max(0.0, speed);
+		}
+	}
 	record ScreenFlash(String name, float r, float g, float b, double durationSeconds)
 		implements GlobalEventPayload { public ScreenFlash { name = name != null ? name : ""; } }
 	record AudioMix(String name, String channel, float volume, double fadeSeconds)

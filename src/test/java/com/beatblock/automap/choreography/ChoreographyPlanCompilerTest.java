@@ -235,6 +235,8 @@ class ChoreographyPlanCompilerTest {
 		assertEquals("spark", payload.name());
 		assertEquals("minecraft:crit", payload.particleType());
 		assertEquals(12, payload.count());
+		assertEquals(0.5, payload.spread(), 1e-9);
+		assertEquals(0.04, payload.speed(), 1e-9);
 	}
 
 	@Test

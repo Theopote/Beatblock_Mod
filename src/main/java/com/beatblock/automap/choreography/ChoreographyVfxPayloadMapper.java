@@ -23,7 +23,9 @@ public final class ChoreographyVfxPayloadMapper {
 					position.x,
 					position.y,
 					position.z,
-					particle.count()
+					particle.count(),
+					particle.spread(),
+					particle.speed()
 				);
 			}
 			case ChoreographyVfx.ScreenFlash flash -> new GlobalEventPayload.ScreenFlash(

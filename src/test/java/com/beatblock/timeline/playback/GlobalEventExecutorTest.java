@@ -26,7 +26,8 @@ class GlobalEventExecutorTest {
 		assertTrue(executor.execute(event("light", new GlobalEventPayload.EnvironmentLighting("", 1, 1, 1, 1, 0))).executed());
 		assertTrue(executor.execute(event("tint", new GlobalEventPayload.ScreenTint("", 0.5, 1, 1, 1, 0))).executed());
 		assertTrue(executor.execute(event("weather", new GlobalEventPayload.LocalVisualWeather("", "rain", 0))).executed());
-		assertTrue(executor.execute(event("particle", new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1))).executed());
+		assertTrue(executor.execute(event("particle",
+			new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1, 0.5, 0.04))).executed());
 		assertTrue(executor.execute(event("flash", new GlobalEventPayload.ScreenFlash("", 1, 1, 1, 0.1))).executed());
 		assertTrue(executor.execute(event("audio", new GlobalEventPayload.AudioMix("", "master", 1, 0))).executed());
 		assertFalse(executor.execute(event("generic", new GlobalEventPayload.Generic("CUSTOM", "", Map.of()))).executed());
@@ -44,7 +45,8 @@ class GlobalEventExecutorTest {
 		assertEquals(PlaybackSemantics.STATEFUL,
 			event("audio", new GlobalEventPayload.AudioMix("", "master", 1, 0)).semantics());
 		assertEquals(PlaybackSemantics.TRANSIENT,
-			event("particle", new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1)).semantics());
+			event("particle",
+				new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1, 0.5, 0.04)).semantics());
 		assertEquals(PlaybackSemantics.TRANSIENT,
 			event("flash", new GlobalEventPayload.ScreenFlash("", 1, 1, 1, 0.1)).semantics());
 	}

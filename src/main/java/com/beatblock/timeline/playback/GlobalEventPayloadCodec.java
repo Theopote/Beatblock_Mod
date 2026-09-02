@@ -39,7 +39,9 @@ public final class GlobalEventPayloadCodec {
 				number(params, "x", 0.0),
 				number(params, "y", 0.0),
 				number(params, "z", 0.0),
-				positiveInt(params, "count", 1));
+				positiveInt(params, "count", 1),
+				nonNegative(params, "spread", GlobalEventPayload.ParticleBurst.DEFAULT_SPREAD),
+				nonNegative(params, "speed", GlobalEventPayload.ParticleBurst.DEFAULT_SPEED));
 			case "SCREEN_FLASH" -> new GlobalEventPayload.ScreenFlash(
 				string(params, "name", ""),
 				(float) number(params, "r", 1.0),
@@ -101,6 +103,8 @@ public final class GlobalEventPayloadCodec {
 				params.put("y", value.y());
 				params.put("z", value.z());
 				params.put("count", value.count());
+				params.put("spread", value.spread());
+				params.put("speed", value.speed());
 			}
 			case GlobalEventPayload.ScreenFlash value -> {
 				params.put("type", "SCREEN_FLASH");

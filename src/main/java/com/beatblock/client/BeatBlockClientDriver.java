@@ -450,9 +450,14 @@ public final class BeatBlockClientDriver {
 		};
 		for (int i = 0; i < payload.count(); i++) {
 			double angle = i * 2.399963229728653;
-			double speed = 0.04 + (i % 5) * 0.01;
-			client.world.addParticleClient(particle, payload.x(), payload.y(), payload.z(),
-				Math.cos(angle) * speed, 0.04 + (i % 3) * 0.02, Math.sin(angle) * speed);
+			double radius = payload.spread() * (0.5 + (i % 4) * 0.125);
+			double px = payload.x() + Math.cos(angle) * radius;
+			double py = payload.y() + payload.spread() * 0.05 * (i % 3);
+			double pz = payload.z() + Math.sin(angle) * radius;
+			double vx = Math.cos(angle) * payload.speed();
+			double vy = payload.speed() * (0.4 + (i % 5) * 0.12);
+			double vz = Math.sin(angle) * payload.speed();
+			client.world.addParticleClient(particle, px, py, pz, vx, vy, vz);
 		}
 		return true;
 	}
