@@ -46,7 +46,8 @@ public final class CameraShotTimelineWriter {
 		if (CameraShotValidator.hasErrors(CameraShotValidator.validate(shot))) {
 			return false;
 		}
-		Vec3d target = CameraSubjectResolver.resolveRequired(shot.effectiveLookAt(), CameraSubjectRole.LOOK_AT);
+		CameraFramingSolution framing = resolveFraming(shot);
+		Vec3d target = framing.lookAt();
 		double start = shot.startSeconds();
 		double duration = shot.durationSeconds();
 		String ease = shot.easing().name();
@@ -54,62 +55,60 @@ public final class CameraShotTimelineWriter {
 
 		return switch (shot.movement()) {
 			case ORBIT -> {
-				double radius = shot.framing().orbitRadiusBlocks();
-				double height = shot.framing().orbitHeightBlocks();
 				CameraTrackFactory.addOrbitSegment(
 					timeline, start, duration,
 					target.x, target.y, target.z,
-					radius, height, 0.0, 120.0,
+					framing.orbitRadiusBlocks(), framing.orbitHeightBlocks(), 0.0, 120.0,
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case PUSH_IN -> {
-				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks(), shot.framing().orbitHeightBlocks());
+				Vec3d eye = framing.eyePositionSouth();
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, shot.framing().dollyReachBlocks(),
+					eye.x, eye.y, eye.z, 0.0, framing.dollyReachBlocks(),
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case PULL_OUT -> {
-				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks() * 0.5, shot.framing().orbitHeightBlocks());
+				Vec3d eye = framing.eyePositionSouth(0.5, 1.0);
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 180.0, shot.framing().dollyReachBlocks(),
+					eye.x, eye.y, eye.z, 180.0, framing.dollyReachBlocks(),
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case PAN -> {
-				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks(), shot.framing().orbitHeightBlocks());
+				Vec3d eye = framing.eyePositionSouth();
 				CameraTrackFactory.addCraneSegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, -12.0, 2.5,
+					eye.x, eye.y, eye.z, 0.0, framing.pitchDeg(), 2.5,
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case SHAKE -> {
-				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks() * 0.7, shot.framing().orbitHeightBlocks());
+				Vec3d eye = framing.eyePositionSouth(0.7, 1.0);
 				CameraTrackFactory.addShakeSegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, -10.0,
+					eye.x, eye.y, eye.z, 0.0, framing.pitchDeg(),
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case HOLD -> {
-				Vec3d eye = offsetSouth(target, shot.framing().orbitRadiusBlocks(), shot.framing().orbitHeightBlocks());
+				Vec3d eye = framing.eyePositionSouth();
 				CameraTrackFactory.addPathSegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, -8.0, ease,
+					eye.x, eye.y, eye.z, 0.0, framing.pitchDeg(), ease,
 					metadata,
 					semantics
 				);
@@ -118,7 +117,13 @@ public final class CameraShotTimelineWriter {
 		};
 	}
 
-	private static Vec3d offsetSouth(Vec3d target, double radius, double height) {
-		return new Vec3d(target.x, target.y + height, target.z + radius);
+	private static CameraFramingSolution resolveFraming(CameraShot shot) {
+		return CameraSubjectBoundsResolver.tryResolve(shot.effectiveLookAt())
+			.map(bounds -> CameraFramingEngine.solve(shot.framing(), bounds))
+			.orElseGet(() -> {
+				Vec3d lookAt = CameraSubjectResolver.resolveRequired(
+					shot.effectiveLookAt(), CameraSubjectRole.LOOK_AT);
+				return CameraFramingEngine.fallback(shot.framing(), lookAt);
+			});
 	}
 }
