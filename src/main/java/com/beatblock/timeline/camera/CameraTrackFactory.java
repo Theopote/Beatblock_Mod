@@ -6,6 +6,8 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.TimelineEventOriginSupport;
+import com.beatblock.timeline.generation.TimelineGenerationMetadata;
+import com.beatblock.timeline.generation.TimelineGenerationMetadataSupport;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 
@@ -44,13 +46,20 @@ public final class CameraTrackFactory {
 	public static void addPathSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg, String ease,
 		TimelineEventOrigin origin, @Nullable Map<String, Object> semantics) {
+		addPathSegment(timeline, timeSeconds, durationSeconds, anchorX, anchorY, anchorZ, yawDeg, pitchDeg, ease,
+			TimelineGenerationMetadata.fromOrigin(origin), semantics);
+	}
+
+	public static void addPathSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg, String ease,
+		TimelineGenerationMetadata metadata, @Nullable Map<String, Object> semantics) {
 		Track t = timeline != null ? timeline.getTrack(Timeline.TRACK_ID_CAMERA) : null;
 		if (t == null) return;
 		double start = Math.max(0, timeSeconds);
 		double end = start + Math.max(0.05, durationSeconds);
 		Clip clip = TimelineOperations.addClip(t, start, end);
 		if (clip == null) return;
-		Map<String, Object> segment = segmentParams(CameraSegmentKind.PATH, origin);
+		Map<String, Object> segment = segmentParams(CameraSegmentKind.PATH, metadata);
 		mergeSemantics(segment, semantics);
 		TimelineOperations.addEvent(clip, start, EventType.CAMERA_SEGMENT, segment);
 		TimelineOperations.addEvent(clip, start, EventType.CAMERA_KEYFRAME,
@@ -80,6 +89,13 @@ public final class CameraTrackFactory {
 	public static void addDollySegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double startX, double startY, double startZ, double yawDeg, double reachBlocks, TimelineEventOrigin origin,
 		@Nullable Map<String, Object> semantics) {
+		addDollySegment(timeline, timeSeconds, durationSeconds, startX, startY, startZ, yawDeg, reachBlocks,
+			TimelineGenerationMetadata.fromOrigin(origin), semantics);
+	}
+
+	public static void addDollySegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double startX, double startY, double startZ, double yawDeg, double reachBlocks,
+		TimelineGenerationMetadata metadata, @Nullable Map<String, Object> semantics) {
 		double rad = Math.toRadians(-yawDeg);
 		double fx = -Math.sin(rad);
 		double fz = Math.cos(rad);
@@ -104,7 +120,7 @@ public final class CameraTrackFactory {
 		p.put("endZ", endZ);
 		p.put("baseYawDeg", yawDeg);
 		p.put("basePitchDeg", 0.0);
-		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.DOLLY, p, origin, semantics);
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.DOLLY, p, metadata, semantics);
 	}
 
 	/**
@@ -134,6 +150,14 @@ public final class CameraTrackFactory {
 		double targetX, double targetY, double targetZ,
 		double radius, double height, double yawStartDeg, double yawEndDeg, TimelineEventOrigin origin,
 		@Nullable Map<String, Object> semantics) {
+		addOrbitSegment(timeline, timeSeconds, durationSeconds, targetX, targetY, targetZ, radius, height, yawStartDeg,
+			yawEndDeg, TimelineGenerationMetadata.fromOrigin(origin), semantics);
+	}
+
+	public static void addOrbitSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double targetX, double targetY, double targetZ,
+		double radius, double height, double yawStartDeg, double yawEndDeg,
+		TimelineGenerationMetadata metadata, @Nullable Map<String, Object> semantics) {
 		Map<String, Object> p = new HashMap<>();
 		p.put("targetX", targetX);
 		p.put("targetY", targetY);
@@ -142,7 +166,7 @@ public final class CameraTrackFactory {
 		p.put("height", height);
 		p.put("yawStartDeg", yawStartDeg);
 		p.put("yawEndDeg", yawEndDeg);
-		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.ORBIT, p, origin, semantics);
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.ORBIT, p, metadata, semantics);
 	}
 
 	/**
@@ -169,6 +193,13 @@ public final class CameraTrackFactory {
 	public static void addCraneSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double startX, double startY, double startZ, double yawDeg, double pitchDeg, double deltaY,
 		TimelineEventOrigin origin, @Nullable Map<String, Object> semantics) {
+		addCraneSegment(timeline, timeSeconds, durationSeconds, startX, startY, startZ, yawDeg, pitchDeg, deltaY,
+			TimelineGenerationMetadata.fromOrigin(origin), semantics);
+	}
+
+	public static void addCraneSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double startX, double startY, double startZ, double yawDeg, double pitchDeg, double deltaY,
+		TimelineGenerationMetadata metadata, @Nullable Map<String, Object> semantics) {
 		Map<String, Object> p = new HashMap<>();
 		p.put("startX", startX);
 		p.put("startY", startY);
@@ -178,7 +209,7 @@ public final class CameraTrackFactory {
 		p.put("endZ", startZ);
 		p.put("yawDeg", yawDeg);
 		p.put("pitchDeg", pitchDeg);
-		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.CRANE, p, origin, semantics);
+		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.CRANE, p, metadata, semantics);
 	}
 
 	public static void addShakeSegment(Timeline timeline, double timeSeconds,
@@ -200,6 +231,13 @@ public final class CameraTrackFactory {
 	public static void addShakeSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg, TimelineEventOrigin origin,
 		@Nullable Map<String, Object> semantics) {
+		addShakeSegment(timeline, timeSeconds, durationSeconds, anchorX, anchorY, anchorZ, yawDeg, pitchDeg,
+			TimelineGenerationMetadata.fromOrigin(origin), semantics);
+	}
+
+	public static void addShakeSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		double anchorX, double anchorY, double anchorZ, double yawDeg, double pitchDeg,
+		TimelineGenerationMetadata metadata, @Nullable Map<String, Object> semantics) {
 		addProcSegment(timeline, timeSeconds, durationSeconds, CameraSegmentKind.SHAKE, Map.of(
 			"anchorX", anchorX,
 			"anchorY", anchorY,
@@ -211,11 +249,18 @@ public final class CameraTrackFactory {
 			"frequencyHz", 18.0,
 			"beatSync", 1.0,
 			"beatsPerPulse", 0.5
-		), origin, semantics);
+		), metadata, semantics);
 	}
 
 	private static void addProcSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		CameraSegmentKind kind, Map<String, Object> extra, TimelineEventOrigin origin,
+		@Nullable Map<String, Object> semantics) {
+		addProcSegment(timeline, timeSeconds, durationSeconds, kind, extra,
+			TimelineGenerationMetadata.fromOrigin(origin), semantics);
+	}
+
+	private static void addProcSegment(Timeline timeline, double timeSeconds, double durationSeconds,
+		CameraSegmentKind kind, Map<String, Object> extra, TimelineGenerationMetadata metadata,
 		@Nullable Map<String, Object> semantics) {
 		Track t = timeline != null ? timeline.getTrack(Timeline.TRACK_ID_CAMERA) : null;
 		if (t == null) return;
@@ -223,7 +268,7 @@ public final class CameraTrackFactory {
 		double end = start + Math.max(0.05, durationSeconds);
 		Clip clip = TimelineOperations.addClip(t, start, end);
 		if (clip == null) return;
-		Map<String, Object> p = segmentParams(kind, origin);
+		Map<String, Object> p = segmentParams(kind, metadata);
 		p.putAll(extra);
 		mergeSemantics(p, semantics);
 		TimelineOperations.addEvent(clip, start, EventType.CAMERA_SEGMENT, p);
@@ -236,7 +281,11 @@ public final class CameraTrackFactory {
 	}
 
 	private static Map<String, Object> segmentParams(CameraSegmentKind kind, TimelineEventOrigin origin) {
-		return TimelineEventOriginSupport.withOrigin(segmentParams(kind), origin);
+		return segmentParams(kind, TimelineGenerationMetadata.fromOrigin(origin));
+	}
+
+	private static Map<String, Object> segmentParams(CameraSegmentKind kind, TimelineGenerationMetadata metadata) {
+		return TimelineGenerationMetadataSupport.apply(segmentParams(kind), metadata);
 	}
 
 	private static Map<String, Object> segmentParams(CameraSegmentKind kind) {

@@ -13,6 +13,7 @@ import com.beatblock.timeline.command.CommandManager;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 草稿生成器统一写入路径：自动/批量事件经 {@link com.beatblock.timeline.command.CommandManager} 写入 Timeline。
@@ -50,7 +51,11 @@ public final class TimelineDraftWriter {
 		TimelineEventOrigin origin
 	) {
 		if (timeline == null || trackId == null || event == null) return false;
-		TimelineAnimationEvent tagged = withOrigin(event, origin != null ? origin : TimelineEventOrigin.AUTO_GENERATED);
+		TimelineAnimationEvent tagged = event;
+		TimelineGenerationMetadata existing = TimelineGenerationMetadata.fromParameters(event.getParameters());
+		if (existing.generatorId().isBlank() && existing.generationId().isBlank()) {
+			tagged = withOrigin(event, origin != null ? origin : TimelineEventOrigin.AUTO_GENERATED);
+		}
 		if (tagged == null) return false;
 		CommandManager commands = commandManagerOrNull();
 		if (commands != null) {
@@ -82,15 +87,27 @@ public final class TimelineDraftWriter {
 	) {
 		if (source == null) return null;
 		TimelineEventOrigin resolved = origin != null ? origin : TimelineEventOrigin.AUTO_GENERATED;
-		AnimationEventParams params = AnimationEventParams.fromAnimationEvent(source).withEventOrigin(resolved);
+		return withMetadata(source, TimelineGenerationMetadata.fromOrigin(resolved));
+	}
+
+	public static @Nullable TimelineAnimationEvent withMetadata(
+		@Nullable TimelineAnimationEvent source,
+		@Nullable TimelineGenerationMetadata metadata
+	) {
+		if (source == null) return null;
+		Map<String, Object> params = TimelineGenerationMetadataSupport.apply(
+			AnimationEventParams.fromAnimationEvent(source).toParameterMap(),
+			metadata
+		);
+		AnimationEventParams parsed = AnimationEventParams.fromParameterMap(params);
 		return new TimelineAnimationEvent(
 			source.getEventId(),
 			source.getTimeSeconds(),
-			params.durationSeconds(),
-			params.animationType(),
-			params.targetObject(),
-			params.energy(),
-			params.toParameterMap()
+			parsed.durationSeconds(),
+			parsed.animationType(),
+			parsed.targetObject(),
+			parsed.energy(),
+			parsed.toParameterMap()
 		);
 	}
 

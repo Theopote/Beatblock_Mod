@@ -3,6 +3,7 @@ package com.beatblock.automap.camera;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.camera.CameraTrackFactory;
+import com.beatblock.timeline.generation.TimelineGenerationMetadata;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
@@ -15,18 +16,33 @@ public final class CameraShotTimelineWriter {
 
 	private CameraShotTimelineWriter() {}
 
+	public record TaggedShot(CameraShot shot, TimelineGenerationMetadata metadata) {}
+
 	public static int write(Timeline timeline, List<CameraShot> shots) {
 		if (timeline == null || shots == null || shots.isEmpty()) return 0;
 		int count = 0;
 		for (CameraShot shot : shots) {
-			if (writeOne(timeline, shot)) count++;
+			if (writeOne(timeline, shot, TimelineGenerationMetadata.fromOrigin(TimelineEventOrigin.AUTO_GENERATED))) {
+				count++;
+			}
 		}
 		return count;
 	}
 
-	private static final TimelineEventOrigin AUTO_MAP_ORIGIN = TimelineEventOrigin.AUTO_GENERATED;
+	public static int writeTagged(Timeline timeline, List<TaggedShot> shots) {
+		if (timeline == null || shots == null || shots.isEmpty()) return 0;
+		int count = 0;
+		for (TaggedShot tagged : shots) {
+			if (tagged == null || tagged.shot() == null) continue;
+			TimelineGenerationMetadata metadata = tagged.metadata() != null
+				? tagged.metadata()
+				: TimelineGenerationMetadata.fromOrigin(TimelineEventOrigin.AUTO_GENERATED);
+			if (writeOne(timeline, tagged.shot(), metadata)) count++;
+		}
+		return count;
+	}
 
-	private static boolean writeOne(Timeline timeline, CameraShot shot) {
+	private static boolean writeOne(Timeline timeline, CameraShot shot, TimelineGenerationMetadata metadata) {
 		if (CameraShotValidator.hasErrors(CameraShotValidator.validate(shot))) {
 			return false;
 		}
@@ -44,7 +60,7 @@ public final class CameraShotTimelineWriter {
 					timeline, start, duration,
 					target.x, target.y, target.z,
 					radius, height, 0.0, 120.0,
-					AUTO_MAP_ORIGIN,
+					metadata,
 					semantics
 				);
 				yield true;
@@ -54,7 +70,7 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 0.0, shot.framing().dollyReachBlocks(),
-					AUTO_MAP_ORIGIN,
+					metadata,
 					semantics
 				);
 				yield true;
@@ -64,7 +80,7 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 180.0, shot.framing().dollyReachBlocks(),
-					AUTO_MAP_ORIGIN,
+					metadata,
 					semantics
 				);
 				yield true;
@@ -74,7 +90,7 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addCraneSegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 0.0, -12.0, 2.5,
-					AUTO_MAP_ORIGIN,
+					metadata,
 					semantics
 				);
 				yield true;
@@ -84,7 +100,7 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addShakeSegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 0.0, -10.0,
-					AUTO_MAP_ORIGIN,
+					metadata,
 					semantics
 				);
 				yield true;
@@ -94,7 +110,7 @@ public final class CameraShotTimelineWriter {
 				CameraTrackFactory.addPathSegment(
 					timeline, start, duration,
 					eye.x, eye.y, eye.z, 0.0, -8.0, ease,
-					AUTO_MAP_ORIGIN,
+					metadata,
 					semantics
 				);
 				yield true;
