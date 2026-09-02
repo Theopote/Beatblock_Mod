@@ -22,16 +22,17 @@ public final class ChoreographyStructureMerger {
 
 		List<ChoreographyPlan.SectionPlan> mergedSections = mergeSections(
 			existing.sections(), analyzed.sections());
-		return new ChoreographyPlan(
+		ChoreographyPlan merged = new ChoreographyPlan(
 			mergedSections,
 			existing.stageRoles().isEmpty() ? analyzed.stageRoles() : existing.stageRoles(),
-			analyzed.motionPhrases(),
-			analyzed.cameraPhrases(),
-			analyzed.vfxPhrases(),
+			mergeMotionPhrases(existing, analyzed, mergedSections),
+			mergeCameraPhrases(existing, analyzed, mergedSections),
+			mergeVfxPhrases(existing, analyzed, mergedSections),
 			rebuildDensityCurve(mergedSections),
 			existing.sectionEdits(),
 			analyzed.musicalStructure()
 		);
+		return ChoreographyPlanEditor.rebindSectionIndices(merged);
 	}
 
 	public static ChoreographyPlan mergeStructureOnly(@Nullable ChoreographyPlan existing, ChoreographyPlan analyzed) {
@@ -143,6 +144,114 @@ public final class ChoreographyStructureMerger {
 			max = Math.max(max, section.endSeconds());
 		}
 		return max;
+	}
+
+	private static List<ChoreographyPlan.MotionPhrase> mergeMotionPhrases(
+		ChoreographyPlan existing,
+		ChoreographyPlan analyzed,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		return mergePhrases(
+			existing.sections(),
+			existing.motionPhrases(),
+			analyzed.motionPhrases(),
+			ChoreographyPlan.MotionPhrase::sectionIndex,
+			ChoreographyPlan.MotionPhrase::timeSeconds
+		);
+	}
+
+	private static List<ChoreographyPlan.CameraPhrase> mergeCameraPhrases(
+		ChoreographyPlan existing,
+		ChoreographyPlan analyzed,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		return mergePhrases(
+			existing.sections(),
+			existing.cameraPhrases(),
+			analyzed.cameraPhrases(),
+			ChoreographyPlan.CameraPhrase::sectionIndex,
+			ChoreographyPlan.CameraPhrase::timeSeconds
+		);
+	}
+
+	private static List<ChoreographyVfx> mergeVfxPhrases(
+		ChoreographyPlan existing,
+		ChoreographyPlan analyzed,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		return mergePhrases(
+			existing.sections(),
+			existing.vfxPhrases(),
+			analyzed.vfxPhrases(),
+			ChoreographyVfx::sectionIndex,
+			ChoreographyVfx::timeSeconds
+		);
+	}
+
+	private static <T> List<T> mergePhrases(
+		List<ChoreographyPlan.SectionPlan> existingSections,
+		List<T> existingPhrases,
+		List<T> analyzedPhrases,
+		java.util.function.ToIntFunction<T> sectionIndexFn,
+		java.util.function.ToDoubleFunction<T> timeFn
+	) {
+		List<ChoreographyPlan.SectionPlan> sections = existingSections != null ? existingSections : List.of();
+		List<T> existing = existingPhrases != null ? existingPhrases : List.of();
+		List<T> analyzed = analyzedPhrases != null ? analyzedPhrases : List.of();
+		if (!hasProtectedSection(sections)) {
+			return List.copyOf(analyzed);
+		}
+
+		List<double[]> protectedRanges = protectedTimeRanges(sections);
+		List<T> merged = new ArrayList<>();
+		for (T phrase : existing) {
+			if (phraseInProtectedSection(phrase, sections, sectionIndexFn)) {
+				merged.add(phrase);
+			}
+		}
+		for (T phrase : analyzed) {
+			if (!timeInProtectedRange(timeFn.applyAsDouble(phrase), protectedRanges)) {
+				merged.add(phrase);
+			}
+		}
+		return List.copyOf(merged);
+	}
+
+	private static boolean hasProtectedSection(List<ChoreographyPlan.SectionPlan> sections) {
+		for (ChoreographyPlan.SectionPlan section : sections) {
+			if (section != null && section.isProtected()) return true;
+		}
+		return false;
+	}
+
+	private static List<double[]> protectedTimeRanges(List<ChoreographyPlan.SectionPlan> sections) {
+		List<double[]> ranges = new ArrayList<>();
+		for (ChoreographyPlan.SectionPlan section : sections) {
+			if (section != null && section.isProtected()) {
+				ranges.add(new double[] { section.startSeconds(), section.endSeconds() });
+			}
+		}
+		return ranges;
+	}
+
+	private static <T> boolean phraseInProtectedSection(
+		T phrase,
+		List<ChoreographyPlan.SectionPlan> sections,
+		java.util.function.ToIntFunction<T> sectionIndexFn
+	) {
+		int index = sectionIndexFn.applyAsInt(phrase);
+		if (index < 0 || index >= sections.size()) return false;
+		ChoreographyPlan.SectionPlan section = sections.get(index);
+		return section != null && section.isProtected();
+	}
+
+	private static boolean timeInProtectedRange(double timeSeconds, List<double[]> protectedRanges) {
+		for (double[] range : protectedRanges) {
+			if (timeSeconds >= range[0] && timeSeconds < range[1]) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static DensityCurve rebuildDensityCurve(List<ChoreographyPlan.SectionPlan> sections) {

@@ -275,5 +275,36 @@ public final class ChoreographyPlanCompiler {
 		return new SmartAutoMapCompileResult(animations, cameras, vfx);
 	}
 
+	/**
+	 * 仅重编译指定段落：清除该段 smart-automap 归属内容，并只写入该段短语。
+	 */
+	public static SmartAutoMapCompileResult compileSection(
+		Timeline timeline,
+		ChoreographyPlan plan,
+		int sectionIndex
+	) {
+		if (timeline == null || plan == null || sectionIndex < 0) {
+			return compileAll(timeline, plan, ChoreographyCompileOptions.smartAutoMap());
+		}
+		return compileAll(
+			timeline,
+			filterPlanToSection(plan, sectionIndex),
+			ChoreographyCompileOptions.forSection(sectionIndex)
+		);
+	}
+
+	private static ChoreographyPlan filterPlanToSection(ChoreographyPlan plan, int sectionIndex) {
+		return new ChoreographyPlan(
+			plan.sections(),
+			plan.stageRoles(),
+			ChoreographyPlanEditor.motionPhrasesInSection(plan, sectionIndex),
+			ChoreographyPlanEditor.cameraPhrasesInSection(plan, sectionIndex),
+			ChoreographyPlanEditor.vfxPhrasesInSection(plan, sectionIndex),
+			plan.densityCurve(),
+			plan.sectionEdits(),
+			plan.musicalStructure()
+		);
+	}
+
 	public record SmartAutoMapCompileResult(int animationEvents, int cameraEvents, int vfxEvents) {}
 }

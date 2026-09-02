@@ -262,6 +262,49 @@ class ChoreographyPlanCompilerTest {
 	}
 
 	@Test
+	void compileSectionOnlyReplacesTargetSectionTimelineContent() {
+		Timeline timeline = Timeline.createDefault();
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(
+				new ChoreographyPlan.SectionPlan(0, 8, SectionType.INTRO, "intro"),
+				new ChoreographyPlan.SectionPlan(8, 16, SectionType.DROP, "drop")
+			),
+			List.of(),
+			List.of(
+				new ChoreographyPlan.MotionPhrase(1.0, "intro", "low", 0.6f, "bounce", 0.5, true, 4f, 0.0, 0),
+				new ChoreographyPlan.MotionPhrase(9.0, "drop", "low", 0.8f, "pulse", 0.5, true, 4f, 0.0, 1)
+			),
+			List.of(),
+			List.of(),
+			DensityCurve.uniform(1.0)
+		);
+		ChoreographyPlanCompiler.compileAll(timeline, plan, ChoreographyCompileOptions.smartAutoMap());
+		assertEquals(2, timeline.getAutoAnimationEvents().size());
+		assertEquals("bounce", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
+		assertEquals("pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
+
+		ChoreographyPlan updated = new ChoreographyPlan(
+			plan.sections(),
+			plan.stageRoles(),
+			List.of(
+				new ChoreographyPlan.MotionPhrase(1.0, "intro", "low", 0.6f, "spin", 0.5, true, 4f, 0.0, 0),
+				new ChoreographyPlan.MotionPhrase(9.0, "drop", "low", 0.8f, "pulse", 0.5, true, 4f, 0.0, 1)
+			),
+			plan.cameraPhrases(),
+			plan.vfxPhrases(),
+			plan.densityCurve(),
+			plan.sectionEdits(),
+			plan.musicalStructure()
+		);
+		ChoreographyPlanCompiler.compileSection(timeline, updated, 0);
+
+		assertEquals(2, timeline.getAutoAnimationEvents().size());
+		assertEquals("spin", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
+		assertEquals("pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
+		assertEquals(9.0, timeline.getAutoAnimationEvents().get(1).getTimeSeconds(), 1e-6);
+	}
+
+	@Test
 	void replaceGeneratedClearsAutoCameraAndVfxWhenPlanBecomesEmpty() {
 		Timeline timeline = Timeline.createDefault();
 		timeline.addCameraKeyframe(new CameraKeyframe(0.5));

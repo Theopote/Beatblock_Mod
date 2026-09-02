@@ -66,4 +66,45 @@ class TimelineSectionEditPresenterTest {
 		assertEquals(0, outcome.cameraEvents());
 		assertEquals("spin", timeline.getAutoAnimationEvents().getFirst().getAnimationTypeId());
 	}
+
+	@Test
+	void sectionEditRecompilesOnlyEditedSection() {
+		Timeline timeline = Timeline.createDefault();
+		TimelineEditor editor = new TimelineEditor(timeline);
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(
+				new ChoreographyPlan.SectionPlan(0, 8, SectionType.INTRO, "intro"),
+				new ChoreographyPlan.SectionPlan(8, 16, SectionType.DROP, "drop")
+			),
+			List.of(),
+			List.of(
+				new ChoreographyPlan.MotionPhrase(1.0, "intro", "low", 0.6f, "bounce", 0.5, true, 4f, 0),
+				new ChoreographyPlan.MotionPhrase(9.0, "drop", "low", 0.8f, "pulse", 0.5, true, 4f, 1)
+			),
+			List.of(),
+			List.of(),
+			DensityCurve.uniform(1.0)
+		);
+		AutoMapConfig config = AutoMapConfig.createDefault();
+		ChoreographyPlanStore.save(timeline, plan, config);
+		com.beatblock.automap.choreography.ChoreographyPlanCompiler.compileAll(
+			timeline, plan, com.beatblock.automap.choreography.ChoreographyCompileOptions.smartAutoMap());
+
+		var presenter = new TimelineSectionEditPresenter(() -> BeatBlockContext.builder()
+			.timeline(timeline)
+			.timelineEditor(editor)
+			.build());
+
+		var outcome = presenter.applySectionEdit(
+			0,
+			SectionType.INTRO,
+			false,
+			SectionEditProfile.defaults(0).withMotionAnimationType("spin")
+		);
+
+		assertTrue(outcome.result().ok());
+		assertEquals(2, timeline.getAutoAnimationEvents().size());
+		assertEquals("spin", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
+		assertEquals("pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
+	}
 }

@@ -74,6 +74,20 @@ public record ChoreographyCompileOptions(
 		return new ChoreographyCompileOptions(mode, ReplaceMode.APPEND, ReplaceMode.APPEND);
 	}
 
+	/**
+	 * 段落编辑 / Phrase → Section 重编：只清除并重写指定 {@code sectionIndex} 的 smart-automap 内容。
+	 */
+	public static ChoreographyCompileOptions forSection(int sectionIndex) {
+		ContentReplacePolicy replaceSection = ContentReplacePolicy.replaceSection(sectionIndex);
+		return new ChoreographyCompileOptions(
+			replaceSection,
+			replaceSection,
+			replaceSection,
+			DEFAULT_MIN_GAP_SECONDS,
+			null
+		);
+	}
+
 	public GenerationSession resolveSession(com.beatblock.timeline.Timeline timeline) {
 		if (generationSession != null) {
 			return generationSession;
