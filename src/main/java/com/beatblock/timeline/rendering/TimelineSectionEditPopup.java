@@ -30,6 +30,7 @@ public final class TimelineSectionEditPopup {
 	private final ImBoolean cameraEnabled = new ImBoolean(true);
 	private final ImBoolean vfxEnabled = new ImBoolean(true);
 	private final ImInt animationTypeIndex = new ImInt(0);
+	private final ImInt spatialMotifIndex = new ImInt(0);
 	private final ImFloat densityThreshold = new ImFloat(0.15f);
 	private final ImFloat timeOffsetSeconds = new ImFloat(0f);
 	private final ImFloat energyScale = new ImFloat(1f);
@@ -103,7 +104,11 @@ public final class TimelineSectionEditPopup {
 
 	private void renderSelectedSectionSummary(TimelineSectionEditPresenter.SectionView section) {
 		ImGui.text(BBTexts.get("beatblock.section_edit.summary",
-			section.motionCount(), section.cameraCount(), section.vfxCount()));
+			section.motionCount(), section.cameraCount(), section.vfxCount(), section.spatialMotifCount()));
+		String motifLabel = section.spatialMotifId() != null
+			? section.spatialMotifId().name()
+			: BBTexts.get("beatblock.section_edit.spatial_motif.none");
+		ImGui.textDisabled(BBTexts.get("beatblock.section_edit.spatial_motif.current", motifLabel));
 		ImGui.textDisabled(BBTexts.get(
 			"beatblock.section_edit.confidence",
 			(int) Math.round(section.confidence() * 100.0),
@@ -136,6 +141,10 @@ public final class TimelineSectionEditPopup {
 			TimelineSectionEditPresenter.MOTION_ANIMATION_IDS)) {
 			profileDirty = true;
 		}
+		if (ImGui.combo(BBTexts.get("beatblock.section_edit.spatial_motif"), spatialMotifIndex,
+			TimelineSectionEditPresenter.spatialMotifDropdownLabels())) {
+			profileDirty = true;
+		}
 		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.density_threshold"), densityThreshold, 0.01f, 0.05f, "%.2f")) {
 			profileDirty = true;
 		}
@@ -154,15 +163,18 @@ public final class TimelineSectionEditPopup {
 				TimelineSectionEditPresenter.MOTION_ANIMATION_IDS.length - 1));
 			SectionType sectionType = TimelineSectionEditPresenter.SECTION_TYPES.get(
 				Math.max(0, Math.min(sectionTypeIndex.get(), TimelineSectionEditPresenter.SECTION_TYPES.size() - 1)));
-			SectionEditProfile edit = new SectionEditProfile(
-				sectionIndex,
-				motionEnabled.get(),
-				cameraEnabled.get(),
-				vfxEnabled.get(),
-				TimelineSectionEditPresenter.MOTION_ANIMATION_IDS[animIndex],
-				(double) densityThreshold.get(),
-				timeOffsetSeconds.get(),
-				energyScale.get()
+			SectionEditProfile edit = presenter.applySpatialMotifDropdownIndex(
+				new SectionEditProfile(
+					sectionIndex,
+					motionEnabled.get(),
+					cameraEnabled.get(),
+					vfxEnabled.get(),
+					TimelineSectionEditPresenter.MOTION_ANIMATION_IDS[animIndex],
+					(double) densityThreshold.get(),
+					timeOffsetSeconds.get(),
+					energyScale.get()
+				),
+				spatialMotifIndex.get()
 			);
 			var outcome = presenter.applySectionEdit(
 				sectionIndex, sectionType, sectionLocked.get(), edit);
@@ -185,6 +197,7 @@ public final class TimelineSectionEditPopup {
 		cameraEnabled.set(profile.cameraEnabled());
 		vfxEnabled.set(profile.vfxEnabled());
 		animationTypeIndex.set(indexOfAnimation(profile.motionAnimationTypeOverride()));
+		spatialMotifIndex.set(presenter.resolveSpatialMotifDropdownIndex(index, profile));
 		Double densityOverride = profile.densityThresholdOverride();
 		densityThreshold.set(densityOverride != null ? densityOverride.floatValue() : 0.15f);
 		timeOffsetSeconds.set((float) profile.timeOffsetSeconds());

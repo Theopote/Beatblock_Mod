@@ -72,7 +72,8 @@ public final class ChoreographyPlanBuilder {
 			List.of(),
 			buildDensityCurve(sectionPlans, ChoreographyPlan.MusicalStructure.empty()),
 			List.of(),
-			ChoreographyPlan.MusicalStructure.empty()
+			ChoreographyPlan.MusicalStructure.empty(),
+			buildSpatialMotifPhrases(sectionPlans, roles)
 		);
 	}
 
@@ -196,8 +197,44 @@ public final class ChoreographyPlanBuilder {
 			vfx,
 			density,
 			List.of(),
-			musical
+			musical,
+			buildSpatialMotifPhrases(sectionPlans, roles)
 		);
+	}
+
+	private static List<SpatialMotifPhrase> buildSpatialMotifPhrases(
+		List<ChoreographyPlan.SectionPlan> sections,
+		List<ChoreographyPlan.StageRoleAssignment> roles
+	) {
+		List<String> participants = uniqueParticipantIds(roles);
+		if (participants.size() < 2 || sections.isEmpty()) return List.of();
+
+		List<SpatialMotifPhrase> motifs = new ArrayList<>(sections.size());
+		for (int i = 0; i < sections.size(); i++) {
+			ChoreographyPlan.SectionPlan section = sections.get(i);
+			motifs.add(new SpatialMotifPhrase(
+				section.startSeconds() + 0.05,
+				SpatialMotifSelection.forSection(section.sectionType()),
+				participants,
+				SpatialMotifSelection.defaultAxis(section.sectionType()),
+				SpatialMotifSelection.defaultPropagationDelay(section.sectionType()),
+				SpatialMotifSelection.defaultPrimitive(section.sectionType()),
+				0.75f,
+				0.5,
+				i
+			));
+		}
+		return motifs;
+	}
+
+	private static List<String> uniqueParticipantIds(List<ChoreographyPlan.StageRoleAssignment> roles) {
+		if (roles == null || roles.isEmpty()) return List.of();
+		java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
+		for (ChoreographyPlan.StageRoleAssignment role : roles) {
+			if (role == null || role.targetObjectId() == null || role.targetObjectId().isBlank()) continue;
+			ids.add(role.targetObjectId());
+		}
+		return List.copyOf(ids);
 	}
 
 	private static Map<String, AutoMapRule> indexRules(AutoMapConfig config) {

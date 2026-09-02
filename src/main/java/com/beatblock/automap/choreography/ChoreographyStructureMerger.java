@@ -30,7 +30,8 @@ public final class ChoreographyStructureMerger {
 			mergeVfxPhrases(existing, analyzed, mergedSections),
 			rebuildDensityCurve(mergedSections),
 			existing.sectionEdits(),
-			analyzed.musicalStructure()
+			analyzed.musicalStructure(),
+			mergeSpatialMotifPhrases(existing, analyzed, mergedSections)
 		);
 		return ChoreographyPlanEditor.rebindSectionIndices(merged);
 	}
@@ -49,7 +50,8 @@ public final class ChoreographyStructureMerger {
 			existing.vfxPhrases(),
 			rebuildDensityCurve(mergedSections),
 			existing.sectionEdits(),
-			analyzed.musicalStructure()
+			analyzed.musicalStructure(),
+			existing.spatialMotifPhrases()
 		);
 	}
 
@@ -185,6 +187,20 @@ public final class ChoreographyStructureMerger {
 			analyzed.vfxPhrases(),
 			ChoreographyVfx::sectionIndex,
 			ChoreographyVfx::timeSeconds
+		);
+	}
+
+	private static List<SpatialMotifPhrase> mergeSpatialMotifPhrases(
+		ChoreographyPlan existing,
+		ChoreographyPlan analyzed,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		return mergePhrases(
+			existing.sections(),
+			existing.spatialMotifPhrases(),
+			analyzed.spatialMotifPhrases(),
+			SpatialMotifPhrase::sectionIndex,
+			SpatialMotifPhrase::timeSeconds
 		);
 	}
 

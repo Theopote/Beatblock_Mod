@@ -39,6 +39,13 @@ public final class ChoreographyPlanEditor {
 		return filterBySection(plan.vfxPhrases(), sectionIndex, ChoreographyVfx::sectionIndex);
 	}
 
+	public static List<SpatialMotifPhrase> spatialMotifPhrasesInSection(
+		ChoreographyPlan plan,
+		int sectionIndex
+	) {
+		return filterBySection(plan.spatialMotifPhrases(), sectionIndex, SpatialMotifPhrase::sectionIndex);
+	}
+
 	public static @Nullable SectionEditProfile editForSection(ChoreographyPlan plan, int sectionIndex) {
 		for (SectionEditProfile edit : plan.sectionEdits()) {
 			if (edit.sectionIndex() == sectionIndex) return edit;
@@ -59,7 +66,7 @@ public final class ChoreographyPlanEditor {
 		}
 		if (!replaced) merged.add(edit);
 		return copyPlan(plan, plan.sections(), plan.stageRoles(), plan.motionPhrases(),
-			plan.cameraPhrases(), plan.vfxPhrases(), plan.densityCurve(), merged);
+			plan.cameraPhrases(), plan.vfxPhrases(), plan.densityCurve(), merged, plan.spatialMotifPhrases());
 	}
 
 	public static ChoreographyPlan withSectionEditForType(
@@ -166,7 +173,8 @@ public final class ChoreographyPlanEditor {
 			rebindCameraPhrases(plan.cameraPhrases(), sections),
 			rebindVfxPhrases(plan.vfxPhrases(), sections),
 			density,
-			plan.sectionEdits()
+			plan.sectionEdits(),
+			rebindSpatialMotifPhrases(plan.spatialMotifPhrases(), sections)
 		);
 	}
 
@@ -183,7 +191,8 @@ public final class ChoreographyPlanEditor {
 			transformCameraPhrases(plan, sectionIndex, deltaSeconds, null),
 			transformVfxPhrases(plan, sectionIndex, deltaSeconds, null),
 			plan.densityCurve(),
-			plan.sectionEdits()
+			plan.sectionEdits(),
+			transformSpatialMotifPhrases(plan, sectionIndex, deltaSeconds)
 		);
 	}
 
@@ -199,7 +208,8 @@ public final class ChoreographyPlanEditor {
 			rebindCameraPhrases(plan.cameraPhrases(), sections),
 			rebindVfxPhrases(plan.vfxPhrases(), sections),
 			plan.densityCurve(),
-			plan.sectionEdits()
+			plan.sectionEdits(),
+			rebindSpatialMotifPhrases(plan.spatialMotifPhrases(), sections)
 		);
 	}
 
@@ -218,8 +228,14 @@ public final class ChoreographyPlanEditor {
 			applyCameraOverrides(plan.cameraPhrases(), edits),
 			applyVfxOverrides(plan.vfxPhrases(), edits),
 			plan.densityCurve(),
-			plan.sectionEdits()
+			plan.sectionEdits(),
+			applySpatialMotifOverrides(plan, plan.spatialMotifPhrases(), edits)
 		);
+	}
+
+	public static @Nullable SpatialMotifPhrase primarySpatialMotifInSection(ChoreographyPlan plan, int sectionIndex) {
+		List<SpatialMotifPhrase> phrases = spatialMotifPhrasesInSection(plan, sectionIndex);
+		return phrases.isEmpty() ? null : phrases.getFirst();
 	}
 
 	static double resolveDensityThreshold(ChoreographyPlan plan, ChoreographyPlan.MotionPhrase phrase, double fallback) {
@@ -244,6 +260,11 @@ public final class ChoreographyPlanEditor {
 	static boolean isVfxEnabled(ChoreographyPlan plan, ChoreographyVfx phrase) {
 		SectionEditProfile edit = editForSection(plan, phrase.sectionIndex());
 		return edit == null || edit.vfxEnabled();
+	}
+
+	static boolean isSpatialMotifEnabled(ChoreographyPlan plan, SpatialMotifPhrase phrase) {
+		SectionEditProfile edit = editForSection(plan, phrase.sectionIndex());
+		return edit == null || edit.motionEnabled();
 	}
 
 	private static <T> List<T> filterBySection(
@@ -296,6 +317,121 @@ public final class ChoreographyPlanEditor {
 			));
 		}
 		return out;
+	}
+
+	private static List<SpatialMotifPhrase> applySpatialMotifOverrides(
+		ChoreographyPlan plan,
+		List<SpatialMotifPhrase> phrases,
+		Map<Integer, SectionEditProfile> edits
+	) {
+		if (edits.isEmpty()) return phrases;
+		List<SpatialMotifPhrase> retained = new ArrayList<>();
+		for (SpatialMotifPhrase phrase : phrases) {
+			SectionEditProfile edit = edits.get(phrase.sectionIndex());
+			if (edit == null) {
+				retained.add(phrase);
+			}
+		}
+
+		List<SpatialMotifPhrase> out = new ArrayList<>(retained);
+		for (SectionEditProfile edit : edits.values()) {
+			if (!edit.spatialMotifEnabled()) continue;
+			SpatialMotifPhrase existing = findSpatialMotifPhrase(phrases, edit.sectionIndex());
+			if (existing != null) {
+				out.add(applySpatialMotifEdit(plan, existing, edit));
+				continue;
+			}
+			SpatialMotifPhrase created = createSpatialMotifForSection(plan, edit);
+			if (created != null) out.add(created);
+		}
+		return out;
+	}
+
+	private static @Nullable SpatialMotifPhrase findSpatialMotifPhrase(
+		List<SpatialMotifPhrase> phrases,
+		int sectionIndex
+	) {
+		for (SpatialMotifPhrase phrase : phrases) {
+			if (phrase.sectionIndex() == sectionIndex) return phrase;
+		}
+		return null;
+	}
+
+	private static SpatialMotifPhrase applySpatialMotifEdit(
+		ChoreographyPlan plan,
+		SpatialMotifPhrase phrase,
+		SectionEditProfile edit
+	) {
+		ChoreographyPlan.SectionPlan section = sectionAt(plan, edit.sectionIndex());
+		SectionType sectionType = section != null ? section.sectionType() : SectionType.VERSE;
+		SpatialMotifId motifId = edit.spatialMotifIdOverride() != null
+			? edit.spatialMotifIdOverride()
+			: SpatialMotifSelection.forSection(sectionType);
+		String primitive = edit.motionAnimationTypeOverride() != null
+			? edit.motionAnimationTypeOverride()
+			: phrase.primitiveId();
+		float energy = Math.min(1f, phrase.energy() * edit.energyScale());
+		return new SpatialMotifPhrase(
+			phrase.timeSeconds() + edit.timeOffsetSeconds(),
+			motifId,
+			phrase.participantIds(),
+			edit.spatialMotifIdOverride() != null ? phrase.axis() : SpatialMotifSelection.defaultAxis(sectionType),
+			phrase.propagationDelaySeconds() > 0
+				? phrase.propagationDelaySeconds()
+				: SpatialMotifSelection.defaultPropagationDelay(sectionType),
+			primitive,
+			phrase.phaseMode(),
+			energy,
+			phrase.durationSeconds(),
+			phrase.useEnergyForHeight(),
+			phrase.heightMultiplier(),
+			phrase.sectionIndex(),
+			phrase.timingSnap()
+		);
+	}
+
+	private static @Nullable SpatialMotifPhrase createSpatialMotifForSection(
+		ChoreographyPlan plan,
+		SectionEditProfile edit
+	) {
+		ChoreographyPlan.SectionPlan section = sectionAt(plan, edit.sectionIndex());
+		if (section == null) return null;
+		List<String> participants = uniqueParticipantIds(plan.stageRoles());
+		if (participants.size() < 2) return null;
+
+		SectionType sectionType = section.sectionType();
+		SpatialMotifId motifId = edit.spatialMotifIdOverride() != null
+			? edit.spatialMotifIdOverride()
+			: SpatialMotifSelection.forSection(sectionType);
+		String primitive = edit.motionAnimationTypeOverride() != null
+			? edit.motionAnimationTypeOverride()
+			: SpatialMotifSelection.defaultPrimitive(sectionType);
+		return new SpatialMotifPhrase(
+			section.startSeconds() + 0.05 + edit.timeOffsetSeconds(),
+			motifId,
+			participants,
+			SpatialMotifSelection.defaultAxis(sectionType),
+			SpatialMotifSelection.defaultPropagationDelay(sectionType),
+			primitive,
+			0.75f * edit.energyScale(),
+			0.5,
+			edit.sectionIndex()
+		);
+	}
+
+	private static ChoreographyPlan.@Nullable SectionPlan sectionAt(ChoreographyPlan plan, int sectionIndex) {
+		if (sectionIndex < 0 || sectionIndex >= plan.sections().size()) return null;
+		return plan.sections().get(sectionIndex);
+	}
+
+	private static List<String> uniqueParticipantIds(List<ChoreographyPlan.StageRoleAssignment> roles) {
+		if (roles == null || roles.isEmpty()) return List.of();
+		java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
+		for (ChoreographyPlan.StageRoleAssignment role : roles) {
+			if (role == null || role.targetObjectId() == null || role.targetObjectId().isBlank()) continue;
+			ids.add(role.targetObjectId());
+		}
+		return List.copyOf(ids);
 	}
 
 	private static List<ChoreographyPlan.CameraPhrase> applyCameraOverrides(
@@ -482,6 +618,62 @@ public final class ChoreographyPlanEditor {
 		return out;
 	}
 
+	private static List<SpatialMotifPhrase> rebindSpatialMotifPhrases(
+		List<SpatialMotifPhrase> phrases,
+		List<ChoreographyPlan.SectionPlan> sections
+	) {
+		List<SpatialMotifPhrase> out = new ArrayList<>(phrases.size());
+		for (SpatialMotifPhrase phrase : phrases) {
+			out.add(new SpatialMotifPhrase(
+				phrase.timeSeconds(),
+				phrase.motifId(),
+				phrase.participantIds(),
+				phrase.axis(),
+				phrase.propagationDelaySeconds(),
+				phrase.primitiveId(),
+				phrase.phaseMode(),
+				phrase.energy(),
+				phrase.durationSeconds(),
+				phrase.useEnergyForHeight(),
+				phrase.heightMultiplier(),
+				resolveSectionIndex(sections, phrase.timeSeconds()),
+				phrase.timingSnap()
+			));
+		}
+		return out;
+	}
+
+	private static List<SpatialMotifPhrase> transformSpatialMotifPhrases(
+		ChoreographyPlan plan,
+		int sectionIndex,
+		double deltaSeconds
+	) {
+		List<SpatialMotifPhrase> out = new ArrayList<>(plan.spatialMotifPhrases().size());
+		for (SpatialMotifPhrase phrase : plan.spatialMotifPhrases()) {
+			if (phrase.sectionIndex() != sectionIndex) {
+				out.add(phrase);
+				continue;
+			}
+			double time = phrase.timeSeconds() + deltaSeconds;
+			out.add(new SpatialMotifPhrase(
+				time,
+				phrase.motifId(),
+				phrase.participantIds(),
+				phrase.axis(),
+				phrase.propagationDelaySeconds(),
+				phrase.primitiveId(),
+				phrase.phaseMode(),
+				phrase.energy(),
+				phrase.durationSeconds(),
+				phrase.useEnergyForHeight(),
+				phrase.heightMultiplier(),
+				resolveSectionIndex(plan.sections(), time),
+				phrase.timingSnap()
+			));
+		}
+		return out;
+	}
+
 	private static int resolveSectionIndex(List<ChoreographyPlan.SectionPlan> sections, double timeSeconds) {
 		for (int i = 0; i < sections.size(); i++) {
 			ChoreographyPlan.SectionPlan section = sections.get(i);
@@ -522,6 +714,30 @@ public final class ChoreographyPlanEditor {
 		DensityCurve density,
 		List<SectionEditProfile> edits
 	) {
-		return new ChoreographyPlan(sections, roles, motions, cameras, vfx, density, edits, source.musicalStructure());
+		return copyPlan(source, sections, roles, motions, cameras, vfx, density, edits, source.spatialMotifPhrases());
+	}
+
+	private static ChoreographyPlan copyPlan(
+		ChoreographyPlan source,
+		List<ChoreographyPlan.SectionPlan> sections,
+		List<ChoreographyPlan.StageRoleAssignment> roles,
+		List<ChoreographyPlan.MotionPhrase> motions,
+		List<ChoreographyPlan.CameraPhrase> cameras,
+		List<ChoreographyVfx> vfx,
+		DensityCurve density,
+		List<SectionEditProfile> edits,
+		List<SpatialMotifPhrase> spatialMotifPhrases
+	) {
+		return new ChoreographyPlan(
+			sections,
+			roles,
+			motions,
+			cameras,
+			vfx,
+			density,
+			edits,
+			source.musicalStructure(),
+			spatialMotifPhrases
+		);
 	}
 }

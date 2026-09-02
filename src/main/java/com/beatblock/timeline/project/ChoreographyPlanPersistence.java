@@ -7,6 +7,10 @@ import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.choreography.ChoreographyTimingSnap;
 import com.beatblock.automap.choreography.ChoreographyVfxPersistence;
 import com.beatblock.automap.choreography.DensityCurve;
+import com.beatblock.automap.choreography.SpatialMotifId;
+import com.beatblock.automap.choreography.SpatialMotifPhrase;
+import com.beatblock.automap.choreography.MotifAxis;
+import com.beatblock.automap.choreography.MotifPhaseMode;
 import com.beatblock.automap.choreography.SectionEditProfile;
 import com.beatblock.automap.choreography.SectionPlanSource;
 import com.beatblock.automap.choreography.TimingSnapDefaults;
@@ -55,6 +59,7 @@ public final class ChoreographyPlanPersistence {
 		root.add("sections", sectionsToJson(plan.sections()));
 		root.add("stageRoles", stageRolesToJson(plan.stageRoles()));
 		root.add("motionPhrases", motionPhrasesToJson(plan.motionPhrases()));
+		root.add("spatialMotifPhrases", spatialMotifPhrasesToJson(plan.spatialMotifPhrases()));
 		root.add("cameraPhrases", cameraPhrasesToJson(plan.cameraPhrases()));
 		root.add("vfxPhrases", ChoreographyVfxPersistence.toJson(plan.vfxPhrases()));
 		root.add("densityCurve", densityCurveToJson(plan.densityCurve()));
@@ -76,7 +81,8 @@ public final class ChoreographyPlanPersistence {
 			ChoreographyVfxPersistence.fromJson(root.get("vfxPhrases")),
 			densityCurveFromJson(root.get("densityCurve")),
 			sectionEditsFromJson(root.get("sectionEdits")),
-			musicalStructureFromJson(root.get("musicalStructure"))
+			musicalStructureFromJson(root.get("musicalStructure")),
+			spatialMotifPhrasesFromJson(root.get("spatialMotifPhrases"))
 		);
 	}
 
@@ -404,6 +410,67 @@ public final class ChoreographyPlanPersistence {
 		return out;
 	}
 
+	private static JsonArray spatialMotifPhrasesToJson(List<SpatialMotifPhrase> phrases) {
+		JsonArray arr = new JsonArray();
+		for (SpatialMotifPhrase phrase : phrases) {
+			JsonObject obj = new JsonObject();
+			obj.addProperty("timeSeconds", phrase.timeSeconds());
+			obj.addProperty("motifId", phrase.motifId().name());
+			JsonArray participants = new JsonArray();
+			for (String participantId : phrase.participantIds()) {
+				participants.add(participantId);
+			}
+			obj.add("participantIds", participants);
+			obj.addProperty("axis", phrase.axis().name());
+			obj.addProperty("propagationDelaySeconds", phrase.propagationDelaySeconds());
+			obj.addProperty("primitiveId", phrase.primitiveId());
+			obj.addProperty("phaseMode", phrase.phaseMode().name());
+			obj.addProperty("energy", phrase.energy());
+			obj.addProperty("durationSeconds", phrase.durationSeconds());
+			obj.addProperty("useEnergyForHeight", phrase.useEnergyForHeight());
+			obj.addProperty("heightMultiplier", phrase.heightMultiplier());
+			obj.addProperty("sectionIndex", phrase.sectionIndex());
+			if (phrase.timingSnap() != ChoreographyTimingSnap.BAR) {
+				obj.addProperty("timingSnap", phrase.timingSnap().name());
+			}
+			arr.add(obj);
+		}
+		return arr;
+	}
+
+	private static List<SpatialMotifPhrase> spatialMotifPhrasesFromJson(@Nullable JsonElement element) {
+		List<SpatialMotifPhrase> out = new ArrayList<>();
+		if (element == null || !element.isJsonArray()) return out;
+		JsonArray arr = element.getAsJsonArray();
+		for (int i = 0; i < arr.size(); i++) {
+			if (!arr.get(i).isJsonObject()) continue;
+			JsonObject obj = arr.get(i).getAsJsonObject();
+			List<String> participants = new ArrayList<>();
+			if (obj.has("participantIds") && obj.get("participantIds").isJsonArray()) {
+				JsonArray ids = obj.getAsJsonArray("participantIds");
+				for (int j = 0; j < ids.size(); j++) {
+					participants.add(ids.get(j).getAsString());
+				}
+			}
+			out.add(new SpatialMotifPhrase(
+				getDouble(obj, "timeSeconds", 0.0),
+				SpatialMotifId.fromValue(getString(obj, "motifId", "CASCADE")),
+				participants,
+				MotifAxis.fromValue(getString(obj, "axis", "X")),
+				getDouble(obj, "propagationDelaySeconds", 0.06),
+				getString(obj, "primitiveId", "pulse"),
+				MotifPhaseMode.fromValue(getString(obj, "phaseMode", "IN_PHASE")),
+				getFloat(obj, "energy", 0.8f),
+				getDouble(obj, "durationSeconds", 0.5),
+				getBool(obj, "useEnergyForHeight", true),
+				getFloat(obj, "heightMultiplier", 4f),
+				getInt(obj, "sectionIndex", -1),
+				parseTimingSnap(obj, ChoreographyTimingSnap.BAR)
+			));
+		}
+		return out;
+	}
+
 	private static JsonArray cameraPhrasesToJson(List<ChoreographyPlan.CameraPhrase> phrases) {
 		JsonArray arr = new JsonArray();
 		for (ChoreographyPlan.CameraPhrase phrase : phrases) {
@@ -492,6 +559,12 @@ public final class ChoreographyPlanPersistence {
 			}
 			obj.addProperty("timeOffsetSeconds", edit.timeOffsetSeconds());
 			obj.addProperty("energyScale", edit.energyScale());
+			if (!edit.spatialMotifEnabled()) {
+				obj.addProperty("spatialMotifEnabled", false);
+			}
+			if (edit.spatialMotifIdOverride() != null) {
+				obj.addProperty("spatialMotifIdOverride", edit.spatialMotifIdOverride().name());
+			}
 			arr.add(obj);
 		}
 		return arr;
@@ -508,6 +581,10 @@ public final class ChoreographyPlanPersistence {
 				? obj.get("densityThresholdOverride").getAsDouble() : null;
 			String animation = obj.has("motionAnimationTypeOverride") && !obj.get("motionAnimationTypeOverride").isJsonNull()
 				? obj.get("motionAnimationTypeOverride").getAsString() : null;
+			SpatialMotifId motifOverride = null;
+			if (obj.has("spatialMotifIdOverride") && !obj.get("spatialMotifIdOverride").isJsonNull()) {
+				motifOverride = SpatialMotifId.fromValue(obj.get("spatialMotifIdOverride").getAsString());
+			}
 			out.add(new SectionEditProfile(
 				getInt(obj, "sectionIndex", 0),
 				getBool(obj, "motionEnabled", true),
@@ -516,7 +593,9 @@ public final class ChoreographyPlanPersistence {
 				animation,
 				density,
 				getDouble(obj, "timeOffsetSeconds", 0.0),
-				getFloat(obj, "energyScale", 1f)
+				getFloat(obj, "energyScale", 1f),
+				getBool(obj, "spatialMotifEnabled", true),
+				motifOverride
 			));
 		}
 		return out;

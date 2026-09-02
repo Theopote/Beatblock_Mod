@@ -17,7 +17,8 @@ public record ChoreographyPlan(
 	List<ChoreographyVfx> vfxPhrases,
 	DensityCurve densityCurve,
 	List<SectionEditProfile> sectionEdits,
-	MusicalStructure musicalStructure
+	MusicalStructure musicalStructure,
+	List<SpatialMotifPhrase> spatialMotifPhrases
 ) {
 
 	public ChoreographyPlan(
@@ -43,6 +44,19 @@ public record ChoreographyPlan(
 		this(sections, stageRoles, motionPhrases, cameraPhrases, vfxPhrases, densityCurve, sectionEdits, MusicalStructure.empty());
 	}
 
+	public ChoreographyPlan(
+		List<SectionPlan> sections,
+		List<StageRoleAssignment> stageRoles,
+		List<MotionPhrase> motionPhrases,
+		List<CameraPhrase> cameraPhrases,
+		List<ChoreographyVfx> vfxPhrases,
+		DensityCurve densityCurve,
+		List<SectionEditProfile> sectionEdits,
+		MusicalStructure musicalStructure
+	) {
+		this(sections, stageRoles, motionPhrases, cameraPhrases, vfxPhrases, densityCurve, sectionEdits, musicalStructure, List.of());
+	}
+
 	public ChoreographyPlan {
 		sections = sections != null ? List.copyOf(sections) : List.of();
 		stageRoles = stageRoles != null ? List.copyOf(stageRoles) : List.of();
@@ -52,12 +66,13 @@ public record ChoreographyPlan(
 		densityCurve = densityCurve != null ? densityCurve : DensityCurve.uniform(1.0);
 		sectionEdits = sectionEdits != null ? List.copyOf(sectionEdits) : List.of();
 		musicalStructure = musicalStructure != null ? musicalStructure : MusicalStructure.empty();
+		spatialMotifPhrases = spatialMotifPhrases != null ? List.copyOf(spatialMotifPhrases) : List.of();
 	}
 
 	public static ChoreographyPlan empty() {
 		return new ChoreographyPlan(
 			List.of(), List.of(), List.of(), List.of(), List.of(), DensityCurve.uniform(1.0), List.of(),
-			MusicalStructure.empty());
+			MusicalStructure.empty(), List.of());
 	}
 
 	/** Bar / Phrase / Section / Repeat hierarchy attached to this plan (structure v2). */

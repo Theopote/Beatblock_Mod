@@ -7,6 +7,9 @@ import com.beatblock.automap.choreography.ChoreographyPlanEditor;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.choreography.SectionEditProfile;
 import com.beatblock.automap.choreography.SectionPlanSource;
+import com.beatblock.automap.choreography.SpatialMotifId;
+import com.beatblock.automap.choreography.SpatialMotifPhrase;
+import com.beatblock.automap.choreography.SpatialMotifSelection;
 import com.beatblock.automap.engine.SectionType;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
@@ -25,7 +28,35 @@ public final class TimelineSectionEditPresenter {
 		"bounce", "slide", "pulse", "spin", "fade"
 	};
 
+	public static final int SPATIAL_MOTIF_AUTO_INDEX = 0;
+	public static final int SPATIAL_MOTIF_NONE_INDEX = 1;
+	public static final SpatialMotifId[] SPATIAL_MOTIF_IDS = SpatialMotifId.values();
+
 	public static final List<SectionType> SECTION_TYPES = List.of(SectionType.values());
+
+	public record SpatialMotifDropdownOption(int index, String labelKey) {}
+
+	public static List<SpatialMotifDropdownOption> spatialMotifDropdownOptions() {
+		List<SpatialMotifDropdownOption> options = new ArrayList<>(2 + SPATIAL_MOTIF_IDS.length);
+		options.add(new SpatialMotifDropdownOption(SPATIAL_MOTIF_AUTO_INDEX, "beatblock.section_edit.spatial_motif.auto"));
+		options.add(new SpatialMotifDropdownOption(SPATIAL_MOTIF_NONE_INDEX, "beatblock.section_edit.spatial_motif.none"));
+		for (SpatialMotifId motifId : SPATIAL_MOTIF_IDS) {
+			options.add(new SpatialMotifDropdownOption(
+				options.size(),
+				"beatblock.section_edit.spatial_motif." + motifId.name().toLowerCase(java.util.Locale.ROOT)
+			));
+		}
+		return List.copyOf(options);
+	}
+
+	public static String[] spatialMotifDropdownLabels() {
+		List<SpatialMotifDropdownOption> options = spatialMotifDropdownOptions();
+		String[] labels = new String[options.size()];
+		for (int i = 0; i < options.size(); i++) {
+			labels[i] = BBTexts.get(options.get(i).labelKey());
+		}
+		return labels;
+	}
 
 	public record SectionView(
 		int index,
@@ -37,7 +68,9 @@ public final class TimelineSectionEditPresenter {
 		SectionPlanSource source,
 		int motionCount,
 		int cameraCount,
-		int vfxCount
+		int vfxCount,
+		int spatialMotifCount,
+		@org.jspecify.annotations.Nullable SpatialMotifId spatialMotifId
 	) {}
 
 	public record ApplyOutcome(PresenterResult result, int animationEvents, int cameraEvents, int vfxEvents) {}
@@ -83,7 +116,9 @@ public final class TimelineSectionEditPresenter {
 				section.source(),
 				ChoreographyPlanEditor.motionPhrasesInSection(plan, i).size(),
 				ChoreographyPlanEditor.cameraPhrasesInSection(plan, i).size(),
-				ChoreographyPlanEditor.vfxPhrasesInSection(plan, i).size()
+				ChoreographyPlanEditor.vfxPhrasesInSection(plan, i).size(),
+				ChoreographyPlanEditor.spatialMotifPhrasesInSection(plan, i).size(),
+				resolveDisplayedSpatialMotif(plan, i)
 			));
 		}
 		return views;
@@ -94,6 +129,55 @@ public final class TimelineSectionEditPresenter {
 		if (plan == null) return SectionEditProfile.defaults(sectionIndex);
 		SectionEditProfile existing = ChoreographyPlanEditor.editForSection(plan, sectionIndex);
 		return existing != null ? existing : SectionEditProfile.defaults(sectionIndex);
+	}
+
+	public int resolveSpatialMotifDropdownIndex(int sectionIndex, SectionEditProfile profile) {
+		if (profile != null && !profile.spatialMotifEnabled()) {
+			return SPATIAL_MOTIF_NONE_INDEX;
+		}
+		if (profile != null && profile.spatialMotifIdOverride() != null) {
+			return indexOfSpatialMotif(profile.spatialMotifIdOverride());
+		}
+		ChoreographyPlan plan = loadPlan();
+		if (plan == null) return SPATIAL_MOTIF_AUTO_INDEX;
+		SpatialMotifPhrase phrase = ChoreographyPlanEditor.primarySpatialMotifInSection(plan, sectionIndex);
+		if (phrase == null) return SPATIAL_MOTIF_AUTO_INDEX;
+		return indexOfSpatialMotif(phrase.motifId());
+	}
+
+	public SectionEditProfile applySpatialMotifDropdownIndex(SectionEditProfile profile, int dropdownIndex) {
+		if (profile == null) return SectionEditProfile.defaults(0);
+		if (dropdownIndex <= SPATIAL_MOTIF_AUTO_INDEX) {
+			return profile.withSpatialMotifAuto();
+		}
+		if (dropdownIndex == SPATIAL_MOTIF_NONE_INDEX) {
+			return profile.withSpatialMotifEnabled(false);
+		}
+		int motifIndex = dropdownIndex - 2;
+		if (motifIndex < 0 || motifIndex >= SPATIAL_MOTIF_IDS.length) {
+			return profile.withSpatialMotifAuto();
+		}
+		return profile.withSpatialMotifId(SPATIAL_MOTIF_IDS[motifIndex]);
+	}
+
+	public static int indexOfSpatialMotif(SpatialMotifId motifId) {
+		if (motifId == null) return SPATIAL_MOTIF_AUTO_INDEX;
+		for (int i = 0; i < SPATIAL_MOTIF_IDS.length; i++) {
+			if (SPATIAL_MOTIF_IDS[i] == motifId) return i + 2;
+		}
+		return SPATIAL_MOTIF_AUTO_INDEX;
+	}
+
+	private static SpatialMotifId resolveDisplayedSpatialMotif(ChoreographyPlan plan, int sectionIndex) {
+		SectionEditProfile edit = ChoreographyPlanEditor.editForSection(plan, sectionIndex);
+		if (edit != null && !edit.spatialMotifEnabled()) return null;
+		if (edit != null && edit.spatialMotifIdOverride() != null) {
+			return edit.spatialMotifIdOverride();
+		}
+		SpatialMotifPhrase phrase = ChoreographyPlanEditor.primarySpatialMotifInSection(plan, sectionIndex);
+		if (phrase != null) return phrase.motifId();
+		if (sectionIndex < 0 || sectionIndex >= plan.sections().size()) return null;
+		return SpatialMotifSelection.forSection(plan.sections().get(sectionIndex).sectionType());
 	}
 
 	public ApplyOutcome applySectionEdit(
