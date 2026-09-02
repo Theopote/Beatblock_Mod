@@ -76,7 +76,7 @@ public final class SpatialMotifCompiler {
 	}
 
 	private static String resolvePrimitive(SpatialMotifPhrase phrase, int index) {
-		if (phrase.phaseMode() == MotifPhaseMode.COUNTERPOINT && index % 2 == 1) {
+		if (phrase.phaseMode() == MotifPhaseMode.COUNTERPOINT && (index & 1) == 1) {
 			return counterPrimitive(phrase.primitiveId());
 		}
 		return phrase.primitiveId();
@@ -84,7 +84,7 @@ public final class SpatialMotifCompiler {
 
 	private static float resolveEnergy(SpatialMotifPhrase phrase, int index, int participantCount) {
 		float base = phrase.energy();
-		if (phrase.phaseMode() == MotifPhaseMode.ALTERNATE && index % 2 == 1) {
+		if (phrase.phaseMode() == MotifPhaseMode.ALTERNATE && (index & 1) == 1) {
 			return Math.max(0f, Math.min(1f, base * 0.75f));
 		}
 		double falloff = participantCount <= 1 ? 0.0 : (double) index / (participantCount - 1);
@@ -124,7 +124,7 @@ public final class SpatialMotifCompiler {
 				double phase = participantCount <= 1 ? 0.0 : (double) rankIndex / (participantCount - 1);
 				yield phase * step * Math.max(1, participantCount - 1);
 			}
-			case ALTERNATE -> (rankIndex % 2) * step;
+			case ALTERNATE -> (rankIndex & 1) * step;
 			case RIPPLE -> normalizedRadialDelay(participant, centroid, ranked, step);
 			case SWEEP -> normalizedAxisDelay(participant, ranked, phrase.axis(), step);
 			case CHASE -> rankIndex * step * 1.08;

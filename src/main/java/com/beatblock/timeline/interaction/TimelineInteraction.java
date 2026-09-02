@@ -53,8 +53,6 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 
 	private TimelineClipDragSession clipDragSession;
 	private TimelineEventDragSession eventDragSession;
-	/** 摄像机片段缩放开始时的快照（用于 Undo） */
-	private ClipDragStateSnapshot resizeClipBeforeSnapshot;
 
 	private TimelineCameraClipResizeHandler.Session cameraResizeSession;
 
@@ -168,10 +166,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 					mx,
 					my,
 					cameraResizeSession != null ? cameraResizeSession.undoSnapshot() : null,
-					() -> {
-						resizeClipBeforeSnapshot = null;
-						cameraResizeSession = null;
-					}
+					() -> cameraResizeSession = null
 				);
 			}
 			if (interactionState.getMode() == InteractionMode.DRAG_CLIP && interactionState.getActiveClipId() != null) {
@@ -466,9 +461,8 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 					timeline, interactionState, layout, viewState, trackListState, mx, my);
 				if (session != null) {
 					cameraResizeSession = session;
-					resizeClipBeforeSnapshot = session.undoSnapshot();
-							return;
-						}
+					return;
+				}
 					}
 			for (InteractiveTrackSlot slot : build(timeline)) {
 				int logicalRow = slot.rowIndex();

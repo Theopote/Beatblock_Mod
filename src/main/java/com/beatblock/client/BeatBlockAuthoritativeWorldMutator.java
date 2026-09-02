@@ -68,6 +68,7 @@ public final class BeatBlockAuthoritativeWorldMutator {
 		ServerWorld serverWorld = resolveServerWorld(referenceWorld);
 		if (serverWorld == null) return;
 		MinecraftServer server = serverWorld.getServer();
+		if (server == null) return;
 		server.execute(() -> {
 			for (Map.Entry<BlockPos, BlockState> entry : stateByPos.entrySet()) {
 				BlockPos pos = entry.getKey();

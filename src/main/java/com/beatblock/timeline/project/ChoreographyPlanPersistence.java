@@ -547,39 +547,48 @@ public final class ChoreographyPlanPersistence {
 		return DensityCurve.ofPoints(points);
 	}
 
-	private static JsonArray sectionEditsToJson(List<SectionEditProfile> edits) {
+	private static JsonArray sectionEditsToJson(@Nullable List<SectionEditProfile> edits) {
 		JsonArray arr = new JsonArray();
+		if (edits == null) return arr;
 		for (SectionEditProfile edit : edits) {
+			if (edit == null) continue;
 			JsonObject obj = new JsonObject();
 			obj.addProperty("sectionIndex", edit.sectionIndex());
 			obj.addProperty("motionEnabled", edit.motionEnabled());
 			obj.addProperty("cameraEnabled", edit.cameraEnabled());
 			obj.addProperty("vfxEnabled", edit.vfxEnabled());
-			if (edit.motionAnimationTypeOverride() != null) {
-				obj.addProperty("motionAnimationTypeOverride", edit.motionAnimationTypeOverride());
+			String motionOverride = edit.motionAnimationTypeOverride();
+			if (motionOverride != null) {
+				obj.addProperty("motionAnimationTypeOverride", motionOverride);
 			}
-			if (edit.densityThresholdOverride() != null) {
-				obj.addProperty("densityThresholdOverride", edit.densityThresholdOverride());
+			Double densityOverride = edit.densityThresholdOverride();
+			if (densityOverride != null) {
+				obj.addProperty("densityThresholdOverride", densityOverride);
 			}
 			obj.addProperty("timeOffsetSeconds", edit.timeOffsetSeconds());
 			obj.addProperty("energyScale", edit.energyScale());
 			if (!edit.spatialMotifEnabled()) {
 				obj.addProperty("spatialMotifEnabled", false);
 			}
-			if (edit.spatialMotifIdOverride() != null) {
-				obj.addProperty("spatialMotifIdOverride", edit.spatialMotifIdOverride().name());
+			SpatialMotifId motifOverride = edit.spatialMotifIdOverride();
+			if (motifOverride != null) {
+				obj.addProperty("spatialMotifIdOverride", motifOverride.name());
 			}
-			if (edit.grammarTriggerIntervalOverride() != null) {
-				obj.addProperty("grammarTriggerIntervalOverride", edit.grammarTriggerIntervalOverride());
+			Integer grammarTriggerInterval = edit.grammarTriggerIntervalOverride();
+			if (grammarTriggerInterval != null) {
+				obj.addProperty("grammarTriggerIntervalOverride", grammarTriggerInterval);
 			}
-			if (edit.grammarStaggerStepOverride() != null) {
-				obj.addProperty("grammarStaggerStepOverride", edit.grammarStaggerStepOverride());
+			Double grammarStagger = edit.grammarStaggerStepOverride();
+			if (grammarStagger != null) {
+				obj.addProperty("grammarStaggerStepOverride", grammarStagger);
 			}
-			if (edit.grammarIntensityCurveOverride() != null) {
-				obj.addProperty("grammarIntensityCurveOverride", edit.grammarIntensityCurveOverride());
+			String grammarIntensity = edit.grammarIntensityCurveOverride();
+			if (grammarIntensity != null) {
+				obj.addProperty("grammarIntensityCurveOverride", grammarIntensity);
 			}
-			if (edit.grammarVariationOverride() != null) {
-				obj.addProperty("grammarVariationOverride", edit.grammarVariationOverride());
+			String grammarVariation = edit.grammarVariationOverride();
+			if (grammarVariation != null) {
+				obj.addProperty("grammarVariationOverride", grammarVariation);
 			}
 			arr.add(obj);
 		}

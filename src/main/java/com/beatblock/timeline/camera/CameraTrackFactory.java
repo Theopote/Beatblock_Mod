@@ -253,13 +253,6 @@ public final class CameraTrackFactory {
 	}
 
 	private static void addProcSegment(Timeline timeline, double timeSeconds, double durationSeconds,
-		CameraSegmentKind kind, Map<String, Object> extra, TimelineEventOrigin origin,
-		@Nullable Map<String, Object> semantics) {
-		addProcSegment(timeline, timeSeconds, durationSeconds, kind, extra,
-			TimelineGenerationMetadata.fromOrigin(origin), semantics);
-	}
-
-	private static void addProcSegment(Timeline timeline, double timeSeconds, double durationSeconds,
 		CameraSegmentKind kind, Map<String, Object> extra, TimelineGenerationMetadata metadata,
 		@Nullable Map<String, Object> semantics) {
 		Track t = timeline != null ? timeline.getTrack(Timeline.TRACK_ID_CAMERA) : null;
@@ -278,10 +271,6 @@ public final class CameraTrackFactory {
 	private static void mergeSemantics(Map<String, Object> params, @Nullable Map<String, Object> semantics) {
 		if (params == null || semantics == null || semantics.isEmpty()) return;
 		params.putAll(semantics);
-	}
-
-	private static Map<String, Object> segmentParams(CameraSegmentKind kind, TimelineEventOrigin origin) {
-		return segmentParams(kind, TimelineGenerationMetadata.fromOrigin(origin));
 	}
 
 	private static Map<String, Object> segmentParams(CameraSegmentKind kind, TimelineGenerationMetadata metadata) {

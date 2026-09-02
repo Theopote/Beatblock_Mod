@@ -138,11 +138,12 @@ public final class ChoreographyPhrasePersistence {
 	}
 
 	private static JsonObject spatialToJson(SpatialPatternSpec spatial) {
+		SpatialPatternSpec resolved = spatial != null ? spatial : SpatialPatternSpec.leftToRight();
 		JsonObject obj = new JsonObject();
-		obj.addProperty("pattern", spatial.pattern().name());
-		obj.addProperty("axis", spatial.axis().name());
-		if (spatial.layoutKind() != null) {
-			obj.addProperty("layoutKind", spatial.layoutKind().name());
+		obj.addProperty("pattern", resolved.pattern().name());
+		obj.addProperty("axis", resolved.axis().name());
+		if (resolved.layoutKind() != null) {
+			obj.addProperty("layoutKind", resolved.layoutKind().name());
 		}
 		return obj;
 	}

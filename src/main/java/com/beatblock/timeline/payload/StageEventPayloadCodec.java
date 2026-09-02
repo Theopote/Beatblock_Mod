@@ -142,8 +142,9 @@ public final class StageEventPayloadCodec {
 			if (a.flashBlockId() != null) {
 				map.put("flashBlock", a.flashBlockId());
 			}
-			if (a.singleBlock() != null) {
-				a.singleBlock().writeInto(map);
+			SingleBlockRef singleBlock = a.singleBlock();
+			if (singleBlock != null) {
+				singleBlock.writeInto(map);
 			}
 		} else if (payload instanceof StageEventPayload.Build b) {
 			map.put("buildMode", b.buildMode());

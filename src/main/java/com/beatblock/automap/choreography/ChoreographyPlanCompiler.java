@@ -257,23 +257,6 @@ public final class ChoreographyPlanCompiler {
 		return draft;
 	}
 
-	/**
-	 * @deprecated 使用 {@link #compileAnimationEvents(Timeline, ChoreographyPlan, ReplaceMode)} 或
-	 * {@link #compileAnimationEvents(Timeline, ChoreographyPlan, ChoreographyCompileOptions)}。
-	 */
-	@Deprecated(forRemoval = true)
-	public static int compileAnimationEvents(
-		Timeline timeline,
-		ChoreographyPlan plan,
-		boolean replace
-	) {
-		return compileAnimationEvents(
-			timeline,
-			plan,
-			replace ? ReplaceMode.REPLACE_GENERATED : ReplaceMode.APPEND
-		);
-	}
-
 	public static int compileCameraEvents(Timeline timeline, ChoreographyPlan plan) {
 		return compileCameraEvents(timeline, plan, ReplaceMode.REPLACE_GENERATED);
 	}
@@ -406,7 +389,7 @@ public final class ChoreographyPlanCompiler {
 		int sectionIndex
 	) {
 		if (timeline == null || plan == null || sectionIndex < 0) {
-			return compileAll(timeline, plan, ChoreographyCompileOptions.smartAutoMap());
+			return new SmartAutoMapCompileResult(0, 0, 0);
 		}
 		return compileAll(
 			timeline,

@@ -528,13 +528,10 @@ MotionPresetSpec motion =
 				phrase.motion().heightMultiplier()
 			);
 
-TriggerSpec trigger = phrase.trigger();
-		if (edit.grammarTriggerIntervalOverride() != null
-			&& trigger instanceof TriggerSpec.EveryNBeats everyN) {
-			trigger = new TriggerSpec.EveryNBeats(
-				edit.grammarTriggerIntervalOverride(),
-				everyN.anchorFeatureKey()
-			);
+		TriggerSpec trigger = phrase.trigger();
+		Integer intervalOverride = edit.grammarTriggerIntervalOverride();
+		if (intervalOverride != null && trigger instanceof TriggerSpec.EveryNBeats everyN) {
+			trigger = new TriggerSpec.EveryNBeats(intervalOverride, everyN.anchorFeatureKey());
 		}
 
 TimingPatternSpec timing = phrase.timing();
@@ -579,14 +576,10 @@ VariationSpec variation = resolveGrammarVariation(
 		if (participants.size() < 2) return null;
 
 		SectionType sectionType = section.sectionType();
-TriggerSpec trigger =
-ChoreographyGrammarSelection.defaultTrigger(sectionType);
-		if (edit.grammarTriggerIntervalOverride() != null
-			&& trigger instanceof TriggerSpec.EveryNBeats everyN) {
-			trigger = new TriggerSpec.EveryNBeats(
-				edit.grammarTriggerIntervalOverride(),
-				everyN.anchorFeatureKey()
-			);
+		TriggerSpec trigger = ChoreographyGrammarSelection.defaultTrigger(sectionType);
+		Integer intervalOverride = edit.grammarTriggerIntervalOverride();
+		if (intervalOverride != null && trigger instanceof TriggerSpec.EveryNBeats everyN) {
+			trigger = new TriggerSpec.EveryNBeats(intervalOverride, everyN.anchorFeatureKey());
 		}
 
 TimingPatternSpec timing =
@@ -642,7 +635,8 @@ IntensityEnvelope fallback,
 		SectionType sectionType
 	) {
 		if (edit.grammarIntensityCurveOverride() != null) {
-			return switch (edit.grammarIntensityCurveOverride().toUpperCase(java.util.Locale.ROOT)) {
+			String curve = edit.grammarIntensityCurveOverride();
+			return switch (curve.toUpperCase(java.util.Locale.ROOT)) {
 				case "CRESCENDO" -> IntensityEnvelope.crescendo(
 					Math.min(1f, 0.6f * edit.energyScale()),
 					Math.min(1f, 1.0f * edit.energyScale())
@@ -664,7 +658,8 @@ VariationSpec fallback,
 		SectionType sectionType
 	) {
 		if (edit.grammarVariationOverride() == null) return fallback;
-		return switch (edit.grammarVariationOverride().toUpperCase(java.util.Locale.ROOT)) {
+		String variation = edit.grammarVariationOverride();
+		return switch (variation.toUpperCase(java.util.Locale.ROOT)) {
 			case "ALTERNATE_HEIGHT" -> VariationSpec.alternateHeight(0.3f);
 			default -> VariationSpec.none();
 		};

@@ -115,8 +115,9 @@ public final class TimelineSectionEditPopup {
 		ImGui.textDisabled(BBTexts.get("beatblock.section_edit.spatial_motif.current", motifLabel));
 		if (section.grammarPhraseCount() > 0) {
 			String motion = section.grammarMotionPreset() != null ? section.grammarMotionPreset() : "-";
-			String trigger = section.grammarTriggerInterval() != null
-				? BBTexts.get("beatblock.section_edit.grammar.trigger.every_n", section.grammarTriggerInterval())
+			Integer triggerInterval = section.grammarTriggerInterval();
+			String trigger = triggerInterval != null
+				? BBTexts.get("beatblock.section_edit.grammar.trigger.every_n", triggerInterval)
 				: BBTexts.get("beatblock.section_edit.grammar.trigger.auto");
 			ImGui.textDisabled(BBTexts.get(
 				"beatblock.section_edit.grammar.current",

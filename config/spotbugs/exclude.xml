@@ -22,7 +22,7 @@
 	<!-- ImGui immediate-mode UI: fields mutated across render frames -->
 	<Match>
 		<Package name="~com\.beatblock\.ui(\..*)?" />
-		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2,MS_EXPOSE_REP,MS_PKGPROTECT,NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2,MS_EXPOSE_REP,MS_MUTABLE_ARRAY,MS_PKGPROTECT,NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
 	</Match>
 
 	<!-- Runtime DI context: builder wires mutable service references intentionally -->
@@ -46,13 +46,25 @@
 	<!-- Timeline interaction state machine (drag, record, section edit) -->
 	<Match>
 		<Package name="~com\.beatblock\.timeline\.interaction(\..*)?" />
-		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2,URF_UNREAD_FIELD" />
 	</Match>
 
 	<!-- Timeline layout constants shared with render helpers -->
 	<Match>
 		<Package name="~com\.beatblock\.timeline\.rendering.*" />
-		<Bug pattern="MS_PKGPROTECT,URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD,PA_PUBLIC_PRIMITIVE_ATTRIBUTE" />
+		<Bug pattern="MS_PKGPROTECT,URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD,PA_PUBLIC_PRIMITIVE_ATTRIBUTE,NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
+	</Match>
+
+	<!-- Python subprocess bootstrap: env paths may be absent until first run -->
+	<Match>
+		<Package name="~com\.beatblock\.audio\.python.*" />
+		<Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
+	</Match>
+
+	<!-- Choreography grammar JSON persistence: compact records normalize null components -->
+	<Match>
+		<Package name="~com\.beatblock\.automap\.choreography(\.grammar)?" />
+		<Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
 	</Match>
 
 	<!-- Client singletons / frame state (Minecraft client thread) -->

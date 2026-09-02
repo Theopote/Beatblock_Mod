@@ -58,10 +58,8 @@ public class BeatBlockUIManager {
 
 	private final BeatBlockPanelVisibility panelVisibility = new BeatBlockPanelVisibility();
 	private boolean firstLayout = true;
-	private Runnable onCloseRequest;
 
 	public BeatBlockUIManager(Runnable onCloseRequest) {
-		this.onCloseRequest = onCloseRequest;
 		this.timelineActions = PresenterFactories.timelineActionDispatcher();
 		this.toolPanel = new ToolPanel();
 		this.markerPanel = new MarkerPanel();
@@ -107,10 +105,6 @@ public class BeatBlockUIManager {
 
 	public void openVideoExportDialog() {
 		videoExportDialog.open();
-	}
-
-	public void setOnCloseRequest(Runnable onCloseRequest) {
-		this.onCloseRequest = onCloseRequest;
 	}
 
 	private void generateRhythmDropFromMenu() {
