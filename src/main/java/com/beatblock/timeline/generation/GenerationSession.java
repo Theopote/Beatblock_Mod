@@ -36,7 +36,7 @@ public record GenerationSession(
 
 	public TimelineGenerationMetadata forPhrase(int sectionIndex, int phraseIndex) {
 		return new TimelineGenerationMetadata(
-			TimelineEventOrigin.AUTO_GENERATED,
+			TimelineEventOrigin.GENERATED,
 			generatorId,
 			generationId,
 			sectionIndex,

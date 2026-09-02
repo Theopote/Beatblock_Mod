@@ -78,7 +78,7 @@ public final class AnimationBindingEngine {
 				Map<String, Object> params = AnimationEventParams.fromBindingRule(
 					rule,
 					energy,
-					TimelineEventOrigin.AUTO_GENERATED
+					TimelineEventOrigin.GENERATED
 				).withMergedExtensions(rule.extraParams()).toParameterMap();
 
 				TimelineAnimationEvent generated = new TimelineAnimationEvent(
@@ -95,7 +95,7 @@ public final class AnimationBindingEngine {
 					? Timeline.blockAnimationFeatureTrackId(rule.sourceFeatureKey())
 					: Timeline.TRACK_ID_ANIMATION_AUTO;
 				if (toBlockTrack) ensureFeatureTrack(timeline, rule.sourceFeatureKey());
-				TimelineDraftWriter.writeEvent(timeline, trackId, generated, TimelineEventOrigin.AUTO_GENERATED);
+				TimelineDraftWriter.writeEvent(timeline, trackId, generated, TimelineEventOrigin.GENERATED);
 				lastAcceptedByRule.put(rule.id(), event.getTimeSeconds());
 				added++;
 			}

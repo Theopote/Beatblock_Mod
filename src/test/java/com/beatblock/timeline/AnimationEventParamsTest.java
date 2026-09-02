@@ -16,7 +16,7 @@ class AnimationEventParamsTest {
 	void fromAnimationEventSeparatesCoreAndExtensionKeys() {
 		var event = new TimelineAnimationEvent(
 			"ev1", 1.0, 2.0, "pulse", "stage-a", 0.6f,
-			Map.of("buildMode", "wall", "eventOrigin", TimelineEventOrigin.AUTO_GENERATED.name()));
+			Map.of("buildMode", "wall", "eventOrigin", TimelineEventOrigin.GENERATED.name()));
 
 		AnimationEventParams params = AnimationEventParams.fromAnimationEvent(event);
 
@@ -25,7 +25,7 @@ class AnimationEventParamsTest {
 		assertEquals("stage-a", params.targetObject());
 		assertEquals(0.6f, params.energy(), 1e-6);
 		assertEquals(2.0, params.durationSeconds(), 1e-9);
-		assertEquals(TimelineEventOrigin.AUTO_GENERATED, params.eventOrigin());
+		assertEquals(TimelineEventOrigin.GENERATED, params.eventOrigin());
 		assertEquals("wall", params.extensions().get("buildMode"));
 		assertFalse(params.extensions().containsKey("actionMode"));
 	}
@@ -97,7 +97,7 @@ class AnimationEventParamsTest {
 		AnimationEventParams params = AnimationEventParams.fromBindingRule(
 			rule,
 			0.6f,
-			TimelineEventOrigin.AUTO_GENERATED
+			TimelineEventOrigin.GENERATED
 		);
 
 		assertEquals(TimelineAnimationActionMode.ANIMATE, params.actionMode());
@@ -107,7 +107,7 @@ class AnimationEventParamsTest {
 		assertEquals("audio-binding-rule", map.get("generatedBy"));
 		assertEquals(rule.id(), map.get("bindingRuleId"));
 		assertEquals("intro", map.get("sectionFilter"));
-		assertEquals(TimelineEventOrigin.AUTO_GENERATED.name(), map.get("eventOrigin"));
+		assertEquals(TimelineEventOrigin.GENERATED.name(), map.get("eventOrigin"));
 	}
 
 	@Test
@@ -119,7 +119,7 @@ class AnimationEventParamsTest {
 				.targetObjectId("stage")
 				.build(),
 			1f,
-			TimelineEventOrigin.AUTO_GENERATED
+			TimelineEventOrigin.GENERATED
 		);
 		AnimationEventParams merged = base.withMergedExtensions(Map.of("customKey", "value", "energyScale", 2f));
 		Map<String, Object> map = merged.toParameterMap();

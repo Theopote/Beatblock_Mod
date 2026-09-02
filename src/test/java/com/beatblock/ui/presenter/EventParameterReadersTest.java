@@ -43,7 +43,7 @@ class EventParameterReadersTest {
 			"targetObject", "stage",
 			"energy", 0.5,
 			"durationSeconds", 2.0,
-			"eventOrigin", TimelineEventOrigin.AUTO_GENERATED.name()
+			"eventOrigin", TimelineEventOrigin.GENERATED.name()
 		);
 		var fromMap = EventParameterReaders.animationParams(params);
 		assertEquals(TimelineAnimationActionMode.BUILD, fromMap.actionMode());

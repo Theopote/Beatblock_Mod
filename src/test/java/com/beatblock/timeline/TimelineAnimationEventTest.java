@@ -32,8 +32,8 @@ class TimelineAnimationEventTest {
 	void resolvesEventOrigin() {
 		var auto = new TimelineAnimationEvent(
 			"ev", 0, 1, "build", "s", 1f,
-			Map.of("eventOrigin", TimelineEventOrigin.AUTO_GENERATED.name()));
-		assertEquals(TimelineEventOrigin.AUTO_GENERATED, auto.getEventOrigin());
+			Map.of("eventOrigin", TimelineEventOrigin.GENERATED.name()));
+		assertEquals(TimelineEventOrigin.GENERATED, auto.getEventOrigin());
 	}
 
 	@Test

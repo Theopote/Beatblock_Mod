@@ -31,7 +31,7 @@ public final class TimelineDraftWriter {
 		if (replaceExisting) {
 			clearTrack(timeline, Timeline.TRACK_ID_ANIMATION_AUTO);
 		}
-		return writeEvents(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, events, TimelineEventOrigin.AUTO_GENERATED);
+		return writeEvents(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, events, TimelineEventOrigin.GENERATED);
 	}
 
 	public static void clearTrack(Timeline timeline, String trackId) {
@@ -54,7 +54,7 @@ public final class TimelineDraftWriter {
 		TimelineAnimationEvent tagged = event;
 		TimelineGenerationMetadata existing = TimelineGenerationMetadata.fromParameters(event.getParameters());
 		if (existing.generatorId().isBlank() && existing.generationId().isBlank()) {
-			tagged = withOrigin(event, origin != null ? origin : TimelineEventOrigin.AUTO_GENERATED);
+			tagged = withOrigin(event, origin != null ? origin : TimelineEventOrigin.GENERATED);
 		}
 		if (tagged == null) return false;
 		CommandManager commands = commandManagerOrNull();
@@ -86,7 +86,7 @@ public final class TimelineDraftWriter {
 		@Nullable TimelineEventOrigin origin
 	) {
 		if (source == null) return null;
-		TimelineEventOrigin resolved = origin != null ? origin : TimelineEventOrigin.AUTO_GENERATED;
+		TimelineEventOrigin resolved = origin != null ? origin : TimelineEventOrigin.GENERATED;
 		return withMetadata(source, TimelineGenerationMetadata.fromOrigin(resolved));
 	}
 

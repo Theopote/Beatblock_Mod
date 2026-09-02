@@ -10,7 +10,7 @@ import com.beatblock.timeline.generation.ContentReplacePolicy;
 public enum ReplaceMode {
 	/** 在现有内容后追加。 */
 	APPEND,
-	/** 仅替换全部 {@code AUTO_GENERATED}（含未标记 generator 的 legacy 内容）。 */
+	/** 仅替换全部 {@code GENERATED}（含未标记 generator 的 legacy 内容）。 */
 	REPLACE_GENERATED,
 	/** 清空整条轨道后写入（含手工内容）。 */
 	REPLACE_ALL;

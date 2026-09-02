@@ -20,7 +20,7 @@ class ClearAnimationTrackCommandTest {
 			Map.of("eventOrigin", TimelineEventOrigin.MANUAL.name())));
 		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
 			"ev2", 3.0, 0.5, "pulse", "stage", 0.5f,
-			Map.of("eventOrigin", TimelineEventOrigin.AUTO_GENERATED.name())));
+			Map.of("eventOrigin", TimelineEventOrigin.GENERATED.name())));
 		assertEquals(2, timeline.getAutoAnimationEvents().size());
 
 		ClearAnimationTrackCommand command = new ClearAnimationTrackCommand(

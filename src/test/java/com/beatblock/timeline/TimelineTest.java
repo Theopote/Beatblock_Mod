@@ -29,10 +29,10 @@ class TimelineTest {
 			Map.of("eventOrigin", TimelineEventOrigin.MANUAL.name())));
 		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
 			"auto-auto", 2.0, 0.5, "jump", "stage-a", 1f,
-			Map.of("eventOrigin", TimelineEventOrigin.AUTO_GENERATED.name())));
+			Map.of("eventOrigin", TimelineEventOrigin.GENERATED.name())));
 
 		assertEquals(1, timeline.getAnimationEventsByOrigin(TimelineEventOrigin.MANUAL).size());
-		assertEquals(1, timeline.getAnimationEventsByOrigin(TimelineEventOrigin.AUTO_GENERATED).size());
+		assertEquals(1, timeline.getAnimationEventsByOrigin(TimelineEventOrigin.GENERATED).size());
 		assertEquals(1.0, timeline.getAnimationEventsByOrigin(TimelineEventOrigin.MANUAL).getFirst().getTimeSeconds(), 1e-9);
 	}
 

@@ -14,7 +14,7 @@ class TimelineClipOriginTest {
 		Timeline timeline = Timeline.createDefault();
 		timeline.addCameraKeyframe(new CameraKeyframe(1.0));
 		CameraTrackFactory.addPathSegment(
-			timeline, 4.0, 3.0, 0, 64, 0, 0, 0, "SMOOTH", TimelineEventOrigin.AUTO_GENERATED);
+			timeline, 4.0, 3.0, 0, 64, 0, 0, 0, "SMOOTH", TimelineEventOrigin.GENERATED);
 
 		var clips = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips();
 		assertEquals(2, clips.size());
@@ -28,7 +28,7 @@ class TimelineClipOriginTest {
 		timeline.addGlobalEvent(new GlobalEvent(1.0, GlobalEventType.SCREEN_TINT, "Manual"));
 		timeline.addGlobalEvent(
 			new GlobalEvent(2.0, GlobalEventType.SPECIAL, "Auto"),
-			TimelineEventOrigin.AUTO_GENERATED
+			TimelineEventOrigin.GENERATED
 		);
 
 		var clips = timeline.getTrack(Timeline.TRACK_ID_GLOBAL).getClips();

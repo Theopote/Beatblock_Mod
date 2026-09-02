@@ -18,7 +18,7 @@ class TimelineStageEventsTest {
 			"block-late", 5.0, 0.5, "pulse", "stage-a", 1f, Map.of()));
 		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
 			"auto-mid", 2.0, 0.5, "jump", "stage-a", 1f,
-			Map.of("eventOrigin", TimelineEventOrigin.AUTO_GENERATED.name())));
+			Map.of("eventOrigin", TimelineEventOrigin.GENERATED.name())));
 		String buildTrackId = BuildLayerTrackSupport.DEFAULT_FIRST_TRACK_ID;
 		timeline.addAnimationEvent(buildTrackId, new TimelineAnimationEvent(
 			"build-early", 1.0, 1.0, "build", "stage-a", 1f, Map.of("buildMode", "wall")));
@@ -30,8 +30,7 @@ class TimelineStageEventsTest {
 
 		List<TimelineAnimationEvent> stage = timeline.getStageEvents();
 		assertEquals(4, stage.size());
-		// TimelineOperations 会生成新 eventId，按时间与动画类型校验合并排序
-		assertEquals(1.0, stage.get(0).getTimeSeconds(), 1e-9);
+		// TimelineOperations 会生成新 eventId，按时间与动画类型校验合并排�?		assertEquals(1.0, stage.get(0).getTimeSeconds(), 1e-9);
 		assertEquals("build", stage.get(0).getAnimationTypeId());
 		assertEquals(2.0, stage.get(1).getTimeSeconds(), 1e-9);
 		assertEquals("jump", stage.get(1).getAnimationTypeId());
@@ -40,8 +39,7 @@ class TimelineStageEventsTest {
 		assertEquals(5.0, stage.get(3).getTimeSeconds(), 1e-9);
 		assertEquals("pulse", stage.get(3).getAnimationTypeId());
 
-		// 兼容过滤视图仍可用
-		assertEquals(2, timeline.getBlockAnimationEvents().size()); // block + feature
+		// 兼容过滤视图仍可�?		assertEquals(2, timeline.getBlockAnimationEvents().size()); // block + feature
 		assertEquals(1, timeline.getAutoAnimationEvents().size());
 		assertEquals(1, timeline.getBuildReverseEvents().size());
 	}

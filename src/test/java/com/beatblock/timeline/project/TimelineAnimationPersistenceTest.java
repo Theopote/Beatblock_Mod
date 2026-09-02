@@ -21,7 +21,7 @@ class TimelineAnimationPersistenceTest {
 		Timeline original = Timeline.createDefault();
 		original.addAutoAnimationEvent(new TimelineAnimationEvent(
 			"auto-1", 2.0, 1.0, "build", "stage-a", 0.8f,
-			Map.of("eventOrigin", TimelineEventOrigin.AUTO_GENERATED.name(), "buildMode", "wall")));
+			Map.of("eventOrigin", TimelineEventOrigin.GENERATED.name(), "buildMode", "wall")));
 		original.addBlockAnimationEvent(new TimelineAnimationEvent(
 			"block-1", 5.0, 0.5, "pulse", "stage-b", 0.6f,
 			Map.of("eventOrigin", TimelineEventOrigin.MANUAL.name())));

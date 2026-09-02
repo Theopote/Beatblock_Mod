@@ -24,7 +24,7 @@ public final class TimelineGenerationMetadataSupport {
 			metadata = TimelineGenerationMetadata.manual();
 		}
 		copy.put(PARAM_ORIGIN, metadata.origin().name());
-		if (metadata.origin() == TimelineEventOrigin.AUTO_GENERATED) {
+		if (metadata.origin().isGenerated() || metadata.origin().isImported()) {
 			putIfPresent(copy, PARAM_GENERATOR_ID, metadata.generatorId());
 			putIfPresent(copy, PARAM_GENERATION_ID, metadata.generationId());
 			if (metadata.sectionIndex() >= 0) {

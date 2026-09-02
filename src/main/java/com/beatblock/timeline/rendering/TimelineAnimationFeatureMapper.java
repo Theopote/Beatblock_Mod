@@ -355,7 +355,7 @@ public final class TimelineAnimationFeatureMapper {
 			? Timeline.blockAnimationFeatureTrackId(sourceFeature)
 			: Timeline.TRACK_ID_ANIMATION_AUTO;
 		if (toBlockTrack) ensureBlockAnimationFeatureTrack(timeline, sourceFeature);
-		TimelineDraftWriter.writeEvent(timeline, trackId, ev, TimelineEventOrigin.AUTO_GENERATED);
+		TimelineDraftWriter.writeEvent(timeline, trackId, ev, TimelineEventOrigin.GENERATED);
 		return 1;
 	}
 
@@ -439,7 +439,7 @@ public final class TimelineAnimationFeatureMapper {
 			? Timeline.blockAnimationFeatureTrackId(sourceFeature)
 			: Timeline.TRACK_ID_ANIMATION_AUTO;
 		if (toBlockTrack) ensureBlockAnimationFeatureTrack(timeline, sourceFeature);
-		TimelineDraftWriter.writeEvent(timeline, trackId, ev, TimelineEventOrigin.AUTO_GENERATED);
+		TimelineDraftWriter.writeEvent(timeline, trackId, ev, TimelineEventOrigin.GENERATED);
 		lastAcceptedTimeByFeature.put(sourceFeature, timeSeconds);
 		return 1;
 	}

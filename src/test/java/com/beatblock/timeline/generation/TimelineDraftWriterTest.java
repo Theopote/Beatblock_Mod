@@ -43,12 +43,12 @@ class TimelineDraftWriterTest {
 			timeline,
 			Timeline.TRACK_ID_ANIMATION_AUTO,
 			events,
-			TimelineEventOrigin.AUTO_GENERATED
+			TimelineEventOrigin.GENERATED
 		);
 
 		assertEquals(2, written);
 		assertEquals(2, timeline.getAutoAnimationEvents().size());
-		assertEquals("AUTO_GENERATED", timeline.getAutoAnimationEvents().getFirst().getParameters().get("eventOrigin"));
+		assertEquals("GENERATED", timeline.getAutoAnimationEvents().getFirst().getParameters().get("eventOrigin"));
 	}
 
 	@Test

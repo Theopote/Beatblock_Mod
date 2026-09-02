@@ -3,7 +3,7 @@ package com.beatblock.timeline.generation;
 /**
  * Timeline 自动生成内容的替换策略。
  * <p>
- * 在 {@link TimelineEventOrigin#AUTO_GENERATED} 之上，可按生成器 / 批次 / 段落精确替换。
+ * 在 {@link TimelineEventOrigin#GENERATED} 之上，可按生成器 / 批次 / 段落精确替换。
  */
 public sealed interface ContentReplacePolicy {
 
@@ -11,7 +11,7 @@ public sealed interface ContentReplacePolicy {
 
 	record ReplaceAll() implements ContentReplacePolicy {}
 
-	/** 替换全部 {@code AUTO_GENERATED}（含未标记 generator 的 legacy 内容）。 */
+	/** 替换全部 {@code GENERATED}（含未标记 generator 的 legacy 内容）。 */
 	record ReplaceGenerated() implements ContentReplacePolicy {}
 
 	/**

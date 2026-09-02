@@ -99,7 +99,7 @@ public final class RhythmDropGenerator {
 			timeline,
 			Timeline.TRACK_ID_ANIMATION_BLOCK,
 			events,
-			TimelineEventOrigin.AUTO_GENERATED
+			TimelineEventOrigin.GENERATED
 		);
 		if (count <= 0) {
 			return new Outcome(0, targetId, "写入时间线失败");

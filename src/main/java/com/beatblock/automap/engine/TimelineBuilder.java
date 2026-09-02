@@ -79,7 +79,7 @@ public final class TimelineBuilder {
 			ChoreographyVfx.ParticleBurst phrase = ChoreographyVfxFactory.fromParticleEvent(
 				e, -1, List.of());
 			GlobalEventPayload payload = ChoreographyVfxPayloadMapper.toPayload(phrase);
-			timeline.addGlobalPayloadEvent(e.getTimeSeconds(), payload, TimelineEventOrigin.AUTO_GENERATED);
+			timeline.addGlobalPayloadEvent(e.getTimeSeconds(), payload, TimelineEventOrigin.GENERATED);
 			count++;
 		}
 		return count;

@@ -31,7 +31,10 @@ public record TimelineGenerationMetadata(
 	}
 
 	public static TimelineGenerationMetadata fromOrigin(TimelineEventOrigin origin) {
-		if (origin == TimelineEventOrigin.AUTO_GENERATED) {
+		if (origin != null && origin.isGenerated()) {
+			return new TimelineGenerationMetadata(origin, "", "", -1, -1, "");
+		}
+		if (origin != null && origin.isImported()) {
 			return new TimelineGenerationMetadata(origin, "", "", -1, -1, "");
 		}
 		return manual();
@@ -42,15 +45,15 @@ public record TimelineGenerationMetadata(
 		return switch (policy) {
 			case ContentReplacePolicy.Append ignored -> false;
 			case ContentReplacePolicy.ReplaceAll ignored -> true;
-			case ContentReplacePolicy.ReplaceGenerated ignored -> origin == TimelineEventOrigin.AUTO_GENERATED;
+			case ContentReplacePolicy.ReplaceGenerated ignored -> origin.isReplaceableByGeneration();
 			case ContentReplacePolicy.ReplaceGenerator(var id, var includeLegacy) ->
-				origin == TimelineEventOrigin.AUTO_GENERATED
+				origin.isReplaceableByGeneration()
 					&& (id.equals(generatorId)
 					|| (includeLegacy && generatorId.isBlank()));
 			case ContentReplacePolicy.ReplaceGeneration(var id) ->
-				origin == TimelineEventOrigin.AUTO_GENERATED && id.equals(generationId);
+				origin.isReplaceableByGeneration() && id.equals(generationId);
 			case ContentReplacePolicy.ReplaceSection(var index) ->
-				origin == TimelineEventOrigin.AUTO_GENERATED && sectionIndex == index;
+				origin.isReplaceableByGeneration() && sectionIndex == index;
 		};
 	}
 

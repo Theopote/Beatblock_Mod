@@ -22,7 +22,7 @@ public final class CameraShotTimelineWriter {
 		if (timeline == null || shots == null || shots.isEmpty()) return 0;
 		int count = 0;
 		for (CameraShot shot : shots) {
-			if (writeOne(timeline, shot, TimelineGenerationMetadata.fromOrigin(TimelineEventOrigin.AUTO_GENERATED))) {
+			if (writeOne(timeline, shot, TimelineGenerationMetadata.fromOrigin(TimelineEventOrigin.GENERATED))) {
 				count++;
 			}
 		}
@@ -36,7 +36,7 @@ public final class CameraShotTimelineWriter {
 			if (tagged == null || tagged.shot() == null) continue;
 			TimelineGenerationMetadata metadata = tagged.metadata() != null
 				? tagged.metadata()
-				: TimelineGenerationMetadata.fromOrigin(TimelineEventOrigin.AUTO_GENERATED);
+				: TimelineGenerationMetadata.fromOrigin(TimelineEventOrigin.GENERATED);
 			if (writeOne(timeline, tagged.shot(), metadata)) count++;
 		}
 		return count;
