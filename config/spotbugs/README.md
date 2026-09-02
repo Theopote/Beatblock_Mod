@@ -17,7 +17,7 @@ BeatBlock tracks SpotBugs findings with a **fingerprint baseline** (`baseline_fi
 | Beta | 80 | |
 | 1.0 | 20 | Remaining items must be reviewed suppressions only |
 
-Historical reference: baseline was **285**, then **254**, now **252** (trend must continue downward).
+Historical reference: baseline was **285**, then **254**, **252**, now **120** (trend must continue downward).
 
 ## What belongs in baseline vs exclude.xml
 

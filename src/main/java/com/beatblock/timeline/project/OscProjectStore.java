@@ -54,7 +54,7 @@ public final class OscProjectStore {
 		String projectId = stringMeta(timeline, "projectId");
 		if (projectId.isBlank()) projectId = UUID.randomUUID().toString();
 		String audioPath = stringMeta(timeline, "audioPath");
-		String timelineName = timeline.getName() == null ? "" : timeline.getName();
+		String timelineName = timeline.getName();
 		JsonObject root = new JsonObject();
 		root.addProperty("format", OscSchemaVersions.FORMAT);
 		root.addProperty("schemaVersion", OscSchemaVersions.CURRENT);

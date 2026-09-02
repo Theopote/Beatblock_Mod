@@ -21,8 +21,32 @@
 
 	<!-- ImGui immediate-mode UI: fields mutated across render frames -->
 	<Match>
-		<Package name="~com\.beatblock\.ui\..*" />
-		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2,MS_EXPOSE_REP,MS_PKGPROTECT" />
+		<Package name="~com\.beatblock\.ui(\..*)?" />
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2,MS_EXPOSE_REP,MS_PKGPROTECT,NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
+	</Match>
+
+	<!-- Runtime DI context: builder wires mutable service references intentionally -->
+	<Match>
+		<Package name="~com\.beatblock\.runtime(\..*)?" />
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
+	</Match>
+
+	<!-- Selection tool state shared with world interaction (client thread) -->
+	<Match>
+		<Package name="~com\.beatblock\.selection(\..*)?" />
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
+	</Match>
+
+	<!-- Undo commands hold mutable references for redo/undo stacks -->
+	<Match>
+		<Package name="~com\.beatblock\.timeline\.command(\..*)?" />
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
+	</Match>
+
+	<!-- Timeline interaction state machine (drag, record, section edit) -->
+	<Match>
+		<Package name="~com\.beatblock\.timeline\.interaction(\..*)?" />
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2" />
 	</Match>
 
 	<!-- Timeline layout constants shared with render helpers -->

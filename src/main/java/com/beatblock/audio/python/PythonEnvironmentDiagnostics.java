@@ -264,7 +264,7 @@ public final class PythonEnvironmentDiagnostics {
 				"import numpy, librosa, soundfile, scipy"
 			).redirectErrorStream(true).start();
 			control.attachProcess(check);
-			String checkOut = ProcessIo.readProcessOutput(check, 5, TimeUnit.MINUTES, control);
+			ProcessIo.readProcessOutput(check, 5, TimeUnit.MINUTES, control);
 			int checkCode = ProcessIo.waitProcessCancellable(check, 5, TimeUnit.MINUTES, control);
 			control.clearProcess(check);
 			if (control.isCancelled()) return "分析被取消";

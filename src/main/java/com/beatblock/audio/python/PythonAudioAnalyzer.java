@@ -218,8 +218,8 @@ public final class PythonAudioAnalyzer implements IAudioAnalyzer {
 					stderrTask.cancel(true);
 					stdoutThread.interrupt();
 					stderrThread.interrupt();
-					try { process.getInputStream().close(); } catch (IOException ignored) {}
-					try { process.getErrorStream().close(); } catch (IOException ignored) {}
+					ProcessIo.closeQuietly(process.getInputStream());
+					ProcessIo.closeQuietly(process.getErrorStream());
 					onError.accept("分析被取消");
 					return;
 				}

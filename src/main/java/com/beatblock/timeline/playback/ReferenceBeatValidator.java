@@ -7,7 +7,6 @@ final class ReferenceBeatValidator implements TimelineValidationRule {
 	public void validate(TimelineCompileContext context, DiagnosticCollector diagnostics) {
 		try {
 			double[] beats = ReferenceBeatResolver.resolveBeatTimesSeconds(context.document());
-			if (beats == null) return;
 			for (double beat : beats) {
 				if (!Double.isFinite(beat)) {
 					diagnostics.add(TimelineDiagnostic.error("non_finite_beat_time",

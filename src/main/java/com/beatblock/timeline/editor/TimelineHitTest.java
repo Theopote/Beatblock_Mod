@@ -30,7 +30,6 @@ public final class TimelineHitTest {
 		Track track = timeline.getTrack(trackId);
 		if (track == null) return HitResult.track(trackId);
 		float localX = mouseX - contentLeftX;
-		double timeAtMouse = viewState.screenToTime(localX);
 		for (Clip clip : track.getClips()) {
 			double start = clip.getStartTimeSeconds();
 			double end = clip.getEndTimeSeconds();

@@ -37,7 +37,9 @@ public final class SnapHelper {
 			double beatDuration = 60.0 / bpm;
 			double beat = Math.round(timeSeconds / beatDuration) * beatDuration;
 			double d = Math.abs(timeSeconds - beat);
-			if (d < bestDist) { bestDist = d; best = beat; }
+			if (d < bestDist) {
+				best = beat;
+			}
 		}
 		return best;
 	}

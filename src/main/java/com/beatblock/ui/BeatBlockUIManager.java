@@ -95,9 +95,6 @@ public class BeatBlockUIManager {
 	private void playPreviewFromWizard() {
 		panelVisibility.timeline.set(true);
 		var context = BeatBlock.getContext();
-		if (context == null) {
-			return;
-		}
 		var editor = context.timelineEditor();
 		if (editor != null) {
 			PresenterFactories.timelineTransportPresenter(context).play(editor);

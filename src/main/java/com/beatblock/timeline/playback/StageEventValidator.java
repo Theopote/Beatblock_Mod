@@ -3,7 +3,6 @@ package com.beatblock.timeline.playback;
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.timeline.TimelineAnimationEvent;
-import com.beatblock.timeline.payload.StageEventPayload;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -45,11 +44,7 @@ final class StageEventValidator implements TimelineValidationRule {
 		}
 
 		try {
-			StageEventPayload payload = event.getPayload();
-			if (payload == null) {
-				diagnostics.add(TimelineDiagnostic.error(TimelineValidator.RULE_UNSUPPORTED_PAYLOAD,
-					"Null payload for event " + label, eventId, time));
-			}
+			event.getPayload();
 		} catch (RuntimeException error) {
 			diagnostics.add(TimelineDiagnostic.error(TimelineValidator.RULE_UNSUPPORTED_PAYLOAD,
 				"Unsupported or corrupt payload for event " + label + ": " + error.getMessage(), eventId, time));

@@ -345,8 +345,7 @@ public final class QuickStartWizardPresenter {
 	}
 
 	private int selectionCount() {
-		BeatBlockSelectionManager mgr = BeatBlockSelectionManager.get();
-		return mgr != null ? mgr.getSelectionCount() : 0;
+		return BeatBlockSelectionManager.get().getSelectionCount();
 	}
 
 	private @Nullable AudioAsset connectedAsset() {

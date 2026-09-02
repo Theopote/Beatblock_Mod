@@ -8,6 +8,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 外部进程 stdout/stderr 读取与输出裁剪。
@@ -18,7 +20,21 @@ import java.util.concurrent.TimeoutException;
  */
 public final class ProcessIo {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProcessIo.class);
+
 	private ProcessIo() {}
+
+	/** Best-effort stream close while aborting a blocked process read. */
+	public static void closeQuietly(InputStream stream) {
+		if (stream == null) {
+			return;
+		}
+		try {
+			stream.close();
+		} catch (IOException closeFailure) {
+			LOGGER.trace("Failed to close process stream during cancel", closeFailure);
+		}
+	}
 
 	public static String readProcessOutput(Process process) throws IOException {
 		return readProcessOutput(process, 5, TimeUnit.MINUTES);
@@ -58,19 +74,19 @@ public final class ProcessIo {
 					if (control != null && control.isCancelled()) {
 						task.cancel(true);
 						reader.interrupt();
-						try { process.getInputStream().close(); } catch (IOException ignored) {}
+						closeQuietly(process.getInputStream());
 						return "";
 					}
 					if (System.nanoTime() >= deadline) {
 						task.cancel(true);
 						reader.interrupt();
-						try { process.getInputStream().close(); } catch (IOException ignored) {}
+						closeQuietly(process.getInputStream());
 						return "";
 					}
 					if (Thread.currentThread().isInterrupted()) {
 						task.cancel(true);
 						reader.interrupt();
-						try { process.getInputStream().close(); } catch (IOException ignored) {}
+						closeQuietly(process.getInputStream());
 						throw new InterruptedException();
 					}
 				}

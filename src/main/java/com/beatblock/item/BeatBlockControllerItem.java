@@ -3,7 +3,6 @@ package com.beatblock.item;
 import com.beatblock.BeatBlock;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.world.World;
@@ -20,7 +19,6 @@ public class BeatBlockControllerItem extends Item {
 
 	@Override
 	public ActionResult use(World world, PlayerEntity player, Hand hand) {
-		ItemStack stack = player.getStackInHand(hand);
 		if (world.isClient() && BeatBlock.openUICallback != null) {
 			BeatBlock.openUICallback.run();
 			return ActionResult.SUCCESS;

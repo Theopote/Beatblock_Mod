@@ -21,7 +21,6 @@ public final class WaveformExtractor {
 		float[] samples = buffer.getSamples();
 		int n = samples.length / SAMPLES_PER_POINT;
 		WaveformFrame[] out = new WaveformFrame[n];
-		double timePerPoint = (double) SAMPLES_PER_POINT / buffer.getSampleRate();
 		for (int i = 0; i < n; i++) {
 			int start = i * SAMPLES_PER_POINT;
 			float peak = 0;

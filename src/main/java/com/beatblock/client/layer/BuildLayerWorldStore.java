@@ -172,7 +172,7 @@ public final class BuildLayerWorldStore {
 	private static @Nullable BuildLayerManager layerManager() {
 		try {
 			BeatBlockContext ctx = BeatBlock.getContext();
-			return ctx != null ? ctx.buildLayerManager() : null;
+			return ctx.buildLayerManager();
 		} catch (IllegalStateException ignored) {
 			return null;
 		}

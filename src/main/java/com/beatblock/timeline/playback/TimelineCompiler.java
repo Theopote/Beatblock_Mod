@@ -285,15 +285,12 @@ public final class TimelineCompiler {
 	private static List<CompiledMarker> compileMarkers(Timeline document) {
 		List<CompiledMarker> out = new ArrayList<>();
 		for (TimelineMarker marker : document.getMarkers()) {
-			if (marker == null) {
-				continue;
-			}
 			MarkerType type = marker.getType();
 			out.add(new CompiledMarker(
 				marker.getId(),
 				marker.getTimeSeconds(),
 				marker.getName(),
-				type != null ? type.name() : "GENERIC"
+				type.name()
 			));
 		}
 		out.sort(Comparator
