@@ -120,9 +120,10 @@ public final class ChoreographyPlanCompiler {
 	}
 
 	public static int compileCameraEvents(Timeline timeline, ChoreographyPlan plan, ReplaceMode mode) {
-		if (timeline == null || plan == null || plan.cameraPhrases().isEmpty()) return 0;
+		if (timeline == null || plan == null) return 0;
 		ReplaceMode replaceMode = mode != null ? mode : ReplaceMode.APPEND;
 		ChoreographyCompileApplicator.applyCamera(timeline, replaceMode);
+		if (plan.cameraPhrases().isEmpty()) return 0;
 		TimingSnapResolver.SnapContext snapContext = TimingSnapResolver.SnapContext.from(plan);
 		List<CameraShot> shots = new ArrayList<>();
 		for (ChoreographyPlan.CameraPhrase phrase : plan.cameraPhrases()) {
@@ -142,9 +143,10 @@ public final class ChoreographyPlanCompiler {
 	}
 
 	public static int compileVfxEvents(Timeline timeline, ChoreographyPlan plan, ReplaceMode mode) {
-		if (timeline == null || plan == null || plan.vfxPhrases().isEmpty()) return 0;
+		if (timeline == null || plan == null) return 0;
 		ReplaceMode replaceMode = mode != null ? mode : ReplaceMode.APPEND;
 		ChoreographyCompileApplicator.applyVfx(timeline, replaceMode);
+		if (plan.vfxPhrases().isEmpty()) return 0;
 		TimingSnapResolver.SnapContext snapContext = TimingSnapResolver.SnapContext.from(plan);
 		int count = 0;
 		for (ChoreographyVfx phrase : plan.vfxPhrases()) {

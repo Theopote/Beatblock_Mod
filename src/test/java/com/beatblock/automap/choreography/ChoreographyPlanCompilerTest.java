@@ -11,6 +11,7 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.playback.GlobalEventPayload;
 import com.beatblock.timeline.playback.GlobalEventPayloadCodec;
 import com.beatblock.test.WithBeatBlockContext;
+import com.beatblock.timeline.project.golden.GoldenProjectEventCounts;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -234,5 +235,52 @@ class ChoreographyPlanCompilerTest {
 		assertEquals("spark", payload.name());
 		assertEquals("minecraft:crit", payload.particleType());
 		assertEquals(12, payload.count());
+	}
+
+	@Test
+	void replaceGeneratedClearsAutoCameraAndVfxWhenPlanBecomesEmpty() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addCameraKeyframe(new CameraKeyframe(0.5));
+		timeline.addGlobalEvent(new GlobalEvent(0.75, GlobalEventType.SCREEN_TINT, "Manual Vfx"));
+
+		List<ChoreographyPlan.CameraPhrase> cameras = new java.util.ArrayList<>();
+		for (int i = 0; i < 10; i++) {
+			cameras.add(new ChoreographyPlan.CameraPhrase(1.0 + i, "PAN", 0));
+		}
+		List<ChoreographyVfx> vfx = new java.util.ArrayList<>();
+		for (int i = 0; i < 20; i++) {
+			vfx.add(ChoreographyVfxFactory.fromLegacyVfxKind(0.5 + i * 0.25, "particle_spark", 0));
+		}
+		ChoreographyPlan populated = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 32, SectionType.INTRO, "intro")),
+			List.of(),
+			List.of(),
+			cameras,
+			vfx,
+			DensityCurve.uniform(1.0)
+		);
+		var options = ChoreographyCompileOptions.smartAutoMap();
+
+		ChoreographyPlanCompiler.compileAll(timeline, populated, options);
+		assertEquals(new GoldenProjectEventCounts.OriginCounts(1, 10),
+			GoldenProjectEventCounts.camera(timeline));
+		assertEquals(new GoldenProjectEventCounts.OriginCounts(1, 20),
+			GoldenProjectEventCounts.global(timeline));
+
+		ChoreographyPlan empty = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 32, SectionType.INTRO, "intro")),
+			List.of(),
+			List.of(),
+			List.of(),
+			List.of(),
+			DensityCurve.uniform(1.0)
+		);
+		ChoreographyPlanCompiler.compileAll(timeline, empty, options);
+
+		assertEquals(new GoldenProjectEventCounts.OriginCounts(1, 0),
+			GoldenProjectEventCounts.camera(timeline));
+		assertEquals(new GoldenProjectEventCounts.OriginCounts(1, 0),
+			GoldenProjectEventCounts.global(timeline));
+		assertEquals("Manual Vfx", timeline.getGlobalEvents().getFirst().getName());
 	}
 }
