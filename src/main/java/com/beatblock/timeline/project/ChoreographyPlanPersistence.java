@@ -60,6 +60,9 @@ public final class ChoreographyPlanPersistence {
 		root.add("stageRoles", stageRolesToJson(plan.stageRoles()));
 		root.add("motionPhrases", motionPhrasesToJson(plan.motionPhrases()));
 		root.add("spatialMotifPhrases", spatialMotifPhrasesToJson(plan.spatialMotifPhrases()));
+		if (!plan.choreographyPhrases().isEmpty()) {
+			root.add("choreographyPhrases", com.beatblock.automap.choreography.grammar.ChoreographyPhrasePersistence.toJson(plan.choreographyPhrases()));
+		}
 		root.add("cameraPhrases", cameraPhrasesToJson(plan.cameraPhrases()));
 		root.add("vfxPhrases", ChoreographyVfxPersistence.toJson(plan.vfxPhrases()));
 		root.add("densityCurve", densityCurveToJson(plan.densityCurve()));
@@ -82,7 +85,8 @@ public final class ChoreographyPlanPersistence {
 			densityCurveFromJson(root.get("densityCurve")),
 			sectionEditsFromJson(root.get("sectionEdits")),
 			musicalStructureFromJson(root.get("musicalStructure")),
-			spatialMotifPhrasesFromJson(root.get("spatialMotifPhrases"))
+			spatialMotifPhrasesFromJson(root.get("spatialMotifPhrases")),
+			com.beatblock.automap.choreography.grammar.ChoreographyPhrasePersistence.fromJson(root.get("choreographyPhrases"))
 		);
 	}
 
@@ -565,6 +569,18 @@ public final class ChoreographyPlanPersistence {
 			if (edit.spatialMotifIdOverride() != null) {
 				obj.addProperty("spatialMotifIdOverride", edit.spatialMotifIdOverride().name());
 			}
+			if (edit.grammarTriggerIntervalOverride() != null) {
+				obj.addProperty("grammarTriggerIntervalOverride", edit.grammarTriggerIntervalOverride());
+			}
+			if (edit.grammarStaggerStepOverride() != null) {
+				obj.addProperty("grammarStaggerStepOverride", edit.grammarStaggerStepOverride());
+			}
+			if (edit.grammarIntensityCurveOverride() != null) {
+				obj.addProperty("grammarIntensityCurveOverride", edit.grammarIntensityCurveOverride());
+			}
+			if (edit.grammarVariationOverride() != null) {
+				obj.addProperty("grammarVariationOverride", edit.grammarVariationOverride());
+			}
 			arr.add(obj);
 		}
 		return arr;
@@ -585,6 +601,18 @@ public final class ChoreographyPlanPersistence {
 			if (obj.has("spatialMotifIdOverride") && !obj.get("spatialMotifIdOverride").isJsonNull()) {
 				motifOverride = SpatialMotifId.fromValue(obj.get("spatialMotifIdOverride").getAsString());
 			}
+			Integer grammarTrigger = obj.has("grammarTriggerIntervalOverride")
+				&& !obj.get("grammarTriggerIntervalOverride").isJsonNull()
+				? obj.get("grammarTriggerIntervalOverride").getAsInt() : null;
+			Double grammarStagger = obj.has("grammarStaggerStepOverride")
+				&& !obj.get("grammarStaggerStepOverride").isJsonNull()
+				? obj.get("grammarStaggerStepOverride").getAsDouble() : null;
+			String grammarIntensity = obj.has("grammarIntensityCurveOverride")
+				&& !obj.get("grammarIntensityCurveOverride").isJsonNull()
+				? obj.get("grammarIntensityCurveOverride").getAsString() : null;
+			String grammarVariation = obj.has("grammarVariationOverride")
+				&& !obj.get("grammarVariationOverride").isJsonNull()
+				? obj.get("grammarVariationOverride").getAsString() : null;
 			out.add(new SectionEditProfile(
 				getInt(obj, "sectionIndex", 0),
 				getBool(obj, "motionEnabled", true),
@@ -595,7 +623,11 @@ public final class ChoreographyPlanPersistence {
 				getDouble(obj, "timeOffsetSeconds", 0.0),
 				getFloat(obj, "energyScale", 1f),
 				getBool(obj, "spatialMotifEnabled", true),
-				motifOverride
+				motifOverride,
+				grammarTrigger,
+				grammarStagger,
+				grammarIntensity,
+				grammarVariation
 			));
 		}
 		return out;

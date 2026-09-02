@@ -1,5 +1,14 @@
 package com.beatblock.automap.choreography;
 
+import com.beatblock.automap.choreography.grammar.ChoreographyGrammarSelection;
+import com.beatblock.automap.choreography.grammar.ChoreographyPhrase;
+import com.beatblock.automap.choreography.grammar.IntensityEnvelope;
+import com.beatblock.automap.choreography.grammar.MotionPresetSpec;
+import com.beatblock.automap.choreography.grammar.SpatialPatternSpec;
+import com.beatblock.automap.choreography.grammar.TargetSet;
+import com.beatblock.automap.choreography.grammar.TimingPatternSpec;
+import com.beatblock.automap.choreography.grammar.TriggerSpec;
+import com.beatblock.automap.choreography.grammar.VariationSpec;
 import com.beatblock.automap.engine.SectionType;
 
 import org.jspecify.annotations.Nullable;
@@ -46,6 +55,13 @@ public final class ChoreographyPlanEditor {
 		return filterBySection(plan.spatialMotifPhrases(), sectionIndex, SpatialMotifPhrase::sectionIndex);
 	}
 
+	public static List<ChoreographyPhrase> choreographyPhrasesInSection(
+		ChoreographyPlan plan,
+		int sectionIndex
+	) {
+		return filterBySection(plan.choreographyPhrases(), sectionIndex, ChoreographyPhrase::sectionIndex);
+	}
+
 	public static @Nullable SectionEditProfile editForSection(ChoreographyPlan plan, int sectionIndex) {
 		for (SectionEditProfile edit : plan.sectionEdits()) {
 			if (edit.sectionIndex() == sectionIndex) return edit;
@@ -86,7 +102,13 @@ public final class ChoreographyPlanEditor {
 					template.motionAnimationTypeOverride(),
 					template.densityThresholdOverride(),
 					template.timeOffsetSeconds(),
-					template.energyScale()
+					template.energyScale(),
+					template.spatialMotifEnabled(),
+					template.spatialMotifIdOverride(),
+					template.grammarTriggerIntervalOverride(),
+					template.grammarStaggerStepOverride(),
+					template.grammarIntensityCurveOverride(),
+					template.grammarVariationOverride()
 				);
 				result = withSectionEdit(result, edit);
 			}
@@ -229,8 +251,17 @@ public final class ChoreographyPlanEditor {
 			applyVfxOverrides(plan.vfxPhrases(), edits),
 			plan.densityCurve(),
 			plan.sectionEdits(),
-			applySpatialMotifOverrides(plan, plan.spatialMotifPhrases(), edits)
+			applySpatialMotifOverrides(plan, plan.spatialMotifPhrases(), edits),
+			applyGrammarPhraseOverrides(plan, plan.choreographyPhrases(), edits)
 		);
+	}
+
+	public static @Nullable ChoreographyPhrase primaryGrammarPhraseInSection(
+		ChoreographyPlan plan,
+		int sectionIndex
+	) {
+		List<ChoreographyPhrase> phrases = choreographyPhrasesInSection(plan, sectionIndex);
+		return phrases.isEmpty() ? null : phrases.getFirst();
 	}
 
 	public static @Nullable SpatialMotifPhrase primarySpatialMotifInSection(ChoreographyPlan plan, int sectionIndex) {
@@ -265,6 +296,12 @@ public final class ChoreographyPlanEditor {
 	static boolean isSpatialMotifEnabled(ChoreographyPlan plan, SpatialMotifPhrase phrase) {
 		SectionEditProfile edit = editForSection(plan, phrase.sectionIndex());
 		return edit == null || edit.motionEnabled();
+	}
+
+	static boolean isGrammarPhraseEnabled(ChoreographyPlan plan, ChoreographyPhrase phrase) {
+		SectionEditProfile edit = editForSection(plan, phrase.sectionIndex());
+		if (edit == null) return true;
+		return edit.motionEnabled() && edit.spatialMotifEnabled();
 	}
 
 	private static <T> List<T> filterBySection(
@@ -417,6 +454,220 @@ public final class ChoreographyPlanEditor {
 			0.5,
 			edit.sectionIndex()
 		);
+	}
+
+	private static List<ChoreographyPhrase> applyGrammarPhraseOverrides(
+		ChoreographyPlan plan,
+		List<ChoreographyPhrase> phrases,
+		Map<Integer, SectionEditProfile> edits
+	) {
+		if (edits.isEmpty()) return phrases;
+		List<ChoreographyPhrase> retained = new ArrayList<>();
+		for (ChoreographyPhrase phrase : phrases) {
+			SectionEditProfile edit = edits.get(phrase.sectionIndex());
+			if (edit == null) {
+				retained.add(phrase);
+			}
+		}
+
+		List<ChoreographyPhrase> out = new ArrayList<>(retained);
+		for (SectionEditProfile edit : edits.values()) {
+			if (!edit.spatialMotifEnabled()) continue;
+ChoreographyPhrase existing =
+				findGrammarPhrase(phrases, edit.sectionIndex());
+			if (existing != null) {
+				out.add(applyGrammarPhraseEdit(plan, existing, edit));
+				continue;
+			}
+ChoreographyPhrase created =
+				createGrammarPhraseForSection(plan, edit);
+			if (created != null) out.add(created);
+		}
+		return out;
+	}
+
+	private static @Nullable ChoreographyPhrase findGrammarPhrase(
+		List<ChoreographyPhrase> phrases,
+		int sectionIndex
+	) {
+		for (ChoreographyPhrase phrase : phrases) {
+			if (phrase.sectionIndex() == sectionIndex) return phrase;
+		}
+		return null;
+	}
+
+	private static ChoreographyPhrase applyGrammarPhraseEdit(
+		ChoreographyPlan plan,
+ChoreographyPhrase phrase,
+		SectionEditProfile edit
+	) {
+		ChoreographyPlan.SectionPlan section = sectionAt(plan, edit.sectionIndex());
+		SectionType sectionType = section != null ? section.sectionType() : SectionType.VERSE;
+
+SpatialPatternSpec defaultSpatial =
+ChoreographyGrammarSelection.spatialPattern(sectionType);
+		SpatialMotifId motifId = edit.spatialMotifIdOverride() != null
+			? edit.spatialMotifIdOverride()
+			: defaultSpatial.resolvedPattern();
+		MotifAxis axis = edit.spatialMotifIdOverride() != null
+			? phrase.spatial().resolvedAxis()
+			: defaultSpatial.resolvedAxis();
+SpatialPatternSpec spatial =
+			motifId == SpatialMotifId.CASCADE && axis == MotifAxis.X
+				? SpatialPatternSpec.leftToRight()
+				: SpatialPatternSpec.of(motifId, axis);
+
+		String motionId = edit.motionAnimationTypeOverride() != null
+			? edit.motionAnimationTypeOverride()
+			: phrase.motion().presetId();
+MotionPresetSpec motion =
+			new MotionPresetSpec(
+				motionId,
+				phrase.motion().durationSeconds(),
+				phrase.motion().useEnergyForHeight(),
+				phrase.motion().heightMultiplier()
+			);
+
+TriggerSpec trigger = phrase.trigger();
+		if (edit.grammarTriggerIntervalOverride() != null
+			&& trigger instanceof TriggerSpec.EveryNBeats everyN) {
+			trigger = new TriggerSpec.EveryNBeats(
+				edit.grammarTriggerIntervalOverride(),
+				everyN.anchorFeatureKey()
+			);
+		}
+
+TimingPatternSpec timing = phrase.timing();
+		if (edit.grammarStaggerStepOverride() != null) {
+			timing = TimingPatternSpec.stagger(
+				edit.grammarStaggerStepOverride()
+			);
+		}
+
+IntensityEnvelope intensity = resolveGrammarIntensity(
+			phrase.intensity(),
+			edit,
+			sectionType
+		);
+
+VariationSpec variation = resolveGrammarVariation(
+			phrase.variation(),
+			edit,
+			sectionType
+		);
+
+		return new ChoreographyPhrase(
+			trigger,
+			phrase.targets(),
+			spatial,
+			motion,
+			timing,
+			intensity,
+			variation,
+			phrase.sectionIndex(),
+			phrase.timingSnap()
+		);
+	}
+
+	private static @Nullable ChoreographyPhrase createGrammarPhraseForSection(
+		ChoreographyPlan plan,
+		SectionEditProfile edit
+	) {
+		ChoreographyPlan.SectionPlan section = sectionAt(plan, edit.sectionIndex());
+		if (section == null) return null;
+		List<String> participants = uniqueParticipantIds(plan.stageRoles());
+		if (participants.size() < 2) return null;
+
+		SectionType sectionType = section.sectionType();
+TriggerSpec trigger =
+ChoreographyGrammarSelection.defaultTrigger(sectionType);
+		if (edit.grammarTriggerIntervalOverride() != null
+			&& trigger instanceof TriggerSpec.EveryNBeats everyN) {
+			trigger = new TriggerSpec.EveryNBeats(
+				edit.grammarTriggerIntervalOverride(),
+				everyN.anchorFeatureKey()
+			);
+		}
+
+TimingPatternSpec timing =
+			edit.grammarStaggerStepOverride() != null
+				? TimingPatternSpec.stagger(edit.grammarStaggerStepOverride())
+				: ChoreographyGrammarSelection.timing(sectionType);
+
+SpatialPatternSpec spatial =
+			resolveGrammarSpatialPattern(edit, sectionType);
+		String motionId = edit.motionAnimationTypeOverride() != null
+			? edit.motionAnimationTypeOverride()
+			: ChoreographyGrammarSelection.motion(sectionType).presetId();
+
+		return new ChoreographyPhrase(
+			trigger,
+TargetSet.of(
+				participants.toArray(String[]::new)
+			),
+			spatial,
+MotionPresetSpec.of(motionId),
+			timing,
+			resolveGrammarIntensity(
+ChoreographyGrammarSelection.intensity(sectionType),
+				edit,
+				sectionType
+			),
+			resolveGrammarVariation(
+ChoreographyGrammarSelection.variation(sectionType),
+				edit,
+				sectionType
+			),
+			edit.sectionIndex()
+		);
+	}
+
+	private static SpatialPatternSpec resolveGrammarSpatialPattern(
+		SectionEditProfile edit,
+		SectionType sectionType
+	) {
+		if (edit.spatialMotifIdOverride() == null) {
+			return ChoreographyGrammarSelection.spatialPattern(sectionType);
+		}
+		MotifAxis axis = SpatialMotifSelection.defaultAxis(sectionType);
+		SpatialMotifId motifId = edit.spatialMotifIdOverride();
+		return motifId == SpatialMotifId.CASCADE && axis == MotifAxis.X
+			? SpatialPatternSpec.leftToRight()
+			: SpatialPatternSpec.of(motifId, axis);
+	}
+
+	private static IntensityEnvelope resolveGrammarIntensity(
+IntensityEnvelope fallback,
+		SectionEditProfile edit,
+		SectionType sectionType
+	) {
+		if (edit.grammarIntensityCurveOverride() != null) {
+			return switch (edit.grammarIntensityCurveOverride().toUpperCase(java.util.Locale.ROOT)) {
+				case "CRESCENDO" -> IntensityEnvelope.crescendo(
+					Math.min(1f, 0.6f * edit.energyScale()),
+					Math.min(1f, 1.0f * edit.energyScale())
+				);
+				default -> IntensityEnvelope.flat(
+					Math.min(1f, 0.75f * edit.energyScale())
+				);
+			};
+		}
+		if (Math.abs(edit.energyScale() - 1f) < 1e-6f) return fallback;
+		return IntensityEnvelope.flat(
+			Math.min(1f, fallback.startEnergy() * edit.energyScale())
+		);
+	}
+
+	private static VariationSpec resolveGrammarVariation(
+VariationSpec fallback,
+		SectionEditProfile edit,
+		SectionType sectionType
+	) {
+		if (edit.grammarVariationOverride() == null) return fallback;
+		return switch (edit.grammarVariationOverride().toUpperCase(java.util.Locale.ROOT)) {
+			case "ALTERNATE_HEIGHT" -> VariationSpec.alternateHeight(0.3f);
+			default -> VariationSpec.none();
+		};
 	}
 
 	private static ChoreographyPlan.@Nullable SectionPlan sectionAt(ChoreographyPlan plan, int sectionIndex) {
@@ -714,7 +965,18 @@ public final class ChoreographyPlanEditor {
 		DensityCurve density,
 		List<SectionEditProfile> edits
 	) {
-		return copyPlan(source, sections, roles, motions, cameras, vfx, density, edits, source.spatialMotifPhrases());
+		return copyPlan(
+			source,
+			sections,
+			roles,
+			motions,
+			cameras,
+			vfx,
+			density,
+			edits,
+			source.spatialMotifPhrases(),
+			source.choreographyPhrases()
+		);
 	}
 
 	private static ChoreographyPlan copyPlan(
@@ -728,6 +990,32 @@ public final class ChoreographyPlanEditor {
 		List<SectionEditProfile> edits,
 		List<SpatialMotifPhrase> spatialMotifPhrases
 	) {
+		return copyPlan(
+			source,
+			sections,
+			roles,
+			motions,
+			cameras,
+			vfx,
+			density,
+			edits,
+			spatialMotifPhrases,
+			source.choreographyPhrases()
+		);
+	}
+
+	private static ChoreographyPlan copyPlan(
+		ChoreographyPlan source,
+		List<ChoreographyPlan.SectionPlan> sections,
+		List<ChoreographyPlan.StageRoleAssignment> roles,
+		List<ChoreographyPlan.MotionPhrase> motions,
+		List<ChoreographyPlan.CameraPhrase> cameras,
+		List<ChoreographyVfx> vfx,
+		DensityCurve density,
+		List<SectionEditProfile> edits,
+		List<SpatialMotifPhrase> spatialMotifPhrases,
+		List<ChoreographyPhrase> choreographyPhrases
+	) {
 		return new ChoreographyPlan(
 			sections,
 			roles,
@@ -737,7 +1025,8 @@ public final class ChoreographyPlanEditor {
 			density,
 			edits,
 			source.musicalStructure(),
-			spatialMotifPhrases
+			spatialMotifPhrases,
+			choreographyPhrases
 		);
 	}
 }

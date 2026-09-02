@@ -4,6 +4,9 @@ import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.automap.AutoMapRule;
 import com.beatblock.audio.analysis.structure.MusicStructure;
+import com.beatblock.automap.choreography.grammar.ChoreographyGrammarSelection;
+import com.beatblock.automap.choreography.grammar.ChoreographyPhrase;
+import com.beatblock.automap.choreography.grammar.TargetSet;
 import com.beatblock.automap.engine.AnimationMapper;
 import com.beatblock.automap.engine.AutoMapStyle;
 import com.beatblock.automap.camera.CameraShot;
@@ -73,7 +76,8 @@ public final class ChoreographyPlanBuilder {
 			buildDensityCurve(sectionPlans, ChoreographyPlan.MusicalStructure.empty()),
 			List.of(),
 			ChoreographyPlan.MusicalStructure.empty(),
-			buildSpatialMotifPhrases(sectionPlans, roles)
+			List.of(),
+			buildChoreographyPhrases(sectionPlans, roles)
 		);
 	}
 
@@ -198,33 +202,33 @@ public final class ChoreographyPlanBuilder {
 			density,
 			List.of(),
 			musical,
-			buildSpatialMotifPhrases(sectionPlans, roles)
+			List.of(),
+			buildChoreographyPhrases(sectionPlans, roles)
 		);
 	}
 
-	private static List<SpatialMotifPhrase> buildSpatialMotifPhrases(
+	private static List<ChoreographyPhrase> buildChoreographyPhrases(
 		List<ChoreographyPlan.SectionPlan> sections,
 		List<ChoreographyPlan.StageRoleAssignment> roles
 	) {
 		List<String> participants = uniqueParticipantIds(roles);
 		if (participants.size() < 2 || sections.isEmpty()) return List.of();
 
-		List<SpatialMotifPhrase> motifs = new ArrayList<>(sections.size());
+		List<ChoreographyPhrase> phrases = new ArrayList<>(sections.size());
 		for (int i = 0; i < sections.size(); i++) {
 			ChoreographyPlan.SectionPlan section = sections.get(i);
-			motifs.add(new SpatialMotifPhrase(
-				section.startSeconds() + 0.05,
-				SpatialMotifSelection.forSection(section.sectionType()),
-				participants,
-				SpatialMotifSelection.defaultAxis(section.sectionType()),
-				SpatialMotifSelection.defaultPropagationDelay(section.sectionType()),
-				SpatialMotifSelection.defaultPrimitive(section.sectionType()),
-				0.75f,
-				0.5,
+			phrases.add(new ChoreographyPhrase(
+				ChoreographyGrammarSelection.defaultTrigger(section.sectionType()),
+				TargetSet.of(participants.toArray(String[]::new)),
+				ChoreographyGrammarSelection.spatialPattern(section.sectionType()),
+				ChoreographyGrammarSelection.motion(section.sectionType()),
+				ChoreographyGrammarSelection.timing(section.sectionType()),
+				ChoreographyGrammarSelection.intensity(section.sectionType()),
+				ChoreographyGrammarSelection.variation(section.sectionType()),
 				i
 			));
 		}
-		return motifs;
+		return phrases;
 	}
 
 	private static List<String> uniqueParticipantIds(List<ChoreographyPlan.StageRoleAssignment> roles) {

@@ -31,7 +31,8 @@ public final class ChoreographyStructureMerger {
 			rebuildDensityCurve(mergedSections),
 			existing.sectionEdits(),
 			analyzed.musicalStructure(),
-			mergeSpatialMotifPhrases(existing, analyzed, mergedSections)
+			mergeSpatialMotifPhrases(existing, analyzed, mergedSections),
+			mergeChoreographyPhrases(existing, analyzed, mergedSections)
 		);
 		return ChoreographyPlanEditor.rebindSectionIndices(merged);
 	}
@@ -51,7 +52,8 @@ public final class ChoreographyStructureMerger {
 			rebuildDensityCurve(mergedSections),
 			existing.sectionEdits(),
 			analyzed.musicalStructure(),
-			existing.spatialMotifPhrases()
+			existing.spatialMotifPhrases(),
+			existing.choreographyPhrases()
 		);
 	}
 
@@ -201,6 +203,20 @@ public final class ChoreographyStructureMerger {
 			analyzed.spatialMotifPhrases(),
 			SpatialMotifPhrase::sectionIndex,
 			SpatialMotifPhrase::timeSeconds
+		);
+	}
+
+	private static List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> mergeChoreographyPhrases(
+		ChoreographyPlan existing,
+		ChoreographyPlan analyzed,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		return mergePhrases(
+			existing.sections(),
+			existing.choreographyPhrases(),
+			analyzed.choreographyPhrases(),
+			com.beatblock.automap.choreography.grammar.ChoreographyPhrase::sectionIndex,
+			phrase -> 0.0
 		);
 	}
 

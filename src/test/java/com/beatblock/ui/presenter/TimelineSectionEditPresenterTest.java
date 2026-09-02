@@ -111,8 +111,11 @@ class TimelineSectionEditPresenterTest {
 	}
 
 	@Test
-	void appliesSpatialMotifOverrideToSection() {
+	void appliesGrammarPhraseOverrideToSection() {
 		Timeline timeline = Timeline.createDefault();
+		for (int i = 0; i < 8; i++) {
+			timeline.addFeatureEvent("kick", new com.beatblock.timeline.FeatureEvent(i, 0.9f));
+		}
 		TimelineEditor editor = new TimelineEditor(timeline);
 		ChoreographyPlan plan = new ChoreographyPlan(
 			List.of(new ChoreographyPlan.SectionPlan(0, 12, SectionType.BUILD, "build")),
@@ -126,15 +129,15 @@ class TimelineSectionEditPresenterTest {
 			DensityCurve.uniform(1.0),
 			List.of(),
 			ChoreographyPlan.MusicalStructure.empty(),
-			List.of(new SpatialMotifPhrase(
-				0.05,
-				SpatialMotifId.CASCADE,
-				List.of("tower-a", "tower-b"),
-				com.beatblock.automap.choreography.MotifAxis.X,
-				0.06,
-				"pulse",
-				0.75f,
-				0.5,
+			List.of(),
+			List.of(new com.beatblock.automap.choreography.grammar.ChoreographyPhrase(
+				new com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats(4, "kick"),
+				com.beatblock.automap.choreography.grammar.TargetSet.of("tower-a", "tower-b"),
+				com.beatblock.automap.choreography.grammar.SpatialPatternSpec.leftToRight(),
+				com.beatblock.automap.choreography.grammar.MotionPresetSpec.bounce(),
+				com.beatblock.automap.choreography.grammar.TimingPatternSpec.stagger(0.06),
+				com.beatblock.automap.choreography.grammar.IntensityEnvelope.flat(0.75f),
+				com.beatblock.automap.choreography.grammar.VariationSpec.none(),
 				0
 			))
 		);
@@ -145,16 +148,28 @@ class TimelineSectionEditPresenterTest {
 			.timelineEditor(editor)
 			.build());
 
-		SectionEditProfile edit = presenter.applySpatialMotifDropdownIndex(
+		SectionEditProfile edit = presenter.applyGrammarDropdowns(
 			SectionEditProfile.defaults(0).withMotionAnimationType("pulse"),
-			TimelineSectionEditPresenter.indexOfSpatialMotif(SpatialMotifId.WAVE)
+			TimelineSectionEditPresenter.indexOfSpatialMotif(SpatialMotifId.WAVE),
+			TimelineSectionEditPresenter.indexOfGrammarTriggerInterval(2),
+			TimelineSectionEditPresenter.indexOfGrammarIntensity("CRESCENDO"),
+			TimelineSectionEditPresenter.indexOfGrammarVariation("ALTERNATE_HEIGHT"),
+			0.08f
 		);
 
 		var outcome = presenter.applySectionEdit(0, SectionType.BUILD, false, edit);
 		assertTrue(outcome.result().ok());
 
 		ChoreographyPlan updated = ChoreographyPlanStore.loadPlan(timeline);
-		assertEquals(SpatialMotifId.WAVE, updated.spatialMotifPhrases().getFirst().motifId());
-		assertEquals(2, outcome.animationEvents());
+		var grammar = updated.choreographyPhrases().getFirst();
+		assertEquals(SpatialMotifId.WAVE, grammar.spatial().resolvedPattern());
+		assertEquals("pulse", grammar.motion().presetId());
+		assertEquals(2, ((com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats) grammar.trigger()).interval());
+		assertEquals(
+			com.beatblock.automap.choreography.grammar.VariationSpec.VariationKind.ALTERNATE_HEIGHT,
+			grammar.variation().kind()
+		);
+		assertTrue(outcome.animationEvents() > 0);
+		assertEquals(outcome.animationEvents(), timeline.getAutoAnimationEvents().size());
 	}
 }

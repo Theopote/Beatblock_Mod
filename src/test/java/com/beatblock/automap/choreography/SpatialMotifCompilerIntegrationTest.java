@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @WithBeatBlockContext
@@ -110,7 +111,7 @@ class SpatialMotifCompilerIntegrationTest {
 	}
 
 	@Test
-	void planBuilderAddsSpatialMotifsWhenMultipleStageRolesExist() {
+	void planBuilderAddsGrammarPhrasesWhenMultipleStageRolesExist() {
 		Timeline timeline = Timeline.createDefault();
 		timeline.addFeatureEvent("kick", new com.beatblock.timeline.FeatureEvent(1.0, 0.6f));
 
@@ -126,8 +127,13 @@ class SpatialMotifCompilerIntegrationTest {
 			List.of(new com.beatblock.automap.engine.StructuralSection(0, 16, SectionType.BUILD, "build", 1.0))
 		);
 
-		assertEquals(1, plan.spatialMotifPhrases().size());
-		assertEquals(SpatialMotifId.CASCADE, plan.spatialMotifPhrases().getFirst().motifId());
-		assertEquals(2, plan.spatialMotifPhrases().getFirst().participantIds().size());
+		assertEquals(1, plan.choreographyPhrases().size());
+		assertEquals(0, plan.spatialMotifPhrases().size());
+		assertInstanceOf(
+			com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats.class,
+			plan.choreographyPhrases().getFirst().trigger()
+		);
+		assertEquals(2, plan.choreographyPhrases().getFirst().targets().size());
+		assertEquals(SpatialMotifId.CASCADE, plan.choreographyPhrases().getFirst().spatial().resolvedPattern());
 	}
 }

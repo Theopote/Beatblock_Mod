@@ -18,7 +18,8 @@ public record ChoreographyPlan(
 	DensityCurve densityCurve,
 	List<SectionEditProfile> sectionEdits,
 	MusicalStructure musicalStructure,
-	List<SpatialMotifPhrase> spatialMotifPhrases
+	List<SpatialMotifPhrase> spatialMotifPhrases,
+	List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> choreographyPhrases
 ) {
 
 	public ChoreographyPlan(
@@ -57,6 +58,20 @@ public record ChoreographyPlan(
 		this(sections, stageRoles, motionPhrases, cameraPhrases, vfxPhrases, densityCurve, sectionEdits, musicalStructure, List.of());
 	}
 
+	public ChoreographyPlan(
+		List<SectionPlan> sections,
+		List<StageRoleAssignment> stageRoles,
+		List<MotionPhrase> motionPhrases,
+		List<CameraPhrase> cameraPhrases,
+		List<ChoreographyVfx> vfxPhrases,
+		DensityCurve densityCurve,
+		List<SectionEditProfile> sectionEdits,
+		MusicalStructure musicalStructure,
+		List<SpatialMotifPhrase> spatialMotifPhrases
+	) {
+		this(sections, stageRoles, motionPhrases, cameraPhrases, vfxPhrases, densityCurve, sectionEdits, musicalStructure, spatialMotifPhrases, List.of());
+	}
+
 	public ChoreographyPlan {
 		sections = sections != null ? List.copyOf(sections) : List.of();
 		stageRoles = stageRoles != null ? List.copyOf(stageRoles) : List.of();
@@ -67,12 +82,13 @@ public record ChoreographyPlan(
 		sectionEdits = sectionEdits != null ? List.copyOf(sectionEdits) : List.of();
 		musicalStructure = musicalStructure != null ? musicalStructure : MusicalStructure.empty();
 		spatialMotifPhrases = spatialMotifPhrases != null ? List.copyOf(spatialMotifPhrases) : List.of();
+		choreographyPhrases = choreographyPhrases != null ? List.copyOf(choreographyPhrases) : List.of();
 	}
 
 	public static ChoreographyPlan empty() {
 		return new ChoreographyPlan(
 			List.of(), List.of(), List.of(), List.of(), List.of(), DensityCurve.uniform(1.0), List.of(),
-			MusicalStructure.empty(), List.of());
+			MusicalStructure.empty(), List.of(), List.of());
 	}
 
 	/** Bar / Phrase / Section / Repeat hierarchy attached to this plan (structure v2). */
