@@ -21,7 +21,7 @@
 ## 打开与导出
 
 1. 将 `creator-alpha-showcase.osc` 复制到本机工程目录，或从测试资源导出后用 Creator 打开  
-2. 确认 8 个 Tower 已绑定；占位音频为 `golden://audio/placeholder.wav`（本地可换成真实 80s 曲目）  
+2. 确认 8 个 Tower 已绑定；工程内 `audioPath` 可为占位（`golden://…`）。打开后请换成真实 80s 曲目再听审 / Export  
 3. 播放全曲；重点看 Chorus / Drop / Final  
 4. 对 Chorus 做一次 Section Recompile，确认其它段与 MANUAL 仍在  
 5. Export：场景画面 +（可选）音频，抽查镜头切换是否生硬

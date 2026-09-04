@@ -115,9 +115,13 @@ public final class MenuBarPresenter {
 			OscProjectStore.LoadedProject loaded = OscProjectStore.load(Path.of(path), layers, current);
 			applyLoadedProject(current, loaded);
 			boolean audioLoadFailed = false;
-			if (!loaded.getAudioPath().isBlank()) {
+			String audioPath = loaded.getAudioPath();
+			if (!audioPath.isBlank() && isLoadableLocalAudioPath(audioPath)) {
 				AudioLoader loader = audioLoader.get();
-				audioLoadFailed = loader == null || !loader.load(loaded.getAudioPath());
+				audioLoadFailed = loader == null || !loader.load(audioPath);
+			} else if (!audioPath.isBlank()) {
+				// golden:// 等占位路径：保留元数据，不尝试本地解码
+				audioLoadFailed = true;
 			}
 			TimelineEditor editor = timelineEditor.get();
 			if (editor != null) {
@@ -163,5 +167,17 @@ public final class MenuBarPresenter {
 			current.setMetadata("audioPath", loaded.getAudioPath());
 		}
 		current.setMarkers(loaded.getMarkers());
+	}
+
+	/** 仅尝试加载本地/可解码音频；跳过 golden:// 等测试占位 scheme。 */
+	static boolean isLoadableLocalAudioPath(String path) {
+		if (path == null || path.isBlank()) return false;
+		String trimmed = path.trim();
+		int scheme = trimmed.indexOf("://");
+		if (scheme > 0) {
+			String schemeName = trimmed.substring(0, scheme).toLowerCase();
+			return "file".equals(schemeName);
+		}
+		return true;
 	}
 }
