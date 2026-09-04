@@ -72,7 +72,7 @@ public final class PhraseGrammarExpander {
 			out.add(new ExpandedPhraseEvent(
 				event.targetObjectId(),
 				event.timeSeconds(),
-				event.primitiveId(),
+				MotionPresetSpec.toLibraryAnimationTypeId(event.primitiveId()),
 				event.energy(),
 				event.durationSeconds(),
 				params,
@@ -124,7 +124,7 @@ public final class PhraseGrammarExpander {
 		return List.of(new ExpandedPhraseEvent(
 			target,
 			instance.triggerTime(),
-			instance.motion().presetId(),
+			instance.motion().libraryAnimationTypeId(),
 			instance.intensity(),
 			instance.motion().durationSeconds(),
 			params,

@@ -34,6 +34,10 @@ Timeline 动画轨 / 摄像机轨 / 全局事件初稿
 
 Beatmap 导入时，`ChoreographyPlanSeeder` 会写入段落与小节结构；若已有动作/镜头短语则仅刷新结构层。
 
+## Spatial Pattern 冻结（Creator Alpha）
+
+Alpha 阶段冻结现有 `SpatialMotifId` 集合，**不再增加**新的空间 pattern。作品质量优先依赖 Phrase Instance 决策、Budget、Conflict、连续性与 Showcase 审美回归（见 [creator-alpha-showcase.md](creator-alpha-showcase.md)）。
+
 ## 与播放器边界
 
 - 自动映射只在用户触发或导入时运行一次

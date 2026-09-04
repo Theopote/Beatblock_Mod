@@ -60,6 +60,7 @@ class GoldenProjectRegressionTest {
 		THREE_BAND("three-band.osc", new double[] {0.0, 8.0, 16.0, 24.0, 32.0}),
 		CAMERA_VFX("camera-vfx.osc", new double[] {0.0, 12.0, 24.0, 36.0, 48.0}),
 		MANUAL_PLUS_AUTOMAP("manual-plus-automap.osc", new double[] {0.0, 12.0, 24.0, 36.0, 48.0}),
+		CREATOR_ALPHA_SHOWCASE("creator-alpha-showcase.osc", new double[] {0.0, 10.0, 30.0, 50.0, 70.0, 80.0}),
 		STRESS_10K("stress-10k.osc", new double[] {0.0, 2500.0, 5000.0, 7500.0, 10_000.0});
 
 		private final String fileName;

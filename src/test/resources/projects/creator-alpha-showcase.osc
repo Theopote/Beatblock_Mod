@@ -1,0 +1,4576 @@
+{
+  "format": "beatblock.osc",
+  "schemaVersion": 3,
+  "projectId": "golden-creator-alpha-showcase",
+  "projectPath": "projects/creator-alpha-showcase.osc",
+  "timelineName": "Creator Alpha Showcase",
+  "audioPath": "golden://audio/placeholder.wav",
+  "durationSeconds": 80.0,
+  "bpm": 128.0,
+  "markers": [
+    {
+      "id": "sec-intro",
+      "timeSeconds": 0.0,
+      "name": "Intro",
+      "type": "SECTION"
+    },
+    {
+      "id": "sec-verse",
+      "timeSeconds": 8.0,
+      "name": "Verse",
+      "type": "SECTION"
+    },
+    {
+      "id": "sec-pre-chorus",
+      "timeSeconds": 20.0,
+      "name": "Pre-Chorus",
+      "type": "SECTION"
+    },
+    {
+      "id": "sec-chorus",
+      "timeSeconds": 28.0,
+      "name": "Chorus",
+      "type": "SECTION"
+    },
+    {
+      "id": "sec-build",
+      "timeSeconds": 40.0,
+      "name": "Build",
+      "type": "SECTION"
+    },
+    {
+      "id": "sec-drop",
+      "timeSeconds": 48.0,
+      "name": "Drop",
+      "type": "DROP"
+    },
+    {
+      "id": "sec-break",
+      "timeSeconds": 58.0,
+      "name": "Break",
+      "type": "SECTION"
+    },
+    {
+      "id": "sec-final",
+      "timeSeconds": 66.0,
+      "name": "Final",
+      "type": "DROP"
+    }
+  ],
+  "buildLayers": [
+    {
+      "id": "layer-tower_a",
+      "name": "Tower_A",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "Tower_A",
+      "stageObjectName": "Tower_A",
+      "blocks": [
+        {
+          "x": 8,
+          "y": 64,
+          "z": 0
+        },
+        {
+          "x": 8,
+          "y": 65,
+          "z": 0
+        }
+      ],
+      "capturedStates": []
+    },
+    {
+      "id": "layer-tower_b",
+      "name": "Tower_B",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "Tower_B",
+      "stageObjectName": "Tower_B",
+      "blocks": [
+        {
+          "x": 6,
+          "y": 64,
+          "z": 6
+        },
+        {
+          "x": 6,
+          "y": 65,
+          "z": 6
+        }
+      ],
+      "capturedStates": []
+    },
+    {
+      "id": "layer-tower_c",
+      "name": "Tower_C",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "Tower_C",
+      "stageObjectName": "Tower_C",
+      "blocks": [
+        {
+          "x": 0,
+          "y": 64,
+          "z": 8
+        },
+        {
+          "x": 0,
+          "y": 65,
+          "z": 8
+        }
+      ],
+      "capturedStates": []
+    },
+    {
+      "id": "layer-tower_d",
+      "name": "Tower_D",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "Tower_D",
+      "stageObjectName": "Tower_D",
+      "blocks": [
+        {
+          "x": -6,
+          "y": 64,
+          "z": 6
+        },
+        {
+          "x": -6,
+          "y": 65,
+          "z": 6
+        }
+      ],
+      "capturedStates": []
+    },
+    {
+      "id": "layer-tower_e",
+      "name": "Tower_E",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "Tower_E",
+      "stageObjectName": "Tower_E",
+      "blocks": [
+        {
+          "x": -8,
+          "y": 64,
+          "z": 0
+        },
+        {
+          "x": -8,
+          "y": 65,
+          "z": 0
+        }
+      ],
+      "capturedStates": []
+    },
+    {
+      "id": "layer-tower_f",
+      "name": "Tower_F",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "Tower_F",
+      "stageObjectName": "Tower_F",
+      "blocks": [
+        {
+          "x": -6,
+          "y": 64,
+          "z": -6
+        },
+        {
+          "x": -6,
+          "y": 65,
+          "z": -6
+        }
+      ],
+      "capturedStates": []
+    },
+    {
+      "id": "layer-tower_g",
+      "name": "Tower_G",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "Tower_G",
+      "stageObjectName": "Tower_G",
+      "blocks": [
+        {
+          "x": 0,
+          "y": 64,
+          "z": -8
+        },
+        {
+          "x": 0,
+          "y": 65,
+          "z": -8
+        }
+      ],
+      "capturedStates": []
+    },
+    {
+      "id": "layer-tower_h",
+      "name": "Tower_H",
+      "state": "FREE_VISIBLE",
+      "stageObjectId": "Tower_H",
+      "stageObjectName": "Tower_H",
+      "blocks": [
+        {
+          "x": 6,
+          "y": 64,
+          "z": -6
+        },
+        {
+          "x": 6,
+          "y": 65,
+          "z": -6
+        }
+      ],
+      "capturedStates": []
+    }
+  ],
+  "buildLayerGroups": [],
+  "animationTracks": [
+    {
+      "trackId": "animation_auto",
+      "clips": [
+        {
+          "id": "b997dd5f42d7",
+          "startTimeSeconds": 2.0,
+          "endTimeSeconds": 2.35,
+          "events": [
+            {
+              "id": "b974a640b1e7",
+              "timeSeconds": 2.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 1,
+                "phraseAtomic": true,
+                "durationSeconds": 0.35,
+                "actionMode": "ANIMATE",
+                "choreographyPhraseId": "low",
+                "choreographyLayer": "ACCENT",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "generatorId": "smart-automap",
+                "phraseInstanceId": "accent:0",
+                "height": 0.175,
+                "energy": 0.0875
+              }
+            }
+          ]
+        },
+        {
+          "id": "bf5071208664",
+          "startTimeSeconds": 8.438,
+          "endTimeSeconds": 8.938,
+          "events": [
+            {
+              "id": "edb0b087b212",
+              "timeSeconds": 8.438,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t0",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "5f978b9dbdf8",
+          "startTimeSeconds": 8.518,
+          "endTimeSeconds": 9.018,
+          "events": [
+            {
+              "id": "a4f97f932137",
+              "timeSeconds": 8.518,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t0",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "98a5d92162f9",
+          "startTimeSeconds": 8.598,
+          "endTimeSeconds": 9.098,
+          "events": [
+            {
+              "id": "6b8975f99457",
+              "timeSeconds": 8.598,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t0",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "63d37106961c",
+          "startTimeSeconds": 8.678,
+          "endTimeSeconds": 9.178,
+          "events": [
+            {
+              "id": "f6151d792abd",
+              "timeSeconds": 8.678,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t0",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "5937029a351e",
+          "startTimeSeconds": 10.313,
+          "endTimeSeconds": 10.813,
+          "events": [
+            {
+              "id": "6a7f42330420",
+              "timeSeconds": 10.313,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t1",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "d9f2a88c8f62",
+          "startTimeSeconds": 10.393,
+          "endTimeSeconds": 10.893,
+          "events": [
+            {
+              "id": "a0e9e9af2d3d",
+              "timeSeconds": 10.393,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t1",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "a78236c88f91",
+          "startTimeSeconds": 10.473,
+          "endTimeSeconds": 10.973,
+          "events": [
+            {
+              "id": "e81960da67ea",
+              "timeSeconds": 10.473,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t1",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "3ee714361280",
+          "startTimeSeconds": 10.553,
+          "endTimeSeconds": 11.053,
+          "events": [
+            {
+              "id": "7d096ac65fbb",
+              "timeSeconds": 10.553,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t1",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "55e883e0bf0c",
+          "startTimeSeconds": 12.188,
+          "endTimeSeconds": 12.688,
+          "events": [
+            {
+              "id": "c196a46ad8af",
+              "timeSeconds": 12.188,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t2",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "a54c7d33a6ef",
+          "startTimeSeconds": 12.268,
+          "endTimeSeconds": 12.768,
+          "events": [
+            {
+              "id": "8513161c23bb",
+              "timeSeconds": 12.268,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t2",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "3b20a3d3c2f8",
+          "startTimeSeconds": 12.348,
+          "endTimeSeconds": 12.848,
+          "events": [
+            {
+              "id": "84a6bc451f0e",
+              "timeSeconds": 12.348,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t2",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "7b896415a88c",
+          "startTimeSeconds": 12.428,
+          "endTimeSeconds": 12.928,
+          "events": [
+            {
+              "id": "8295f8424fb6",
+              "timeSeconds": 12.428,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t2",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "ddacd8721f92",
+          "startTimeSeconds": 14.063,
+          "endTimeSeconds": 14.563,
+          "events": [
+            {
+              "id": "148405f474d0",
+              "timeSeconds": 14.063,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t3",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "73d1e81a1820",
+          "startTimeSeconds": 14.143,
+          "endTimeSeconds": 14.643,
+          "events": [
+            {
+              "id": "4e24cbb78e8b",
+              "timeSeconds": 14.143,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t3",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "94d3d159178e",
+          "startTimeSeconds": 14.223,
+          "endTimeSeconds": 14.723,
+          "events": [
+            {
+              "id": "5fa385d67bee",
+              "timeSeconds": 14.223,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t3",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "1f953437f049",
+          "startTimeSeconds": 14.303,
+          "endTimeSeconds": 14.803,
+          "events": [
+            {
+              "id": "8ea794902ebc",
+              "timeSeconds": 14.303,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t3",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "5ce1a29a2d6c",
+          "startTimeSeconds": 15.938,
+          "endTimeSeconds": 16.438000000000002,
+          "events": [
+            {
+              "id": "77459b72a804",
+              "timeSeconds": 15.938,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 4,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t4",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "f3aae6f56c21",
+          "startTimeSeconds": 16.018,
+          "endTimeSeconds": 16.518,
+          "events": [
+            {
+              "id": "f9366136a5be",
+              "timeSeconds": 16.018,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 4,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t4",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "29b0aec7309d",
+          "startTimeSeconds": 16.098,
+          "endTimeSeconds": 16.598,
+          "events": [
+            {
+              "id": "410e664f27e5",
+              "timeSeconds": 16.098,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 4,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t4",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "4683a3b0e2e7",
+          "startTimeSeconds": 16.178,
+          "endTimeSeconds": 16.678,
+          "events": [
+            {
+              "id": "0df2b163060f",
+              "timeSeconds": 16.178,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 4,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t4",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "3d80ac7d9c31",
+          "startTimeSeconds": 17.813,
+          "endTimeSeconds": 18.313,
+          "events": [
+            {
+              "id": "7c190637801a",
+              "timeSeconds": 17.813,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t5",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "f4c9af3125e1",
+          "startTimeSeconds": 17.892999999999997,
+          "endTimeSeconds": 18.392999999999997,
+          "events": [
+            {
+              "id": "8e82a6ec9205",
+              "timeSeconds": 17.892999999999997,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t5",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "e73ba206f812",
+          "startTimeSeconds": 17.973,
+          "endTimeSeconds": 18.473,
+          "events": [
+            {
+              "id": "3ecf384e18c8",
+              "timeSeconds": 17.973,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t5",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "6e263c0fa77b",
+          "startTimeSeconds": 18.052999999999997,
+          "endTimeSeconds": 18.552999999999997,
+          "events": [
+            {
+              "id": "52fc2320b38d",
+              "timeSeconds": 18.052999999999997,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t5",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "d8f4a3020f7b",
+          "startTimeSeconds": 19.688,
+          "endTimeSeconds": 20.188,
+          "events": [
+            {
+              "id": "3d7a64218b5d",
+              "timeSeconds": 19.688,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 6,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t6",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "9dac487d1730",
+          "startTimeSeconds": 19.767999999999997,
+          "endTimeSeconds": 20.267999999999997,
+          "events": [
+            {
+              "id": "85638f70569a",
+              "timeSeconds": 19.767999999999997,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 6,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t6",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "b36a5c638dd4",
+          "startTimeSeconds": 19.848,
+          "endTimeSeconds": 20.348,
+          "events": [
+            {
+              "id": "931d798fa25c",
+              "timeSeconds": 19.848,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 6,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t6",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "81af28d4380d",
+          "startTimeSeconds": 19.927999999999997,
+          "endTimeSeconds": 20.427999999999997,
+          "events": [
+            {
+              "id": "63cc8b4bfd06",
+              "timeSeconds": 19.927999999999997,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 1,
+                "triggerSequenceIndex": 6,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "CASCADE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "CASCADE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:0:t6",
+                "height": 1.4625,
+                "energy": 0.365625
+              }
+            }
+          ]
+        },
+        {
+          "id": "cc3afe94dd59",
+          "startTimeSeconds": 22.0,
+          "endTimeSeconds": 22.4,
+          "events": [
+            {
+              "id": "6bb2b7b44a07",
+              "timeSeconds": 22.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 1,
+                "phraseAtomic": true,
+                "durationSeconds": 0.4,
+                "actionMode": "ANIMATE",
+                "choreographyPhraseId": "high",
+                "choreographyLayer": "ACCENT",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "generatorId": "smart-automap",
+                "phraseInstanceId": "accent:2",
+                "height": 0.225,
+                "energy": 0.1125
+              }
+            }
+          ]
+        },
+        {
+          "id": "63572926bad1",
+          "startTimeSeconds": 32.0,
+          "endTimeSeconds": 32.35,
+          "events": [
+            {
+              "id": "dd0159bbdb72",
+              "timeSeconds": 32.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 1,
+                "phraseAtomic": true,
+                "durationSeconds": 0.35,
+                "actionMode": "ANIMATE",
+                "choreographyPhraseId": "low",
+                "choreographyLayer": "ACCENT",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "generatorId": "smart-automap",
+                "phraseInstanceId": "accent:3",
+                "height": 0.2,
+                "energy": 0.1
+              }
+            }
+          ]
+        },
+        {
+          "id": "c62f608366c5",
+          "startTimeSeconds": 40.313,
+          "endTimeSeconds": 40.763000000000005,
+          "events": [
+            {
+              "id": "3734b3bc4ee0",
+              "timeSeconds": 40.313,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t0",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "7fe97d3fca7a",
+          "startTimeSeconds": 40.363,
+          "endTimeSeconds": 40.813,
+          "events": [
+            {
+              "id": "44123bf5e6c1",
+              "timeSeconds": 40.363,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t0",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "cd2c7b2e1761",
+          "startTimeSeconds": 40.313,
+          "endTimeSeconds": 40.763000000000005,
+          "events": [
+            {
+              "id": "8715891bf984",
+              "timeSeconds": 40.313,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t0",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "5b7be3e090a3",
+          "startTimeSeconds": 40.363,
+          "endTimeSeconds": 40.813,
+          "events": [
+            {
+              "id": "1d50ccd7809a",
+              "timeSeconds": 40.363,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t0",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "fb6cc011fc61",
+          "startTimeSeconds": 41.25,
+          "endTimeSeconds": 41.7,
+          "events": [
+            {
+              "id": "418b8c421da3",
+              "timeSeconds": 41.25,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t1",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "ac7d17866c89",
+          "startTimeSeconds": 41.3,
+          "endTimeSeconds": 41.75,
+          "events": [
+            {
+              "id": "fbd6f2669392",
+              "timeSeconds": 41.3,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t1",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "c7ea22764e13",
+          "startTimeSeconds": 41.25,
+          "endTimeSeconds": 41.7,
+          "events": [
+            {
+              "id": "409b24cb2089",
+              "timeSeconds": 41.25,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t1",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "a9a3102054d7",
+          "startTimeSeconds": 41.3,
+          "endTimeSeconds": 41.75,
+          "events": [
+            {
+              "id": "cf4e34661aa2",
+              "timeSeconds": 41.3,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t1",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "6585678a0ebb",
+          "startTimeSeconds": 42.188,
+          "endTimeSeconds": 42.638000000000005,
+          "events": [
+            {
+              "id": "976c34348bb0",
+              "timeSeconds": 42.188,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t2",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "19f851f38bc4",
+          "startTimeSeconds": 42.238,
+          "endTimeSeconds": 42.688,
+          "events": [
+            {
+              "id": "bdec296386aa",
+              "timeSeconds": 42.238,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t2",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "f69841413fb8",
+          "startTimeSeconds": 42.188,
+          "endTimeSeconds": 42.638000000000005,
+          "events": [
+            {
+              "id": "c07d0fdb7165",
+              "timeSeconds": 42.188,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t2",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "d4b42f1942a2",
+          "startTimeSeconds": 42.238,
+          "endTimeSeconds": 42.688,
+          "events": [
+            {
+              "id": "dd44bc35fe97",
+              "timeSeconds": 42.238,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t2",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "eef63deca60f",
+          "startTimeSeconds": 43.125,
+          "endTimeSeconds": 43.575,
+          "events": [
+            {
+              "id": "b40a28c76b65",
+              "timeSeconds": 43.125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t3",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "4dc48cd55e34",
+          "startTimeSeconds": 43.175,
+          "endTimeSeconds": 43.625,
+          "events": [
+            {
+              "id": "5d9c10c1894e",
+              "timeSeconds": 43.175,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t3",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "815f805b4359",
+          "startTimeSeconds": 43.125,
+          "endTimeSeconds": 43.575,
+          "events": [
+            {
+              "id": "612aae73d4cd",
+              "timeSeconds": 43.125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t3",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "c5b7c158f1e4",
+          "startTimeSeconds": 43.175,
+          "endTimeSeconds": 43.625,
+          "events": [
+            {
+              "id": "813e4ec8d774",
+              "timeSeconds": 43.175,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t3",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "61f7477b6a69",
+          "startTimeSeconds": 44.0,
+          "endTimeSeconds": 44.4,
+          "events": [
+            {
+              "id": "ae64c55c99b7",
+              "timeSeconds": 44.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 1,
+                "phraseAtomic": true,
+                "durationSeconds": 0.4,
+                "actionMode": "ANIMATE",
+                "choreographyPhraseId": "mid",
+                "choreographyLayer": "ACCENT",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "generatorId": "smart-automap",
+                "phraseInstanceId": "accent:4",
+                "height": 0.25,
+                "energy": 0.125
+              }
+            }
+          ]
+        },
+        {
+          "id": "83a4772d5303",
+          "startTimeSeconds": 44.063,
+          "endTimeSeconds": 44.513000000000005,
+          "events": [
+            {
+              "id": "ed5ae0b171f4",
+              "timeSeconds": 44.063,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 4,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t4",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "4d565c40593b",
+          "startTimeSeconds": 44.113,
+          "endTimeSeconds": 44.563,
+          "events": [
+            {
+              "id": "b123322051cf",
+              "timeSeconds": 44.113,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 4,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t4",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "2fe016e20e63",
+          "startTimeSeconds": 44.063,
+          "endTimeSeconds": 44.513000000000005,
+          "events": [
+            {
+              "id": "f3ba7231a063",
+              "timeSeconds": 44.063,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 4,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t4",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "9fa78c1c2ee4",
+          "startTimeSeconds": 44.113,
+          "endTimeSeconds": 44.563,
+          "events": [
+            {
+              "id": "4379e6fa382c",
+              "timeSeconds": 44.113,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 4,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t4",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "89f4f1a0443f",
+          "startTimeSeconds": 45.0,
+          "endTimeSeconds": 45.45,
+          "events": [
+            {
+              "id": "fb9be175e8a7",
+              "timeSeconds": 45.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t5",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "26fd682763f6",
+          "startTimeSeconds": 45.05,
+          "endTimeSeconds": 45.5,
+          "events": [
+            {
+              "id": "b3fce9e8dd16",
+              "timeSeconds": 45.05,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t5",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "b98d50447a1a",
+          "startTimeSeconds": 45.0,
+          "endTimeSeconds": 45.45,
+          "events": [
+            {
+              "id": "1ca985f9e1b1",
+              "timeSeconds": 45.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t5",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "315c864cc45b",
+          "startTimeSeconds": 45.05,
+          "endTimeSeconds": 45.5,
+          "events": [
+            {
+              "id": "2000610d044d",
+              "timeSeconds": 45.05,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t5",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "2ebb444ad2d1",
+          "startTimeSeconds": 45.938,
+          "endTimeSeconds": 46.388000000000005,
+          "events": [
+            {
+              "id": "c8c131a81a64",
+              "timeSeconds": 45.938,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 6,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t6",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "3c4318b717f1",
+          "startTimeSeconds": 45.988,
+          "endTimeSeconds": 46.438,
+          "events": [
+            {
+              "id": "2249012d73fa",
+              "timeSeconds": 45.988,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 6,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t6",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "b1d95b608a41",
+          "startTimeSeconds": 45.938,
+          "endTimeSeconds": 46.388000000000005,
+          "events": [
+            {
+              "id": "e6bd43f7ac47",
+              "timeSeconds": 45.938,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 6,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t6",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "d539f49d1d7f",
+          "startTimeSeconds": 45.988,
+          "endTimeSeconds": 46.438,
+          "events": [
+            {
+              "id": "624fb89b0088",
+              "timeSeconds": 45.988,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 6,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t6",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "a9b33e0c3d41",
+          "startTimeSeconds": 46.875,
+          "endTimeSeconds": 47.325,
+          "events": [
+            {
+              "id": "e0113e9a3a9a",
+              "timeSeconds": 46.875,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 7,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t7",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "a8759e420cbb",
+          "startTimeSeconds": 46.925,
+          "endTimeSeconds": 47.375,
+          "events": [
+            {
+              "id": "c96679d7a454",
+              "timeSeconds": 46.925,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 7,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t7",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "4051d55adaad",
+          "startTimeSeconds": 46.875,
+          "endTimeSeconds": 47.325,
+          "events": [
+            {
+              "id": "00167942dbe5",
+              "timeSeconds": 46.875,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 7,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t7",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "61085bb4e356",
+          "startTimeSeconds": 46.925,
+          "endTimeSeconds": 47.375,
+          "events": [
+            {
+              "id": "7bf72a2a4018",
+              "timeSeconds": 46.925,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 4,
+                "triggerSequenceIndex": 7,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.45,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "ALTERNATE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "ALTERNATE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:2:t7",
+                "height": 1.53,
+                "energy": 0.51
+              }
+            }
+          ]
+        },
+        {
+          "id": "451f45cda9a4",
+          "startTimeSeconds": 48.28125,
+          "endTimeSeconds": 48.88125,
+          "events": [
+            {
+              "id": "ee4bb21c17eb",
+              "timeSeconds": 48.28125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 5,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:4:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "44cb99d3b16a",
+          "startTimeSeconds": 48.28125,
+          "endTimeSeconds": 48.88125,
+          "events": [
+            {
+              "id": "91bf9d498055",
+              "timeSeconds": 48.28125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 5,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:4:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "ef822aa59bbd",
+          "startTimeSeconds": 48.28125,
+          "endTimeSeconds": 48.88125,
+          "events": [
+            {
+              "id": "fd2692302ded",
+              "timeSeconds": 48.28125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 5,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:4:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "8a14dd1d88f0",
+          "startTimeSeconds": 48.28125,
+          "endTimeSeconds": 48.88125,
+          "events": [
+            {
+              "id": "adb936fb2f3e",
+              "timeSeconds": 48.28125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 5,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:4:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "e55e5cda06e9",
+          "startTimeSeconds": 48.28125,
+          "endTimeSeconds": 48.88125,
+          "events": [
+            {
+              "id": "f2dba3322cad",
+              "timeSeconds": 48.28125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 5,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 4,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:4:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "a4acb4ae7610",
+          "startTimeSeconds": 48.28125,
+          "endTimeSeconds": 48.88125,
+          "events": [
+            {
+              "id": "623e1be9db3a",
+              "timeSeconds": 48.28125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 5,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 5,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:4:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "a795eff62b23",
+          "startTimeSeconds": 48.28125,
+          "endTimeSeconds": 48.88125,
+          "events": [
+            {
+              "id": "ed42474ae492",
+              "timeSeconds": 48.28125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 5,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 6,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:4:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "91f0857e6d89",
+          "startTimeSeconds": 48.28125,
+          "endTimeSeconds": 48.88125,
+          "events": [
+            {
+              "id": "df387881c7b8",
+              "timeSeconds": 48.28125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 5,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 7,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:4:t0",
+                "height": 5.0,
+                "energy": 1.0
+              }
+            }
+          ]
+        },
+        {
+          "id": "cf367da7dba9",
+          "startTimeSeconds": 58.125,
+          "endTimeSeconds": 58.625,
+          "events": [
+            {
+              "id": "dacac62cbe48",
+              "timeSeconds": 58.125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t0",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "d0aa089b4313",
+          "startTimeSeconds": 58.125,
+          "endTimeSeconds": 58.625,
+          "events": [
+            {
+              "id": "46d705fc88ac",
+              "timeSeconds": 58.125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t0",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "37067be38a79",
+          "startTimeSeconds": 58.125,
+          "endTimeSeconds": 58.625,
+          "events": [
+            {
+              "id": "5d5f22fb08d2",
+              "timeSeconds": 58.125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t0",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "4156c1caa818",
+          "startTimeSeconds": 58.125,
+          "endTimeSeconds": 58.625,
+          "events": [
+            {
+              "id": "ab5e7d912b12",
+              "timeSeconds": 58.125,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t0",
+                "height": 2.2942498,
+                "energy": 0.57356244
+              }
+            }
+          ]
+        },
+        {
+          "id": "05d58db8b77c",
+          "startTimeSeconds": 60.0,
+          "endTimeSeconds": 60.5,
+          "events": [
+            {
+              "id": "22d82eaf191e",
+              "timeSeconds": 60.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t1",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "0ee05f7010c8",
+          "startTimeSeconds": 60.0,
+          "endTimeSeconds": 60.5,
+          "events": [
+            {
+              "id": "defb4c2be979",
+              "timeSeconds": 60.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t1",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "7295a0993152",
+          "startTimeSeconds": 60.0,
+          "endTimeSeconds": 60.5,
+          "events": [
+            {
+              "id": "2cd6aa1224b2",
+              "timeSeconds": 60.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t1",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "7769eb93bbce",
+          "startTimeSeconds": 60.0,
+          "endTimeSeconds": 60.5,
+          "events": [
+            {
+              "id": "da3700236245",
+              "timeSeconds": 60.0,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t1",
+                "height": 2.2942498,
+                "energy": 0.57356244
+              }
+            }
+          ]
+        },
+        {
+          "id": "db1867afad97",
+          "startTimeSeconds": 61.875,
+          "endTimeSeconds": 62.375,
+          "events": [
+            {
+              "id": "d476c0fcd647",
+              "timeSeconds": 61.875,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t2",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "c90790bfa7cd",
+          "startTimeSeconds": 61.875,
+          "endTimeSeconds": 62.375,
+          "events": [
+            {
+              "id": "11d0ef343e85",
+              "timeSeconds": 61.875,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t2",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "0fa210a1cd30",
+          "startTimeSeconds": 61.875,
+          "endTimeSeconds": 62.375,
+          "events": [
+            {
+              "id": "c474af7d82ac",
+              "timeSeconds": 61.875,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t2",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "4fd6b676593f",
+          "startTimeSeconds": 61.875,
+          "endTimeSeconds": 62.375,
+          "events": [
+            {
+              "id": "8f7d1f1f0d41",
+              "timeSeconds": 61.875,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 2,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t2",
+                "height": 2.2942498,
+                "energy": 0.57356244
+              }
+            }
+          ]
+        },
+        {
+          "id": "c06a07ab92af",
+          "startTimeSeconds": 63.75,
+          "endTimeSeconds": 64.25,
+          "events": [
+            {
+              "id": "96ef94c4ac2e",
+              "timeSeconds": 63.75,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t3",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "dfeb81972a31",
+          "startTimeSeconds": 63.75,
+          "endTimeSeconds": 64.25,
+          "events": [
+            {
+              "id": "fe6b635c4f57",
+              "timeSeconds": 63.75,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t3",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "383cbdb5c3dc",
+          "startTimeSeconds": 63.75,
+          "endTimeSeconds": 64.25,
+          "events": [
+            {
+              "id": "8f8863d0aec5",
+              "timeSeconds": 63.75,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t3",
+                "height": 1.9949999,
+                "energy": 0.49874997
+              }
+            }
+          ]
+        },
+        {
+          "id": "b7cf2f7481bf",
+          "startTimeSeconds": 63.75,
+          "endTimeSeconds": 64.25,
+          "events": [
+            {
+              "id": "d9afc8df0057",
+              "timeSeconds": 63.75,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 6,
+                "triggerSequenceIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 4,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "PHRASE",
+                "animationType": "Pulse",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:3:t3",
+                "height": 2.2942498,
+                "energy": 0.57356244
+              }
+            }
+          ]
+        },
+        {
+          "id": "28ec2eb94edc",
+          "startTimeSeconds": 66.09375,
+          "endTimeSeconds": 66.69375,
+          "events": [
+            {
+              "id": "04ccbe64eaad",
+              "timeSeconds": 66.09375,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 7,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_A",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 0,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:5:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "01edab1edf73",
+          "startTimeSeconds": 66.09375,
+          "endTimeSeconds": 66.69375,
+          "events": [
+            {
+              "id": "ea5e546e41ab",
+              "timeSeconds": 66.09375,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 7,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_C",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 1,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:5:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "a98bf73b06f2",
+          "startTimeSeconds": 66.09375,
+          "endTimeSeconds": 66.69375,
+          "events": [
+            {
+              "id": "ecb03625d37d",
+              "timeSeconds": 66.09375,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 7,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_E",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 2,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:5:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "8877a3023962",
+          "startTimeSeconds": 66.09375,
+          "endTimeSeconds": 66.69375,
+          "events": [
+            {
+              "id": "12ee4562c807",
+              "timeSeconds": 66.09375,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 7,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_G",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 3,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:5:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "dc38dd4cc277",
+          "startTimeSeconds": 66.09375,
+          "endTimeSeconds": 66.69375,
+          "events": [
+            {
+              "id": "288e63b70e37",
+              "timeSeconds": 66.09375,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 7,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_B",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 4,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:5:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "3d0a2ce82ab8",
+          "startTimeSeconds": 66.09375,
+          "endTimeSeconds": 66.69375,
+          "events": [
+            {
+              "id": "7bbc05a91913",
+              "timeSeconds": 66.09375,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 7,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_D",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 5,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:5:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "a0bc46ec3397",
+          "startTimeSeconds": 66.09375,
+          "endTimeSeconds": 66.69375,
+          "events": [
+            {
+              "id": "66f8f66e81fd",
+              "timeSeconds": 66.09375,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 7,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_F",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 6,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:5:t0",
+                "height": 4.75,
+                "energy": 0.95
+              }
+            }
+          ]
+        },
+        {
+          "id": "f94c09ab7180",
+          "startTimeSeconds": 66.09375,
+          "endTimeSeconds": 66.69375,
+          "events": [
+            {
+              "id": "e02ed38847df",
+              "timeSeconds": 66.09375,
+              "type": "ANIMATION",
+              "parameters": {
+                "sectionIndex": 7,
+                "triggerSequenceIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "targetObject": "Tower_H",
+                "phraseTargetCount": 8,
+                "phraseAtomic": true,
+                "phraseGrammar": true,
+                "durationSeconds": 0.6,
+                "actionMode": "ANIMATE",
+                "spatialMotifId": "EXPLODE",
+                "spatialMotifIndex": 7,
+                "choreographyPhraseId": "EXPLODE",
+                "choreographyLayer": "HERO",
+                "animationType": "BlockJump",
+                "eventOrigin": "GENERATED",
+                "mode": "ANIMATE",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "phraseInstanceId": "grammar:5:t0",
+                "height": 5.0,
+                "energy": 1.0
+              }
+            }
+          ]
+        },
+        {
+          "id": "db36641c2173",
+          "startTimeSeconds": 15.5,
+          "endTimeSeconds": 16.0,
+          "events": [
+            {
+              "id": "74d07d3ed5ff",
+              "timeSeconds": 15.5,
+              "type": "ANIMATION",
+              "parameters": {
+                "mode": "ANIMATE",
+                "targetObject": "Tower_A",
+                "playbackSemantics": "TRANSIENT",
+                "durationSeconds": 0.5,
+                "actionMode": "ANIMATE",
+                "animationType": "Pulse",
+                "energy": 0.55,
+                "eventOrigin": "MANUAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "camera",
+      "clips": [
+        {
+          "id": "578e623c1ea6",
+          "startTimeSeconds": 0.0,
+          "endTimeSeconds": 7.0,
+          "events": [
+            {
+              "id": "e6baee356d13",
+              "timeSeconds": 0.0,
+              "type": "CAMERA_SEGMENT",
+              "parameters": {
+                "sectionIndex": 0,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "ease": "SMOOTH",
+                "bakedTargetX": 8.5,
+                "bakedTargetY": 64.5,
+                "kind": "PATH",
+                "bakedTargetZ": 0.5,
+                "followSubjectKind": "STAGE_OBJECT",
+                "transition": "CUT",
+                "eventOrigin": "GENERATED",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "followSubjectRef": "Tower_A",
+                "collisionPolicy": "AVOID_BLOCKS"
+              }
+            },
+            {
+              "id": "a5721d30b7b7",
+              "timeSeconds": 0.0,
+              "type": "CAMERA_KEYFRAME",
+              "parameters": {
+                "x": 8.5,
+                "pitchDeg": -12.0,
+                "ease": "SMOOTH",
+                "y": 66.27533937002013,
+                "z": 6.5,
+                "yawDeg": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "id": "e60d40839c39",
+          "startTimeSeconds": 8.0,
+          "endTimeSeconds": 14.0,
+          "events": [
+            {
+              "id": "ad1d85c0c52d",
+              "timeSeconds": 8.0,
+              "type": "CAMERA_SEGMENT",
+              "parameters": {
+                "sectionIndex": 1,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "yawStartDeg": 0.0,
+                "ease": "SMOOTH",
+                "bakedTargetX": 0.5,
+                "bakedTargetY": 64.5,
+                "kind": "ORBIT",
+                "targetZ": 8.5,
+                "bakedTargetZ": 8.5,
+                "targetY": 65.0,
+                "targetX": 0.5,
+                "followSubjectKind": "STAGE_OBJECT",
+                "transition": "CUT",
+                "eventOrigin": "GENERATED",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "yawEndDeg": 120.0,
+                "followSubjectRef": "Tower_C",
+                "collisionPolicy": "AVOID_BLOCKS",
+                "radius": 5.0,
+                "height": 0.8816349035423249
+              }
+            }
+          ]
+        },
+        {
+          "id": "68902bc04fe9",
+          "startTimeSeconds": 28.0,
+          "endTimeSeconds": 32.0,
+          "events": [
+            {
+              "id": "f31b889fbe5b",
+              "timeSeconds": 28.0,
+              "type": "CAMERA_SEGMENT",
+              "parameters": {
+                "sectionIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "ease": "EASE_OUT",
+                "bakedTargetX": -7.5,
+                "bakedTargetY": 64.5,
+                "kind": "PATH",
+                "bakedTargetZ": 0.5,
+                "followSubjectKind": "STAGE_OBJECT",
+                "transition": "CUT",
+                "eventOrigin": "GENERATED",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "followSubjectRef": "Tower_E",
+                "collisionPolicy": "AVOID_BLOCKS"
+              }
+            },
+            {
+              "id": "227a044fd15b",
+              "timeSeconds": 28.0,
+              "type": "CAMERA_KEYFRAME",
+              "parameters": {
+                "x": -7.5,
+                "pitchDeg": -8.0,
+                "ease": "EASE_OUT",
+                "y": 65.56216333880957,
+                "z": 4.5,
+                "yawDeg": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "id": "ccee72b3cefa",
+          "startTimeSeconds": 48.0,
+          "endTimeSeconds": 50.0,
+          "events": [
+            {
+              "id": "6f4c6fca71b3",
+              "timeSeconds": 48.0,
+              "type": "CAMERA_SEGMENT",
+              "parameters": {
+                "sectionIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "ease": "LINEAR",
+                "bakedTargetX": 8.5,
+                "bakedTargetY": 64.5,
+                "kind": "PATH",
+                "bakedTargetZ": 0.5,
+                "followSubjectKind": "STAGE_OBJECT",
+                "transition": "CUT",
+                "eventOrigin": "GENERATED",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "followSubjectRef": "Tower_A",
+                "collisionPolicy": "AVOID_BLOCKS"
+              }
+            },
+            {
+              "id": "7d87b21891b7",
+              "timeSeconds": 48.0,
+              "type": "CAMERA_KEYFRAME",
+              "parameters": {
+                "x": 8.5,
+                "pitchDeg": -12.0,
+                "ease": "LINEAR",
+                "y": 66.27533937002013,
+                "z": 6.5,
+                "yawDeg": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "id": "e6d9006f0f63",
+          "startTimeSeconds": 66.0,
+          "endTimeSeconds": 71.0,
+          "events": [
+            {
+              "id": "9619af709765",
+              "timeSeconds": 66.0,
+              "type": "CAMERA_SEGMENT",
+              "parameters": {
+                "sectionIndex": 7,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "yawStartDeg": 0.0,
+                "ease": "SMOOTH",
+                "bakedTargetX": -5.5,
+                "bakedTargetY": 64.5,
+                "kind": "ORBIT",
+                "targetZ": 6.5,
+                "bakedTargetZ": 6.5,
+                "targetY": 65.0,
+                "targetX": -5.5,
+                "followSubjectKind": "STAGE_OBJECT",
+                "transition": "CUT",
+                "eventOrigin": "GENERATED",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "yawEndDeg": 120.0,
+                "followSubjectRef": "Tower_D",
+                "collisionPolicy": "AVOID_BLOCKS",
+                "radius": 6.0,
+                "height": 1.2753393700201328
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "trackId": "global",
+      "clips": [
+        {
+          "id": "0b1726d60a5b",
+          "startTimeSeconds": 29.0,
+          "endTimeSeconds": 29.1,
+          "events": [
+            {
+              "id": "b1ea33819d3d",
+              "timeSeconds": 29.0,
+              "type": "GLOBAL",
+              "parameters": {
+                "sectionIndex": 3,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "count": 16,
+                "type": "PARTICLE_BURST",
+                "speed": 0.05,
+                "spread": 0.6,
+                "eventOrigin": "GENERATED",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "name": "Chorus Spark",
+                "x": 8.5,
+                "y": 64.5,
+                "z": 0.5,
+                "particleType": "minecraft:crit"
+              }
+            }
+          ]
+        },
+        {
+          "id": "4b58571c29e6",
+          "startTimeSeconds": 48.5,
+          "endTimeSeconds": 48.6,
+          "events": [
+            {
+              "id": "e97551e5f27a",
+              "timeSeconds": 48.5,
+              "type": "GLOBAL",
+              "parameters": {
+                "sectionIndex": 5,
+                "generatorId": "smart-automap",
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "b": 1.0,
+                "r": 1.0,
+                "durationSeconds": 0.2,
+                "g": 1.0,
+                "name": "Drop Flash",
+                "type": "SCREEN_FLASH",
+                "eventOrigin": "GENERATED"
+              }
+            }
+          ]
+        },
+        {
+          "id": "46e3d2bdcd0c",
+          "startTimeSeconds": 49.0,
+          "endTimeSeconds": 49.1,
+          "events": [
+            {
+              "id": "fa067f7d57e4",
+              "timeSeconds": 49.0,
+              "type": "GLOBAL",
+              "parameters": {
+                "sectionIndex": 5,
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "count": 24,
+                "type": "PARTICLE_BURST",
+                "speed": 0.06,
+                "spread": 0.8,
+                "eventOrigin": "GENERATED",
+                "generatorId": "smart-automap",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "name": "Drop Burst",
+                "x": 0.5,
+                "y": 64.5,
+                "z": 0.5,
+                "particleType": "minecraft:firework"
+              }
+            }
+          ]
+        },
+        {
+          "id": "6e3ca274723d",
+          "startTimeSeconds": 66.5,
+          "endTimeSeconds": 66.6,
+          "events": [
+            {
+              "id": "0d62b21e6dea",
+              "timeSeconds": 66.5,
+              "type": "GLOBAL",
+              "parameters": {
+                "intensity": 0.35,
+                "sectionIndex": 7,
+                "generatorId": "smart-automap",
+                "generationId": "gen-823567e4-26f8-4375-802b-7eb97d54e85a",
+                "sourcePlanId": "golden-creator-alpha-showcase",
+                "r": 0.2,
+                "b": 1.0,
+                "durationSeconds": 4.0,
+                "g": 0.45,
+                "name": "Final Tint",
+                "type": "SCREEN_TINT",
+                "eventOrigin": "GENERATED"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "choreography": {
+    "plan": {
+      "structureVersion": 2,
+      "sections": [
+        {
+          "startSeconds": 0.0,
+          "endSeconds": 8.0,
+          "sectionType": "INTRO",
+          "label": "Intro",
+          "confidence": 1.0,
+          "source": "ANALYZED"
+        },
+        {
+          "startSeconds": 8.0,
+          "endSeconds": 20.0,
+          "sectionType": "VERSE",
+          "label": "Verse",
+          "confidence": 1.0,
+          "source": "ANALYZED"
+        },
+        {
+          "startSeconds": 20.0,
+          "endSeconds": 28.0,
+          "sectionType": "PRE_CHORUS",
+          "label": "Pre-Chorus",
+          "confidence": 1.0,
+          "source": "ANALYZED"
+        },
+        {
+          "startSeconds": 28.0,
+          "endSeconds": 40.0,
+          "sectionType": "CHORUS",
+          "label": "Chorus",
+          "confidence": 1.0,
+          "source": "ANALYZED"
+        },
+        {
+          "startSeconds": 40.0,
+          "endSeconds": 48.0,
+          "sectionType": "BUILD",
+          "label": "Build",
+          "confidence": 1.0,
+          "source": "ANALYZED"
+        },
+        {
+          "startSeconds": 48.0,
+          "endSeconds": 58.0,
+          "sectionType": "DROP",
+          "label": "Drop",
+          "confidence": 1.0,
+          "source": "ANALYZED"
+        },
+        {
+          "startSeconds": 58.0,
+          "endSeconds": 66.0,
+          "sectionType": "BREAK",
+          "label": "Break",
+          "confidence": 1.0,
+          "source": "ANALYZED"
+        },
+        {
+          "startSeconds": 66.0,
+          "endSeconds": 80.0,
+          "sectionType": "DROP",
+          "label": "Final",
+          "confidence": 1.0,
+          "source": "ANALYZED"
+        }
+      ],
+      "stageRoles": [
+        {
+          "normalizedFeatureKey": "low",
+          "targetObjectId": "Tower_A"
+        },
+        {
+          "normalizedFeatureKey": "mid",
+          "targetObjectId": "Tower_B"
+        },
+        {
+          "normalizedFeatureKey": "high",
+          "targetObjectId": "Tower_C"
+        }
+      ],
+      "motionPhrases": [
+        {
+          "timeSeconds": 2.0,
+          "trackKey": "kick",
+          "normalizedFeatureKey": "low",
+          "energy": 0.35,
+          "animationTypeId": "pulse",
+          "durationSeconds": 0.35,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 2.0,
+          "minGapSeconds": 0.25,
+          "sectionIndex": 0
+        },
+        {
+          "timeSeconds": 10.0,
+          "trackKey": "kick",
+          "normalizedFeatureKey": "mid",
+          "energy": 0.4,
+          "animationTypeId": "pulse",
+          "durationSeconds": 0.35,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 2.0,
+          "minGapSeconds": 0.25,
+          "sectionIndex": 1
+        },
+        {
+          "timeSeconds": 22.0,
+          "trackKey": "kick",
+          "normalizedFeatureKey": "high",
+          "energy": 0.45,
+          "animationTypeId": "pulse",
+          "durationSeconds": 0.4,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 2.0,
+          "minGapSeconds": 0.2,
+          "sectionIndex": 2
+        },
+        {
+          "timeSeconds": 32.0,
+          "trackKey": "kick",
+          "normalizedFeatureKey": "low",
+          "energy": 0.4,
+          "animationTypeId": "pulse",
+          "durationSeconds": 0.35,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 2.0,
+          "minGapSeconds": 0.2,
+          "sectionIndex": 3
+        },
+        {
+          "timeSeconds": 44.0,
+          "trackKey": "kick",
+          "normalizedFeatureKey": "mid",
+          "energy": 0.5,
+          "animationTypeId": "pulse",
+          "durationSeconds": 0.4,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 2.0,
+          "minGapSeconds": 0.15,
+          "sectionIndex": 4
+        },
+        {
+          "timeSeconds": 60.0,
+          "trackKey": "kick",
+          "normalizedFeatureKey": "low",
+          "energy": 0.35,
+          "animationTypeId": "pulse",
+          "durationSeconds": 0.35,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 2.0,
+          "minGapSeconds": 0.3,
+          "sectionIndex": 6
+        }
+      ],
+      "spatialMotifPhrases": [],
+      "choreographyPhrases": [
+        {
+          "trigger": {
+            "type": "every_n_beats",
+            "beats": 4,
+            "phaseOffset": 0
+          },
+          "targets": [
+            "Tower_A",
+            "Tower_B",
+            "Tower_C",
+            "Tower_D"
+          ],
+          "spatial": {
+            "pattern": "CASCADE",
+            "axis": "X"
+          },
+          "motionPreset": "bounce",
+          "motionDurationSeconds": 0.5,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 4.0,
+          "staggerSeconds": 0.08,
+          "intensityStart": 0.75,
+          "intensityEnd": 0.75,
+          "intensityCurve": "FLAT",
+          "variationKind": "NONE",
+          "variationAmount": 0.0,
+          "sectionIndex": 1
+        },
+        {
+          "trigger": {
+            "type": "every_n_feature_hits",
+            "featureKey": "kick",
+            "interval": 4
+          },
+          "targets": [
+            "Tower_A",
+            "Tower_B",
+            "Tower_C",
+            "Tower_D",
+            "Tower_E",
+            "Tower_F",
+            "Tower_G",
+            "Tower_H"
+          ],
+          "spatial": {
+            "pattern": "WAVE",
+            "axis": "Z"
+          },
+          "motionPreset": "bounce",
+          "motionDurationSeconds": 0.5,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 4.0,
+          "staggerSeconds": 0.06,
+          "intensityStart": 0.6,
+          "intensityEnd": 0.95,
+          "intensityCurve": "CRESCENDO",
+          "variationKind": "NONE",
+          "variationAmount": 0.0,
+          "sectionIndex": 3
+        },
+        {
+          "trigger": {
+            "type": "every_n_beats",
+            "beats": 2,
+            "phaseOffset": 0
+          },
+          "targets": [
+            "Tower_E",
+            "Tower_F",
+            "Tower_G",
+            "Tower_H"
+          ],
+          "spatial": {
+            "pattern": "ALTERNATE",
+            "axis": "X"
+          },
+          "motionPreset": "pulse",
+          "motionDurationSeconds": 0.45,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 3.0,
+          "staggerSeconds": 0.05,
+          "intensityStart": 0.8,
+          "intensityEnd": 0.8,
+          "intensityCurve": "FLAT",
+          "variationKind": "NONE",
+          "variationAmount": 0.0,
+          "sectionIndex": 4
+        },
+        {
+          "trigger": {
+            "type": "every_n_beats",
+            "beats": 4,
+            "phaseOffset": 0
+          },
+          "targets": [
+            "Tower_A",
+            "Tower_B",
+            "Tower_C",
+            "Tower_D"
+          ],
+          "spatial": {
+            "pattern": "EXPLODE",
+            "axis": "RADIAL"
+          },
+          "motionPreset": "bounce",
+          "motionDurationSeconds": 0.5,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 4.0,
+          "intensityStart": 0.7,
+          "intensityEnd": 0.7,
+          "intensityCurve": "FLAT",
+          "variationKind": "NONE",
+          "variationAmount": 0.0,
+          "sectionIndex": 6
+        },
+        {
+          "trigger": {
+            "type": "first_feature",
+            "featureKey": "kick",
+            "minEnergy": 0.7
+          },
+          "targets": [
+            "Tower_A",
+            "Tower_B",
+            "Tower_C",
+            "Tower_D",
+            "Tower_E",
+            "Tower_F",
+            "Tower_G",
+            "Tower_H"
+          ],
+          "spatial": {
+            "pattern": "EXPLODE",
+            "axis": "RADIAL"
+          },
+          "motionPreset": "jump",
+          "motionDurationSeconds": 0.6,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 5.0,
+          "intensityStart": 1.0,
+          "intensityEnd": 1.0,
+          "intensityCurve": "FLAT",
+          "variationKind": "NONE",
+          "variationAmount": 0.0,
+          "sectionIndex": 5,
+          "layer": "HERO"
+        },
+        {
+          "trigger": {
+            "type": "first_feature",
+            "featureKey": "kick",
+            "minEnergy": 0.7
+          },
+          "targets": [
+            "Tower_A",
+            "Tower_B",
+            "Tower_C",
+            "Tower_D",
+            "Tower_E",
+            "Tower_F",
+            "Tower_G",
+            "Tower_H"
+          ],
+          "spatial": {
+            "pattern": "EXPLODE",
+            "axis": "RADIAL"
+          },
+          "motionPreset": "jump",
+          "motionDurationSeconds": 0.6,
+          "useEnergyForHeight": true,
+          "heightMultiplier": 5.0,
+          "intensityStart": 1.0,
+          "intensityEnd": 1.0,
+          "intensityCurve": "FLAT",
+          "variationKind": "NONE",
+          "variationAmount": 0.0,
+          "sectionIndex": 7,
+          "layer": "HERO"
+        }
+      ],
+      "cameraPhrases": [
+        {
+          "timeSeconds": 0.0,
+          "action": "WIDE",
+          "sectionIndex": 0,
+          "subjectKind": "STAGE_OBJECT",
+          "subjectRef": "Tower_A",
+          "durationSeconds": 7.0,
+          "framing": "WIDE",
+          "movement": "STATIC",
+          "easing": "SMOOTH",
+          "beatAligned": true
+        },
+        {
+          "timeSeconds": 8.0,
+          "action": "ORBIT",
+          "sectionIndex": 1,
+          "subjectKind": "STAGE_OBJECT",
+          "subjectRef": "Tower_C",
+          "durationSeconds": 6.0,
+          "framing": "MEDIUM",
+          "movement": "ORBIT",
+          "easing": "SMOOTH",
+          "beatAligned": true,
+          "transition": "SMOOTH_MOVE"
+        },
+        {
+          "timeSeconds": 28.0,
+          "action": "PUSH",
+          "sectionIndex": 3,
+          "subjectKind": "STAGE_OBJECT",
+          "subjectRef": "Tower_E",
+          "durationSeconds": 4.0,
+          "framing": "CLOSE",
+          "movement": "DOLLY_IN",
+          "easing": "EASE_OUT",
+          "beatAligned": true,
+          "timingSnap": "BEAT"
+        },
+        {
+          "timeSeconds": 48.0,
+          "action": "WHIP_IN",
+          "sectionIndex": 5,
+          "subjectKind": "STAGE_OBJECT",
+          "subjectRef": "Tower_A",
+          "durationSeconds": 2.0,
+          "framing": "WIDE",
+          "movement": "WHIP",
+          "easing": "LINEAR",
+          "timingSnap": "BEAT",
+          "transition": "WHIP"
+        },
+        {
+          "timeSeconds": 66.0,
+          "action": "HERO",
+          "sectionIndex": 7,
+          "subjectKind": "STAGE_OBJECT",
+          "subjectRef": "Tower_D",
+          "durationSeconds": 5.0,
+          "framing": "WIDE",
+          "movement": "ORBIT",
+          "easing": "SMOOTH",
+          "beatAligned": true,
+          "transition": "DISSOLVE"
+        }
+      ],
+      "vfxPhrases": [
+        {
+          "timeSeconds": 29.0,
+          "sectionIndex": 3,
+          "kind": "PARTICLE_BURST",
+          "name": "Chorus Spark",
+          "particleType": "minecraft:crit",
+          "subjectKind": "STAGE_OBJECT",
+          "subjectRef": "Tower_A",
+          "count": 16,
+          "spread": 0.6,
+          "speed": 0.05
+        },
+        {
+          "timeSeconds": 48.5,
+          "sectionIndex": 5,
+          "kind": "SCREEN_FLASH",
+          "name": "Drop Flash",
+          "r": 1.0,
+          "g": 1.0,
+          "b": 1.0,
+          "durationSeconds": 0.2
+        },
+        {
+          "timeSeconds": 49.0,
+          "sectionIndex": 5,
+          "kind": "PARTICLE_BURST",
+          "name": "Drop Burst",
+          "particleType": "minecraft:firework",
+          "subjectKind": "ALL_STAGE_OBJECTS",
+          "count": 24,
+          "spread": 0.8,
+          "speed": 0.06
+        },
+        {
+          "timeSeconds": 66.5,
+          "sectionIndex": 7,
+          "kind": "SCREEN_TINT",
+          "name": "Final Tint",
+          "intensity": 0.35,
+          "r": 0.2,
+          "g": 0.45,
+          "b": 1.0,
+          "durationSeconds": 4.0
+        }
+      ],
+      "densityCurve": [
+        {
+          "timeSeconds": 0.0,
+          "density": 0.2
+        },
+        {
+          "timeSeconds": 8.0,
+          "density": 0.4
+        },
+        {
+          "timeSeconds": 20.0,
+          "density": 0.55
+        },
+        {
+          "timeSeconds": 28.0,
+          "density": 0.75
+        },
+        {
+          "timeSeconds": 40.0,
+          "density": 0.65
+        },
+        {
+          "timeSeconds": 48.0,
+          "density": 1.0
+        },
+        {
+          "timeSeconds": 58.0,
+          "density": 0.35
+        },
+        {
+          "timeSeconds": 66.0,
+          "density": 0.95
+        },
+        {
+          "timeSeconds": 80.0,
+          "density": 0.5
+        }
+      ],
+      "sectionEdits": [],
+      "musicalStructure": {
+        "bars": [],
+        "phrases": [],
+        "repeats": [],
+        "beatTimes": [
+          0.0,
+          0.469,
+          0.938,
+          1.406,
+          1.875,
+          2.344,
+          2.813,
+          3.281,
+          3.75,
+          4.219,
+          4.688,
+          5.156,
+          5.625,
+          6.094,
+          6.563,
+          7.031,
+          7.5,
+          7.969,
+          8.438,
+          8.906,
+          9.375,
+          9.844,
+          10.313,
+          10.781,
+          11.25,
+          11.719,
+          12.188,
+          12.656,
+          13.125,
+          13.594,
+          14.063,
+          14.531,
+          15.0,
+          15.469,
+          15.938,
+          16.406,
+          16.875,
+          17.344,
+          17.813,
+          18.281,
+          18.75,
+          19.219,
+          19.688,
+          20.156,
+          20.625,
+          21.094,
+          21.563,
+          22.031,
+          22.5,
+          22.969,
+          23.438,
+          23.906,
+          24.375,
+          24.844,
+          25.313,
+          25.781,
+          26.25,
+          26.719,
+          27.188,
+          27.656,
+          28.125,
+          28.594,
+          29.063,
+          29.531,
+          30.0,
+          30.469,
+          30.938,
+          31.406,
+          31.875,
+          32.344,
+          32.813,
+          33.281,
+          33.75,
+          34.219,
+          34.688,
+          35.156,
+          35.625,
+          36.094,
+          36.563,
+          37.031,
+          37.5,
+          37.969,
+          38.438,
+          38.906,
+          39.375,
+          39.844,
+          40.313,
+          40.781,
+          41.25,
+          41.719,
+          42.188,
+          42.656,
+          43.125,
+          43.594,
+          44.063,
+          44.531,
+          45.0,
+          45.469,
+          45.938,
+          46.406,
+          46.875,
+          47.344,
+          47.813,
+          48.281,
+          48.75,
+          49.219,
+          49.688,
+          50.156,
+          50.625,
+          51.094,
+          51.563,
+          52.031,
+          52.5,
+          52.969,
+          53.438,
+          53.906,
+          54.375,
+          54.844,
+          55.313,
+          55.781,
+          56.25,
+          56.719,
+          57.188,
+          57.656,
+          58.125,
+          58.594,
+          59.063,
+          59.531,
+          60.0,
+          60.469,
+          60.938,
+          61.406,
+          61.875,
+          62.344,
+          62.813,
+          63.281,
+          63.75,
+          64.219,
+          64.688,
+          65.156,
+          65.625,
+          66.094,
+          66.563,
+          67.031,
+          67.5,
+          67.969,
+          68.438,
+          68.906,
+          69.375,
+          69.844,
+          70.313,
+          70.781,
+          71.25,
+          71.719,
+          72.188,
+          72.656,
+          73.125,
+          73.594,
+          74.063,
+          74.531,
+          75.0,
+          75.469,
+          75.938,
+          76.406,
+          76.875,
+          77.344,
+          77.813,
+          78.281,
+          78.75,
+          79.219,
+          79.688
+        ]
+      }
+    }
+  }
+}

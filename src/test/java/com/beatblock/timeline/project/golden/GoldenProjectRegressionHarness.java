@@ -101,7 +101,7 @@ public final class GoldenProjectRegressionHarness {
 		}
 	}
 
-	private static LoadedProject loadProject(Path projectFile) throws IOException {
+	public static LoadedProject loadProject(Path projectFile) throws IOException {
 		BuildLayerManager layers = new BuildLayerManager(new StageObjectSystem());
 		Timeline timeline = Timeline.createDefault();
 		OscProjectStore.load(projectFile, layers, timeline);
@@ -183,5 +183,5 @@ public final class GoldenProjectRegressionHarness {
 		return diagnostic.severity() + " [" + diagnostic.ruleId() + "] " + diagnostic.message();
 	}
 
-	private record LoadedProject(Timeline timeline, BuildLayerManager layers) {}
+	public record LoadedProject(Timeline timeline, BuildLayerManager layers) {}
 }

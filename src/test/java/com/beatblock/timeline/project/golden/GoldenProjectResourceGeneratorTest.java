@@ -1,5 +1,6 @@
 package com.beatblock.timeline.project.golden;
 
+import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.testutil.MinecraftTestBootstrap;
 import com.beatblock.timeline.project.OscProjectStore;
 import com.google.gson.Gson;
@@ -16,6 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /** 将 {@link GoldenProjectFixtures} 写入 {@code src/test/resources/projects/}。 */
+@WithBeatBlockContext
 class GoldenProjectResourceGeneratorTest {
 
 	@BeforeAll
