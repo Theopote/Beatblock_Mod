@@ -1,6 +1,7 @@
 package com.beatblock.ui.presenter;
 
 import com.beatblock.automap.AutoMapConfig;
+import com.beatblock.automap.choreography.ChoreographyLayer;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
 import com.beatblock.automap.choreography.ChoreographyPlanEditor;
@@ -31,7 +32,7 @@ import java.util.function.Supplier;
 public final class TimelineSectionEditPresenter {
 
 	public static final String[] MOTION_ANIMATION_IDS = {
-		"bounce", "slide", "pulse", "spin", "fade"
+		"pulse", "bounce", "slide", "spin", "fade"
 	};
 
 	public static final int SPATIAL_MOTIF_AUTO_INDEX = 0;
@@ -115,10 +116,11 @@ public final class TimelineSectionEditPresenter {
 		double endSeconds,
 		double confidence,
 		SectionPlanSource source,
-		int motionCount,
+		int accentCount,
+		int phraseCount,
+		int heroCount,
 		int cameraCount,
 		int vfxCount,
-		int grammarPhraseCount,
 		@org.jspecify.annotations.Nullable SpatialMotifId spatialMotifId,
 		@org.jspecify.annotations.Nullable String grammarMotionPreset,
 		@org.jspecify.annotations.Nullable Integer grammarTriggerInterval
@@ -167,12 +169,13 @@ public final class TimelineSectionEditPresenter {
 				section.confidence(),
 				section.source(),
 				ChoreographyPlanEditor.motionPhrasesInSection(plan, i).size(),
-				ChoreographyPlanEditor.cameraPhrasesInSection(plan, i).size(),
-				ChoreographyPlanEditor.vfxPhrasesInSection(plan, i).size(),
 				Math.max(
-					ChoreographyPlanEditor.choreographyPhrasesInSection(plan, i).size(),
+					ChoreographyPlanEditor.phraseLayerPhrasesInSection(plan, i).size(),
 					ChoreographyPlanEditor.spatialMotifPhrasesInSection(plan, i).size()
 				),
+				ChoreographyPlanEditor.heroPhrasesInSection(plan, i).size(),
+				ChoreographyPlanEditor.cameraPhrasesInSection(plan, i).size(),
+				ChoreographyPlanEditor.vfxPhrasesInSection(plan, i).size(),
 				resolveDisplayedSpatialMotif(plan, i),
 				grammar != null ? grammar.motion().presetId() : null,
 				resolveDisplayedTriggerInterval(grammar, plan.sections().get(i).sectionType())
@@ -406,6 +409,31 @@ public final class TimelineSectionEditPresenter {
 			return everyN.interval();
 		}
 		return null;
+	}
+
+	public static String accentLayerHeading() {
+		return BBTexts.get(
+			"beatblock.section_edit.layer.accent",
+			formatIntensityPercent(ChoreographyLayer.ACCENT.defaultIntensityScale())
+		);
+	}
+
+	public static String phraseLayerHeading() {
+		return BBTexts.get(
+			"beatblock.section_edit.layer.phrase",
+			formatIntensityPercent(ChoreographyLayer.PHRASE.defaultIntensityScale())
+		);
+	}
+
+	public static String heroLayerHeading() {
+		return BBTexts.get(
+			"beatblock.section_edit.layer.hero",
+			formatIntensityPercent(ChoreographyLayer.HERO.defaultIntensityScale())
+		);
+	}
+
+	private static int formatIntensityPercent(float scale) {
+		return Math.round(scale * 100f);
 	}
 
 	public ApplyOutcome applySectionEdit(

@@ -62,6 +62,9 @@ public final class ChoreographyPhrasePersistence {
 		if (phrase.timingSnap() != ChoreographyTimingSnap.BAR) {
 			root.addProperty("timingSnap", phrase.timingSnap().name());
 		}
+		if (phrase.layer() != com.beatblock.automap.choreography.ChoreographyLayer.PHRASE) {
+			root.addProperty("layer", phrase.layer().name());
+		}
 		return root;
 	}
 
@@ -96,6 +99,7 @@ public final class ChoreographyPhrasePersistence {
 			getFloat(root, "variationAmount", 0f)
 		);
 		ChoreographyTimingSnap snap = parseTimingSnap(root);
+		com.beatblock.automap.choreography.ChoreographyLayer layer = parseLayer(root);
 		return new ChoreographyPhrase(
 			trigger,
 			new TargetSet(targets),
@@ -105,7 +109,8 @@ public final class ChoreographyPhrasePersistence {
 			intensity,
 			variation,
 			getInt(root, "sectionIndex", -1),
-			snap
+			snap,
+			layer
 		);
 	}
 
@@ -124,6 +129,12 @@ public final class ChoreographyPhrasePersistence {
 				obj.addProperty("interval", everyNBeats.interval());
 				yield obj;
 			}
+			case TriggerSpec.FirstFeature firstFeature -> {
+				obj.addProperty("type", "first_feature");
+				obj.addProperty("featureKey", firstFeature.normalizedFeatureKey());
+				obj.addProperty("minEnergy", firstFeature.minEnergy());
+				yield obj;
+			}
 		};
 	}
 
@@ -133,6 +144,9 @@ public final class ChoreographyPhrasePersistence {
 		String featureKey = getString(obj, "featureKey", "kick");
 		if ("every_n_beats".equalsIgnoreCase(type)) {
 			return new TriggerSpec.EveryNBeats(getInt(obj, "interval", 4), featureKey);
+		}
+		if ("first_feature".equalsIgnoreCase(type)) {
+			return new TriggerSpec.FirstFeature(featureKey, getFloat(obj, "minEnergy", 0f));
 		}
 		return new TriggerSpec.OnFeature(featureKey, getFloat(obj, "minEnergy", 0f));
 	}
@@ -180,6 +194,19 @@ public final class ChoreographyPhrasePersistence {
 			return ChoreographyTimingSnap.valueOf(getString(root, "timingSnap", "BAR").toUpperCase(Locale.ROOT));
 		} catch (IllegalArgumentException ex) {
 			return ChoreographyTimingSnap.BAR;
+		}
+	}
+
+	private static com.beatblock.automap.choreography.ChoreographyLayer parseLayer(JsonObject root) {
+		String raw = getString(root, "layer", "PHRASE");
+		try {
+			com.beatblock.automap.choreography.ChoreographyLayer layer =
+				com.beatblock.automap.choreography.ChoreographyLayer.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+			return layer == com.beatblock.automap.choreography.ChoreographyLayer.HERO
+				? com.beatblock.automap.choreography.ChoreographyLayer.HERO
+				: com.beatblock.automap.choreography.ChoreographyLayer.PHRASE;
+		} catch (IllegalArgumentException ex) {
+			return com.beatblock.automap.choreography.ChoreographyLayer.PHRASE;
 		}
 	}
 

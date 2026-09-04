@@ -18,6 +18,7 @@ public final class PhraseTriggerResolver {
 		return switch (phrase.trigger()) {
 			case TriggerSpec.OnFeature onFeature -> resolveOnFeature(onFeature, resolved);
 			case TriggerSpec.EveryNBeats everyNBeats -> resolveEveryNBeats(everyNBeats, resolved);
+			case TriggerSpec.FirstFeature firstFeature -> resolveFirstFeature(firstFeature, resolved);
 		};
 	}
 
@@ -25,7 +26,10 @@ public final class PhraseTriggerResolver {
 		TriggerSpec.OnFeature trigger,
 		PhraseTriggerContext context
 	) {
-		List<FeatureEventRef> matches = matchingFeatures(trigger.normalizedFeatureKey(), context.featureEvents());
+		List<FeatureEventRef> matches = matchingFeatures(
+			trigger.normalizedFeatureKey(),
+			eventsInActiveRange(context)
+		);
 		List<TriggerInstance> out = new ArrayList<>();
 		int index = 0;
 		for (FeatureEventRef event : matches) {
@@ -35,17 +39,41 @@ public final class PhraseTriggerResolver {
 		return List.copyOf(out);
 	}
 
+	private static List<TriggerInstance> resolveFirstFeature(
+		TriggerSpec.FirstFeature trigger,
+		PhraseTriggerContext context
+	) {
+		List<FeatureEventRef> matches = matchingFeatures(
+			trigger.normalizedFeatureKey(),
+			eventsInActiveRange(context)
+		);
+		for (FeatureEventRef event : matches) {
+			if (event.energy() < trigger.minEnergy()) continue;
+			return List.of(new TriggerInstance(event.timeSeconds(), event.energy(), 0));
+		}
+		return List.of();
+	}
+
 	private static List<TriggerInstance> resolveEveryNBeats(
 		TriggerSpec.EveryNBeats trigger,
 		PhraseTriggerContext context
 	) {
-		List<FeatureEventRef> matches = matchingFeatures(trigger.anchorFeatureKey(), context.featureEvents());
+		List<FeatureEventRef> matches = matchingFeatures(
+			trigger.anchorFeatureKey(),
+			eventsInActiveRange(context)
+		);
 		List<TriggerInstance> out = new ArrayList<>();
 		for (int i = 0; i < matches.size(); i += trigger.interval()) {
 			FeatureEventRef event = matches.get(i);
 			out.add(new TriggerInstance(event.timeSeconds(), event.energy(), out.size()));
 		}
 		return List.copyOf(out);
+	}
+
+	private static List<FeatureEventRef> eventsInActiveRange(PhraseTriggerContext context) {
+		return context.featureEvents().stream()
+			.filter(event -> context.containsTime(event.timeSeconds()))
+			.toList();
 	}
 
 	private static List<FeatureEventRef> matchingFeatures(String featureKey, List<FeatureEventRef> events) {

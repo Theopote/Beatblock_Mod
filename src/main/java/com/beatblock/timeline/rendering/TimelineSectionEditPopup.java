@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Section 编舞编辑弹窗：按音乐段落调整类型、锁定、motion/camera/vfx 开关与覆盖参数。
+ * Section 编舞编辑弹窗：按 ACCENT / PHRASE 层分组编辑 motion 与跨目标语法。
  */
 public final class TimelineSectionEditPopup {
 
@@ -85,7 +85,11 @@ public final class TimelineSectionEditPopup {
 		ImGui.separator();
 		renderStructureFields();
 		ImGui.separator();
-		renderEditFields();
+		renderSupportTrackToggles();
+		ImGui.separator();
+		renderAccentLayerFields();
+		ImGui.separator();
+		renderPhraseLayerFields();
 		ImGui.separator();
 		renderApplyButton();
 
@@ -107,13 +111,20 @@ public final class TimelineSectionEditPopup {
 	}
 
 	private void renderSelectedSectionSummary(TimelineSectionEditPresenter.SectionView section) {
-		ImGui.text(BBTexts.get("beatblock.section_edit.summary",
-			section.motionCount(), section.cameraCount(), section.vfxCount(), section.grammarPhraseCount()));
+		ImGui.text(BBTexts.get(
+			"beatblock.section_edit.summary",
+			section.accentCount(),
+			section.phraseCount(),
+			section.heroCount(),
+			section.cameraCount(),
+			section.vfxCount()
+		));
+		ImGui.textDisabled(BBTexts.get("beatblock.section_edit.layer.hint"));
 		String motifLabel = section.spatialMotifId() != null
 			? section.spatialMotifId().name()
 			: BBTexts.get("beatblock.section_edit.spatial_motif.none");
 		ImGui.textDisabled(BBTexts.get("beatblock.section_edit.spatial_motif.current", motifLabel));
-		if (section.grammarPhraseCount() > 0) {
+		if (section.phraseCount() > 0) {
 			String motion = section.grammarMotionPreset() != null ? section.grammarMotionPreset() : "-";
 			Integer triggerInterval = section.grammarTriggerInterval();
 			String trigger = triggerInterval != null
@@ -124,6 +135,9 @@ public final class TimelineSectionEditPopup {
 				trigger,
 				motion
 			));
+		}
+		if (section.heroCount() > 0) {
+			ImGui.textDisabled(TimelineSectionEditPresenter.heroLayerHeading());
 		}
 		ImGui.textDisabled(BBTexts.get(
 			"beatblock.section_edit.confidence",
@@ -146,17 +160,41 @@ public final class TimelineSectionEditPopup {
 		}
 	}
 
-	private void renderEditFields() {
-		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.motion_enabled"), motionEnabled)) profileDirty = true;
+	private void renderSupportTrackToggles() {
+		ImGui.textDisabled(BBTexts.get("beatblock.section_edit.layer.support"));
+		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.camera_enabled"), cameraEnabled)) {
+			profileDirty = true;
+		}
 		ImGui.sameLine();
-		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.camera_enabled"), cameraEnabled)) profileDirty = true;
-		ImGui.sameLine();
-		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.vfx_enabled"), vfxEnabled)) profileDirty = true;
+		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.vfx_enabled"), vfxEnabled)) {
+			profileDirty = true;
+		}
+	}
 
+	private void renderAccentLayerFields() {
+		ImGui.text(TimelineSectionEditPresenter.accentLayerHeading());
+		ImGui.textDisabled(BBTexts.get("beatblock.section_edit.layer.accent.hint"));
+		if (ImGui.checkbox(BBTexts.get("beatblock.section_edit.motion_enabled"), motionEnabled)) {
+			profileDirty = true;
+		}
 		if (ImGui.combo(BBTexts.get("beatblock.section_edit.motion_animation"), animationTypeIndex,
 			TimelineSectionEditPresenter.MOTION_ANIMATION_IDS)) {
 			profileDirty = true;
 		}
+		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.density_threshold"), densityThreshold, 0.01f, 0.05f, "%.2f")) {
+			profileDirty = true;
+		}
+		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.time_offset"), timeOffsetSeconds, 0.05f, 0.25f, "%.2f")) {
+			profileDirty = true;
+		}
+		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.energy_scale"), energyScale, 0.05f, 0.1f, "%.2f")) {
+			profileDirty = true;
+		}
+	}
+
+	private void renderPhraseLayerFields() {
+		ImGui.text(TimelineSectionEditPresenter.phraseLayerHeading());
+		ImGui.textDisabled(BBTexts.get("beatblock.section_edit.layer.phrase.hint"));
 		if (ImGui.combo(BBTexts.get("beatblock.section_edit.spatial_motif"), spatialMotifIndex,
 			TimelineSectionEditPresenter.spatialMotifDropdownLabels())) {
 			profileDirty = true;
@@ -174,15 +212,6 @@ public final class TimelineSectionEditPopup {
 		}
 		if (ImGui.combo(BBTexts.get("beatblock.section_edit.grammar.variation"), grammarVariationIndex,
 			TimelineSectionEditPresenter.grammarVariationLabels())) {
-			profileDirty = true;
-		}
-		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.density_threshold"), densityThreshold, 0.01f, 0.05f, "%.2f")) {
-			profileDirty = true;
-		}
-		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.time_offset"), timeOffsetSeconds, 0.05f, 0.25f, "%.2f")) {
-			profileDirty = true;
-		}
-		if (ImGui.inputFloat(BBTexts.get("beatblock.section_edit.energy_scale"), energyScale, 0.05f, 0.1f, "%.2f")) {
 			profileDirty = true;
 		}
 	}

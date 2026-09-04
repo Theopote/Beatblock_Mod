@@ -5,6 +5,7 @@ import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.automap.AutoMapRule;
 import com.beatblock.audio.analysis.structure.MusicStructure;
 import com.beatblock.automap.choreography.grammar.ChoreographyGrammarSelection;
+import com.beatblock.automap.choreography.grammar.ChoreographyHeroSelection;
 import com.beatblock.automap.choreography.grammar.ChoreographyPhrase;
 import com.beatblock.automap.choreography.grammar.TargetSet;
 import com.beatblock.automap.engine.AnimationMapper;
@@ -145,15 +146,22 @@ public final class ChoreographyPlanBuilder {
 			String normalized = AutoMapGenerator.normalizedFeatureKey(event.getType());
 			String trackKey = event.getType().name().toLowerCase();
 			AutoMapRule rule = ruleByFeature.get(normalized);
-			boolean useHeight = rule != null && rule.isUseEnergyForHeight();
+			boolean useHeight = rule != null ? rule.isUseEnergyForHeight() : true;
 			float heightMult = rule != null ? rule.getHeightMultiplier() : config.getDefaultHeightMultiplier();
+			// Accent 层：有 rule 用 rule；否则默认轻量 pulse（风格化大动作留给 Phrase 层）。
+			String accentAnimation = rule != null
+				? rule.getAnimationTypeId()
+				: ChoreographyLayer.defaultAccentPrimitiveId();
+			double accentDuration = rule != null
+				? rule.getDurationSeconds()
+				: Math.min(0.35, AnimationMapper.getDurationSeconds(event.getType(), style));
 			motions.add(new ChoreographyPlan.MotionPhrase(
 				event.getTimeSeconds(),
 				trackKey,
 				normalized,
 				event.getEnergy(),
-				AnimationMapper.getAnimationTypeId(event, style),
-				AnimationMapper.getDurationSeconds(event.getType(), style),
+				accentAnimation,
+				accentDuration,
 				useHeight,
 				heightMult,
 				rule != null ? rule.getMinGapSeconds() : 0.0,
@@ -217,9 +225,10 @@ public final class ChoreographyPlanBuilder {
 		List<ChoreographyPhrase> phrases = new ArrayList<>(sections.size());
 		for (int i = 0; i < sections.size(); i++) {
 			ChoreographyPlan.SectionPlan section = sections.get(i);
+			TargetSet targets = TargetSet.of(participants.toArray(String[]::new));
 			phrases.add(new ChoreographyPhrase(
 				ChoreographyGrammarSelection.defaultTrigger(section.sectionType()),
-				TargetSet.of(participants.toArray(String[]::new)),
+				targets,
 				ChoreographyGrammarSelection.spatialPattern(section.sectionType()),
 				ChoreographyGrammarSelection.motion(section.sectionType()),
 				ChoreographyGrammarSelection.timing(section.sectionType()),
@@ -227,6 +236,11 @@ public final class ChoreographyPlanBuilder {
 				ChoreographyGrammarSelection.variation(section.sectionType()),
 				i
 			));
+			ChoreographyPhrase hero = ChoreographyHeroSelection.phraseForSection(
+				i, section.sectionType(), targets);
+			if (hero != null) {
+				phrases.add(hero);
+			}
 		}
 		return phrases;
 	}

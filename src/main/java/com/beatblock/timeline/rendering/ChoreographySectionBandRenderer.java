@@ -188,7 +188,12 @@ public final class ChoreographySectionBandRenderer {
 
 		if (hit.isBody()) {
 			ChoreographyPlan.SectionPlan section = plan.sections().get(hit.sectionIndex());
-			int motion = ChoreographyPlanEditor.motionPhrasesInSection(plan, hit.sectionIndex()).size();
+			int accent = ChoreographyPlanEditor.motionPhrasesInSection(plan, hit.sectionIndex()).size();
+			int phrase = Math.max(
+				ChoreographyPlanEditor.phraseLayerPhrasesInSection(plan, hit.sectionIndex()).size(),
+				ChoreographyPlanEditor.spatialMotifPhrasesInSection(plan, hit.sectionIndex()).size()
+			);
+			int hero = ChoreographyPlanEditor.heroPhrasesInSection(plan, hit.sectionIndex()).size();
 			int camera = ChoreographyPlanEditor.cameraPhrasesInSection(plan, hit.sectionIndex()).size();
 			int vfx = ChoreographyPlanEditor.vfxPhrasesInSection(plan, hit.sectionIndex()).size();
 			ImGui.setTooltip(BBTexts.get(
@@ -199,7 +204,9 @@ public final class ChoreographySectionBandRenderer {
 				section.endSeconds(),
 				(int) Math.round(section.confidence() * 100.0),
 				sourceLabel(section.source()),
-				motion,
+				accent,
+				phrase,
+				hero,
 				camera,
 				vfx
 			));

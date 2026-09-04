@@ -39,4 +39,48 @@ class PhraseTriggerResolverTest {
 		assertEquals(4.0, triggers.get(1).timeSeconds(), 1e-9);
 		assertEquals(8.0, triggers.get(2).timeSeconds(), 1e-9);
 	}
+
+	@Test
+	void sectionScopedContextOnlyMatchesEventsInSectionTimeRange() {
+		ChoreographyPhrase phraseA = new ChoreographyPhrase(
+			new TriggerSpec.OnFeature("kick"),
+			TargetSet.of("a"),
+			SpatialPatternSpec.leftToRight(),
+			MotionPresetSpec.bounce(),
+			TimingPatternSpec.stagger(0.08),
+			IntensityEnvelope.flat(0.8f),
+			VariationSpec.none(),
+			0
+		);
+		ChoreographyPhrase phraseB = new ChoreographyPhrase(
+			new TriggerSpec.OnFeature("kick"),
+			TargetSet.of("b"),
+			SpatialPatternSpec.leftToRight(),
+			MotionPresetSpec.bounce(),
+			TimingPatternSpec.stagger(0.08),
+			IntensityEnvelope.flat(0.8f),
+			VariationSpec.none(),
+			1
+		);
+		PhraseTriggerContext global = new PhraseTriggerContext(List.of(
+			new FeatureEventRef(2.0, "kick", 0.9f),
+			new FeatureEventRef(4.0, "kick", 0.8f),
+			new FeatureEventRef(12.0, "kick", 0.7f),
+			new FeatureEventRef(14.0, "kick", 0.6f)
+		));
+		PhraseTriggerContext sectionA = PhraseTriggerContext.forSection(
+			global,
+			new com.beatblock.automap.choreography.ChoreographyPlan.SectionPlan(0, 10, null, "A")
+		);
+		PhraseTriggerContext sectionB = PhraseTriggerContext.forSection(
+			global,
+			new com.beatblock.automap.choreography.ChoreographyPlan.SectionPlan(10, 20, null, "B")
+		);
+
+		List<TriggerInstance> triggersA = PhraseTriggerResolver.resolve(phraseA, sectionA);
+		List<TriggerInstance> triggersB = PhraseTriggerResolver.resolve(phraseB, sectionB);
+
+		assertEquals(List.of(2.0, 4.0), triggersA.stream().map(TriggerInstance::timeSeconds).toList());
+		assertEquals(List.of(12.0, 14.0), triggersB.stream().map(TriggerInstance::timeSeconds).toList());
+	}
 }

@@ -29,6 +29,9 @@ public sealed interface ContentReplacePolicy {
 
 	record ReplaceSection(int sectionIndex) implements ContentReplacePolicy {}
 
+	/** 仅替换指定 {@code generatorId} 在指定 {@code sectionIndex} 的内容。 */
+	record ReplaceGeneratorSection(String generatorId, int sectionIndex) implements ContentReplacePolicy {}
+
 	static ContentReplacePolicy append() {
 		return new Append();
 	}
@@ -55,5 +58,9 @@ public sealed interface ContentReplacePolicy {
 
 	static ContentReplacePolicy replaceSection(int sectionIndex) {
 		return new ReplaceSection(sectionIndex);
+	}
+
+	static ContentReplacePolicy replaceGeneratorSection(String generatorId, int sectionIndex) {
+		return new ReplaceGeneratorSection(generatorId, sectionIndex);
 	}
 }

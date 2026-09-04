@@ -93,6 +93,140 @@ class TimelineGenerationMetadataTest {
 	}
 
 	@Test
+	void replaceGeneratorSectionOnlyRemovesMatchingGeneratorInTargetSection() {
+		Timeline timeline = Timeline.createDefault();
+
+		TimelineGenerationMetadata smartAutomapSection0 = new TimelineGenerationMetadata(
+			TimelineEventOrigin.GENERATED,
+			TimelineGeneratorIds.SMART_AUTOMAP,
+			"gen-a",
+			0,
+			-1,
+			""
+		);
+		TimelineGenerationMetadata smartAutomapSection3 = new TimelineGenerationMetadata(
+			TimelineEventOrigin.GENERATED,
+			TimelineGeneratorIds.SMART_AUTOMAP,
+			"gen-b",
+			3,
+			-1,
+			""
+		);
+		TimelineGenerationMetadata aiDirectorSection3 = new TimelineGenerationMetadata(
+			TimelineEventOrigin.GENERATED,
+			TimelineGeneratorIds.AI_DIRECTOR,
+			"gen-c",
+			3,
+			-1,
+			""
+		);
+		TimelineGenerationMetadata templateSection3 = new TimelineGenerationMetadata(
+			TimelineEventOrigin.GENERATED,
+			TimelineGeneratorIds.TEMPLATE_GENERATOR,
+			"gen-d",
+			3,
+			-1,
+			""
+		);
+
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 1.0, 2.0,
+			0, 64, 0,
+			8, 4, 0, 90,
+			smartAutomapSection0,
+			null
+		);
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 2.0, 2.0,
+			0, 64, 0,
+			8, 4, 0, 90,
+			smartAutomapSection3,
+			null
+		);
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 3.0, 2.0,
+			0, 64, 0,
+			8, 4, 0, 90,
+			aiDirectorSection3,
+			null
+		);
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 4.0, 2.0,
+			0, 64, 0,
+			8, 4, 0, 90,
+			templateSection3,
+			null
+		);
+		assertEquals(4, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+
+		timeline.applyContentReplacePolicy(
+			Timeline.TRACK_ID_CAMERA,
+			ContentReplacePolicy.replaceGeneratorSection(TimelineGeneratorIds.SMART_AUTOMAP, 3)
+		);
+
+		assertEquals(3, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+		var remainingGenerators = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().stream()
+			.map(clip -> TimelineClipOrigin.metadataFromClip(clip, Timeline.TRACK_ID_CAMERA).generatorId())
+			.sorted()
+			.toList();
+		assertEquals(
+			List.of(
+				TimelineGeneratorIds.AI_DIRECTOR,
+				TimelineGeneratorIds.SMART_AUTOMAP,
+				TimelineGeneratorIds.TEMPLATE_GENERATOR
+			),
+			remainingGenerators
+		);
+		var remainingSections = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().stream()
+			.map(clip -> TimelineClipOrigin.metadataFromClip(clip, Timeline.TRACK_ID_CAMERA).sectionIndex())
+			.sorted()
+			.toList();
+		assertEquals(List.of(0, 3, 3), remainingSections);
+	}
+
+	@Test
+	void replaceSectionStillRemovesAllGeneratedContentInSectionRegardlessOfGenerator() {
+		Timeline timeline = Timeline.createDefault();
+		TimelineGenerationMetadata smartAutomap = new TimelineGenerationMetadata(
+			TimelineEventOrigin.GENERATED,
+			TimelineGeneratorIds.SMART_AUTOMAP,
+			"gen-a",
+			3,
+			-1,
+			""
+		);
+		TimelineGenerationMetadata aiDirector = new TimelineGenerationMetadata(
+			TimelineEventOrigin.GENERATED,
+			TimelineGeneratorIds.AI_DIRECTOR,
+			"gen-b",
+			3,
+			-1,
+			""
+		);
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 1.0, 2.0,
+			0, 64, 0,
+			8, 4, 0, 90,
+			smartAutomap,
+			null
+		);
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 2.0, 2.0,
+			0, 64, 0,
+			8, 4, 0, 90,
+			aiDirector,
+			null
+		);
+
+		timeline.applyContentReplacePolicy(
+			Timeline.TRACK_ID_CAMERA,
+			ContentReplacePolicy.replaceSection(3)
+		);
+
+		assertEquals(0, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+	}
+
+	@Test
 	void smartAutoMapCompileStampsGeneratorAndGenerationBatch() {
 		Timeline timeline = Timeline.createDefault();
 		timeline.setMetadata("projectId", "golden-test");

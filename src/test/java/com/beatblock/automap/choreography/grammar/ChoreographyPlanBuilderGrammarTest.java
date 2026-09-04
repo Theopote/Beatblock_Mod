@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChoreographyPlanBuilderGrammarTest {
 
@@ -34,11 +35,13 @@ class ChoreographyPlanBuilderGrammarTest {
 			config
 		);
 
-		assertEquals(1, plan.choreographyPhrases().size());
+		assertEquals(2, plan.choreographyPhrases().size());
 		assertEquals(0, plan.spatialMotifPhrases().size());
 		assertInstanceOf(TriggerSpec.EveryNBeats.class, plan.choreographyPhrases().getFirst().trigger());
 		assertEquals(SpatialMotifId.WAVE, plan.choreographyPhrases().getFirst().spatial().resolvedPattern());
 		assertEquals(2, plan.choreographyPhrases().getFirst().targets().size());
+		assertTrue(plan.choreographyPhrases().get(1).isHero());
+		assertInstanceOf(TriggerSpec.FirstFeature.class, plan.choreographyPhrases().get(1).trigger());
 	}
 
 	@Test
@@ -63,7 +66,7 @@ class ChoreographyPlanBuilderGrammarTest {
 		int count = com.beatblock.automap.choreography.ChoreographyPlanCompiler.compileAnimationEvents(
 			timeline, plan, com.beatblock.automap.choreography.ReplaceMode.APPEND);
 
-		assertEquals(1, plan.choreographyPhrases().size());
-		assertEquals(4, count);
+		assertEquals(2, plan.choreographyPhrases().size());
+		assertEquals(6, count);
 	}
 }

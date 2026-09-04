@@ -76,14 +76,17 @@ public final class AutoMapConfig {
 		return new Builder();
 	}
 
-	/** 默认配置：低→bounce、中→slide、高→pulse，与设计一致。 */
+	/**
+	 * 默认 Accent 规则（{@link com.beatblock.automap.choreography.ChoreographyLayer#ACCENT}）：
+	 * 低 / 中 / 高均为轻量局部响应；跨对象编舞由 {@link com.beatblock.automap.choreography.grammar.ChoreographyPhrase} 承担。
+	 */
 	public static AutoMapConfig createDefault() {
 		return builder()
 			.minGapSeconds(0.08)
-			.defaultHeightMultiplier(3f)
-			.rule(new AutoMapRule("low", 0.15f, "bounce", 0.5, true, 4f, 0.12, null, ChoreographyTimingSnap.BEAT))
-			.rule(new AutoMapRule("mid", 0.2f, "slide", 0.4, true, 3f, 0.08, null, ChoreographyTimingSnap.BEAT))
-			.rule(new AutoMapRule("high", 0.15f, "pulse", 0.3, false, 1f, 0.04, null, ChoreographyTimingSnap.NONE))
+			.defaultHeightMultiplier(1.5f)
+			.rule(new AutoMapRule("low", 0.15f, "pulse", 0.35, true, 1.5f, 0.12, null, ChoreographyTimingSnap.BEAT))
+			.rule(new AutoMapRule("mid", 0.2f, "pulse", 0.3, true, 1.25f, 0.08, null, ChoreographyTimingSnap.BEAT))
+			.rule(new AutoMapRule("high", 0.15f, "pulse", 0.25, false, 1f, 0.04, null, ChoreographyTimingSnap.NONE))
 			.build();
 	}
 

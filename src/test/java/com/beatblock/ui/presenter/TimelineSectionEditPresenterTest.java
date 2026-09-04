@@ -53,6 +53,9 @@ class TimelineSectionEditPresenterTest {
 
 		assertTrue(presenter.canEdit());
 		assertEquals(1, presenter.listSections().size());
+		assertEquals(1, presenter.listSections().getFirst().accentCount());
+		assertEquals(0, presenter.listSections().getFirst().phraseCount());
+		assertEquals(0, presenter.listSections().getFirst().heroCount());
 
 		var outcome = presenter.applySectionEdit(
 			0,
@@ -171,5 +174,51 @@ class TimelineSectionEditPresenterTest {
 		);
 		assertTrue(outcome.animationEvents() > 0);
 		assertEquals(outcome.animationEvents(), timeline.getAutoAnimationEvents().size());
+	}
+
+	@Test
+	void listSectionsGroupsAccentAndPhraseCounts() {
+		Timeline timeline = Timeline.createDefault();
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 12, SectionType.CHORUS, "chorus")),
+			List.of(
+				new ChoreographyPlan.StageRoleAssignment("low", "tower-a"),
+				new ChoreographyPlan.StageRoleAssignment("mid", "tower-b")
+			),
+			List.of(new ChoreographyPlan.MotionPhrase(1.0, "kick", "low", 0.8f, "pulse", 0.35, true, 1.5f, 0)),
+			List.of(),
+			List.of(),
+			DensityCurve.uniform(1.0),
+			List.of(),
+			ChoreographyPlan.MusicalStructure.empty(),
+			List.of(),
+			List.of(new com.beatblock.automap.choreography.grammar.ChoreographyPhrase(
+				new com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats(4, "kick"),
+				com.beatblock.automap.choreography.grammar.TargetSet.of("tower-a", "tower-b"),
+				com.beatblock.automap.choreography.grammar.SpatialPatternSpec.leftToRight(),
+				com.beatblock.automap.choreography.grammar.MotionPresetSpec.bounce(),
+				com.beatblock.automap.choreography.grammar.TimingPatternSpec.stagger(0.06),
+				com.beatblock.automap.choreography.grammar.IntensityEnvelope.flat(0.75f),
+				com.beatblock.automap.choreography.grammar.VariationSpec.none(),
+				0
+			))
+		);
+		ChoreographyPlanStore.save(timeline, plan, AutoMapConfig.createDefault());
+
+		var presenter = new TimelineSectionEditPresenter(() -> BeatBlockContext.builder()
+			.timeline(timeline)
+			.build());
+
+		var view = presenter.listSections().getFirst();
+		assertEquals(1, view.accentCount());
+		assertEquals(1, view.phraseCount());
+		assertEquals(0, view.heroCount());
+		assertEquals(0, view.cameraCount());
+		assertEquals(0, view.vfxCount());
+		assertEquals(0.25f, com.beatblock.automap.choreography.ChoreographyLayer.ACCENT.defaultIntensityScale(), 1e-6f);
+		assertEquals(0.75f, com.beatblock.automap.choreography.ChoreographyLayer.PHRASE.defaultIntensityScale(), 1e-6f);
+		assertFalse(TimelineSectionEditPresenter.accentLayerHeading().isBlank());
+		assertFalse(TimelineSectionEditPresenter.phraseLayerHeading().isBlank());
+		assertEquals("pulse", TimelineSectionEditPresenter.MOTION_ANIMATION_IDS[0]);
 	}
 }

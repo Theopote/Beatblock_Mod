@@ -46,6 +46,8 @@ class ChoreographyPlanBuilderRhythmTest {
 		assertEquals(2, plan.motionPhrases().size());
 		assertEquals("low", plan.motionPhrases().get(0).normalizedFeatureKey());
 		assertEquals("mid", plan.motionPhrases().get(1).normalizedFeatureKey());
+		assertEquals("pulse", plan.motionPhrases().get(0).animationTypeId());
+		assertEquals("pulse", plan.motionPhrases().get(1).animationTypeId());
 		assertEquals(2, plan.stageRoles().size());
 		assertEquals(1, plan.cameraPhrases().size());
 		assertTrue(plan.cameraPhrases().getFirst().action().contains("PAN"));

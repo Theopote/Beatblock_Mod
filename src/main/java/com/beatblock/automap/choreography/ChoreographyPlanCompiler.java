@@ -26,6 +26,14 @@ import java.util.Map;
 /**
  * 将 {@link ChoreographyPlan} 编译为 Timeline 草稿事件。
  * <p>
+ * 动画编译顺序与语义层：
+ * <ol>
+ *   <li>{@link ChoreographyLayer#ACCENT} — {@link ChoreographyPlan.MotionPhrase}</li>
+ *   <li>{@link ChoreographyLayer#PHRASE} — {@link SpatialMotifPhrase}（legacy）与常规 Grammar Phrase</li>
+ *   <li>{@link ChoreographyLayer#HERO} — Grammar Phrase with {@link com.beatblock.automap.choreography.grammar.ChoreographyPhrase#isHero()}</li>
+ * </ol>
+ * Accent / Phrase / Hero 可并存，但默认强度权重不同。
+ * <p>
  * 编译只读取 Plan（含 {@link ChoreographyPlan#stageRoles()}），不依赖 {@link com.beatblock.automap.AutoMapConfig}。
  */
 public final class ChoreographyPlanCompiler {
@@ -148,7 +156,7 @@ public final class ChoreographyPlanCompiler {
 			phrase.energy(),
 			params
 		);
-		return TimelineDraftWriter.withMetadata(event, metadata);
+		return withLayerMetadata(event, metadata, ChoreographyLayer.ACCENT);
 	}
 
 	private static List<TimelineAnimationEvent> compileSpatialMotifPhrases(
@@ -204,7 +212,7 @@ public final class ChoreographyPlanCompiler {
 					expanded.energy(),
 					expanded.params()
 				);
-				draft.add(TimelineDraftWriter.withMetadata(event, metadata));
+				draft.add(withLayerMetadata(event, metadata, ChoreographyLayer.PHRASE));
 			}
 		}
 		return draft;
@@ -219,20 +227,22 @@ public final class ChoreographyPlanCompiler {
 		if (timeline == null || plan == null || plan.choreographyPhrases().isEmpty()) {
 			return List.of();
 		}
-		com.beatblock.automap.choreography.grammar.PhraseTriggerContext context =
+		com.beatblock.automap.choreography.grammar.PhraseTriggerContext globalContext =
 			com.beatblock.automap.choreography.grammar.PhraseTriggerContextFactory.fromTimeline(timeline);
 		BlockAnimationEngine animationEngine = SpatialMotifLayoutResolver.currentAnimationEngine();
 		List<TimelineAnimationEvent> draft = new ArrayList<>();
 		for (com.beatblock.automap.choreography.grammar.ChoreographyPhrase phrase : plan.choreographyPhrases()) {
 			if (!ChoreographyPlanEditor.isGrammarPhraseEnabled(plan, phrase)) continue;
 
+			com.beatblock.automap.choreography.grammar.PhraseTriggerContext phraseContext =
+				resolveGrammarPhraseTriggerContext(globalContext, plan, phrase);
 			com.beatblock.automap.choreography.SpatialMotifLayout layout = SpatialMotifLayoutResolver.resolve(
 				phrase.targets().objectIds(),
 				phrase.spatial().resolvedAxis(),
 				animationEngine
 			);
 			for (com.beatblock.automap.choreography.grammar.PhraseGrammarExpander.ExpandedPhraseEvent expanded
-				: com.beatblock.automap.choreography.grammar.PhraseGrammarExpander.expand(phrase, context, layout)) {
+				: com.beatblock.automap.choreography.grammar.PhraseGrammarExpander.expand(phrase, phraseContext, layout)) {
 				double eventTime = TimingSnapResolver.snap(
 					expanded.timeSeconds(),
 					phrase.timingSnap(),
@@ -251,10 +261,43 @@ public final class ChoreographyPlanCompiler {
 					expanded.energy(),
 					expanded.params()
 				);
-				draft.add(TimelineDraftWriter.withMetadata(event, metadata));
+				draft.add(withLayerMetadata(event, metadata, phrase.layer()));
 			}
 		}
 		return draft;
+	}
+
+	private static TimelineAnimationEvent withLayerMetadata(
+		TimelineAnimationEvent event,
+		TimelineGenerationMetadata metadata,
+		ChoreographyLayer layer
+	) {
+		Map<String, Object> params = layer.scaleEventParams(event.getParameters(), event.getEnergy());
+		TimelineAnimationEvent scaled = new TimelineAnimationEvent(
+			event.getEventId(),
+			event.getTimeSeconds(),
+			event.getDurationSeconds(),
+			event.getAnimationTypeId(),
+			event.getTargetObjectId(),
+			layer.scaleEnergy(event.getEnergy()),
+			params
+		);
+		return TimelineDraftWriter.withMetadata(scaled, metadata);
+	}
+
+	private static com.beatblock.automap.choreography.grammar.PhraseTriggerContext resolveGrammarPhraseTriggerContext(
+		com.beatblock.automap.choreography.grammar.PhraseTriggerContext globalContext,
+		ChoreographyPlan plan,
+		com.beatblock.automap.choreography.grammar.ChoreographyPhrase phrase
+	) {
+		int sectionIndex = phrase.sectionIndex();
+		if (sectionIndex < 0 || sectionIndex >= plan.sections().size()) {
+			return globalContext;
+		}
+		return com.beatblock.automap.choreography.grammar.PhraseTriggerContext.forSection(
+			globalContext,
+			plan.sections().get(sectionIndex)
+		);
 	}
 
 	public static int compileCameraEvents(Timeline timeline, ChoreographyPlan plan) {

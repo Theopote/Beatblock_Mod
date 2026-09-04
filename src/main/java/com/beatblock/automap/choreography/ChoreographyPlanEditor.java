@@ -261,7 +261,26 @@ public final class ChoreographyPlanEditor {
 		int sectionIndex
 	) {
 		List<ChoreographyPhrase> phrases = choreographyPhrasesInSection(plan, sectionIndex);
+		for (ChoreographyPhrase phrase : phrases) {
+			if (!phrase.isHero()) return phrase;
+		}
 		return phrases.isEmpty() ? null : phrases.getFirst();
+	}
+
+	public static List<ChoreographyPhrase> heroPhrasesInSection(ChoreographyPlan plan, int sectionIndex) {
+		List<ChoreographyPhrase> out = new ArrayList<>();
+		for (ChoreographyPhrase phrase : choreographyPhrasesInSection(plan, sectionIndex)) {
+			if (phrase.isHero()) out.add(phrase);
+		}
+		return out;
+	}
+
+	public static List<ChoreographyPhrase> phraseLayerPhrasesInSection(ChoreographyPlan plan, int sectionIndex) {
+		List<ChoreographyPhrase> out = new ArrayList<>();
+		for (ChoreographyPhrase phrase : choreographyPhrasesInSection(plan, sectionIndex)) {
+			if (!phrase.isHero()) out.add(phrase);
+		}
+		return out;
 	}
 
 	public static @Nullable SpatialMotifPhrase primarySpatialMotifInSection(ChoreographyPlan plan, int sectionIndex) {
@@ -467,20 +486,23 @@ public final class ChoreographyPlanEditor {
 			SectionEditProfile edit = edits.get(phrase.sectionIndex());
 			if (edit == null) {
 				retained.add(phrase);
+				continue;
+			}
+			// Section 编辑作用于 Phrase 层；HERO 在 motif 启用时原样保留。
+			if (phrase.isHero() && edit.spatialMotifEnabled()) {
+				retained.add(phrase);
 			}
 		}
 
 		List<ChoreographyPhrase> out = new ArrayList<>(retained);
 		for (SectionEditProfile edit : edits.values()) {
 			if (!edit.spatialMotifEnabled()) continue;
-ChoreographyPhrase existing =
-				findGrammarPhrase(phrases, edit.sectionIndex());
+			ChoreographyPhrase existing = findGrammarPhrase(phrases, edit.sectionIndex());
 			if (existing != null) {
 				out.add(applyGrammarPhraseEdit(plan, existing, edit));
 				continue;
 			}
-ChoreographyPhrase created =
-				createGrammarPhraseForSection(plan, edit);
+			ChoreographyPhrase created = createGrammarPhraseForSection(plan, edit);
 			if (created != null) out.add(created);
 		}
 		return out;
@@ -491,7 +513,7 @@ ChoreographyPhrase created =
 		int sectionIndex
 	) {
 		for (ChoreographyPhrase phrase : phrases) {
-			if (phrase.sectionIndex() == sectionIndex) return phrase;
+			if (phrase.sectionIndex() == sectionIndex && !phrase.isHero()) return phrase;
 		}
 		return null;
 	}
@@ -562,7 +584,8 @@ VariationSpec variation = resolveGrammarVariation(
 			intensity,
 			variation,
 			phrase.sectionIndex(),
-			phrase.timingSnap()
+			phrase.timingSnap(),
+			phrase.layer()
 		);
 	}
 

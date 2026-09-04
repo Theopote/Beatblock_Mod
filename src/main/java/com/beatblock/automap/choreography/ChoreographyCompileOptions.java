@@ -78,7 +78,10 @@ public record ChoreographyCompileOptions(
 	 * 段落编辑 / Phrase → Section 重编：只清除并重写指定 {@code sectionIndex} 的 smart-automap 内容。
 	 */
 	public static ChoreographyCompileOptions forSection(int sectionIndex) {
-		ContentReplacePolicy replaceSection = ContentReplacePolicy.replaceSection(sectionIndex);
+		ContentReplacePolicy replaceSection = ContentReplacePolicy.replaceGeneratorSection(
+			TimelineGeneratorIds.SMART_AUTOMAP,
+			sectionIndex
+		);
 		return new ChoreographyCompileOptions(
 			replaceSection,
 			replaceSection,

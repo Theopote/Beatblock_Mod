@@ -127,7 +127,7 @@ class SpatialMotifCompilerIntegrationTest {
 			List.of(new com.beatblock.automap.engine.StructuralSection(0, 16, SectionType.BUILD, "build", 1.0))
 		);
 
-		assertEquals(1, plan.choreographyPhrases().size());
+		assertEquals(2, plan.choreographyPhrases().size());
 		assertEquals(0, plan.spatialMotifPhrases().size());
 		assertInstanceOf(
 			com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats.class,
@@ -135,5 +135,6 @@ class SpatialMotifCompilerIntegrationTest {
 		);
 		assertEquals(2, plan.choreographyPhrases().getFirst().targets().size());
 		assertEquals(SpatialMotifId.CASCADE, plan.choreographyPhrases().getFirst().spatial().resolvedPattern());
+		assertTrue(plan.choreographyPhrases().get(1).isHero());
 	}
 }

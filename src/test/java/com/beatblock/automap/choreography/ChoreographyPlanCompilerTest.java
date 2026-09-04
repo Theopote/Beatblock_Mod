@@ -8,6 +8,7 @@ import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.GlobalEvent;
 import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.playback.GlobalEventPayload;
 import com.beatblock.timeline.playback.GlobalEventPayloadCodec;
 import com.beatblock.test.WithBeatBlockContext;
@@ -302,6 +303,61 @@ class ChoreographyPlanCompilerTest {
 		assertEquals("spin", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
 		assertEquals("pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
 		assertEquals(9.0, timeline.getAutoAnimationEvents().get(1).getTimeSeconds(), 1e-6);
+	}
+
+	@Test
+	void compileSectionPreservesOtherGeneratorsInSameSection() {
+		Timeline timeline = Timeline.createDefault();
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 5.0, 2.0,
+			0, 64, 0,
+			8, 4, 0, 90,
+			new com.beatblock.timeline.generation.TimelineGenerationMetadata(
+				com.beatblock.timeline.TimelineEventOrigin.GENERATED,
+				com.beatblock.timeline.generation.TimelineGeneratorIds.AI_DIRECTOR,
+				"gen-ai",
+				0,
+				-1,
+				""
+			),
+			null
+		);
+
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(new ChoreographyPlan.SectionPlan(0, 16, SectionType.INTRO, "intro")),
+			List.of(),
+			List.of(new ChoreographyPlan.MotionPhrase(1.0, "intro", "low", 0.6f, "bounce", 0.5, true, 4f, 0.0, 0)),
+			List.of(new ChoreographyPlan.CameraPhrase(4.0, "PAN", 0)),
+			List.of(),
+			DensityCurve.uniform(1.0)
+		);
+		ChoreographyPlanCompiler.compileAll(timeline, plan, ChoreographyCompileOptions.smartAutoMap());
+		assertEquals(2, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+
+		ChoreographyPlan updated = new ChoreographyPlan(
+			plan.sections(),
+			plan.stageRoles(),
+			List.of(new ChoreographyPlan.MotionPhrase(1.0, "intro", "low", 0.6f, "spin", 0.5, true, 4f, 0.0, 0)),
+			List.of(new ChoreographyPlan.CameraPhrase(6.0, "ORBIT", 0)),
+			plan.vfxPhrases(),
+			plan.densityCurve(),
+			plan.sectionEdits(),
+			plan.musicalStructure()
+		);
+		ChoreographyPlanCompiler.compileSection(timeline, updated, 0);
+
+		assertEquals(2, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+		long aiDirectorClips = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().stream()
+			.filter(clip -> com.beatblock.timeline.generation.TimelineGeneratorIds.AI_DIRECTOR.equals(
+				com.beatblock.timeline.TimelineClipOrigin.metadataFromClip(clip, Timeline.TRACK_ID_CAMERA).generatorId()))
+			.count();
+		long smartAutomapClips = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().stream()
+			.filter(clip -> com.beatblock.timeline.generation.TimelineGeneratorIds.SMART_AUTOMAP.equals(
+				com.beatblock.timeline.TimelineClipOrigin.metadataFromClip(clip, Timeline.TRACK_ID_CAMERA).generatorId()))
+			.count();
+		assertEquals(1, aiDirectorClips);
+		assertEquals(1, smartAutomapClips);
+		assertEquals("spin", timeline.getAutoAnimationEvents().getFirst().getAnimationTypeId());
 	}
 
 	@Test

@@ -12,12 +12,15 @@ class AutoMapConfigTest {
 		AutoMapConfig config = AutoMapConfig.createDefault();
 		assertEquals(3, config.getRules().size());
 		assertEquals("low", config.getRules().get(0).getFeatureKey());
+		assertEquals("pulse", config.getRules().get(0).getAnimationTypeId());
+		assertEquals(1.5f, config.getRules().get(0).getHeightMultiplier(), 1e-6f);
 		assertEquals(0.12, config.getRules().get(0).getMinGapSeconds(), 1e-9);
 		assertEquals("mid", config.getRules().get(1).getFeatureKey());
+		assertEquals("pulse", config.getRules().get(1).getAnimationTypeId());
 		assertEquals(0.08, config.getRules().get(1).getMinGapSeconds(), 1e-9);
 		assertEquals("high", config.getRules().get(2).getFeatureKey());
 		assertEquals(0.04, config.getRules().get(2).getMinGapSeconds(), 1e-9);
-		assertEquals(3f, config.getDefaultHeightMultiplier(), 1e-6f);
+		assertEquals(1.5f, config.getDefaultHeightMultiplier(), 1e-6f);
 		assertEquals(0.08, config.getMinGapSeconds(), 1e-9);
 	}
 

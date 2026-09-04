@@ -54,6 +54,10 @@ public record TimelineGenerationMetadata(
 				origin.isReplaceableByGeneration() && id.equals(generationId);
 			case ContentReplacePolicy.ReplaceSection(var index) ->
 				origin.isReplaceableByGeneration() && sectionIndex == index;
+			case ContentReplacePolicy.ReplaceGeneratorSection(var id, var index) ->
+				origin.isReplaceableByGeneration()
+					&& id.equals(generatorId)
+					&& sectionIndex == index;
 		};
 	}
 

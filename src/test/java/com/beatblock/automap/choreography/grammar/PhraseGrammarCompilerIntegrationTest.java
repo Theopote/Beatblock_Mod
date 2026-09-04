@@ -55,4 +55,56 @@ class PhraseGrammarCompilerIntegrationTest {
 		assertEquals("bounce", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
 		assertTrue(timeline.getAutoAnimationEvents().get(0).getParameters().containsKey("phraseGrammar"));
 	}
+
+	@Test
+	void compilesGrammarPhrasesOnlyWithinTheirSectionTimeRange() {
+		Timeline timeline = Timeline.createDefault();
+		for (double kickTime : new double[] {2, 4, 12, 14}) {
+			timeline.addFeatureEvent("kick", new FeatureEvent(kickTime, 0.9f));
+		}
+
+		ChoreographyPhrase phraseA = new ChoreographyPhrase(
+			new TriggerSpec.OnFeature("kick"),
+			TargetSet.of("Tower_A", "Tower_B"),
+			SpatialPatternSpec.leftToRight(),
+			MotionPresetSpec.bounce(),
+			TimingPatternSpec.stagger(0.08),
+			IntensityEnvelope.flat(0.8f),
+			VariationSpec.none(),
+			0
+		);
+		ChoreographyPhrase phraseB = new ChoreographyPhrase(
+			new TriggerSpec.OnFeature("kick"),
+			TargetSet.of("Tower_A", "Tower_B"),
+			SpatialPatternSpec.leftToRight(),
+			MotionPresetSpec.bounce(),
+			TimingPatternSpec.stagger(0.08),
+			IntensityEnvelope.flat(0.8f),
+			VariationSpec.none(),
+			1
+		);
+		ChoreographyPlan plan = new ChoreographyPlan(
+			List.of(
+				new ChoreographyPlan.SectionPlan(0, 10, SectionType.VERSE, "A"),
+				new ChoreographyPlan.SectionPlan(10, 20, SectionType.CHORUS, "B")
+			),
+			List.of(),
+			List.of(),
+			List.of(),
+			List.of(),
+			DensityCurve.uniform(1.0),
+			List.of(),
+			ChoreographyPlan.MusicalStructure.empty(),
+			List.of(),
+			List.of(phraseA, phraseB)
+		);
+
+		int count = ChoreographyPlanCompiler.compileAnimationEvents(timeline, plan, ReplaceMode.APPEND);
+
+		assertEquals(8, count);
+		assertEquals(List.of(2.0, 2.08, 4.0, 4.08, 12.0, 12.08, 14.0, 14.08),
+			timeline.getAutoAnimationEvents().stream()
+				.map(event -> Math.round(event.getTimeSeconds() * 100.0) / 100.0)
+				.toList());
+	}
 }

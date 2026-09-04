@@ -33,7 +33,7 @@ class AutoMapGeneratorTest {
 
 		assertEquals(1, count);
 		TimelineAnimationEvent ev = timeline.getAutoAnimationEvents().getFirst();
-		assertEquals("bounce", ev.getAnimationTypeId());
+		assertEquals("pulse", ev.getAnimationTypeId());
 		assertEquals(1.0, ev.getTimeSeconds(), 1e-6);
 		assertEquals("stage", ev.getTargetObjectId());
 	}
@@ -75,7 +75,7 @@ class AutoMapGeneratorTest {
 
 		assertEquals(1, count);
 		assertEquals(1, timeline.getAutoAnimationEvents().size());
-		assertEquals("bounce", timeline.getAutoAnimationEvents().getFirst().getAnimationTypeId());
+		assertEquals("pulse", timeline.getAutoAnimationEvents().getFirst().getAnimationTypeId());
 		assertEquals(5.0, timeline.getAutoAnimationEvents().getFirst().getTimeSeconds(), 1e-6);
 	}
 
@@ -88,7 +88,7 @@ class AutoMapGeneratorTest {
 
 		Object height = timeline.getAutoAnimationEvents().getFirst().getParameters().get("height");
 		assertTrue(height instanceof Number);
-		assertEquals(1.5f, ((Number) height).floatValue(), 1e-3f);
+		assertEquals(0.15625f, ((Number) height).floatValue(), 1e-3f);
 	}
 
 	@Test
@@ -116,9 +116,11 @@ class AutoMapGeneratorTest {
 
 		assertTrue(count > 60);
 		assertTrue(timeline.getAutoAnimationEvents().stream()
-			.anyMatch(ev -> "slide".equals(ev.getAnimationTypeId())));
-		assertTrue(timeline.getAutoAnimationEvents().stream()
 			.anyMatch(ev -> "pulse".equals(ev.getAnimationTypeId())));
+		assertTrue(timeline.getAutoAnimationEvents().stream()
+			.anyMatch(ev -> Math.abs(ev.getTimeSeconds() - 1.0) < 1e-6));
+		assertTrue(timeline.getAutoAnimationEvents().stream()
+			.anyMatch(ev -> Math.abs(ev.getTimeSeconds() - 2.0) < 1e-6));
 	}
 
 	@Test

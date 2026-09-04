@@ -8,6 +8,14 @@ import java.util.List;
  * 编舞计划：音频分析/结构段落与 Timeline 草稿之间的中间表示。
  * <p>
  * 流程：Audio Analysis → Musical Structure → {@link ChoreographyPlan} → Timeline Draft → 用户编辑。
+ * <p>
+ * 动作语义分三层（见 {@link ChoreographyLayer}）：
+ * <ul>
+ *   <li>{@link MotionPhrase} — Accent：单点音乐事件的局部响应</li>
+ *   <li>{@link com.beatblock.automap.choreography.grammar.ChoreographyPhrase} — Phrase：段内重复的跨对象编舞</li>
+ *   <li>{@link com.beatblock.automap.choreography.grammar.ChoreographyPhrase#isHero()} — Hero：段落入口/高潮一次性爆发</li>
+ *   <li>{@link SpatialMotifPhrase} — Phrase（legacy，由 Grammar 取代）</li>
+ * </ul>
  */
 public record ChoreographyPlan(
 	List<SectionPlan> sections,

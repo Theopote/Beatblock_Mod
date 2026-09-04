@@ -25,6 +25,9 @@ class ChoreographyPlanBuilderTest {
 
 		assertEquals(2, plan.motionPhrases().size());
 		assertEquals(0, plan.stageRoles().size());
+		assertEquals("pulse", plan.motionPhrases().get(0).animationTypeId());
+		assertEquals("pulse", plan.motionPhrases().get(1).animationTypeId());
+		assertEquals(1.5f, plan.motionPhrases().get(0).heightMultiplier(), 1e-6f);
 	}
 
 	@Test
