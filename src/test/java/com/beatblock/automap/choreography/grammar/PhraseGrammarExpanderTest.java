@@ -15,7 +15,7 @@ class PhraseGrammarExpanderTest {
 	@Test
 	void kickEveryFourBeatsExpandsToLeftToRightCascade() {
 		ChoreographyPhrase phrase = new ChoreographyPhrase(
-			new TriggerSpec.EveryNBeats(4, "kick"),
+			new TriggerSpec.EveryNFeatureHits("kick", 4),
 			TargetSet.of("Tower_A", "Tower_B", "Tower_C", "Tower_D"),
 			SpatialPatternSpec.leftToRight(),
 			MotionPresetSpec.bounce(),

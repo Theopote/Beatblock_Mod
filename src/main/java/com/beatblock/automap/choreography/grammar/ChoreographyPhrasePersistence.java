@@ -59,7 +59,8 @@ public final class ChoreographyPhrasePersistence {
 		root.addProperty("variationKind", phrase.variation().kind().name());
 		root.addProperty("variationAmount", phrase.variation().amount());
 		root.addProperty("sectionIndex", phrase.sectionIndex());
-		if (phrase.timingSnap() != ChoreographyTimingSnap.BAR) {
+		ChoreographyTimingSnap defaultSnap = com.beatblock.automap.choreography.TimingSnapDefaults.forTrigger(phrase.trigger());
+		if (phrase.timingSnap() != defaultSnap) {
 			root.addProperty("timingSnap", phrase.timingSnap().name());
 		}
 		if (phrase.layer() != com.beatblock.automap.choreography.ChoreographyLayer.PHRASE) {
@@ -98,7 +99,7 @@ public final class ChoreographyPhrasePersistence {
 			parseVariation(getString(root, "variationKind", "NONE")),
 			getFloat(root, "variationAmount", 0f)
 		);
-		ChoreographyTimingSnap snap = parseTimingSnap(root);
+		ChoreographyTimingSnap snap = parseTimingSnap(root, trigger);
 		com.beatblock.automap.choreography.ChoreographyLayer layer = parseLayer(root);
 		return new ChoreographyPhrase(
 			trigger,
@@ -123,10 +124,16 @@ public final class ChoreographyPhrasePersistence {
 				obj.addProperty("minEnergy", onFeature.minEnergy());
 				yield obj;
 			}
+			case TriggerSpec.EveryNFeatureHits everyNFeatureHits -> {
+				obj.addProperty("type", "every_n_feature_hits");
+				obj.addProperty("featureKey", everyNFeatureHits.featureKey());
+				obj.addProperty("interval", everyNFeatureHits.interval());
+				yield obj;
+			}
 			case TriggerSpec.EveryNBeats everyNBeats -> {
 				obj.addProperty("type", "every_n_beats");
-				obj.addProperty("featureKey", everyNBeats.anchorFeatureKey());
-				obj.addProperty("interval", everyNBeats.interval());
+				obj.addProperty("beats", everyNBeats.beats());
+				obj.addProperty("phaseOffset", everyNBeats.phaseOffset());
 				yield obj;
 			}
 			case TriggerSpec.FirstFeature firstFeature -> {
@@ -141,14 +148,31 @@ public final class ChoreographyPhrasePersistence {
 	private static TriggerSpec triggerFromJson(@Nullable JsonObject obj) {
 		if (obj == null) return new TriggerSpec.OnFeature("low");
 		String type = getString(obj, "type", "on_feature");
-		String featureKey = getString(obj, "featureKey", "kick");
+		String featureKey = getString(obj, "featureKey", "");
+		if ("every_n_feature_hits".equalsIgnoreCase(type)) {
+			return new TriggerSpec.EveryNFeatureHits(
+				featureKey.isBlank() ? "kick" : featureKey,
+				getInt(obj, "interval", 4)
+			);
+		}
 		if ("every_n_beats".equalsIgnoreCase(type)) {
-			return new TriggerSpec.EveryNBeats(getInt(obj, "interval", 4), featureKey);
+			// 旧格式：every_n_beats + featureKey + interval → feature-hit 语义
+			if (obj.has("featureKey") && !featureKey.isBlank()) {
+				return new TriggerSpec.EveryNFeatureHits(featureKey, getInt(obj, "interval", 4));
+			}
+			int beats = obj.has("beats") ? getInt(obj, "beats", 4) : getInt(obj, "interval", 4);
+			return new TriggerSpec.EveryNBeats(beats, getInt(obj, "phaseOffset", 0));
 		}
 		if ("first_feature".equalsIgnoreCase(type)) {
-			return new TriggerSpec.FirstFeature(featureKey, getFloat(obj, "minEnergy", 0f));
+			return new TriggerSpec.FirstFeature(
+				featureKey.isBlank() ? "kick" : featureKey,
+				getFloat(obj, "minEnergy", 0f)
+			);
 		}
-		return new TriggerSpec.OnFeature(featureKey, getFloat(obj, "minEnergy", 0f));
+		return new TriggerSpec.OnFeature(
+			featureKey.isBlank() ? "low" : featureKey,
+			getFloat(obj, "minEnergy", 0f)
+		);
 	}
 
 	private static JsonObject spatialToJson(SpatialPatternSpec spatial) {
@@ -189,11 +213,14 @@ public final class ChoreographyPhrasePersistence {
 		}
 	}
 
-	private static ChoreographyTimingSnap parseTimingSnap(JsonObject root) {
+	private static ChoreographyTimingSnap parseTimingSnap(JsonObject root, TriggerSpec trigger) {
+		if (!root.has("timingSnap") || root.get("timingSnap").isJsonNull()) {
+			return com.beatblock.automap.choreography.TimingSnapDefaults.forTrigger(trigger);
+		}
 		try {
-			return ChoreographyTimingSnap.valueOf(getString(root, "timingSnap", "BAR").toUpperCase(Locale.ROOT));
+			return ChoreographyTimingSnap.valueOf(getString(root, "timingSnap", "NONE").toUpperCase(Locale.ROOT));
 		} catch (IllegalArgumentException ex) {
-			return ChoreographyTimingSnap.BAR;
+			return com.beatblock.automap.choreography.TimingSnapDefaults.forTrigger(trigger);
 		}
 	}
 

@@ -130,7 +130,7 @@ class SpatialMotifCompilerIntegrationTest {
 		assertEquals(2, plan.choreographyPhrases().size());
 		assertEquals(0, plan.spatialMotifPhrases().size());
 		assertInstanceOf(
-			com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats.class,
+			com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNFeatureHits.class,
 			plan.choreographyPhrases().getFirst().trigger()
 		);
 		assertEquals(2, plan.choreographyPhrases().getFirst().targets().size());

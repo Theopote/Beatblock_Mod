@@ -134,7 +134,7 @@ class TimelineSectionEditPresenterTest {
 			ChoreographyPlan.MusicalStructure.empty(),
 			List.of(),
 			List.of(new com.beatblock.automap.choreography.grammar.ChoreographyPhrase(
-				new com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats(4, "kick"),
+				new com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNFeatureHits("kick", 4),
 				com.beatblock.automap.choreography.grammar.TargetSet.of("tower-a", "tower-b"),
 				com.beatblock.automap.choreography.grammar.SpatialPatternSpec.leftToRight(),
 				com.beatblock.automap.choreography.grammar.MotionPresetSpec.bounce(),
@@ -167,7 +167,7 @@ class TimelineSectionEditPresenterTest {
 		var grammar = updated.choreographyPhrases().getFirst();
 		assertEquals(SpatialMotifId.WAVE, grammar.spatial().resolvedPattern());
 		assertEquals("pulse", grammar.motion().presetId());
-		assertEquals(2, ((com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats) grammar.trigger()).interval());
+		assertEquals(2, ((com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNFeatureHits) grammar.trigger()).interval());
 		assertEquals(
 			com.beatblock.automap.choreography.grammar.VariationSpec.VariationKind.ALTERNATE_HEIGHT,
 			grammar.variation().kind()
@@ -193,7 +193,7 @@ class TimelineSectionEditPresenterTest {
 			ChoreographyPlan.MusicalStructure.empty(),
 			List.of(),
 			List.of(new com.beatblock.automap.choreography.grammar.ChoreographyPhrase(
-				new com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats(4, "kick"),
+				new com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNFeatureHits("kick", 4),
 				com.beatblock.automap.choreography.grammar.TargetSet.of("tower-a", "tower-b"),
 				com.beatblock.automap.choreography.grammar.SpatialPatternSpec.leftToRight(),
 				com.beatblock.automap.choreography.grammar.MotionPresetSpec.bounce(),

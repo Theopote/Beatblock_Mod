@@ -1,9 +1,9 @@
 package com.beatblock.automap.choreography.grammar;
 
 import com.beatblock.automap.choreography.ChoreographyLayer;
-import com.beatblock.automap.choreography.ChoreographyTimingSnap;
 import com.beatblock.automap.choreography.MotifAxis;
 import com.beatblock.automap.choreography.SpatialMotifId;
+import com.beatblock.automap.choreography.TimingSnapDefaults;
 import com.beatblock.automap.engine.SectionType;
 import org.jspecify.annotations.Nullable;
 
@@ -80,8 +80,9 @@ public final class ChoreographyHeroSelection {
 		if (!isEligible(sectionType) || targets == null || targets.size() < 2) {
 			return null;
 		}
+		TriggerSpec heroTrigger = trigger(sectionType);
 		return new ChoreographyPhrase(
-			trigger(sectionType),
+			heroTrigger,
 			targets,
 			spatial(sectionType),
 			motion(sectionType),
@@ -89,7 +90,7 @@ public final class ChoreographyHeroSelection {
 			intensity(),
 			variation(),
 			sectionIndex,
-			ChoreographyTimingSnap.BAR,
+			TimingSnapDefaults.forTrigger(heroTrigger),
 			ChoreographyLayer.HERO
 		);
 	}

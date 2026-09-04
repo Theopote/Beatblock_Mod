@@ -216,15 +216,21 @@ public final class TimelineSectionEditPresenter {
 		ChoreographyPlan plan = loadPlan();
 		if (plan == null) return GRAMMAR_TRIGGER_AUTO_INDEX;
 		ChoreographyPhrase grammar = ChoreographyPlanEditor.primaryGrammarPhraseInSection(plan, sectionIndex);
-		if (grammar != null && grammar.trigger() instanceof TriggerSpec.EveryNBeats everyN) {
+		if (grammar != null && grammar.trigger() instanceof TriggerSpec.EveryNFeatureHits everyN) {
 			return indexOfGrammarTriggerInterval(everyN.interval());
+		}
+		if (grammar != null && grammar.trigger() instanceof TriggerSpec.EveryNBeats everyN) {
+			return indexOfGrammarTriggerInterval(everyN.beats());
 		}
 		if (sectionIndex >= 0 && sectionIndex < plan.sections().size()) {
 			TriggerSpec trigger = ChoreographyGrammarSelection.defaultTrigger(
 				plan.sections().get(sectionIndex).sectionType()
 			);
-			if (trigger instanceof TriggerSpec.EveryNBeats everyN) {
+			if (trigger instanceof TriggerSpec.EveryNFeatureHits everyN) {
 				return indexOfGrammarTriggerInterval(everyN.interval());
+			}
+			if (trigger instanceof TriggerSpec.EveryNBeats everyN) {
+				return indexOfGrammarTriggerInterval(everyN.beats());
 			}
 		}
 		return GRAMMAR_TRIGGER_AUTO_INDEX;
@@ -401,12 +407,18 @@ public final class TimelineSectionEditPresenter {
 		@org.jspecify.annotations.Nullable ChoreographyPhrase grammar,
 		SectionType sectionType
 	) {
-		if (grammar != null && grammar.trigger() instanceof TriggerSpec.EveryNBeats everyN) {
+		if (grammar != null && grammar.trigger() instanceof TriggerSpec.EveryNFeatureHits everyN) {
 			return everyN.interval();
 		}
+		if (grammar != null && grammar.trigger() instanceof TriggerSpec.EveryNBeats everyN) {
+			return everyN.beats();
+		}
 		TriggerSpec trigger = ChoreographyGrammarSelection.defaultTrigger(sectionType);
-		if (trigger instanceof TriggerSpec.EveryNBeats everyN) {
+		if (trigger instanceof TriggerSpec.EveryNFeatureHits everyN) {
 			return everyN.interval();
+		}
+		if (trigger instanceof TriggerSpec.EveryNBeats everyN) {
+			return everyN.beats();
 		}
 		return null;
 	}

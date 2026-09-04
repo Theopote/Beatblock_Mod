@@ -5,7 +5,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 全曲密度曲线（0–1），用于 BUILD/DROP 等段落调制事件密度。
+ * 全曲密度曲线（0–1），既用于过滤过稀段落，也驱动 {@link ChoreographyBudget} 生成预算。
  */
 public final class DensityCurve {
 
@@ -54,5 +54,10 @@ public final class DensityCurve {
 			}
 		}
 		return points.getLast().density();
+	}
+
+	/** 将密度采样为该时刻的生成预算。 */
+	public ChoreographyBudget budgetAt(double timeSeconds) {
+		return ChoreographyBudget.forDensity(sampleAt(timeSeconds));
 	}
 }

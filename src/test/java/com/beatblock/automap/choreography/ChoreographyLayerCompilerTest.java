@@ -48,7 +48,7 @@ class ChoreographyLayerCompilerTest {
 		}
 
 		var grammarPhrase = new com.beatblock.automap.choreography.grammar.ChoreographyPhrase(
-			new com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNBeats(4, "kick"),
+			new com.beatblock.automap.choreography.grammar.TriggerSpec.EveryNFeatureHits("kick", 4),
 			com.beatblock.automap.choreography.grammar.TargetSet.of("Tower_A", "Tower_B"),
 			com.beatblock.automap.choreography.grammar.SpatialPatternSpec.leftToRight(),
 			com.beatblock.automap.choreography.grammar.MotionPresetSpec.bounce(),

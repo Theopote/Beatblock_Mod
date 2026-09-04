@@ -10,6 +10,8 @@ import java.util.Locale;
  */
 public final class PhraseTriggerResolver {
 
+	private static final double NEAREST_FEATURE_WINDOW_SECONDS = 0.12;
+
 	private PhraseTriggerResolver() {}
 
 	public static List<TriggerInstance> resolve(ChoreographyPhrase phrase, PhraseTriggerContext context) {
@@ -17,6 +19,8 @@ public final class PhraseTriggerResolver {
 		PhraseTriggerContext resolved = context != null ? context : PhraseTriggerContext.empty();
 		return switch (phrase.trigger()) {
 			case TriggerSpec.OnFeature onFeature -> resolveOnFeature(onFeature, resolved);
+			case TriggerSpec.EveryNFeatureHits everyNFeatureHits ->
+				resolveEveryNFeatureHits(everyNFeatureHits, resolved);
 			case TriggerSpec.EveryNBeats everyNBeats -> resolveEveryNBeats(everyNBeats, resolved);
 			case TriggerSpec.FirstFeature firstFeature -> resolveFirstFeature(firstFeature, resolved);
 		};
@@ -54,12 +58,12 @@ public final class PhraseTriggerResolver {
 		return List.of();
 	}
 
-	private static List<TriggerInstance> resolveEveryNBeats(
-		TriggerSpec.EveryNBeats trigger,
+	private static List<TriggerInstance> resolveEveryNFeatureHits(
+		TriggerSpec.EveryNFeatureHits trigger,
 		PhraseTriggerContext context
 	) {
 		List<FeatureEventRef> matches = matchingFeatures(
-			trigger.anchorFeatureKey(),
+			trigger.featureKey(),
 			eventsInActiveRange(context)
 		);
 		List<TriggerInstance> out = new ArrayList<>();
@@ -68,6 +72,39 @@ public final class PhraseTriggerResolver {
 			out.add(new TriggerInstance(event.timeSeconds(), event.energy(), out.size()));
 		}
 		return List.copyOf(out);
+	}
+
+	private static List<TriggerInstance> resolveEveryNBeats(
+		TriggerSpec.EveryNBeats trigger,
+		PhraseTriggerContext context
+	) {
+		List<Double> beats = context.beatsInActiveRange();
+		if (beats.isEmpty()) return List.of();
+		List<FeatureEventRef> features = eventsInActiveRange(context);
+		List<TriggerInstance> out = new ArrayList<>();
+		for (int i = trigger.phaseOffset(); i < beats.size(); i += trigger.beats()) {
+			double beatTime = beats.get(i);
+			float energy = nearestFeatureEnergy(features, beatTime, 0.8f);
+			out.add(new TriggerInstance(beatTime, energy, out.size()));
+		}
+		return List.copyOf(out);
+	}
+
+	private static float nearestFeatureEnergy(
+		List<FeatureEventRef> features,
+		double timeSeconds,
+		float fallback
+	) {
+		float bestEnergy = fallback;
+		double bestDistance = Double.POSITIVE_INFINITY;
+		for (FeatureEventRef event : features) {
+			double distance = Math.abs(event.timeSeconds() - timeSeconds);
+			if (distance <= NEAREST_FEATURE_WINDOW_SECONDS && distance < bestDistance) {
+				bestDistance = distance;
+				bestEnergy = event.energy();
+			}
+		}
+		return bestEnergy;
 	}
 
 	private static List<FeatureEventRef> eventsInActiveRange(PhraseTriggerContext context) {

@@ -552,8 +552,8 @@ MotionPresetSpec motion =
 
 		TriggerSpec trigger = phrase.trigger();
 		Integer intervalOverride = edit.grammarTriggerIntervalOverride();
-		if (intervalOverride != null && trigger instanceof TriggerSpec.EveryNBeats everyN) {
-			trigger = new TriggerSpec.EveryNBeats(intervalOverride, everyN.anchorFeatureKey());
+		if (intervalOverride != null) {
+			trigger = applyIntervalOverride(trigger, intervalOverride);
 		}
 
 TimingPatternSpec timing = phrase.timing();
@@ -601,8 +601,8 @@ VariationSpec variation = resolveGrammarVariation(
 		SectionType sectionType = section.sectionType();
 		TriggerSpec trigger = ChoreographyGrammarSelection.defaultTrigger(sectionType);
 		Integer intervalOverride = edit.grammarTriggerIntervalOverride();
-		if (intervalOverride != null && trigger instanceof TriggerSpec.EveryNBeats everyN) {
-			trigger = new TriggerSpec.EveryNBeats(intervalOverride, everyN.anchorFeatureKey());
+		if (intervalOverride != null) {
+			trigger = applyIntervalOverride(trigger, intervalOverride);
 		}
 
 TimingPatternSpec timing =
@@ -636,6 +636,17 @@ ChoreographyGrammarSelection.variation(sectionType),
 			),
 			edit.sectionIndex()
 		);
+	}
+
+	private static TriggerSpec applyIntervalOverride(TriggerSpec trigger, int interval) {
+		int resolved = Math.max(1, interval);
+		return switch (trigger) {
+			case TriggerSpec.EveryNFeatureHits hits ->
+				new TriggerSpec.EveryNFeatureHits(hits.featureKey(), resolved);
+			case TriggerSpec.EveryNBeats beats ->
+				new TriggerSpec.EveryNBeats(resolved, beats.phaseOffset());
+			default -> trigger;
+		};
 	}
 
 	private static SpatialPatternSpec resolveGrammarSpatialPattern(
@@ -960,14 +971,7 @@ VariationSpec fallback,
 		if (sections.isEmpty()) return DensityCurve.uniform(1.0);
 		List<DensityCurve.Point> points = new ArrayList<>();
 		for (ChoreographyPlan.SectionPlan section : sections) {
-			double density = switch (section.sectionType()) {
-				case INTRO, OUTRO -> 0.25;
-				case VERSE, BREAK, BRIDGE -> 0.45;
-				case PRE_CHORUS -> 0.55;
-				case BUILD -> 0.65;
-				case CHORUS -> 0.85;
-				case DROP -> 0.95;
-			};
+			double density = ChoreographyBudget.sectionVisualDensity(section.sectionType());
 			points.add(new DensityCurve.Point(section.startSeconds(), density));
 		}
 		return DensityCurve.ofPoints(points);

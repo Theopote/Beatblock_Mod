@@ -18,7 +18,7 @@ public final class ChoreographyGrammarSelection {
 			case INTRO, OUTRO, BREAK -> 8;
 			default -> 4;
 		};
-		return new TriggerSpec.EveryNBeats(interval, "kick");
+		return new TriggerSpec.EveryNFeatureHits("kick", interval);
 	}
 
 	public static SpatialPatternSpec spatialPattern(SectionType sectionType) {

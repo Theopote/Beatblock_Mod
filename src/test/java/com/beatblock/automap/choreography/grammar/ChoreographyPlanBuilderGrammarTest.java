@@ -37,7 +37,7 @@ class ChoreographyPlanBuilderGrammarTest {
 
 		assertEquals(2, plan.choreographyPhrases().size());
 		assertEquals(0, plan.spatialMotifPhrases().size());
-		assertInstanceOf(TriggerSpec.EveryNBeats.class, plan.choreographyPhrases().getFirst().trigger());
+		assertInstanceOf(TriggerSpec.EveryNFeatureHits.class, plan.choreographyPhrases().getFirst().trigger());
 		assertEquals(SpatialMotifId.WAVE, plan.choreographyPhrases().getFirst().spatial().resolvedPattern());
 		assertEquals(2, plan.choreographyPhrases().getFirst().targets().size());
 		assertTrue(plan.choreographyPhrases().get(1).isHero());

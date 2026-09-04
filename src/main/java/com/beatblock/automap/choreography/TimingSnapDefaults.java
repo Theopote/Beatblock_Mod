@@ -3,14 +3,34 @@ package com.beatblock.automap.choreography;
 import com.beatblock.automap.AutoMapGenerator;
 import com.beatblock.automap.camera.CameraShot;
 import com.beatblock.automap.camera.CameraShotMovement;
+import com.beatblock.automap.choreography.grammar.TriggerSpec;
 import com.beatblock.automap.engine.SectionType;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
 
-/** 按特征轨 / 镜头 / VFX 类型推荐默认对齐粒度。 */
+/** 按特征轨 / Trigger / 镜头 / VFX 类型推荐默认对齐粒度。 */
 public final class TimingSnapDefaults {
 
 	private TimingSnapDefaults() {}
+
+	/**
+	 * Grammar Trigger 决定默认 snap：触发语义与对齐粒度一致。
+	 * <ul>
+	 *   <li>{@link TriggerSpec.OnFeature} / {@link TriggerSpec.FirstFeature} / {@link TriggerSpec.EveryNFeatureHits} → {@link ChoreographyTimingSnap#NONE}</li>
+	 *   <li>{@link TriggerSpec.EveryNBeats} → {@link ChoreographyTimingSnap#BEAT}</li>
+	 * </ul>
+	 * 预留：OnBar→BAR、OnPhraseStart→PHRASE、OnSectionStart→SECTION。
+	 */
+	public static ChoreographyTimingSnap forTrigger(@Nullable TriggerSpec trigger) {
+		if (trigger == null) return ChoreographyTimingSnap.NONE;
+		return switch (trigger) {
+			case TriggerSpec.OnFeature ignored -> ChoreographyTimingSnap.NONE;
+			case TriggerSpec.FirstFeature ignored -> ChoreographyTimingSnap.NONE;
+			case TriggerSpec.EveryNFeatureHits ignored -> ChoreographyTimingSnap.NONE;
+			case TriggerSpec.EveryNBeats ignored -> ChoreographyTimingSnap.BEAT;
+		};
+	}
 
 	public static ChoreographyTimingSnap forFeatureKey(String featureKey) {
 		String normalized = AutoMapGenerator.normalizeFeatureKey(featureKey);

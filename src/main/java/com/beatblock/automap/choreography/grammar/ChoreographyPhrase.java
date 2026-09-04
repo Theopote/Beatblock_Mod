@@ -2,12 +2,14 @@ package com.beatblock.automap.choreography.grammar;
 
 import com.beatblock.automap.choreography.ChoreographyLayer;
 import com.beatblock.automap.choreography.ChoreographyTimingSnap;
+import com.beatblock.automap.choreography.TimingSnapDefaults;
 
 /**
  * 编舞短语语法：音乐触发 → 多目标空间编排 → 运动原语。
  * <p>
  * 由 {@link PhraseGrammarExpander} 在编译期展开为多条动画事件。
  * {@link #layer()} 区分 {@link ChoreographyLayer#PHRASE} 与 {@link ChoreographyLayer#HERO}。
+ * {@link #timingSnap()} 默认由 {@link TimingSnapDefaults#forTrigger(TriggerSpec)} 决定。
  */
 public record ChoreographyPhrase(
 	TriggerSpec trigger,
@@ -33,7 +35,9 @@ public record ChoreographyPhrase(
 	) {
 		this(
 			trigger, targets, spatial, motion, timing, intensity, variation,
-			sectionIndex, ChoreographyTimingSnap.BAR, ChoreographyLayer.PHRASE
+			sectionIndex,
+			TimingSnapDefaults.forTrigger(trigger),
+			ChoreographyLayer.PHRASE
 		);
 	}
 
@@ -63,7 +67,7 @@ public record ChoreographyPhrase(
 		intensity = intensity != null ? intensity : IntensityEnvelope.flat(0.8f);
 		variation = variation != null ? variation : VariationSpec.none();
 		sectionIndex = Math.max(-1, sectionIndex);
-		timingSnap = timingSnap != null ? timingSnap : ChoreographyTimingSnap.BAR;
+		timingSnap = timingSnap != null ? timingSnap : TimingSnapDefaults.forTrigger(trigger);
 		layer = layer == ChoreographyLayer.HERO ? ChoreographyLayer.HERO : ChoreographyLayer.PHRASE;
 	}
 
