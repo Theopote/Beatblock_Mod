@@ -18,26 +18,29 @@ public final class TimelineGenerationMetadataSupport {
 
 	private TimelineGenerationMetadataSupport() {}
 
-	public static Map<String, Object> apply(@Nullable Map<String, Object> params, TimelineGenerationMetadata metadata) {
+	public static Map<String, Object> apply(
+		@Nullable Map<String, Object> params,
+		@Nullable TimelineGenerationMetadata metadata
+	) {
 		Map<String, Object> copy = params != null ? new HashMap<>(params) : new HashMap<>();
-		if (metadata == null) {
-			metadata = TimelineGenerationMetadata.manual();
-		}
-		copy.put(PARAM_ORIGIN, metadata.origin().name());
-		if (metadata.origin().isGenerated() || metadata.origin().isImported()) {
-			putIfPresent(copy, PARAM_GENERATOR_ID, metadata.generatorId());
-			putIfPresent(copy, PARAM_GENERATION_ID, metadata.generationId());
-			if (metadata.sectionIndex() >= 0) {
-				copy.put(PARAM_SECTION_INDEX, metadata.sectionIndex());
+		TimelineGenerationMetadata resolved = metadata != null
+			? metadata
+			: TimelineGenerationMetadata.manual();
+		copy.put(PARAM_ORIGIN, resolved.origin().name());
+		if (resolved.origin().isGenerated() || resolved.origin().isImported()) {
+			putIfPresent(copy, PARAM_GENERATOR_ID, resolved.generatorId());
+			putIfPresent(copy, PARAM_GENERATION_ID, resolved.generationId());
+			if (resolved.sectionIndex() >= 0) {
+				copy.put(PARAM_SECTION_INDEX, resolved.sectionIndex());
 			} else {
 				copy.remove(PARAM_SECTION_INDEX);
 			}
-			if (metadata.phraseIndex() >= 0) {
-				copy.put(PARAM_PHRASE_INDEX, metadata.phraseIndex());
+			if (resolved.phraseIndex() >= 0) {
+				copy.put(PARAM_PHRASE_INDEX, resolved.phraseIndex());
 			} else {
 				copy.remove(PARAM_PHRASE_INDEX);
 			}
-			putIfPresent(copy, PARAM_SOURCE_PLAN_ID, metadata.sourcePlanId());
+			putIfPresent(copy, PARAM_SOURCE_PLAN_ID, resolved.sourcePlanId());
 		} else {
 			copy.remove(PARAM_GENERATOR_ID);
 			copy.remove(PARAM_GENERATION_ID);

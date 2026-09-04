@@ -111,7 +111,7 @@ final class ChoreographyBudgetEnforcer {
 			if (newLayer && acceptedLayers.size() >= budget.maxPhraseLayers()) {
 				continue;
 			}
-			String target = event.getTargetObjectId() != null ? event.getTargetObjectId() : "";
+			String target = event.getTargetObjectId();
 			boolean newTarget = !target.isBlank() && !acceptedTargets.contains(target);
 			if (newTarget && acceptedTargets.size() >= budget.maxConcurrentStageObjects()) {
 				continue;
