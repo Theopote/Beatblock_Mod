@@ -84,14 +84,11 @@ class ChoreographyLayerCompilerTest {
 			.filter(event -> "PHRASE".equals(event.getParameters().get(ChoreographyLayer.PARAM_KEY)))
 			.count();
 
-		assertEquals(1, accentCount);
+		assertEquals(0, accentCount, "Phrase on shared target/time must suppress Accent");
 		assertEquals(2, phraseCount);
 		assertTrue(timeline.getAutoAnimationEvents().stream()
 			.filter(event -> "PHRASE".equals(event.getParameters().get(ChoreographyLayer.PARAM_KEY)))
 			.allMatch(event -> event.getEnergy() > 0.5f));
-		assertTrue(timeline.getAutoAnimationEvents().stream()
-			.filter(event -> "ACCENT".equals(event.getParameters().get(ChoreographyLayer.PARAM_KEY)))
-			.allMatch(event -> event.getEnergy() < 0.5f));
 	}
 
 	@Test

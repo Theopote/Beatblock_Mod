@@ -4,7 +4,10 @@ import com.beatblock.automap.engine.SectionType;
 import org.jspecify.annotations.Nullable;
 
 /**
- * 编舞生成预算：在 minGap 之上限制每拍事件数、并发舞台对象、层数与 Hero 次数。
+ * 编舞生成预算：在 minGap 之上限制每拍事件数、并发舞台对象、并行 Phrase 套数与 Hero 次数。
+ * <p>
+ * {@link #maxPhraseLayers()} 限制同一拍内并行的 Phrase/Hero <em>instance</em> 数量
+ * （例如 Wave + Cascade），不是 {@link ChoreographyLayer} 枚举种类数；Accent 不占此名额。
  * <p>
  * 由 {@link DensityCurve#budgetAt(double)} 按时间采样；段落默认密度见 {@link #sectionVisualDensity(SectionType)}。
  */

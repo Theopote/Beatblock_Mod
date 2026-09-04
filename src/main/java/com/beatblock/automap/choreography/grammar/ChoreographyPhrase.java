@@ -7,7 +7,8 @@ import com.beatblock.automap.choreography.TimingSnapDefaults;
 /**
  * 编舞短语语法：音乐触发 → 多目标空间编排 → 运动原语。
  * <p>
- * 由 {@link PhraseGrammarExpander} 在编译期展开为多条动画事件。
+ * 由 {@link PhraseTriggerResolver} 解析为 {@link ChoreographyPhraseInstance}，
+ * 经 Budget 后再由 {@link PhraseGrammarExpander} 展开为动画事件。
  * {@link #layer()} 区分 {@link ChoreographyLayer#PHRASE} 与 {@link ChoreographyLayer#HERO}。
  * {@link #timingSnap()} 默认由 {@link TimingSnapDefaults#forTrigger(TriggerSpec)} 决定。
  */
