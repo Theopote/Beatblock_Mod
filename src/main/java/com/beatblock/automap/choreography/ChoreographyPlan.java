@@ -387,7 +387,8 @@ public record ChoreographyPlan(
 		String movement,
 		String easing,
 		boolean beatAligned,
-		ChoreographyTimingSnap timingSnap
+		ChoreographyTimingSnap timingSnap,
+		String transition
 	) {
 		public CameraPhrase(double timeSeconds, String action) {
 			this(timeSeconds, action, -1);
@@ -395,7 +396,7 @@ public record ChoreographyPlan(
 
 		public CameraPhrase(double timeSeconds, String action, int sectionIndex) {
 			this(timeSeconds, action, sectionIndex, "", "", 3.0, "", "", "", false,
-				ChoreographyTimingSnap.BAR);
+				ChoreographyTimingSnap.BAR, "");
 		}
 
 		public CameraPhrase {
@@ -408,12 +409,13 @@ public record ChoreographyPlan(
 			easing = easing != null ? easing : "";
 			sectionIndex = Math.max(-1, sectionIndex);
 			timingSnap = timingSnap != null ? timingSnap : ChoreographyTimingSnap.BAR;
+			transition = transition != null ? transition : "";
 		}
 
 		public CameraPhrase withTimeSeconds(double newTimeSeconds) {
 			return new CameraPhrase(
 				newTimeSeconds, action, sectionIndex, subjectKind, subjectRef,
-				durationSeconds, framing, movement, easing, beatAligned, timingSnap
+				durationSeconds, framing, movement, easing, beatAligned, timingSnap, transition
 			);
 		}
 	}

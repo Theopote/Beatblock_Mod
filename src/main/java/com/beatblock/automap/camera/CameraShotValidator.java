@@ -106,9 +106,7 @@ public final class CameraShotValidator {
 	private static void validateTransition(String transition, List<TimelineDiagnostic> diagnostics,
 		double timeSeconds, @Nullable String eventId) {
 		String normalized = transition.trim().toUpperCase(Locale.ROOT);
-		try {
-			CameraShotTransition.valueOf(normalized);
-		} catch (IllegalArgumentException ex) {
+		if (CameraShotTransition.tryParse(normalized).isEmpty()) {
 			diagnostics.add(TimelineDiagnostic.error(
 				CameraValidationRules.UNSUPPORTED_CAMERA_TRANSITION,
 				"Unsupported camera transition: " + transition,

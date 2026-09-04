@@ -6,6 +6,7 @@ import com.beatblock.audio.analysis.FrequencyBands;
 import com.beatblock.audio.analysis.structure.MusicStructure;
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapConfigFactory;
+import com.beatblock.automap.camera.CameraContinuityPlanner;
 import com.beatblock.automap.camera.CameraPlanningContext;
 import com.beatblock.automap.camera.CameraShot;
 import com.beatblock.automap.choreography.ChoreographyPlan;
@@ -63,7 +64,7 @@ public final class SmartAutoMapEngine {
 		CameraPlanningContext cameraContext = new CameraPlanningContext(
 			bpm, duration, settings.getStyle(), settings.getTargetObjectIds());
 		List<CameraShot> cameraShots = settings.isCameraEnabled()
-			? CameraDirector.generateShots(sections, cameraContext, true)
+			? CameraContinuityPlanner.plan(CameraDirector.generateShots(sections, cameraContext, true))
 			: List.of();
 		List<ParticleEvent> particleEvents = settings.isParticlesEnabled()
 			? ParticleDirector.generate(bands, true)

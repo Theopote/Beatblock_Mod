@@ -5,6 +5,7 @@ import com.beatblock.automap.choreography.grammar.ChoreographyPhrase;
 import com.beatblock.automap.choreography.grammar.PhraseGrammarExpander;
 import com.beatblock.automap.choreography.grammar.PhraseTriggerContextFactory;
 import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.automap.camera.CameraContinuityPlanner;
 import com.beatblock.automap.camera.CameraShot;
 import com.beatblock.automap.camera.CameraShotCodec;
 import com.beatblock.automap.camera.CameraShotTimelineWriter;
@@ -337,7 +338,8 @@ public final class ChoreographyPlanCompiler {
 				timeline
 			);
 		TimingSnapResolver.SnapContext snapContext = TimingSnapResolver.SnapContext.from(plan);
-		List<CameraShotTimelineWriter.TaggedShot> shots = new ArrayList<>();
+		List<CameraShot> decoded = new ArrayList<>();
+		List<TimelineGenerationMetadata> metadataByShot = new ArrayList<>();
 		for (ChoreographyPlan.CameraPhrase phrase : plan.cameraPhrases()) {
 			if (!ChoreographyPlanEditor.isCameraEnabled(plan, phrase)) continue;
 			double eventTime = TimingSnapResolver.snap(
@@ -349,10 +351,13 @@ public final class ChoreographyPlanCompiler {
 				phrase.sectionIndex(),
 				plan.musicalPhraseIndexAt(eventTime)
 			);
-			shots.add(new CameraShotTimelineWriter.TaggedShot(
-				CameraShotCodec.fromPhrase(phrase.withTimeSeconds(eventTime)),
-				metadata
-			));
+			decoded.add(CameraShotCodec.fromPhrase(phrase.withTimeSeconds(eventTime)));
+			metadataByShot.add(metadata);
+		}
+		List<CameraShot> planned = CameraContinuityPlanner.plan(decoded);
+		List<CameraShotTimelineWriter.TaggedShot> shots = new ArrayList<>(planned.size());
+		for (int i = 0; i < planned.size(); i++) {
+			shots.add(new CameraShotTimelineWriter.TaggedShot(planned.get(i), metadataByShot.get(i)));
 		}
 		return CameraShotTimelineWriter.writeTagged(timeline, shots);
 	}

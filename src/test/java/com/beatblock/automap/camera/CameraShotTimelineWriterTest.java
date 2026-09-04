@@ -29,7 +29,7 @@ class CameraShotTimelineWriterTest {
 			CameraShotFraming.MEDIUM,
 			CameraShotMovement.ORBIT,
 			null,
-			CameraShotTransition.SMOOTH,
+			CameraShotTransition.SMOOTH_MOVE,
 			CameraShotEasing.EASE_OUT,
 			CameraCollisionPolicy.AVOID_BLOCKS,
 			CameraShotBeatAlignment.none(),
@@ -43,7 +43,7 @@ class CameraShotTimelineWriterTest {
 			timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().getFirst());
 		assertNotNull(segment);
 		assertEquals("EASE_OUT", segment.getParameter(CameraSegmentSemantics.KEY_EASE));
-		assertEquals("SMOOTH", segment.getParameter(CameraSegmentSemantics.KEY_TRANSITION));
+		assertEquals("SMOOTH_MOVE", segment.getParameter(CameraSegmentSemantics.KEY_TRANSITION));
 		assertEquals("AVOID_BLOCKS", segment.getParameter(CameraSegmentSemantics.KEY_COLLISION_POLICY));
 		assertEquals("ANIMATED_TARGET", segment.getParameter(CameraSegmentSemantics.KEY_FOLLOW_SUBJECT_KIND));
 		assertEquals("stage-a", segment.getParameter(CameraSegmentSemantics.KEY_FOLLOW_SUBJECT_REF));
@@ -80,7 +80,7 @@ class CameraShotTimelineWriterTest {
 			CameraShotFraming.MEDIUM,
 			CameraShotMovement.ORBIT,
 			null,
-			CameraShotTransition.SMOOTH,
+			CameraShotTransition.SMOOTH_MOVE,
 			CameraShotEasing.EASE_OUT,
 			CameraCollisionPolicy.AVOID_BLOCKS,
 			CameraShotBeatAlignment.none(),
@@ -105,7 +105,7 @@ class CameraShotTimelineWriterTest {
 			CameraShotFraming.MEDIUM,
 			CameraShotMovement.ORBIT,
 			null,
-			CameraShotTransition.SMOOTH,
+			CameraShotTransition.SMOOTH_MOVE,
 			CameraShotEasing.EASE_OUT,
 			CameraCollisionPolicy.AVOID_BLOCKS,
 			CameraShotBeatAlignment.none(),

@@ -590,11 +590,11 @@ public final class TimelineCameraEvaluator {
 		CameraSample current,
 		CameraSample previous
 	) {
-		if (current == null || previous == null || transition == CameraShotTransition.CUT) {
+		if (current == null || previous == null || transition == null || transition == CameraShotTransition.CUT) {
 			return current;
 		}
-		double blendSeconds = transition == CameraShotTransition.DISSOLVE ? 0.5 : 0.35;
-		if (timeSeconds <= clipStart || timeSeconds >= clipStart + blendSeconds) {
+		double blendSeconds = transition.blendSeconds();
+		if (blendSeconds <= 0.0 || timeSeconds <= clipStart || timeSeconds >= clipStart + blendSeconds) {
 			return current;
 		}
 		double weight = CameraEasing.apply((timeSeconds - clipStart) / blendSeconds, CameraShotEasing.SMOOTH);

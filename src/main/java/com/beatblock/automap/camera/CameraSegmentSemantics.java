@@ -54,7 +54,7 @@ public final class CameraSegmentSemantics {
 	}
 
 	public static CameraShotTransition transitionFrom(@Nullable Map<String, Object> params) {
-		return parseEnum(stringParam(params, KEY_TRANSITION, "CUT"), CameraShotTransition.class, CameraShotTransition.CUT);
+		return CameraShotTransition.parse(stringParam(params, KEY_TRANSITION, "CUT"), CameraShotTransition.CUT);
 	}
 
 	public static CameraCollisionPolicy collisionPolicyFrom(@Nullable Map<String, Object> params) {

@@ -736,7 +736,8 @@ VariationSpec fallback,
 				phrase.movement(),
 				phrase.easing(),
 				phrase.beatAligned(),
-				phrase.timingSnap()
+				phrase.timingSnap(),
+				phrase.transition()
 			));
 		}
 		return out;
@@ -814,7 +815,8 @@ VariationSpec fallback,
 				phrase.movement(),
 				phrase.easing(),
 				phrase.beatAligned(),
-				phrase.timingSnap()
+				phrase.timingSnap(),
+				phrase.transition()
 			));
 		}
 		return out;
@@ -878,7 +880,8 @@ VariationSpec fallback,
 				phrase.movement(),
 				phrase.easing(),
 				phrase.beatAligned(),
-				phrase.timingSnap()
+				phrase.timingSnap(),
+				phrase.transition()
 			));
 		}
 		return out;

@@ -23,7 +23,8 @@ public final class CameraShotCodec {
 			shot.movement().name(),
 			shot.easing().name(),
 			shot.beatAlignment().snapStartToBeat(),
-			TimingSnapDefaults.forCameraShot(shot)
+			TimingSnapDefaults.forCameraShot(shot),
+			shot.transition().name()
 		);
 	}
 
@@ -37,6 +38,7 @@ public final class CameraShotCodec {
 			? CameraShotMovement.fromLegacyAction(parseLegacyAction(phrase.action()))
 			: parseEnum(phrase.movement(), CameraShotMovement.class, CameraShotMovement.HOLD);
 		CameraShotEasing easing = parseEnum(phrase.easing(), CameraShotEasing.class, CameraShotEasing.SMOOTH);
+		CameraShotTransition transition = CameraShotTransition.parse(phrase.transition(), CameraShotTransition.CUT);
 		return new CameraShot(
 			phrase.timeSeconds(),
 			phrase.durationSeconds(),
@@ -44,7 +46,7 @@ public final class CameraShotCodec {
 			framing,
 			movement,
 			subject,
-			CameraShotTransition.CUT,
+			transition,
 			easing,
 			CameraCollisionPolicy.AVOID_BLOCKS,
 			phrase.beatAligned() ? CameraShotBeatAlignment.onBeat() : CameraShotBeatAlignment.none(),

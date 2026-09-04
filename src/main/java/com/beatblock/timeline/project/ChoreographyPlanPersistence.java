@@ -492,6 +492,9 @@ public final class ChoreographyPlanPersistence {
 			if (phrase.timingSnap() != ChoreographyTimingSnap.BAR) {
 				obj.addProperty("timingSnap", phrase.timingSnap().name());
 			}
+			if (!phrase.transition().isBlank() && !"CUT".equals(phrase.transition())) {
+				obj.addProperty("transition", phrase.transition());
+			}
 			arr.add(obj);
 		}
 		return arr;
@@ -515,7 +518,8 @@ public final class ChoreographyPlanPersistence {
 				getString(obj, "movement", ""),
 				getString(obj, "easing", ""),
 				getBool(obj, "beatAligned", false),
-				parseTimingSnap(obj, ChoreographyTimingSnap.BAR)
+				parseTimingSnap(obj, ChoreographyTimingSnap.BAR),
+				getString(obj, "transition", "")
 			));
 		}
 		return out;
