@@ -10,7 +10,8 @@ import java.util.List;
 
 /**
  * 重分析时合并音乐结构：保留 {@link SectionPlanSource#USER_EDITED} 与 {@link SectionPlanSource#LOCKED} 段落，
- * 其余时间区间用最新算法结果填充。
+ * 其余时间区间用最新算法结果填充；同时对齐 {@link ChoreographyPlan.MusicalStructure}
+ *（beat/bar 用新分析，protected 区间内的 musical phrase 保留旧结果）。
  */
 public final class ChoreographyStructureMerger {
 
@@ -22,6 +23,12 @@ public final class ChoreographyStructureMerger {
 
 		List<ChoreographyPlan.SectionPlan> mergedSections = mergeSections(
 			existing.sections(), analyzed.sections());
+		ChoreographyPlan.MusicalStructure mergedMusic = mergeMusicalStructure(
+			existing.musicalStructure(),
+			analyzed.musicalStructure(),
+			existing.sections(),
+			mergedSections
+		);
 		ChoreographyPlan merged = new ChoreographyPlan(
 			mergedSections,
 			existing.stageRoles().isEmpty() ? analyzed.stageRoles() : existing.stageRoles(),
@@ -30,7 +37,7 @@ public final class ChoreographyStructureMerger {
 			mergeVfxPhrases(existing, analyzed, mergedSections),
 			rebuildDensityCurve(mergedSections),
 			existing.sectionEdits(),
-			analyzed.musicalStructure(),
+			mergedMusic,
 			mergeSpatialMotifPhrases(existing, analyzed, mergedSections),
 			mergeChoreographyPhrases(existing, analyzed, mergedSections)
 		);
@@ -43,6 +50,12 @@ public final class ChoreographyStructureMerger {
 
 		List<ChoreographyPlan.SectionPlan> mergedSections = mergeSections(
 			existing.sections(), analyzed.sections());
+		ChoreographyPlan.MusicalStructure mergedMusic = mergeMusicalStructure(
+			existing.musicalStructure(),
+			analyzed.musicalStructure(),
+			existing.sections(),
+			mergedSections
+		);
 		return new ChoreographyPlan(
 			mergedSections,
 			existing.stageRoles().isEmpty() ? analyzed.stageRoles() : existing.stageRoles(),
@@ -51,10 +64,138 @@ public final class ChoreographyStructureMerger {
 			existing.vfxPhrases(),
 			rebuildDensityCurve(mergedSections),
 			existing.sectionEdits(),
-			analyzed.musicalStructure(),
+			mergedMusic,
 			existing.spatialMotifPhrases(),
 			existing.choreographyPhrases()
 		);
+	}
+
+	/**
+	 * 将分析得到的 MusicalStructure 与 protected Section 对齐：
+	 * <ul>
+	 *   <li>beatTimes / bars：采用新分析结果，并按 {@code mergedSections} 重绑 sectionIndex</li>
+	 *   <li>phrases：落在 LOCKED / USER_EDITED 区间内的保留旧短语，其余用新分析；再重绑 sectionIndex 并重建 RepeatGroup</li>
+	 * </ul>
+	 * 保证 {@link ChoreographyPlan#sections()} 与 {@code musicalStructure} 的 section 归属不互相矛盾。
+	 */
+	static ChoreographyPlan.MusicalStructure mergeMusicalStructure(
+		ChoreographyPlan.@Nullable MusicalStructure existing,
+		ChoreographyPlan.@Nullable MusicalStructure analyzed,
+		List<ChoreographyPlan.SectionPlan> existingSections,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		ChoreographyPlan.MusicalStructure existingMusic =
+			existing != null ? existing : ChoreographyPlan.MusicalStructure.empty();
+		ChoreographyPlan.MusicalStructure analyzedMusic =
+			analyzed != null ? analyzed : ChoreographyPlan.MusicalStructure.empty();
+
+		if (analyzedMusic.isEmpty()) {
+			return rebindMusicalStructure(existingMusic, mergedSections);
+		}
+		if (existingMusic.isEmpty() || !hasProtectedSection(existingSections)) {
+			return rebindMusicalStructure(analyzedMusic, mergedSections);
+		}
+
+		List<ChoreographyPlan.BarPlan> bars = rebindBars(analyzedMusic.bars(), mergedSections);
+		List<ChoreographyPlan.MusicalPhrasePlan> phrases = mergeMusicalPhrases(
+			existingMusic.phrases(),
+			analyzedMusic.phrases(),
+			existingSections,
+			mergedSections
+		);
+		List<ChoreographyPlan.MusicalPhrasePlan> annotated = RepeatGroupBuilder.annotateRepeatAnchors(phrases);
+		List<ChoreographyPlan.RepeatGroup> repeats = RepeatGroupBuilder.buildFromAnnotated(annotated);
+		return new ChoreographyPlan.MusicalStructure(bars, annotated, repeats, analyzedMusic.beatTimes());
+	}
+
+	private static ChoreographyPlan.MusicalStructure rebindMusicalStructure(
+		ChoreographyPlan.MusicalStructure structure,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		if (structure == null || structure.isEmpty()) {
+			return ChoreographyPlan.MusicalStructure.empty();
+		}
+		List<ChoreographyPlan.BarPlan> bars = rebindBars(structure.bars(), mergedSections);
+		List<ChoreographyPlan.MusicalPhrasePlan> phrases = rebindMusicalPhrases(structure.phrases(), mergedSections);
+		List<ChoreographyPlan.MusicalPhrasePlan> annotated = RepeatGroupBuilder.annotateRepeatAnchors(phrases);
+		List<ChoreographyPlan.RepeatGroup> repeats = RepeatGroupBuilder.buildFromAnnotated(annotated);
+		return new ChoreographyPlan.MusicalStructure(bars, annotated, repeats, structure.beatTimes());
+	}
+
+	private static List<ChoreographyPlan.BarPlan> rebindBars(
+		List<ChoreographyPlan.BarPlan> bars,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		if (bars == null || bars.isEmpty()) return List.of();
+		List<ChoreographyPlan.BarPlan> out = new ArrayList<>(bars.size());
+		for (ChoreographyPlan.BarPlan bar : bars) {
+			double mid = (bar.startSeconds() + bar.endSeconds()) * 0.5;
+			out.add(new ChoreographyPlan.BarPlan(
+				bar.startSeconds(),
+				bar.endSeconds(),
+				bar.barIndex(),
+				MusicalStructureMapper.resolveSectionIndex(mergedSections, mid)
+			));
+		}
+		return out;
+	}
+
+	private static List<ChoreographyPlan.MusicalPhrasePlan> mergeMusicalPhrases(
+		List<ChoreographyPlan.MusicalPhrasePlan> existingPhrases,
+		List<ChoreographyPlan.MusicalPhrasePlan> analyzedPhrases,
+		List<ChoreographyPlan.SectionPlan> existingSections,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		List<double[]> protectedRanges = protectedTimeRanges(existingSections);
+		List<ChoreographyPlan.MusicalPhrasePlan> merged = new ArrayList<>();
+		for (ChoreographyPlan.MusicalPhrasePlan phrase : existingPhrases) {
+			if (phraseMidInProtectedRange(phrase, protectedRanges)) {
+				merged.add(phrase);
+			}
+		}
+		for (ChoreographyPlan.MusicalPhrasePlan phrase : analyzedPhrases) {
+			if (!phraseMidInProtectedRange(phrase, protectedRanges)) {
+				merged.add(phrase);
+			}
+		}
+		merged.sort(Comparator.comparingDouble(ChoreographyPlan.MusicalPhrasePlan::startSeconds));
+		return reindexAndRebindMusicalPhrases(merged, mergedSections);
+	}
+
+	private static List<ChoreographyPlan.MusicalPhrasePlan> rebindMusicalPhrases(
+		List<ChoreographyPlan.MusicalPhrasePlan> phrases,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		if (phrases == null || phrases.isEmpty()) return List.of();
+		return reindexAndRebindMusicalPhrases(phrases, mergedSections);
+	}
+
+	private static List<ChoreographyPlan.MusicalPhrasePlan> reindexAndRebindMusicalPhrases(
+		List<ChoreographyPlan.MusicalPhrasePlan> phrases,
+		List<ChoreographyPlan.SectionPlan> mergedSections
+	) {
+		List<ChoreographyPlan.MusicalPhrasePlan> out = new ArrayList<>(phrases.size());
+		for (int i = 0; i < phrases.size(); i++) {
+			ChoreographyPlan.MusicalPhrasePlan phrase = phrases.get(i);
+			double mid = (phrase.startSeconds() + phrase.endSeconds()) * 0.5;
+			out.add(new ChoreographyPlan.MusicalPhrasePlan(
+				phrase.startSeconds(),
+				phrase.endSeconds(),
+				i,
+				MusicalStructureMapper.resolveSectionIndex(mergedSections, mid),
+				phrase.repetitionScore(),
+				-1
+			));
+		}
+		return out;
+	}
+
+	private static boolean phraseMidInProtectedRange(
+		ChoreographyPlan.MusicalPhrasePlan phrase,
+		List<double[]> protectedRanges
+	) {
+		double mid = (phrase.startSeconds() + phrase.endSeconds()) * 0.5;
+		return timeInProtectedRange(mid, protectedRanges);
 	}
 
 	static List<ChoreographyPlan.SectionPlan> mergeSections(
@@ -211,13 +352,78 @@ public final class ChoreographyStructureMerger {
 		ChoreographyPlan analyzed,
 		List<ChoreographyPlan.SectionPlan> mergedSections
 	) {
-		return mergePhrases(
+		return mergeGrammarPhrasesBySection(
 			existing.sections(),
 			existing.choreographyPhrases(),
-			analyzed.choreographyPhrases(),
-			com.beatblock.automap.choreography.grammar.ChoreographyPhrase::sectionIndex,
-			phrase -> 0.0
+			analyzed.sections(),
+			analyzed.choreographyPhrases()
 		);
+	}
+
+	/**
+	 * Grammar Phrase 没有单点时间，不能用 fake {@code 0.0s} 做 protected 判断。
+	 * 按 {@code sectionIndex}：保留落在 existing protected section 的旧短语；
+	 * 丢弃其 analyzed section 与 protected 时间区间重叠的新短语。
+	 */
+	static List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> mergeGrammarPhrasesBySection(
+		List<ChoreographyPlan.SectionPlan> existingSections,
+		List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> existingPhrases,
+		List<ChoreographyPlan.SectionPlan> analyzedSections,
+		List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> analyzedPhrases
+	) {
+		List<ChoreographyPlan.SectionPlan> existing =
+			existingSections != null ? existingSections : List.of();
+		List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> keepExisting =
+			existingPhrases != null ? existingPhrases : List.of();
+		List<ChoreographyPlan.SectionPlan> analyzed =
+			analyzedSections != null ? analyzedSections : List.of();
+		List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> keepAnalyzed =
+			analyzedPhrases != null ? analyzedPhrases : List.of();
+
+		if (!hasProtectedSection(existing)) {
+			return List.copyOf(keepAnalyzed);
+		}
+
+		List<double[]> protectedRanges = protectedTimeRanges(existing);
+		List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> merged = new ArrayList<>();
+		for (com.beatblock.automap.choreography.grammar.ChoreographyPhrase phrase : keepExisting) {
+			if (phraseInProtectedSection(
+				phrase, existing, com.beatblock.automap.choreography.grammar.ChoreographyPhrase::sectionIndex
+			)) {
+				merged.add(phrase);
+			}
+		}
+		for (com.beatblock.automap.choreography.grammar.ChoreographyPhrase phrase : keepAnalyzed) {
+			if (!analyzedGrammarPhraseConflictsWithProtected(phrase, analyzed, protectedRanges)) {
+				merged.add(phrase);
+			}
+		}
+		return List.copyOf(merged);
+	}
+
+	private static boolean analyzedGrammarPhraseConflictsWithProtected(
+		com.beatblock.automap.choreography.grammar.ChoreographyPhrase phrase,
+		List<ChoreographyPlan.SectionPlan> analyzedSections,
+		List<double[]> protectedRanges
+	) {
+		int index = phrase.sectionIndex();
+		if (index < 0 || index >= analyzedSections.size()) {
+			return false;
+		}
+		ChoreographyPlan.SectionPlan section = analyzedSections.get(index);
+		return section != null && sectionOverlapsProtectedRange(section, protectedRanges);
+	}
+
+	private static boolean sectionOverlapsProtectedRange(
+		ChoreographyPlan.SectionPlan section,
+		List<double[]> protectedRanges
+	) {
+		for (double[] range : protectedRanges) {
+			if (section.startSeconds() < range[1] && range[0] < section.endSeconds()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static <T> List<T> mergePhrases(
