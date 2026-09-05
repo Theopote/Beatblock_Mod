@@ -13,6 +13,8 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import imgui.type.ImString;
+import org.jspecify.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 快速开始向导：引导新用户 5 分钟内完成第一个作品。
@@ -23,8 +25,37 @@ public final class QuickStartWizardPanel {
 	private static final float WINDOW_WIDTH = 520f;
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 
+	/**
+	 * DONE 页导航：全部接到正式 Creator 路径（Play / Timeline / AutoMap / Save），
+	 * 不在向导内实现独立保存或播放逻辑。
+	 */
+	public record DoneActions(
+		Runnable playPreview,
+		Runnable editTimeline,
+		Runnable editChoreography,
+		Runnable saveProject
+	) {
+		public static DoneActions noop() {
+			return new DoneActions(() -> {}, () -> {}, () -> {}, () -> {});
+		}
+
+		public static DoneActions of(
+			@Nullable Runnable playPreview,
+			@Nullable Runnable editTimeline,
+			@Nullable Runnable editChoreography,
+			@Nullable Runnable saveProject
+		) {
+			return new DoneActions(
+				playPreview != null ? playPreview : () -> {},
+				editTimeline != null ? editTimeline : () -> {},
+				editChoreography != null ? editChoreography : () -> {},
+				saveProject != null ? saveProject : () -> {}
+			);
+		}
+	}
+
 	private final QuickStartWizardPresenter presenter;
-	private final Runnable onPlayPreview;
+	private final DoneActions doneActions;
 	private final ImString musicPath = new ImString(PATH_CAPACITY);
 	private final ImString stageObjectName = new ImString(64);
 	private final ImInt creationTypeIndex = new ImInt(3);
@@ -34,20 +65,28 @@ public final class QuickStartWizardPanel {
 	private boolean stageObjectNameSynced;
 
 	public QuickStartWizardPanel() {
-		this(PresenterFactories.quickStartWizardPresenter(), () -> {});
+		this(PresenterFactories.quickStartWizardPresenter(), DoneActions.noop());
 	}
 
 	public QuickStartWizardPanel(Runnable onPlayPreview) {
-		this(PresenterFactories.quickStartWizardPresenter(), onPlayPreview);
+		this(PresenterFactories.quickStartWizardPresenter(), DoneActions.of(onPlayPreview, null, null, null));
+	}
+
+	public QuickStartWizardPanel(DoneActions doneActions) {
+		this(PresenterFactories.quickStartWizardPresenter(), doneActions);
 	}
 
 	QuickStartWizardPanel(QuickStartWizardPresenter presenter) {
-		this(presenter, () -> {});
+		this(presenter, DoneActions.noop());
 	}
 
 	QuickStartWizardPanel(QuickStartWizardPresenter presenter, Runnable onPlayPreview) {
+		this(presenter, DoneActions.of(onPlayPreview, null, null, null));
+	}
+
+	QuickStartWizardPanel(QuickStartWizardPresenter presenter, DoneActions doneActions) {
 		this.presenter = presenter;
-		this.onPlayPreview = onPlayPreview != null ? onPlayPreview : () -> {};
+		this.doneActions = doneActions != null ? doneActions : DoneActions.noop();
 	}
 
 	public void open() {
@@ -364,20 +403,7 @@ public final class QuickStartWizardPanel {
 	private void renderGenerateStep() {
 		var state = presenter.viewState();
 		if (state.step() == QuickStartWizardPresenter.Step.DONE) {
-			ImGui.textColored(0.4f, 1f, 0.4f, 1f, BBTexts.get("beatblock.wizard.done.title"));
-			ImGui.textWrapped(BBTexts.get("beatblock.wizard.done.desc"));
-			ImGui.spacing();
-			ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
-			ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
-			ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
-			if (ImGui.button(BBTexts.get("beatblock.wizard.play_preview") + "##wizardPlayPreview", -1f, 32f)) {
-				onPlayPreview.run();
-			}
-			ImGui.popStyleColor(3);
-			ImGui.spacing();
-			if (ImGui.button(BBTexts.get("beatblock.wizard.close") + "##wizardClose", -1f, 32f)) {
-				closeWizard(true);
-			}
+			renderDoneStep();
 			return;
 		}
 
@@ -441,6 +467,48 @@ public final class QuickStartWizardPanel {
 		}
 		ImGui.spacing();
 		renderWizardFooter(false);
+	}
+
+	private void renderDoneStep() {
+		var summary = presenter.doneSummary();
+		ImGui.textColored(0.4f, 1f, 0.4f, 1f, BBTexts.get("beatblock.wizard.done.title"));
+		ImGui.textWrapped(BBTexts.get("beatblock.wizard.done.desc"));
+		ImGui.spacing();
+
+		if (!summary.objectName().isBlank()) {
+			ImGui.textDisabled(summary.objectName());
+			ImGui.spacing();
+		}
+		ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.blocks", summary.blockCount()));
+		ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.animation", summary.animationEvents()));
+		ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.camera", summary.cameraShots()));
+		ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.vfx", summary.vfxEvents()));
+		ImGui.spacing();
+
+		ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
+		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
+		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
+		if (ImGui.button(BBTexts.get("beatblock.wizard.done.play") + "##wizardPlayPreview", -1f, 32f)) {
+			doneActions.playPreview().run();
+		}
+		ImGui.popStyleColor(3);
+
+		if (ImGui.button(BBTexts.get("beatblock.wizard.done.edit_timeline") + "##wizardEditTimeline", -1f, 0f)) {
+			doneActions.editTimeline().run();
+			closeWizard(true);
+		}
+		if (ImGui.button(BBTexts.get("beatblock.wizard.done.edit_choreography") + "##wizardEditChoreography", -1f, 0f)) {
+			doneActions.editChoreography().run();
+			closeWizard(true);
+		}
+		if (ImGui.button(BBTexts.get("beatblock.wizard.done.save_project") + "##wizardSaveProject", -1f, 0f)) {
+			doneActions.saveProject().run();
+		}
+
+		ImGui.spacing();
+		if (ImGui.button(BBTexts.get("beatblock.wizard.done.finish") + "##wizardFinish", -1f, 32f)) {
+			closeWizard(true);
+		}
 	}
 
 	private void renderGeneratingStep() {

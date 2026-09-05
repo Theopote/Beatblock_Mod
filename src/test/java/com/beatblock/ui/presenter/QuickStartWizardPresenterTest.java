@@ -52,6 +52,7 @@ class QuickStartWizardPresenterTest {
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			PresenterFactories.toolPanelPresenter(context),
 			PresenterFactories.rhythmDropPanelPresenter(context),
+			context::selectionManager,
 			() -> timeline,
 			() -> editor
 		);
@@ -75,6 +76,16 @@ class QuickStartWizardPresenterTest {
 		var result = presenter.importMusic("  ");
 		assertFalse(result.ok());
 		assertEquals(QuickStartWizardPresenter.Step.IMPORT, presenter.step());
+	}
+
+	@Test
+	void doneSummaryIsEmptyBeforeSuccessfulGenerate() {
+		var summary = presenter.doneSummary();
+		assertEquals("", summary.objectName());
+		assertEquals(0, summary.blockCount());
+		assertEquals(0, summary.animationEvents());
+		assertEquals(0, summary.cameraShots());
+		assertEquals(0, summary.vfxEvents());
 	}
 
 	@Test
@@ -267,6 +278,11 @@ class QuickStartWizardPresenterTest {
 		assertTrue(outcome.result().ok());
 		assertFalse(presenter.generationProgress().active());
 
+		var summary = presenter.doneSummary();
+		assertFalse(summary.objectName().isBlank());
+		assertTrue(summary.blockCount() > 0);
+		assertTrue(summary.animationEvents() > 0);
+
 		String createdId = outcome.stageObjectId();
 		assertNotNull(createdId);
 		assertNotNull(toolPanelPresenter().getStageObject(createdId));
@@ -336,6 +352,7 @@ class QuickStartWizardPresenterTest {
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			toolPanel,
 			failingRhythmDrop,
+			BeatBlock.getContext()::selectionManager,
 			() -> timeline,
 			() -> editor
 		);

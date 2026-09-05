@@ -77,7 +77,12 @@ public class BeatBlockUIManager {
 		this.selectionPropertiesPanel = new SelectionPropertiesPanel();
 		this.layerPanel = new LayerPanel();
 		this.rhythmDropPanel = new RhythmDropPanel();
-		this.quickStartWizardPanel = new QuickStartWizardPanel(this::playPreviewFromWizard);
+		this.quickStartWizardPanel = new QuickStartWizardPanel(new QuickStartWizardPanel.DoneActions(
+			this::playPreviewFromWizard,
+			this::editTimelineFromWizard,
+			this::editChoreographyFromWizard,
+			menuBarPanel::requestSaveProject
+		));
 		this.environmentSetupPanel = new EnvironmentSetupPanel();
 		this.undoHistoryPanel = new UndoHistoryPanel();
 		this.eventLibraryPanel = new EventLibraryPanel();
@@ -97,6 +102,16 @@ public class BeatBlockUIManager {
 		if (editor != null) {
 			PresenterFactories.timelineTransportPresenter(context).play(editor);
 		}
+	}
+
+	private void editTimelineFromWizard() {
+		panelVisibility.timeline.set(true);
+		panelVisibility.timelineProperties.set(true);
+	}
+
+	private void editChoreographyFromWizard() {
+		panelVisibility.tool.set(true);
+		toolPanel.setShowAutoMapSettings(true);
 	}
 
 	public void openEnvironmentSetup() {

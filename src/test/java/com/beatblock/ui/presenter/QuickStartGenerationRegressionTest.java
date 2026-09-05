@@ -57,6 +57,7 @@ class QuickStartGenerationRegressionTest {
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			toolPanel,
 			PresenterFactories.rhythmDropPanelPresenter(context),
+			context::selectionManager,
 			() -> timeline,
 			() -> editor
 		);
@@ -100,6 +101,16 @@ class QuickStartGenerationRegressionTest {
 			assertTrue(outcome.autoMapResult().getAnimationEvents() > 0);
 			assertTrue(outcome.autoMapResult().getCameraEvents() > 0);
 		}
+
+		var summary = presenter.doneSummary();
+		assertFalse(summary.objectName().isBlank());
+		assertTrue(summary.blockCount() > 0);
+		assertTrue(summary.animationEvents() > 0);
+		assertTrue(summary.cameraShots() > 0);
+		assertEquals(
+			outcome.autoMapResult() != null ? outcome.autoMapResult().getParticleEvents() : summary.vfxEvents(),
+			summary.vfxEvents()
+		);
 	}
 
 	@Test
@@ -166,6 +177,7 @@ class QuickStartGenerationRegressionTest {
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			toolPanel,
 			failingRhythmDrop,
+			BeatBlock.getContext()::selectionManager,
 			() -> timeline,
 			() -> editor
 		);

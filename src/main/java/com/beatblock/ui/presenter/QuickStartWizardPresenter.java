@@ -164,9 +164,23 @@ public final class QuickStartWizardPresenter {
 		String stageObjectId
 	) {}
 
+	/** DONE 页展示的生成结果摘要（块数与事件统计）。 */
+	public record DoneSummary(
+		String objectName,
+		int blockCount,
+		int animationEvents,
+		int cameraShots,
+		int vfxEvents
+	) {
+		public static DoneSummary empty() {
+			return new DoneSummary("", 0, 0, 0, 0);
+		}
+	}
+
 	private final AutoMapSettingsPanelPresenter autoMapPresenter;
 	private final ToolPanelPresenter toolPanelPresenter;
 	private final RhythmDropPanelPresenter rhythmDropPresenter;
+	private final Supplier<BeatBlockSelectionManager> selectionManager;
 	private final Supplier<Timeline> timeline;
 	private final Supplier<TimelineEditor> timelineEditor;
 
@@ -192,12 +206,14 @@ public final class QuickStartWizardPresenter {
 		AutoMapSettingsPanelPresenter autoMapPresenter,
 		ToolPanelPresenter toolPanelPresenter,
 		RhythmDropPanelPresenter rhythmDropPresenter,
+		Supplier<BeatBlockSelectionManager> selectionManager,
 		Supplier<Timeline> timeline,
 		Supplier<TimelineEditor> timelineEditor
 	) {
 		this.autoMapPresenter = autoMapPresenter;
 		this.toolPanelPresenter = toolPanelPresenter;
 		this.rhythmDropPresenter = rhythmDropPresenter;
+		this.selectionManager = selectionManager;
 		this.timeline = timeline;
 		this.timelineEditor = timelineEditor;
 	}
@@ -215,7 +231,7 @@ public final class QuickStartWizardPresenter {
 	}
 
 	public SelectionGuideState selectionGuideState() {
-		BeatBlockSelectionManager mgr = BeatBlockSelectionManager.get();
+		BeatBlockSelectionManager mgr = selectionManager.get();
 		int count = selectionCount();
 		SelectionPhase phase = (!selectionSessionStarted && count <= 0)
 			? SelectionPhase.IDLE
@@ -502,7 +518,7 @@ public final class QuickStartWizardPresenter {
 	public void startSelecting() {
 		selectionSessionStarted = true;
 		statusMessage = "";
-		BeatBlockSelectionManager mgr = BeatBlockSelectionManager.get();
+		BeatBlockSelectionManager mgr = selectionManager.get();
 		if (mgr != null) {
 			mgr.setMode(SelectionMode.BOX);
 			mgr.setOperation(SelectionOperation.NEW);
@@ -511,7 +527,7 @@ public final class QuickStartWizardPresenter {
 
 	/** 清空当前选区，保持选择会话与框选模式。 */
 	public void clearSelection() {
-		BeatBlockSelectionManager mgr = BeatBlockSelectionManager.get();
+		BeatBlockSelectionManager mgr = selectionManager.get();
 		if (mgr != null) {
 			mgr.clearSelection();
 			mgr.setMode(SelectionMode.BOX);
@@ -614,6 +630,50 @@ public final class QuickStartWizardPresenter {
 
 	public @Nullable GenerateOutcome lastGenerateOutcome() {
 		return lastGenerateOutcome;
+	}
+
+	/**
+	 * DONE 页摘要：优先使用 AutoMap 统计；Rhythm Drop 等无 AutoMap 结果时从 Timeline 计数。
+	 */
+	public DoneSummary doneSummary() {
+		GenerateOutcome outcome = lastGenerateOutcome;
+		if (outcome == null || !outcome.result().ok()) {
+			return DoneSummary.empty();
+		}
+		String objectId = outcome.stageObjectId();
+		String objectName = "";
+		int blockCount = 0;
+		if (objectId != null && !objectId.isBlank()) {
+			RuntimeStageObject obj = toolPanelPresenter.getStageObject(objectId);
+			if (obj != null) {
+				objectName = obj.getName() != null ? obj.getName() : "";
+				blockCount = obj.getBlocks().size();
+			}
+		}
+		if (objectName.isBlank()) {
+			objectName = resolvedStageObjectName();
+		}
+
+		SmartAutoMapEngine.AutoMapResult autoMap = outcome.autoMapResult();
+		if (autoMap != null) {
+			return new DoneSummary(
+				objectName,
+				blockCount,
+				autoMap.getAnimationEvents(),
+				autoMap.getCameraEvents(),
+				autoMap.getParticleEvents()
+			);
+		}
+
+		Timeline tl = timeline.get();
+		return new DoneSummary(
+			objectName,
+			blockCount,
+			countTrackEvents(tl, Timeline.TRACK_ID_ANIMATION_AUTO)
+				+ countTrackEvents(tl, Timeline.TRACK_ID_ANIMATION_BLOCK),
+			countTrackEvents(tl, Timeline.TRACK_ID_CAMERA),
+			countTrackEvents(tl, Timeline.TRACK_ID_GLOBAL)
+		);
 	}
 
 	private void runCreateStageObjectPhase() {
@@ -882,7 +942,23 @@ public final class QuickStartWizardPresenter {
 	}
 
 	private int selectionCount() {
-		return BeatBlockSelectionManager.get().getSelectionCount();
+		BeatBlockSelectionManager mgr = selectionManager.get();
+		return mgr != null ? mgr.getSelectionCount() : 0;
+	}
+
+	private static int countTrackEvents(@Nullable Timeline timeline, String trackId) {
+		if (timeline == null || trackId == null || trackId.isBlank()) {
+			return 0;
+		}
+		var track = timeline.getTrack(trackId);
+		if (track == null) {
+			return 0;
+		}
+		int total = 0;
+		for (var clip : track.getClips()) {
+			total += clip.getEvents().size();
+		}
+		return total;
 	}
 
 	/**
