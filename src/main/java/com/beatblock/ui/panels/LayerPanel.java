@@ -507,8 +507,11 @@ public class LayerPanel {
 			return;
 		}
 		BuildLayer layer = presenter.findLayer(pendingDeleteLayerId);
+		var refs = pendingDeleteLayerId != null
+			? presenter.findStageObjectReferences(pendingDeleteLayerId)
+			: new com.beatblock.timeline.StageObjectReferenceService.ReferenceSummary(java.util.List.of());
 
-		ImGui.setNextWindowSize(360f, 0f, ImGuiCond.Appearing);
+		ImGui.setNextWindowSize(420f, 0f, ImGuiCond.Appearing);
 		if (!ImGui.beginPopupModal(DELETE_CONFIRM_POPUP)) {
 			return;
 		}
@@ -524,18 +527,38 @@ public class LayerPanel {
 				ImGui.spacing();
 				ImGui.textWrapped(BBTexts.get("beatblock.layer.delete_hidden_hint"));
 			}
+			if (!refs.isEmpty()) {
+				ImGui.spacing();
+				ImGui.textWrapped(BBTexts.get("beatblock.layer.delete_refs_warning", refs.count()));
+				ImGui.spacing();
+				ImGui.textWrapped(refs.formatCounts());
+			}
 		}
 
 		ImGui.spacing();
-		if (ImGui.button(BBTexts.get("beatblock.layer.confirm_delete") + "##layerDeleteOk", 120f, 0f) && layer != null) {
-			deleteLayer(layer);
-			pendingDeleteLayerId = null;
-			ImGui.closeCurrentPopup();
-		}
-		ImGui.sameLine();
-		if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##layerDeleteCancel", 120f, 0f)) {
-			pendingDeleteLayerId = null;
-			ImGui.closeCurrentPopup();
+		if (!refs.isEmpty()) {
+			if (ImGui.button(BBTexts.get("beatblock.layer.delete_clear_refs") + "##layerDeleteClearRefs", 220f, 0f)
+				&& layer != null) {
+				deleteLayer(layer, true);
+				pendingDeleteLayerId = null;
+				ImGui.closeCurrentPopup();
+			}
+			ImGui.sameLine();
+			if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##layerDeleteCancel", 120f, 0f)) {
+				pendingDeleteLayerId = null;
+				ImGui.closeCurrentPopup();
+			}
+		} else {
+			if (ImGui.button(BBTexts.get("beatblock.layer.confirm_delete") + "##layerDeleteOk", 120f, 0f) && layer != null) {
+				deleteLayer(layer, false);
+				pendingDeleteLayerId = null;
+				ImGui.closeCurrentPopup();
+			}
+			ImGui.sameLine();
+			if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##layerDeleteCancel", 120f, 0f)) {
+				pendingDeleteLayerId = null;
+				ImGui.closeCurrentPopup();
+			}
 		}
 
 		ImGui.endPopup();
@@ -601,11 +624,11 @@ public class LayerPanel {
 		statusMessage = outcome.result().messageOrEmpty();
 	}
 
-	private void deleteLayer(BuildLayer layer) {
+	private void deleteLayer(BuildLayer layer, boolean clearReferences) {
 		if (layer == null) {
 			return;
 		}
-		var outcome = presenter.deleteLayer(layer.getId());
+		var outcome = presenter.deleteLayer(layer.getId(), clearReferences);
 		statusMessage = outcome.result().messageOrEmpty();
 		if (outcome.result().ok()) {
 			nameEditBuffers.remove(layer.getId());

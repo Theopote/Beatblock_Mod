@@ -5,7 +5,7 @@ import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.engine.RuntimeStageObject;
-import com.beatblock.timeline.StageObjectTargetRemapper;
+import com.beatblock.timeline.StageObjectReferenceService;
 import com.beatblock.timeline.Timeline;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
@@ -40,7 +40,7 @@ public final class MergeLayersCommand implements com.beatblock.timeline.command.
 	private final List<LayerSnapshot> snapshots = new ArrayList<>();
 	private final List<BuildLayerGroup> removedGroups = new ArrayList<>();
 	private @Nullable BuildLayer mergedLayer;
-	private StageObjectTargetRemapper.@Nullable RemapResult targetRemap;
+	private StageObjectReferenceService.@Nullable MutationResult targetRemap;
 
 	public MergeLayersCommand(BuildLayerManager manager, List<String> sourceLayerIds, String mergedName) {
 		this(manager, sourceLayerIds, mergedName, null);
@@ -72,7 +72,7 @@ public final class MergeLayersCommand implements com.beatblock.timeline.command.
 		mergedLayer = manager.mergeLayers(sourceLayerIds, mergedName);
 		targetRemap = null;
 		if (timeline != null && mergedLayer != null && !dissolvedStageIds.isEmpty()) {
-			targetRemap = StageObjectTargetRemapper.remap(
+			targetRemap = StageObjectReferenceService.remap(
 				timeline,
 				dissolvedStageIds,
 				mergedLayer.getStageObjectId()
@@ -104,7 +104,7 @@ public final class MergeLayersCommand implements com.beatblock.timeline.command.
 			manager.registerRestored(restored);
 		}
 		if (timeline != null && targetRemap != null) {
-			StageObjectTargetRemapper.restore(timeline, targetRemap);
+			StageObjectReferenceService.restore(timeline, targetRemap);
 			targetRemap = null;
 		}
 	}

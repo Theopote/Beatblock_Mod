@@ -3,6 +3,7 @@ package com.beatblock.timeline.interaction;
 import com.beatblock.BeatBlock;
 import com.beatblock.BeatBlockClient;
 import com.beatblock.engine.layer.BuildLayer;
+import com.beatblock.engine.layer.BuildLayerBindingSupport;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
@@ -151,28 +152,27 @@ public final class TimelineInteractionDeleteSupport {
 		List<String> eventIds = new ArrayList<>(selectionState.getSelectedEvents());
 		for (Track track : timeline.getTracks()) {
 			if (TimelineInteractiveTrackSlots.isTrackLocked(timeline, trackListState, track.getId())) continue;
-			for (Clip clip : track.getClips()) {
+			for (Clip clip : new ArrayList<>(track.getClips())) {
 				for (String eventId : eventIds) {
 					if (eventId == null) continue;
 					var event = clip.getEvent(eventId);
 					BuildLayer boundLayer = layerManager != null ? layerManager.getByClipId(clip.getId()) : null;
-					boolean removesLayerBinding = isLayerBindingEvent(event, boundLayer);
+					boolean removesLayerBinding = BuildLayerBindingSupport.isLayerBindingEvent(event, boundLayer);
 					if (TimelineOperations.removeEvent(clip, eventId)) {
 						if (removesLayerBinding) {
 							layerManager.unbindFromClip(boundLayer);
 						}
 						selectionState.deselectEvent(eventId);
 						timeline.markAnimationEventsDirty(track.getId());
+						if (clip.getEvents().isEmpty() && removesLayerBinding) {
+							if (track.removeClip(clip.getId())) {
+								selectionState.deselectClip(clip.getId());
+							}
+						}
 					}
 				}
 			}
 		}
-	}
-
-	private static boolean isLayerBindingEvent(com.beatblock.timeline.TimelineEvent event, BuildLayer layer) {
-		if (event == null || layer == null) return false;
-		Object layerId = event.getParameters().get("layerId");
-		return layer.getId().equals(layerId);
 	}
 
 	private static void unbindLayerForClip(BuildLayerManager manager, String clipId) {

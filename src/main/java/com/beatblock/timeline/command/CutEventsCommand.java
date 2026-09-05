@@ -1,9 +1,12 @@
 package com.beatblock.timeline.command;
 
+import com.beatblock.BeatBlock;
+import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.clipboard.TimelineClipboard;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +22,7 @@ import java.util.List;
 public final class CutEventsCommand implements Command {
 
 	private final Timeline timeline;
+	private final @Nullable BuildLayerManager layerManager;
 	private final String trackId;
 	private final List<TimelineAnimationEvent> eventsToCut;
 	private final List<Command> deleteCommands = new ArrayList<>();
@@ -29,7 +33,17 @@ public final class CutEventsCommand implements Command {
 		@NonNull String trackId,
 		@NonNull List<TimelineAnimationEvent> events
 	) {
+		this(timeline, currentLayerManager(), trackId, events);
+	}
+
+	public CutEventsCommand(
+		@NonNull Timeline timeline,
+		@Nullable BuildLayerManager layerManager,
+		@NonNull String trackId,
+		@NonNull List<TimelineAnimationEvent> events
+	) {
 		this.timeline = timeline;
+		this.layerManager = layerManager;
 		this.trackId = trackId;
 		this.eventsToCut = new ArrayList<>(events);
 	}
@@ -46,7 +60,7 @@ public final class CutEventsCommand implements Command {
 				AnimationEventLocator.locate(timeline, trackId, event.getEventId());
 			if (located == null) continue;
 			DeleteEventCommand deleteCmd = new DeleteEventCommand(
-				timeline, trackId, located.clipId(), located.event());
+				timeline, layerManager, trackId, located.clipId(), located.event());
 			deleteCmd.execute();
 			deleteCommands.add(deleteCmd);
 		}
@@ -67,5 +81,13 @@ public final class CutEventsCommand implements Command {
 		TimelineClipboard.getInstance().clear();
 
 		executed = false;
+	}
+
+	private static @Nullable BuildLayerManager currentLayerManager() {
+		try {
+			return BeatBlock.getContext().buildLayerManager();
+		} catch (IllegalStateException | NullPointerException ignored) {
+			return null;
+		}
 	}
 }

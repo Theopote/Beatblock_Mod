@@ -1,5 +1,7 @@
 package com.beatblock.timeline.command;
 
+import com.beatblock.BeatBlock;
+import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.interaction.TimelineEventRef;
@@ -8,6 +10,7 @@ import com.beatblock.timeline.interaction.TimelineInteractionClipboard;
 import com.beatblock.timeline.interaction.TimelineInteractiveTrackSlots;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +19,7 @@ import java.util.List;
 public final class CutTimelineEventsCommand implements Command {
 
 	private final Timeline timeline;
+	private final @Nullable BuildLayerManager layerManager;
 	private final SelectionState selectionState;
 	private final TimelineTrackListState trackListState;
 	private final List<TimelineInteractionClipboard.ClipboardEvent> clipboardBuffer;
@@ -28,7 +32,18 @@ public final class CutTimelineEventsCommand implements Command {
 		@NonNull TimelineTrackListState trackListState,
 		@NonNull List<TimelineInteractionClipboard.ClipboardEvent> clipboardBuffer
 	) {
+		this(timeline, currentLayerManager(), selectionState, trackListState, clipboardBuffer);
+	}
+
+	public CutTimelineEventsCommand(
+		@NonNull Timeline timeline,
+		@Nullable BuildLayerManager layerManager,
+		@NonNull SelectionState selectionState,
+		@NonNull TimelineTrackListState trackListState,
+		@NonNull List<TimelineInteractionClipboard.ClipboardEvent> clipboardBuffer
+	) {
 		this.timeline = timeline;
+		this.layerManager = layerManager;
 		this.selectionState = selectionState;
 		this.trackListState = trackListState;
 		this.clipboardBuffer = clipboardBuffer;
@@ -51,6 +66,7 @@ public final class CutTimelineEventsCommand implements Command {
 			}
 			DeleteEventCommand deleteCmd = new DeleteEventCommand(
 				timeline,
+				layerManager,
 				ref.track().getId(),
 				ref.clip().getId(),
 				ref.event()
@@ -72,5 +88,13 @@ public final class CutTimelineEventsCommand implements Command {
 		}
 		clipboardBuffer.clear();
 		executed = false;
+	}
+
+	private static @Nullable BuildLayerManager currentLayerManager() {
+		try {
+			return BeatBlock.getContext().buildLayerManager();
+		} catch (IllegalStateException | NullPointerException ignored) {
+			return null;
+		}
 	}
 }

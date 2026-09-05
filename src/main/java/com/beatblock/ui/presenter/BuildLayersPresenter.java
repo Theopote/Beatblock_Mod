@@ -4,6 +4,7 @@ import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
+import com.beatblock.timeline.StageObjectReferenceService;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.layer.CreateLayerCommand;
@@ -41,7 +42,14 @@ public final class BuildLayersPresenter {
 
 	public record ToggleVisibilityOutcome(PresenterResult result) {}
 
-	public record DeleteOutcome(PresenterResult result) {}
+	public record DeleteOutcome(
+		PresenterResult result,
+		StageObjectReferenceService.ReferenceSummary blockedReferences
+	) {
+		public DeleteOutcome(PresenterResult result) {
+			this(result, new StageObjectReferenceService.ReferenceSummary(java.util.List.of()));
+		}
+	}
 
 	public record LayerActionOutcome(PresenterResult result, String primaryId) {}
 
@@ -272,7 +280,31 @@ public final class BuildLayersPresenter {
 		return new ToggleVisibilityOutcome(PresenterResult.success(message));
 	}
 
+	public StageObjectReferenceService.ReferenceSummary findStageObjectReferences(String layerId) {
+		BuildLayerManager manager = layerManager.get();
+		if (manager == null || layerId == null || layerId.isBlank()) {
+			return new StageObjectReferenceService.ReferenceSummary(java.util.List.of());
+		}
+		BuildLayer layer = manager.get(layerId);
+		if (layer == null) {
+			return new StageObjectReferenceService.ReferenceSummary(java.util.List.of());
+		}
+		String stageId = layer.getStageObjectId();
+		if (stageId == null || stageId.isBlank()) {
+			return new StageObjectReferenceService.ReferenceSummary(java.util.List.of());
+		}
+		return StageObjectReferenceService.find(timeline.get(), java.util.Set.of(stageId));
+	}
+
 	public DeleteOutcome deleteLayer(String layerId) {
+		return deleteLayer(layerId, false);
+	}
+
+	/**
+	 * @param clearReferences when true, unbind Timeline / AutoMap / choreography targets before delete
+	 *                        (Strategy A confirm path: "Remove references and delete").
+	 */
+	public DeleteOutcome deleteLayer(String layerId, boolean clearReferences) {
 		CommandManager commands = commandManager.get();
 		BuildLayerManager manager = layerManager.get();
 		if (commands == null || manager == null) {
@@ -287,9 +319,16 @@ public final class BuildLayersPresenter {
 			return new DeleteOutcome(PresenterResult.failure(BBTexts.get("beatblock.layer.cannot_delete_bound")));
 		}
 
+		StageObjectReferenceService.ReferenceSummary refs = findStageObjectReferences(layerId);
+		if (!refs.isEmpty() && !clearReferences) {
+			return new DeleteOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.layer.delete_blocked_by_refs", refs.count())),
+				refs
+			);
+		}
+
 		String layerName = layer.getName();
-		commands.execute(new DeleteLayerCommand(manager, layer.getId()));
-		// Selection pruned inside BuildLayerManager.deleteLayer / dissolveLayer
+		commands.execute(new DeleteLayerCommand(manager, layer.getId(), timeline.get(), clearReferences));
 		return new DeleteOutcome(PresenterResult.success(BBTexts.get("beatblock.message.layer_deleted", layerName)));
 	}
 

@@ -3,9 +3,13 @@ package com.beatblock.timeline.command.layer;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
+import com.beatblock.timeline.StageObjectReferenceService;
+import com.beatblock.timeline.Timeline;
 import org.jspecify.annotations.Nullable;
 
 import net.minecraft.world.World;
+
+import java.util.Set;
 
 /**
  * 删除图层（FREE 状态下会先恢复方块）。
@@ -16,17 +20,35 @@ import net.minecraft.world.World;
  * 其 state 字段已经是 FREE_VISIBLE 而不是删除前的真实状态——必须在 execute() 一开始
  * 就单独记录 previousState，undo() 时按这个记录的状态决定是否需要重新隐藏，
  * 否则撤销删除一个「原本隐藏」的图层会让方块变回可见，而不是回到删除前的隐藏状态。
+ * <p>
+ * When {@code clearReferences} is true and a Timeline is supplied, StageObject targets
+ * are unbound/cleared via {@link StageObjectReferenceService} before the layer is removed.
  */
 public final class DeleteLayerCommand implements com.beatblock.timeline.command.Command {
 
 	private final BuildLayerManager manager;
+	private final @Nullable Timeline timeline;
 	private final String layerId;
+	private final boolean clearReferences;
 	private @Nullable BuildLayer snapshot;
 	private @Nullable LayerVisibilityState previousState;
+	private StageObjectReferenceService.@Nullable MutationResult clearedReferences;
+	private @Nullable String clearedStageObjectId;
 
 	public DeleteLayerCommand(BuildLayerManager manager, String layerId) {
+		this(manager, layerId, null, false);
+	}
+
+	public DeleteLayerCommand(
+		BuildLayerManager manager,
+		String layerId,
+		@Nullable Timeline timeline,
+		boolean clearReferences
+	) {
 		this.manager = manager;
 		this.layerId = layerId;
+		this.timeline = timeline;
+		this.clearReferences = clearReferences;
 	}
 
 	@Override
@@ -35,6 +57,13 @@ public final class DeleteLayerCommand implements com.beatblock.timeline.command.
 		if (layer == null || !layer.canDelete()) return;
 		previousState = layer.getState();
 		snapshot = layer;
+		clearedStageObjectId = layer.getStageObjectId();
+		clearedReferences = null;
+		if (clearReferences && timeline != null
+			&& clearedStageObjectId != null && !clearedStageObjectId.isBlank()) {
+			clearedReferences = StageObjectReferenceService.clear(
+				timeline, Set.of(clearedStageObjectId));
+		}
 		World world = BuildLayerManager.currentWorld();
 		manager.deleteLayer(layer, world);
 	}
@@ -48,6 +77,10 @@ public final class DeleteLayerCommand implements com.beatblock.timeline.command.
 			if (world != null) {
 				manager.hideLayer(snapshot, world);
 			}
+		}
+		if (timeline != null && clearedReferences != null) {
+			StageObjectReferenceService.restore(timeline, clearedReferences);
+			clearedReferences = null;
 		}
 	}
 }

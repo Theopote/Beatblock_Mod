@@ -3,10 +3,12 @@ package com.beatblock.client.layer;
 import com.beatblock.BeatBlock;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.layer.BuildLayer;
+import com.beatblock.engine.layer.BuildLayerBindingSupport;
 import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.BuildLayerWorldPersistence;
 import com.beatblock.runtime.BeatBlockContext;
+import com.beatblock.timeline.Timeline;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
@@ -126,6 +128,7 @@ public final class BuildLayerWorldStore {
 				LOGGER.debug("BeatBlock: no saved build layers at {}", file);
 			}
 			manager.applyPersistedWorldState(world);
+			reconcileLoadedBindings(manager);
 		} catch (IOException e) {
 			LOGGER.warn("BeatBlock: failed to load build layers from {}: {}", file, e.getMessage());
 			manager.purgeAllLayers();
@@ -175,6 +178,19 @@ public final class BuildLayerWorldStore {
 			return ctx.buildLayerManager();
 		} catch (IllegalStateException ignored) {
 			return null;
+		}
+	}
+
+	private static void reconcileLoadedBindings(BuildLayerManager manager) {
+		Timeline timeline = null;
+		try {
+			timeline = BeatBlock.getContext().timeline();
+		} catch (IllegalStateException | NullPointerException ignored) {
+			// no runtime context / timeline yet
+		}
+		int adjusted = BuildLayerBindingSupport.reconcileBindings(manager, timeline);
+		if (adjusted > 0) {
+			LOGGER.info("BeatBlock: reconciled {} dangling build-layer binding(s) after world load", adjusted);
 		}
 	}
 

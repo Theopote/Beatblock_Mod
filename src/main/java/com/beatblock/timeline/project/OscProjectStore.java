@@ -2,6 +2,7 @@ package com.beatblock.timeline.project;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.timeline.MarkerType;
+import com.beatblock.engine.layer.BuildLayerBindingSupport;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.BuildLayerPersistence;
 import com.beatblock.timeline.Timeline;
@@ -184,6 +185,11 @@ public final class OscProjectStore {
 			if (root.has("choreography")) {
 				ChoreographyPlanPersistence.loadInto(timeline, root.get("choreography"));
 			}
+			if (layerManager != null) {
+				BuildLayerBindingSupport.reconcileBindings(layerManager, timeline);
+			}
+		} else if (layerManager != null) {
+			BuildLayerBindingSupport.reconcileBindings(layerManager, null);
 		}
 
 		return new LoadedProject(projectId, projectPath, timelineName, audioPath, markers);

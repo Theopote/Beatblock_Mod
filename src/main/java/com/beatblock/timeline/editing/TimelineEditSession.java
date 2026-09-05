@@ -3,6 +3,7 @@ package com.beatblock.timeline.editing;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.CutTimelineEventsCommand;
+import com.beatblock.timeline.command.DeleteSelectedTimelineEntriesCommand;
 import com.beatblock.timeline.command.PasteTimelineEventsCommand;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.interaction.TimelineInteraction;
@@ -91,6 +92,7 @@ public final class TimelineEditSession {
 	}
 
 	public void deleteSelection() {
-		TimelineInteractionDeleteSupport.deleteSelectedEntries(timeline, selection, trackListState);
+		commands.execute(new DeleteSelectedTimelineEntriesCommand(
+			timeline, selection, trackListState));
 	}
 }

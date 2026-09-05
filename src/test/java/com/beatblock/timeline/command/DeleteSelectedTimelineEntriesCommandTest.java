@@ -1,4 +1,4 @@
-package com.beatblock.timeline.interaction;
+package com.beatblock.timeline.command;
 
 import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
@@ -20,35 +20,49 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-class TimelineInteractionDeleteSupportTest {
+class DeleteSelectedTimelineEntriesCommandTest {
 
 	@Test
-	void deletingBoundClipUnbindsLayer() {
-		Fixture fixture = fixture();
-		fixture.selection().selectClip(fixture.clip().getId());
+	void deletingBoundClipIsUndoable() {
+		Fixture f = fixture();
+		f.selection().selectClip(f.clip().getId());
 
-		TimelineInteractionDeleteSupport.deleteSelectedEntries(
-			fixture.timeline(), fixture.selection(), new TimelineTrackListState(), fixture.manager());
+		DeleteSelectedTimelineEntriesCommand cmd = new DeleteSelectedTimelineEntriesCommand(
+			f.timeline(), f.manager(), f.selection(), new TimelineTrackListState());
+		cmd.execute();
 
-		assertNull(fixture.track().getClip(fixture.clip().getId()));
-		assertEquals(LayerVisibilityState.FREE_HIDDEN, fixture.layer().getState());
-		assertNull(fixture.layer().getBoundClipId());
+		assertNull(f.track().getClip(f.clip().getId()));
+		assertEquals(LayerVisibilityState.FREE_HIDDEN, f.layer().getState());
+		assertNull(f.layer().getBoundClipId());
+
+		cmd.undo();
+		assertNotNull(f.track().getClip(f.clip().getId()));
+		assertEquals(LayerVisibilityState.BOUND_TO_TRACK, f.layer().getState());
+		assertEquals(f.clip().getId(), f.layer().getBoundClipId());
+		assertNotNull(f.track().getClip(f.clip().getId()).getEvent(f.event().getId()));
 	}
 
 	@Test
-	void deletingBindingEventUnbindsLayer() {
-		Fixture fixture = fixture();
-		fixture.selection().selectEvent(fixture.event().getId());
+	void deletingBindingEventRemovesEmptyClipAndUndoRestores() {
+		Fixture f = fixture();
+		f.selection().selectEvent(f.event().getId());
 
-		TimelineInteractionDeleteSupport.deleteSelectedEntries(
-			fixture.timeline(), fixture.selection(), new TimelineTrackListState(), fixture.manager());
+		DeleteSelectedTimelineEntriesCommand cmd = new DeleteSelectedTimelineEntriesCommand(
+			f.timeline(), f.manager(), f.selection(), new TimelineTrackListState());
+		cmd.execute();
 
-		assertNull(fixture.clip().getEvent(fixture.event().getId()));
-		assertNull(fixture.track().getClip(fixture.clip().getId()), "empty binding clip should be removed");
-		assertEquals(LayerVisibilityState.FREE_HIDDEN, fixture.layer().getState());
-		assertNull(fixture.layer().getBoundClipId());
+		assertNull(f.track().getClip(f.clip().getId()));
+		assertEquals(LayerVisibilityState.FREE_HIDDEN, f.layer().getState());
+
+		cmd.undo();
+		Clip restored = f.track().getClip(f.clip().getId());
+		assertNotNull(restored);
+		assertNotNull(restored.getEvent(f.event().getId()));
+		assertEquals(LayerVisibilityState.BOUND_TO_TRACK, f.layer().getState());
+		assertEquals(f.clip().getId(), f.layer().getBoundClipId());
 	}
 
 	private static Fixture fixture() {
