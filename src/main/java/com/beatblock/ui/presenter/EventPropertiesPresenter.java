@@ -16,7 +16,10 @@ import com.beatblock.timeline.Track;
 import com.beatblock.timeline.camera.CameraPathMetadata;
 import com.beatblock.timeline.camera.CameraSegmentKind;
 import com.beatblock.timeline.camera.CameraTrackFactory;
+import com.beatblock.timeline.command.Command;
 import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.timeline.command.CompositeCommand;
+import com.beatblock.timeline.command.UpdateAnimationEventCommand;
 import com.beatblock.timeline.editing.AnimationEventFormInput;
 import com.beatblock.timeline.editing.AnimationEventPropertiesEditor;
 import com.beatblock.timeline.editing.AnimationEventSnapshot;
@@ -1124,55 +1127,68 @@ public final class EventPropertiesPresenter {
 			return new BatchEditOutcome(0, BBTexts.get("beatblock.event.batch.no_changes"));
 		}
 
-		int updated = 0;
-		String lastError = null;
+		List<Command> parts = new ArrayList<>();
 		for (String eventId : selectionState.getSelectedEvents()) {
 			EventPropertiesRef ref = findAnimationEventRef(timeline, eventId);
 			if (ref == null) {
 				continue;
 			}
-			AnimationEventSnapshot before = AnimationEventSnapshot.capture(
-				ref.event(), ref.clip(), timeline, ref.clip().getId());
-			AnimationEventParams parsed = AnimationEventParams.fromParameterMap(before.parameters());
-
-			AnimationEventParams updatedParams = getAnimationEventParams(request, parsed);
-			if (request.customParameters() != null && !request.customParameters().isEmpty()) {
-				updatedParams = updatedParams.withMergedExtensions(request.customParameters());
+			if (ref.track() == null || ref.clip() == null || ref.event() == null) {
+				return new BatchEditOutcome(0, BBTexts.get("beatblock.message.event_edit_failed"));
 			}
-
-			Map<String, Object> params = updatedParams.toParameterMap();
-			double newTime = before.timeSeconds();
-			Map<String, Double> eventTimes = new HashMap<>(before.clipEventTimesById());
-			if (request.timeOffsetSeconds() != null) {
-				newTime = Math.max(0, newTime + request.timeOffsetSeconds());
-				eventTimes.put(ref.event().getId(), newTime);
-			}
-
-			AnimationEventSnapshot after = new AnimationEventSnapshot(
-				newTime,
-				params,
-				before.clipStartSeconds(),
-				before.clipEndSeconds(),
-				eventTimes,
-				before.timelineMetadata(),
-				before.timelineDurationSeconds()
-			);
 			try {
-				if (commitEventEdit(ref, timeline, commandManager, before, after, false)) {
-					updated++;
-				} else {
-					lastError = BBTexts.get("beatblock.message.event_edit_failed");
+				AnimationEventSnapshot captured = AnimationEventSnapshot.capture(
+					ref.event(), ref.clip(), timeline, ref.clip().getId());
+				// One command per event: only that event's time, so same-clip siblings
+				// are not overwritten when the composite executes in sequence.
+				AnimationEventSnapshot before = withSingleEventTime(captured, ref.event().getId());
+				AnimationEventParams parsed = AnimationEventParams.fromParameterMap(before.parameters());
+
+				AnimationEventParams updatedParams = getAnimationEventParams(request, parsed);
+				if (request.customParameters() != null && !request.customParameters().isEmpty()) {
+					updatedParams = updatedParams.withMergedExtensions(request.customParameters());
 				}
+
+				Map<String, Object> params = updatedParams.toParameterMap();
+				double newTime = before.timeSeconds();
+				if (request.timeOffsetSeconds() != null) {
+					newTime = Math.max(0, newTime + request.timeOffsetSeconds());
+				}
+
+				AnimationEventSnapshot after = new AnimationEventSnapshot(
+					newTime,
+					params,
+					before.clipStartSeconds(),
+					before.clipEndSeconds(),
+					Map.of(ref.event().getId(), newTime),
+					before.timelineMetadata(),
+					before.timelineDurationSeconds()
+				);
+				parts.add(new UpdateAnimationEventCommand(
+					timeline,
+					ref.track().getId(),
+					ref.clip().getId(),
+					ref.event().getId(),
+					before,
+					after
+				));
 			} catch (RuntimeException ex) {
-				lastError = ex.getMessage();
+				return new BatchEditOutcome(
+					0,
+					ex.getMessage() != null && !ex.getMessage().isBlank()
+						? ex.getMessage()
+						: BBTexts.get("beatblock.message.event_edit_failed")
+				);
 			}
 		}
-		if (updated == 0) {
-			return new BatchEditOutcome(0, lastError != null ? lastError : BBTexts.get("beatblock.event.batch.none"));
+		if (parts.isEmpty()) {
+			return new BatchEditOutcome(0, BBTexts.get("beatblock.event.batch.none"));
 		}
+
+		commandManager.execute(new CompositeCommand(parts));
 		timeline.sortAll();
 		notifyDocumentEdited();
-		return new BatchEditOutcome(updated, lastError);
+		return new BatchEditOutcome(parts.size(), null);
 	}
 
 	private static @NotNull AnimationEventParams getAnimationEventParams(BatchAnimationEditRequest request, AnimationEventParams parsed) {
@@ -1201,6 +1217,25 @@ public final class EventPropertiesPresenter {
             parsed.eventOrigin(),
             parsed.extensions()
         );
+	}
+
+	private static AnimationEventSnapshot withSingleEventTime(
+		AnimationEventSnapshot snapshot,
+		String eventId
+	) {
+		if (snapshot == null || eventId == null || eventId.isBlank()) {
+			return snapshot;
+		}
+		double time = snapshot.clipEventTimesById().getOrDefault(eventId, snapshot.timeSeconds());
+		return new AnimationEventSnapshot(
+			snapshot.timeSeconds(),
+			snapshot.parameters(),
+			snapshot.clipStartSeconds(),
+			snapshot.clipEndSeconds(),
+			Map.of(eventId, time),
+			snapshot.timelineMetadata(),
+			snapshot.timelineDurationSeconds()
+		);
 	}
 
 	private static EventPropertiesRef findAnimationEventRef(Timeline timeline, String eventId) {

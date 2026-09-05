@@ -7,30 +7,45 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.camera.CameraPathMetadata;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.editing.AnimationEventFormInput;
 import com.beatblock.timeline.editor.SelectionState;
+import com.beatblock.timeline.project.OscProjectStore;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
+import com.beatblock.testutil.MinecraftTestBootstrap;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EventPropertiesPresenterTest {
 
+	@TempDir
+	Path tempDir;
+
 	private Timeline timeline;
 	private TimelineEditor editor;
 	private CommandManager commandManager;
 	private EventPropertiesPresenter presenter;
+
+	@BeforeAll
+	static void bootstrap() {
+		MinecraftTestBootstrap.ensureInitialized();
+	}
 
 	@BeforeEach
 	void setUp() {
@@ -285,10 +300,17 @@ class EventPropertiesPresenterTest {
 			EventType.ANIMATION,
 			Map.of("animationType", "pulse", "targetObject", "target-1", "energy", 0.3)
 		);
+		var third = TimelineOperations.addEvent(
+			clip,
+			5.0,
+			EventType.ANIMATION,
+			Map.of("animationType", "pulse", "targetObject", "target-1", "energy", 0.3)
+		);
 
 		SelectionState selection = editor.getSelectionState();
 		selection.selectEvent(first.getId());
 		selection.selectEvent(second.getId());
+		selection.selectEvent(third.getId());
 
 		var outcome = presenter.applyBatchAnimationEdit(
 			timeline,
@@ -298,11 +320,55 @@ class EventPropertiesPresenterTest {
 				0.9f, null, 0.5, null, null, null, null)
 		);
 		assertTrue(outcome.success());
-		assertEquals(2, outcome.updatedCount());
+		assertEquals(3, outcome.updatedCount());
 		assertEquals(0.9f, ((Number) first.getParameters().get("energy")).floatValue(), 1e-6f);
 		assertEquals(0.9f, ((Number) second.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertEquals(0.9f, ((Number) third.getParameters().get("energy")).floatValue(), 1e-6f);
 		assertEquals(1.5, first.getTimeSeconds(), 1e-9);
 		assertEquals(3.5, second.getTimeSeconds(), 1e-9);
+		assertEquals(5.5, third.getTimeSeconds(), 1e-9);
+		assertEquals(1, commandManager.undoCount());
+
+		commandManager.undo();
+		assertEquals(0.3f, ((Number) first.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertEquals(0.3f, ((Number) second.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertEquals(0.3f, ((Number) third.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertEquals(1.0, first.getTimeSeconds(), 1e-9);
+		assertEquals(3.0, second.getTimeSeconds(), 1e-9);
+		assertEquals(5.0, third.getTimeSeconds(), 1e-9);
+		assertEquals(0, commandManager.undoCount());
+	}
+
+	@Test
+	void applyBatchAnimationEditDoesNotMutateWhenCommandManagerMissing() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 10.0);
+		var first = TimelineOperations.addEvent(
+			clip, 1.0, EventType.ANIMATION,
+			Map.of("animationType", "pulse", "targetObject", "target-1", "energy", 0.3)
+		);
+		var second = TimelineOperations.addEvent(
+			clip, 3.0, EventType.ANIMATION,
+			Map.of("animationType", "pulse", "targetObject", "target-1", "energy", 0.3)
+		);
+		SelectionState selection = editor.getSelectionState();
+		selection.selectEvent(first.getId());
+		selection.selectEvent(second.getId());
+
+		var outcome = presenter.applyBatchAnimationEdit(
+			timeline,
+			selection,
+			null,
+			new EventPropertiesPresenter.BatchAnimationEditRequest(
+				0.9f, null, null, null, null, null, null)
+		);
+		assertFalse(outcome.success());
+		assertEquals(0, outcome.updatedCount());
+		assertEquals(0.3f, ((Number) first.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertEquals(0.3f, ((Number) second.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertEquals(1.0, first.getTimeSeconds(), 1e-9);
+		assertEquals(3.0, second.getTimeSeconds(), 1e-9);
+		assertFalse(commandManager.canUndo());
 	}
 
 	@Test
@@ -414,18 +480,29 @@ class EventPropertiesPresenterTest {
 	}
 
 	@Test
-	void applyAudioClipPropertiesOnEmptyClipIsUndoable() {
+	void applyAudioClipPropertiesOnEmptyClipIsUndoableAndPersists() throws Exception {
 		Track audio = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
 		var clip = TimelineOperations.addClip(audio, 0.0, 6.0);
 		assertTrue(clip.getEvents().isEmpty());
 		EventPropertiesRef ref = new EventPropertiesRef(audio, clip, null);
 
 		var result = presenter.applyAudioClipProperties(ref, timeline, commandManager, 5.0, 20.0, "Verse");
-		assertTrue(result instanceof EventPropertiesPresenter.ApplyResult.Ok);
+		assertInstanceOf(EventPropertiesPresenter.ApplyResult.Ok.class, result);
 		assertEquals(5.0, clip.getStartTimeSeconds(), 1e-9);
 		assertEquals(20.0, clip.getEndTimeSeconds(), 1e-9);
 		assertEquals("Verse", String.valueOf(timeline.getMetadata("clipLabel_" + clip.getId())));
 		assertTrue(commandManager.canUndo());
+
+		Path file = tempDir.resolve("audio-empty-clip.osc");
+		OscProjectStore.save(file, timeline);
+		Timeline restored = Timeline.createDefault();
+		OscProjectStore.load(file, null, restored);
+		Track restoredAudio = restored.getTrack(Timeline.TRACK_ID_AUDIO);
+		assertEquals(1, restoredAudio.getClips().size());
+		var restoredClip = restoredAudio.getClips().getFirst();
+		assertEquals(5.0, restoredClip.getStartTimeSeconds(), 1e-9);
+		assertEquals(20.0, restoredClip.getEndTimeSeconds(), 1e-9);
+		assertEquals("Verse", String.valueOf(restored.getMetadata("clipLabel_" + restoredClip.getId())));
 
 		commandManager.undo();
 		assertEquals(0.0, clip.getStartTimeSeconds(), 1e-9);
@@ -440,16 +517,86 @@ class EventPropertiesPresenterTest {
 		assertNotNull(camera);
 		var clip = TimelineOperations.addClip(camera, 0.0, 4.0);
 		assertTrue(clip.getEvents().isEmpty());
+		assertTrue(CameraPathMetadata.isPathVisible(timeline, clip.getId()));
 		EventPropertiesRef ref = new EventPropertiesRef(camera, clip, null);
 
 		var result = presenter.applyCameraClipOnly(ref, timeline, commandManager, 2.0, 8.0, false);
-		assertTrue(result instanceof EventPropertiesPresenter.ApplyResult.Ok);
+		assertInstanceOf(EventPropertiesPresenter.ApplyResult.Ok.class, result);
 		assertEquals(2.0, clip.getStartTimeSeconds(), 1e-9);
 		assertEquals(8.0, clip.getEndTimeSeconds(), 1e-9);
+		assertFalse(CameraPathMetadata.isPathVisible(timeline, clip.getId()));
 		assertTrue(commandManager.canUndo());
 
 		commandManager.undo();
 		assertEquals(0.0, clip.getStartTimeSeconds(), 1e-9);
 		assertEquals(4.0, clip.getEndTimeSeconds(), 1e-9);
+		assertTrue(CameraPathMetadata.isPathVisible(timeline, clip.getId()));
+	}
+
+	@Test
+	void applyClipTimingReturnsErrWithoutMutatingWhenInvalid() {
+		Track audio = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		var clip = TimelineOperations.addClip(audio, 1.0, 4.0);
+		EventPropertiesRef ref = new EventPropertiesRef(audio, clip, null);
+
+		var result = presenter.applyClipTiming(ref, timeline, commandManager, 5.0, 3.0, null);
+		assertInstanceOf(EventPropertiesPresenter.ApplyResult.Err.class, result);
+		assertEquals(1.0, clip.getStartTimeSeconds(), 1e-9);
+		assertEquals(4.0, clip.getEndTimeSeconds(), 1e-9);
+		assertFalse(commandManager.canUndo());
+	}
+
+	@Test
+	void applyAnimationEventReturnsErrWhenClipMissing() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 4.0);
+		var event = TimelineOperations.addEvent(
+			clip,
+			1.0,
+			EventType.ANIMATION,
+			Map.of("animationType", "pulse", "targetObject", "target-1", "energy", 0.4)
+		);
+		EventPropertiesRef ref = new EventPropertiesRef(track, clip, event);
+		assertTrue(track.removeClip(clip.getId()));
+
+		AnimationEventFormInput input = new AnimationEventFormInput(
+			2.0,
+			0.5,
+			0.8f,
+			0.2f,
+			"ANIMATE",
+			"pulse",
+			"target-1",
+			true,
+			"ALL",
+			0.0,
+			false,
+			"NEXT_BEAT",
+			"KEEP",
+			"BEAT_GRID",
+			1,
+			0.25,
+			0.05,
+			false,
+			false,
+			0.0,
+			false,
+			20.0,
+			60.0,
+			20.0,
+			8.0,
+			48.0,
+			0.6,
+			1.5,
+			"minecraft:diamond_block",
+			"minecraft:gold_block",
+			true
+		);
+
+		var result = presenter.applyAnimationEvent(ref, timeline, commandManager, input);
+		assertInstanceOf(EventPropertiesPresenter.ApplyResult.Err.class, result);
+		assertEquals(1.0, event.getTimeSeconds(), 1e-9);
+		assertEquals(0.4f, ((Number) event.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertFalse(commandManager.canUndo());
 	}
 }
