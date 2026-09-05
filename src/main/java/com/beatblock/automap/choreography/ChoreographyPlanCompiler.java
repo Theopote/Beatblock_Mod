@@ -393,7 +393,7 @@ public final class ChoreographyPlanCompiler {
 		);
 		int cameras = compileCameraEvents(timeline, plan, compileOptions.cameraMode(), session);
 		int vfx = compileVfxEvents(timeline, plan, compileOptions.vfxMode(), session);
-		return new SmartAutoMapCompileResult(animations, cameras, vfx);
+		return new SmartAutoMapCompileResult(animations, cameras, vfx, session.generationId());
 	}
 
 	/**
@@ -405,7 +405,7 @@ public final class ChoreographyPlanCompiler {
 		int sectionIndex
 	) {
 		if (timeline == null || plan == null || sectionIndex < 0) {
-			return new SmartAutoMapCompileResult(0, 0, 0);
+			return new SmartAutoMapCompileResult(0, 0, 0, "");
 		}
 		return compileAll(
 			timeline,
@@ -429,5 +429,14 @@ public final class ChoreographyPlanCompiler {
 		);
 	}
 
-	public record SmartAutoMapCompileResult(int animationEvents, int cameraEvents, int vfxEvents) {}
+	public record SmartAutoMapCompileResult(
+		int animationEvents,
+		int cameraEvents,
+		int vfxEvents,
+		String generationId
+	) {
+		public SmartAutoMapCompileResult {
+			generationId = generationId != null ? generationId : "";
+		}
+	}
 }

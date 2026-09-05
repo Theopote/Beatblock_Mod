@@ -1,5 +1,6 @@
 package com.beatblock.automap.engine;
 
+import com.beatblock.automap.choreography.ChoreographyLayerProfile;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,9 +15,19 @@ class AutoMapSettingsTest {
 		AutoMapSettings settings = new AutoMapSettings();
 		assertEquals(AutoMapStyle.EDM, settings.getStyle());
 		assertEquals(Complexity.MEDIUM, settings.getComplexity());
+		assertEquals(ChoreographyLayerProfile.HERO_FULL, settings.getLayerProfile());
 		assertTrue(settings.isCameraEnabled());
 		assertTrue(settings.isParticlesEnabled());
 		assertTrue(settings.getTargetObjectIds().isEmpty());
+	}
+
+	@Test
+	void nullLayerProfileFallsBackToHeroFull() {
+		AutoMapSettings settings = new AutoMapSettings();
+		settings.setLayerProfile(ChoreographyLayerProfile.ACCENT_ONLY);
+		assertEquals(ChoreographyLayerProfile.ACCENT_ONLY, settings.getLayerProfile());
+		settings.setLayerProfile(null);
+		assertEquals(ChoreographyLayerProfile.HERO_FULL, settings.getLayerProfile());
 	}
 
 	@Test

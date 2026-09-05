@@ -1,10 +1,12 @@
 package com.beatblock.automap.engine;
 
+import com.beatblock.automap.choreography.ChoreographyLayerProfile;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Smart Auto-Map 弹窗配置：风格、复杂度、镜头/粒子开关、目标对象与可选 per-feature minGap。
+ * Smart Auto-Map 弹窗配置：风格、复杂度、镜头/粒子开关、编舞层档位、目标对象与可选 per-feature minGap。
  */
 public final class AutoMapSettings {
 
@@ -12,6 +14,7 @@ public final class AutoMapSettings {
 	private Complexity complexity;
 	private boolean cameraEnabled;
 	private boolean particlesEnabled;
+	private ChoreographyLayerProfile layerProfile;
 	private List<String> targetObjectIds;
 	private double minGapLow;
 	private double minGapMid;
@@ -22,6 +25,7 @@ public final class AutoMapSettings {
 		this.complexity = Complexity.MEDIUM;
 		this.cameraEnabled = true;
 		this.particlesEnabled = true;
+		this.layerProfile = ChoreographyLayerProfile.HERO_FULL;
 		this.targetObjectIds = new ArrayList<>();
 		this.minGapLow = 0.0;
 		this.minGapMid = 0.0;
@@ -39,6 +43,11 @@ public final class AutoMapSettings {
 
 	public boolean isParticlesEnabled() { return particlesEnabled; }
 	public void setParticlesEnabled(boolean particlesEnabled) { this.particlesEnabled = particlesEnabled; }
+
+	public ChoreographyLayerProfile getLayerProfile() { return layerProfile; }
+	public void setLayerProfile(ChoreographyLayerProfile layerProfile) {
+		this.layerProfile = layerProfile != null ? layerProfile : ChoreographyLayerProfile.HERO_FULL;
+	}
 
 	public List<String> getTargetObjectIds() { return new ArrayList<>(targetObjectIds); }
 	public void setTargetObjectIds(List<String> ids) { this.targetObjectIds = ids != null ? new ArrayList<>(ids) : new ArrayList<>(); }

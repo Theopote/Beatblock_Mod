@@ -44,4 +44,9 @@ public record GenerationSession(
 			sourcePlanId
 		);
 	}
+
+	/** 无段落/乐句归属的整批生成（如 RhythmDrop）。 */
+	public TimelineGenerationMetadata forBatch() {
+		return forPhrase(-1, -1);
+	}
 }

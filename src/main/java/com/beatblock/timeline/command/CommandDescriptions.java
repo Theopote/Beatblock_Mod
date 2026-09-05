@@ -79,6 +79,12 @@ public final class CommandDescriptions {
 		if (command instanceof com.beatblock.timeline.command.layer.DeleteBuildLayerTrackCommand) {
 			return BBTexts.get("beatblock.undo.delete_build_layer_track");
 		}
+		if (command instanceof CreateQuickStartPerformanceCommand) {
+			return BBTexts.get("beatblock.undo.quick_start_generate");
+		}
+		if (command instanceof QuickStartGenerateCommand) {
+			return BBTexts.get("beatblock.undo.quick_start_generate");
+		}
 		return command.getClass().getSimpleName();
 	}
 }

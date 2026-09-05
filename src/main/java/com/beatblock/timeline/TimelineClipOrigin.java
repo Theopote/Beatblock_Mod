@@ -35,7 +35,9 @@ public final class TimelineClipOrigin {
 		if (Timeline.TRACK_ID_GLOBAL.equals(trackId)) {
 			return metadataFromGlobalClip(clip);
 		}
-		if (Timeline.TRACK_ID_ANIMATION_AUTO.equals(trackId)) {
+		if (Timeline.TRACK_ID_ANIMATION_AUTO.equals(trackId)
+			|| Timeline.TRACK_ID_ANIMATION_BLOCK.equals(trackId)
+			|| Timeline.isBlockAnimationFeatureTrackId(trackId)) {
 			return metadataFromAnimationClip(clip);
 		}
 		return TimelineGenerationMetadata.manual();

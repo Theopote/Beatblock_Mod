@@ -30,7 +30,8 @@ class TimelineStageEventsTest {
 
 		List<TimelineAnimationEvent> stage = timeline.getStageEvents();
 		assertEquals(4, stage.size());
-		// TimelineOperations 会生成新 eventId，按时间与动画类型校验合并排�?		assertEquals(1.0, stage.get(0).getTimeSeconds(), 1e-9);
+		// TimelineOperations generates new eventId; verify merge order by time/type
+		assertEquals(1.0, stage.get(0).getTimeSeconds(), 1e-9);
 		assertEquals("build", stage.get(0).getAnimationTypeId());
 		assertEquals(2.0, stage.get(1).getTimeSeconds(), 1e-9);
 		assertEquals("jump", stage.get(1).getAnimationTypeId());
@@ -39,7 +40,8 @@ class TimelineStageEventsTest {
 		assertEquals(5.0, stage.get(3).getTimeSeconds(), 1e-9);
 		assertEquals("pulse", stage.get(3).getAnimationTypeId());
 
-		// 兼容过滤视图仍可�?		assertEquals(2, timeline.getBlockAnimationEvents().size()); // block + feature
+		// Compatibility filtered view still works
+		assertEquals(2, timeline.getBlockAnimationEvents().size()); // block + feature
 		assertEquals(1, timeline.getAutoAnimationEvents().size());
 		assertEquals(1, timeline.getBuildReverseEvents().size());
 	}

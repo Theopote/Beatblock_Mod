@@ -11,6 +11,8 @@ import com.beatblock.timeline.generation.RhythmDropEventFactory;
 import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -25,6 +27,11 @@ public final class RhythmDropPanelPresenter {
 		double fallHeightBlocks,
 		boolean startAtNextBeat,
 		String targetObjectId
+	) {}
+
+	public record GenerateOutcome(
+		PresenterResult result,
+		@Nullable String generationId
 	) {}
 
 	public record ViewState(
@@ -70,18 +77,27 @@ public final class RhythmDropPanelPresenter {
 		);
 	}
 
-	public PresenterResult generateFromSelection(GenerateRequest request) {
+	public GenerateOutcome generateFromSelection(GenerateRequest request) {
 		BeatBlockSelectionManager sel = selectionManager.get();
 		if (sel == null || sel.getSelectionCount() <= 0) {
-			return PresenterResult.failure(BBTexts.get("beatblock.message.select_landing_blocks"));
+			return new GenerateOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.select_landing_blocks")),
+				null
+			);
 		}
 		Timeline tl = timeline.get();
 		StageObjectSystem objects = stageObjectSystem.get();
 		if (tl == null) {
-			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
+			return new GenerateOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable")),
+				null
+			);
 		}
 		if (objects == null) {
-			return PresenterResult.failure(BBTexts.get("beatblock.message.engine_not_ready"));
+			return new GenerateOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.engine_not_ready")),
+				null
+			);
 		}
 
 		GenerateRequest req = request != null ? request : defaultRequest();
@@ -104,13 +120,16 @@ public final class RhythmDropPanelPresenter {
 		List<BlockPos> positions = new ArrayList<>(sel.getSelectedBlocks());
 		RhythmDropGenerator.Outcome outcome = RhythmDropGenerator.generate(tl, objects, positions, config);
 		if (!outcome.success()) {
-			return PresenterResult.failure(outcome.detail());
+			return new GenerateOutcome(PresenterResult.failure(outcome.detail()), null);
 		}
 		syncClockDuration();
-		return PresenterResult.success(outcome.detail());
+		return new GenerateOutcome(
+			PresenterResult.success(outcome.detail()),
+			outcome.generationId()
+		);
 	}
 
-	public PresenterResult generateFromSelectionWithDefaults() {
+	public GenerateOutcome generateFromSelectionWithDefaults() {
 		return generateFromSelection(defaultRequest());
 	}
 

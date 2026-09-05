@@ -10,6 +10,7 @@ import com.beatblock.selection.preset.SelectionPresetStore;
 import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -259,6 +260,18 @@ public final class ToolPanelPresenter {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.object_not_found", id));
 		}
 		return PresenterResult.success(BBTexts.get("beatblock.message.object_deleted", id));
+	}
+
+	public @Nullable RuntimeStageObject getStageObject(String id) {
+		StageObjectSystem system = stageObjectSystem.get();
+		if (system == null || id == null || id.isBlank()) {
+			return null;
+		}
+		return system.get(id);
+	}
+
+	public @Nullable StageObjectSystem stageObjectSystemOrNull() {
+		return stageObjectSystem.get();
 	}
 
 	public List<StageObjectListItem> listStageObjects() {

@@ -235,7 +235,7 @@ public class SelectionPropertiesPanel {
 			ImGui.textWrapped(BBTexts.get("beatblock.selection.rhythm_drop_hint"));
 			if (state.selectionCount() <= 0) ImGui.beginDisabled();
 			if (ImGui.button(BBTexts.get("beatblock.selection.generate_rhythm_drop") + "##selRhythmDrop", -1f, 0f)) {
-				var result = rhythmDropPresenter.generateFromSelectionWithDefaults();
+				var result = rhythmDropPresenter.generateFromSelectionWithDefaults().result();
 				rhythmDropMessage = result.messageOrEmpty();
 				if (!rhythmDropMessage.isBlank()) {
 					com.beatblock.selection.BeatBlockSelectionManager.get().setMessage(rhythmDropMessage);

@@ -8,12 +8,17 @@ import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
 import net.minecraft.util.math.BlockPos;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 /**
  * 从落点坐标 + 节拍排布生成 {@link RhythmDropEventFactory} 事件并写入 Timeline「方块动画」轨道。
+ * <p>
+ * 每次成功写入使用同一 {@link GenerationSession}（{@code generatorId=rhythm-drop}）打标，
+ * 便于按 {@code generationId} 回滚或按 generator 替换。
  */
 public final class RhythmDropGenerator {
 
@@ -37,7 +42,13 @@ public final class RhythmDropGenerator {
 		}
 	}
 
-	public record Outcome(int eventCount, String targetObjectId, String detail) {
+	public record Outcome(int eventCount, String targetObjectId, String detail, String generationId) {
+		public Outcome {
+			targetObjectId = targetObjectId != null ? targetObjectId : "";
+			detail = detail != null ? detail : "";
+			generationId = generationId != null ? generationId : "";
+		}
+
 		public boolean success() {
 			return eventCount > 0;
 		}
@@ -51,21 +62,31 @@ public final class RhythmDropGenerator {
 		List<BlockPos> landingPositions,
 		Config config
 	) {
+		return generate(timeline, stageObjects, landingPositions, config, null);
+	}
+
+	public static Outcome generate(
+		Timeline timeline,
+		StageObjectSystem stageObjects,
+		List<BlockPos> landingPositions,
+		Config config,
+		@Nullable GenerationSession session
+	) {
 		if (timeline == null) {
-			return new Outcome(0, "", "时间线不可用");
+			return failure("", "时间线不可用");
 		}
 		if (stageObjects == null) {
-			return new Outcome(0, "", "动画引擎未就绪");
+			return failure("", "动画引擎未就绪");
 		}
 		if (landingPositions == null || landingPositions.isEmpty()) {
-			return new Outcome(0, "", "请先选中至少一个落点方块");
+			return failure("", "请先选中至少一个落点方块");
 		}
 
 		Config effective = config != null ? config : Config.defaults(0.0);
 		List<BlockPos> ordered = sortLandingPositions(landingPositions);
 		String targetId = resolveTargetObjectId(stageObjects, ordered, effective.targetObjectId());
 		if (stageObjects.get(targetId) == null) {
-			return new Outcome(0, targetId, "目标 RuntimeStageObject 不存在: " + targetId);
+			return failure(targetId, "目标 RuntimeStageObject 不存在: " + targetId);
 		}
 
 		double[] beats = ReferenceBeatResolver.resolveBeatTimesSeconds(timeline);
@@ -81,7 +102,7 @@ public final class RhythmDropGenerator {
 		);
 		List<Double> landingTimes = PacingStrategy.beatGrid().computeTimestamps(pacing);
 		if (landingTimes.size() < ordered.size()) {
-			return new Outcome(0, targetId, "未能为全部落点计算命中时间");
+			return failure(targetId, "未能为全部落点计算命中时间");
 		}
 
 		List<TimelineAnimationEvent> events = RhythmDropEventFactory.build(
@@ -92,17 +113,32 @@ public final class RhythmDropGenerator {
 			effective.fallHeightBlocks()
 		);
 		if (events.isEmpty()) {
-			return new Outcome(0, targetId, "未生成任何事件");
+			return failure(targetId, "未生成任何事件");
+		}
+
+		GenerationSession resolved = session != null
+			? session
+			: GenerationSession.create(TimelineGeneratorIds.RHYTHM_DROP, timeline);
+		TimelineGenerationMetadata metadata = resolved.forBatch();
+		List<TimelineAnimationEvent> tagged = new ArrayList<>(events.size());
+		for (TimelineAnimationEvent event : events) {
+			TimelineAnimationEvent withMeta = TimelineDraftWriter.withMetadata(event, metadata);
+			if (withMeta != null) {
+				tagged.add(withMeta);
+			}
+		}
+		if (tagged.isEmpty()) {
+			return failure(targetId, "未生成任何事件");
 		}
 
 		int count = TimelineDraftWriter.writeEvents(
 			timeline,
 			Timeline.TRACK_ID_ANIMATION_BLOCK,
-			events,
+			tagged,
 			TimelineEventOrigin.GENERATED
 		);
 		if (count <= 0) {
-			return new Outcome(0, targetId, "写入时间线失败");
+			return failure(targetId, "写入时间线失败");
 		}
 
 		String beatDetail = beats.length > 0
@@ -111,8 +147,13 @@ public final class RhythmDropGenerator {
 		return new Outcome(
 			count,
 			targetId,
-			count + " 个 RhythmDrop 事件（" + beatDetail + "，目标 " + targetId + "）"
+			count + " 个 RhythmDrop 事件（" + beatDetail + "，目标 " + targetId + "）",
+			resolved.generationId()
 		);
+	}
+
+	private static Outcome failure(String targetObjectId, String detail) {
+		return new Outcome(0, targetObjectId, detail, "");
 	}
 
 	private static String resolveTargetObjectId(

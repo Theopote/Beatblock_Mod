@@ -4,6 +4,7 @@ package com.beatblock.timeline.generation;
 public final class TimelineGeneratorIds {
 
 	public static final String SMART_AUTOMAP = "smart-automap";
+	public static final String RHYTHM_DROP = "rhythm-drop";
 	public static final String AI_DIRECTOR = "ai-director";
 	public static final String CAMERA_AUTO_DIRECTOR = "camera-auto-director";
 	public static final String TEMPLATE_GENERATOR = "template-generator";

@@ -88,7 +88,7 @@ public class RhythmDropPanel {
 			boolean canGenerate = state.selectionCount() > 0;
 			if (!canGenerate) ImGui.beginDisabled();
 			if (ImGui.button(BBTexts.get("beatblock.rhythm_drop.generate") + "##rhythmDropGenerate", -1f, 0f)) {
-				var result = presenter.generateFromSelection(buildGenerateRequest(state.stageObjects()));
+				var result = presenter.generateFromSelection(buildGenerateRequest(state.stageObjects())).result();
 				setStatusMessage(result.messageOrEmpty());
 			}
 			if (!canGenerate) ImGui.endDisabled();

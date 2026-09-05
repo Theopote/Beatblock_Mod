@@ -309,7 +309,7 @@ class OscProjectStoreTest {
 		NonAtomicMoveFileSystem fs = NonAtomicMoveFileSystem.ofDefault();
 		Path wrapped = fs.getPath(realFile.toString());
 
-		// 直接�?writeAtomically：包�?FS 拒绝 ATOMIC_MOVE，应回退为普�?move
+		// Direct writeAtomically: wrapped FS rejects ATOMIC_MOVE, falls back to plain move
 		OscProjectStore.writeAtomically(wrapped, "{\"version\":3,\"projectId\":\"fb\",\"timelineName\":\"Fallback\"}");
 
 		assertTrue(Files.exists(realFile));
@@ -320,7 +320,7 @@ class OscProjectStoreTest {
 
 	@Test
 	void concurrentSaveUsesUniqueTempFiles() throws Exception {
-		// 1) 固定�?*.osc.tmp 已被占用时，唯一临时文件仍应成功（旧实现会互相踩踏）
+		// 1) When fixed *.osc.tmp is occupied, unique temp file should still succeed
 		Path file = tempDir.resolve("unique.osc");
 		Path fixedTmp = tempDir.resolve("unique.osc.tmp");
 		Files.writeString(fixedTmp, "held-by-other-saver", StandardCharsets.UTF_8);
@@ -333,7 +333,7 @@ class OscProjectStoreTest {
 		assertEquals("held-by-other-saver", Files.readString(fixedTmp, StandardCharsets.UTF_8),
 			"不应再使用固定的 *.osc.tmp 名覆盖其它保存任务的临时文件");
 
-		// 2) 同一目录下多目标并发保存：唯一临时名避�?create/write 冲突
+		// 2) Concurrent saves in same dir: unique temp names avoid create/write conflicts
 		int threads = 8;
 		ExecutorService pool = Executors.newFixedThreadPool(threads);
 		CountDownLatch start = new CountDownLatch(1);
@@ -371,7 +371,7 @@ class OscProjectStoreTest {
 			Path target = tempDir.resolve("concurrent-" + i + ".osc");
 			assertEquals("writer-" + i, OscProjectStore.load(target).getTimelineName());
 		}
-		// 允许测试预置�?fixedTmp 存在，其�?.tmp 不得残留
+		// Allow pre-created fixedTmp; no leftover .tmp files
 		try (Stream<Path> stream = Files.list(tempDir)) {
 			List<Path> leftover = stream
 				.filter(p -> p.getFileName().toString().endsWith(".tmp"))
@@ -383,7 +383,7 @@ class OscProjectStoreTest {
 
 	@Test
 	void failedMoveDeletesTempFile() throws Exception {
-		// 目标路径已是目录时，move 会失败；应清�?createTempFile 产生的临时文�?
+		// When target path is a directory, move fails; temp from createTempFile must be cleaned
 		Path blockingDir = tempDir.resolve("blocked.osc");
 		Files.createDirectories(blockingDir);
 

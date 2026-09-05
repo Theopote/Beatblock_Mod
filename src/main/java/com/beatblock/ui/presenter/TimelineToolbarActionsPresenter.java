@@ -67,7 +67,8 @@ public final class TimelineToolbarActionsPresenter {
 	}
 
 	public ActionOutcome runGenerateRhythmDrops() {
-		PresenterResult result = rhythmDropPresenter.generateFromSelectionWithDefaults();
+		var outcome = rhythmDropPresenter.generateFromSelectionWithDefaults();
+		PresenterResult result = outcome.result();
 		syncClockDuration();
 		return new ActionOutcome(
 			result.messageOrEmpty().isBlank()
@@ -81,7 +82,8 @@ public final class TimelineToolbarActionsPresenter {
 	}
 
 	public ActionOutcome runGenerateRhythmDrops(GenerateRequest request) {
-		PresenterResult result = rhythmDropPresenter.generateFromSelection(request);
+		var outcome = rhythmDropPresenter.generateFromSelection(request);
+		PresenterResult result = outcome.result();
 		syncClockDuration();
 		return new ActionOutcome(
 			result.messageOrEmpty().isBlank()

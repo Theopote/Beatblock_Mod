@@ -207,7 +207,8 @@ tasks.register('verifyReleaseFingerprint') {
 }
 
 jacoco {
-	toolVersion = '0.8.12'
+	// 0.8.14+ required when the Gradle JVM is JDK 25 (class file major 69)
+	toolVersion = '0.8.14'
 }
 
 tasks.named('jacocoTestReport', JacocoReport) {
@@ -226,7 +227,13 @@ tasks.named('jacocoTestReport', JacocoReport) {
 }
 
 tasks.named('test') {
-	finalizedBy jacocoTestReport
+	// Allow -PdisableJacoco=true to skip the agent (avoids hung workers under JDK 25).
+	jacoco {
+		enabled = findProperty('disableJacoco') != 'true'
+	}
+	if (findProperty('disableJacoco') != 'true') {
+		finalizedBy jacocoTestReport
+	}
 }
 
 def spotbugsReportDir = layout.buildDirectory.dir('reports/spotbugs/main')

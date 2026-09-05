@@ -41,7 +41,7 @@ public final class SmartAutoMapEngine {
 	 * @return 生成统计
 	 */
 	public static AutoMapResult generate(AudioFeatureTimeline featureTimeline, AutoMapSettings settings, Timeline timeline) {
-		AutoMapResult result = new AutoMapResult(0, 0, 0, 0);
+		AutoMapResult result = new AutoMapResult(0, 0, 0, 0, "");
 		if (timeline == null) return result;
 		if (featureTimeline == null || settings == null) {
 			ContentReplacePolicy replaceSmartAutomap = ContentReplacePolicy.replaceGenerator(TimelineGeneratorIds.SMART_AUTOMAP);
@@ -79,6 +79,7 @@ public final class SmartAutoMapEngine {
 			settings.getStyle(),
 			config
 		);
+		analyzed = settings.getLayerProfile().apply(analyzed);
 		ChoreographyPlan existing = ChoreographyPlanStore.loadPlan(timeline);
 		ChoreographyPlan plan = ChoreographyStructureMerger.merge(existing, analyzed);
 
@@ -92,7 +93,8 @@ public final class SmartAutoMapEngine {
 			compiled.animationEvents(),
 			compiled.cameraEvents(),
 			compiled.vfxEvents(),
-			sections.size()
+			sections.size(),
+			compiled.generationId()
 		);
 		LOGGER.info(
 			"BeatBlock Smart Auto-Map: 动画 {} 个, 镜头 {} 个, 粒子 {} 个, 段落 {} 个, 小节 {} 个, 乐句 {} 个",
@@ -107,17 +109,30 @@ public final class SmartAutoMapEngine {
 		private final int cameraEvents;
 		private final int particleEvents;
 		private final int sections;
+		private final String generationId;
 
 		public AutoMapResult(int animationEvents, int cameraEvents, int particleEvents, int sections) {
+			this(animationEvents, cameraEvents, particleEvents, sections, "");
+		}
+
+		public AutoMapResult(
+			int animationEvents,
+			int cameraEvents,
+			int particleEvents,
+			int sections,
+			String generationId
+		) {
 			this.animationEvents = animationEvents;
 			this.cameraEvents = cameraEvents;
 			this.particleEvents = particleEvents;
 			this.sections = sections;
+			this.generationId = generationId != null ? generationId : "";
 		}
 
 		public int getAnimationEvents() { return animationEvents; }
 		public int getCameraEvents() { return cameraEvents; }
 		public int getParticleEvents() { return particleEvents; }
 		public int getSections() { return sections; }
+		public String getGenerationId() { return generationId; }
 	}
 }
