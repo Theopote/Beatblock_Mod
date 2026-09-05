@@ -5,7 +5,7 @@ import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerColorUtils;
 import com.beatblock.engine.layer.LayerVisibilityState;
-import com.beatblock.selection.BeatBlockSelectionManager;
+import com.beatblock.timeline.StageObjectReferenceService;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.BuildLayersPresenter;
@@ -94,8 +94,7 @@ public class LayerPanel {
 		ImGui.separator();
 		ImGui.textWrapped(BBTexts.get("beatblock.layer.hint"));
 
-		var selMgr = BeatBlockSelectionManager.get();
-		int selCount = selMgr.getSelectionCount();
+		int selCount = presenter.worldSelectionCount();
 		ImGui.textDisabled(BBTexts.get("beatblock.layer.current_selection", selCount));
 
 		ImGui.setNextItemWidth(-1f);
@@ -529,7 +528,7 @@ public class LayerPanel {
 				ImGui.spacing();
 				ImGui.textWrapped(BBTexts.get("beatblock.layer.delete_refs_warning", refs.count()));
 				ImGui.spacing();
-				ImGui.textWrapped(refs.formatCounts());
+				renderReferenceCounts(refs);
 			}
 		}
 
@@ -597,21 +596,42 @@ public class LayerPanel {
 	}
 
 	private void createLayerFromSelection() {
-		var selMgr = BeatBlockSelectionManager.get();
-		var outcome = presenter.createLayerFromSelection(
-			newLayerNameBuffer.get(),
-			new ArrayList<>(selMgr.getSelectedBlocks())
-		);
+		var outcome = presenter.createLayerFromWorldSelection(newLayerNameBuffer.get());
 		statusMessage = outcome.result().messageOrEmpty();
 		if (outcome.createdLayerId() != null) {
 			BuildLayer created = presenter.findLayer(outcome.createdLayerId());
 			if (created != null) {
 				nameCommitted.put(created.getId(), created.getName());
 			}
-			if (!outcome.blocksToRemoveFromSelection().isEmpty()) {
-				selMgr.removeBlocks(outcome.blocksToRemoveFromSelection());
-			}
 		}
+	}
+
+	private void renderReferenceCounts(StageObjectReferenceService.ReferenceSummary refs) {
+		StringBuilder lines = new StringBuilder();
+		for (var entry : refs.countsByType().entrySet()) {
+			if (!lines.isEmpty()) {
+				lines.append('\n');
+			}
+			lines.append(referenceTypeLabel(entry.getKey())).append(": ").append(entry.getValue());
+		}
+		if (!lines.isEmpty()) {
+			ImGui.textWrapped(lines.toString());
+		}
+	}
+
+	private static String referenceTypeLabel(StageObjectReferenceService.ReferenceType type) {
+		return switch (type) {
+			case ANIMATION_EVENT -> BBTexts.get("beatblock.layer.reference.animation_event");
+			case BINDING_RULE -> BBTexts.get("beatblock.layer.reference.binding_rule");
+			case STAGE_ROLE -> BBTexts.get("beatblock.layer.reference.stage_role");
+			case GRAMMAR_TARGET -> BBTexts.get("beatblock.layer.reference.grammar_target");
+			case AUTOMAP_RULE -> BBTexts.get("beatblock.layer.reference.automap_rule");
+			case AUTOMAP_FEATURE_TARGET -> BBTexts.get("beatblock.layer.reference.automap_feature_target");
+			case CAMERA_PHRASE -> BBTexts.get("beatblock.layer.reference.camera_phrase");
+			case VFX_TARGET -> BBTexts.get("beatblock.layer.reference.vfx_target");
+			case CAMERA_SEGMENT -> BBTexts.get("beatblock.layer.reference.camera_segment");
+			case AUTOMAP_SETTINGS -> BBTexts.get("beatblock.layer.reference.automap_settings");
+		};
 	}
 
 	private void toggleVisibility(BuildLayer layer) {

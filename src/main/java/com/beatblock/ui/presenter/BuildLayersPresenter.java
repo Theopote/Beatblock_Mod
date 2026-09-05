@@ -4,7 +4,9 @@ import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
+import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.timeline.StageObjectReferenceService;
+import com.beatblock.timeline.StageObjectTargetConflictFinder;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.layer.CreateLayerCommand;
@@ -51,17 +53,26 @@ public final class BuildLayersPresenter {
 		}
 	}
 
-	public record LayerActionOutcome(PresenterResult result, String primaryId) {}
+	public record LayerActionOutcome(
+		PresenterResult result,
+		String primaryId,
+		StageObjectTargetConflictFinder.ConflictSummary mergeConflicts
+	) {
+		public LayerActionOutcome(PresenterResult result, String primaryId) {
+			this(result, primaryId, new StageObjectTargetConflictFinder.ConflictSummary(List.of()));
+		}
+	}
 
 	private final Supplier<CommandManager> commandManager;
 	private final Supplier<BuildLayerManager> layerManager;
 	private final Supplier<Timeline> timeline;
+	private final Supplier<BeatBlockSelectionManager> selectionManager;
 
 	public BuildLayersPresenter(
 		Supplier<CommandManager> commandManager,
 		Supplier<BuildLayerManager> layerManager
 	) {
-		this(commandManager, layerManager, () -> null);
+		this(commandManager, layerManager, () -> null, () -> null);
 	}
 
 	public BuildLayersPresenter(
@@ -69,9 +80,46 @@ public final class BuildLayersPresenter {
 		Supplier<BuildLayerManager> layerManager,
 		Supplier<Timeline> timeline
 	) {
+		this(commandManager, layerManager, timeline, () -> null);
+	}
+
+	public BuildLayersPresenter(
+		Supplier<CommandManager> commandManager,
+		Supplier<BuildLayerManager> layerManager,
+		Supplier<Timeline> timeline,
+		Supplier<BeatBlockSelectionManager> selectionManager
+	) {
 		this.commandManager = commandManager;
 		this.layerManager = layerManager;
 		this.timeline = timeline != null ? timeline : () -> null;
+		this.selectionManager = selectionManager != null ? selectionManager : () -> null;
+	}
+
+	public int worldSelectionCount() {
+		BeatBlockSelectionManager selection = selectionManager.get();
+		return selection != null ? selection.getSelectionCount() : 0;
+	}
+
+	/**
+	 * Creates a layer from the injected world selection and clears claimed blocks from that selection.
+	 */
+	public CreateOutcome createLayerFromWorldSelection(String rawName) {
+		BeatBlockSelectionManager selection = selectionManager.get();
+		if (selection == null) {
+			return new CreateOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.create_selection_first")),
+				null,
+				List.of()
+			);
+		}
+		CreateOutcome outcome = createLayerFromSelection(
+			rawName,
+			new ArrayList<>(selection.getSelectedBlocks())
+		);
+		if (outcome.createdLayerId() != null && !outcome.blocksToRemoveFromSelection().isEmpty()) {
+			selection.removeBlocks(outcome.blocksToRemoveFromSelection());
+		}
+		return outcome;
 	}
 
 	public Set<String> selectedLayerIds() {
@@ -392,9 +440,19 @@ public final class BuildLayersPresenter {
 			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.merge_failed")), null);
 		}
 		manager.setSelectionTo(merged.getId());
+		StageObjectTargetConflictFinder.ConflictSummary conflicts =
+			StageObjectTargetConflictFinder.findOverlaps(timeline.get(), merged.getStageObjectId());
+		String message = conflicts.isEmpty()
+			? BBTexts.get("beatblock.message.layers_merged", merged.getName())
+			: BBTexts.get(
+				"beatblock.message.layers_merged_with_conflicts",
+				merged.getName(),
+				conflicts.count()
+			);
 		return new LayerActionOutcome(
-			PresenterResult.success(BBTexts.get("beatblock.message.layers_merged", merged.getName())),
-			merged.getId()
+			PresenterResult.success(message),
+			merged.getId(),
+			conflicts
 		);
 	}
 

@@ -30,6 +30,12 @@ import java.util.Set;
  * Unified StageObject reference graph over Timeline + session AutoMap settings.
  * <p>
  * Covers find / remap (merge) / clear (delete) / restore for all known target-bearing sites.
+ * <p>
+ * <b>Maintenance rule:</b> any new persisted field that stores {@code targetObjectId},
+ * {@code subjectObjectId}, or a collection of StageObject target ids must be registered
+ * here (collector + remap/clear/restore). Do not add ad-hoc string scans elsewhere.
+ * A future {@code StageObjectReferenceContributor} plugin split is optional; keep sites
+ * in this service until that exists.
  */
 public final class StageObjectReferenceService {
 
@@ -73,38 +79,15 @@ public final class StageObjectReferenceService {
 			return n;
 		}
 
+		/**
+		 * Counts by reference type for UI localization (callers resolve labels via BBTexts).
+		 */
 		public Map<ReferenceType, Integer> countsByType() {
 			Map<ReferenceType, Integer> out = new EnumMap<>(ReferenceType.class);
 			for (StageObjectReference ref : references) {
 				out.merge(ref.type(), 1, Integer::sum);
 			}
 			return out;
-		}
-
-		/** Short multi-line summary for UI (English keys resolved by caller). */
-		public @NonNull String formatCounts() {
-			if (references.isEmpty()) return "";
-			StringBuilder sb = new StringBuilder();
-			for (Map.Entry<ReferenceType, Integer> e : countsByType().entrySet()) {
-				if (!sb.isEmpty()) sb.append('\n');
-				sb.append(labelFor(e.getKey())).append(": ").append(e.getValue());
-			}
-			return sb.toString();
-		}
-
-		private static String labelFor(ReferenceType type) {
-			return switch (type) {
-				case ANIMATION_EVENT -> "animation events";
-				case BINDING_RULE -> "binding rules";
-				case STAGE_ROLE -> "choreography stage roles";
-				case GRAMMAR_TARGET -> "grammar phrase targets";
-				case AUTOMAP_RULE -> "AutoMap rules";
-				case AUTOMAP_FEATURE_TARGET -> "AutoMap feature targets";
-				case CAMERA_PHRASE -> "camera phrases";
-				case VFX_TARGET -> "VFX targets";
-				case CAMERA_SEGMENT -> "camera segments";
-				case AUTOMAP_SETTINGS -> "Smart Auto Map targets";
-			};
 		}
 	}
 

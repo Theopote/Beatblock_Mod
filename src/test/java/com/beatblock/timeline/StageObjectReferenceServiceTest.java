@@ -20,6 +20,7 @@ import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.testutil.MinecraftTestBootstrap;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.layer.DeleteLayerCommand;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.BuildLayersPresenter;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.AfterEach;
@@ -211,5 +212,32 @@ class StageObjectReferenceServiceTest {
 
 		StageObjectReferenceService.restore(timeline, mutation);
 		assertEquals(oldId, ChoreographyPlanStore.loadPlan(timeline).stageRoles().getFirst().targetObjectId());
+	}
+
+	@Test
+	void mergeSelectedLayersReportsOverlappingTargetConflicts() {
+		BuildLayer layerA = layerManager.createFromSelection("A", List.of(new BlockPos(10, 64, 0)));
+		BuildLayer layerB = layerManager.createFromSelection("B", List.of(new BlockPos(11, 64, 0)));
+		assertNotNull(layerA);
+		assertNotNull(layerB);
+
+		timeline.addBlockAnimationEvent(new TimelineAnimationEvent(
+			"bounce", 10.0, 1.0, "Bounce", layerA.getStageObjectId(), 1f, Map.of()));
+		timeline.addBlockAnimationEvent(new TimelineAnimationEvent(
+			"fall", 10.5, 1.0, "Fall", layerB.getStageObjectId(), 1f, Map.of()));
+
+		layerManager.selectLayer(layerA.getId(), false, false, List.of(layerA.getId(), layerB.getId()));
+		layerManager.selectLayer(layerB.getId(), true, false, List.of(layerA.getId(), layerB.getId()));
+
+		var outcome = presenter.mergeSelectedLayers("Merged");
+		assertTrue(outcome.result().ok());
+		assertNotNull(outcome.primaryId());
+		assertEquals(1, outcome.mergeConflicts().count());
+		BuildLayer merged = layerManager.get(outcome.primaryId());
+		assertNotNull(merged);
+		assertEquals(
+			BBTexts.get("beatblock.message.layers_merged_with_conflicts", merged.getName(), 1),
+			outcome.result().messageOrEmpty()
+		);
 	}
 }
