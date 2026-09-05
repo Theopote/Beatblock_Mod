@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * 方块选择属性面板业务逻辑：读取视图状态、应用设置变更。
+ * 方块选区工具设置：读取视图状态、应用设置变更（供 ToolPanel 快速设置与 Selection Inspector 共用）。
  */
 public final class SelectionPropertiesPresenter {
 

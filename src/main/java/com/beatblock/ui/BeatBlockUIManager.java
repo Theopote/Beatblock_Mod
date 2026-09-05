@@ -61,7 +61,7 @@ public class BeatBlockUIManager {
 
 	public BeatBlockUIManager(Runnable onCloseRequest) {
 		this.timelineActions = PresenterFactories.timelineActionDispatcher();
-		this.toolPanel = new ToolPanel();
+		this.toolPanel = new ToolPanel(() -> panelVisibility.selectionProperties.set(true));
 		this.markerPanel = new MarkerPanel();
 		this.audioAnalysisPanel = new AudioAnalysisPanel(() -> panelVisibility.timeline.set(true));
 		this.menuBarPanel = new MenuBarPanel(onCloseRequest, panelVisibility,

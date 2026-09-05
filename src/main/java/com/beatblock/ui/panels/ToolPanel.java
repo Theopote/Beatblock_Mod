@@ -1,12 +1,14 @@
 package com.beatblock.ui.panels;
 
 import com.beatblock.automap.engine.SmartAutoMapEngine;
-import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
+import com.beatblock.selection.SelectionOperation;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.presenter.SelectionPropertiesPresenter;
+import com.beatblock.ui.presenter.SelectionPropertiesViewState;
 import com.beatblock.ui.presenter.ToolPanelPresenter;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
@@ -16,11 +18,10 @@ import imgui.type.ImInt;
 import imgui.type.ImString;
 
 /**
- * 左侧工具面板：层次为「场景选区 → 自动化编排 → 动画场景对象」。
- * Marker 管理与时间线动作调试已拆分至 {@link MarkerPanel}；
- * 天降方块（RhythmDrop）已拆分至 {@link RhythmDropPanel}。
- * 方块选择由 {@link BeatBlockSelectionManager} 管理；RuntimeStageObject 创建使用轴对齐包围盒，
- * 默认从当前方块选区的外接 AABB 一键填入，避免与「框选工具」语义重复。
+ * 左侧工具面板：选区快速操作 → 自动化编排 → 舞台对象。
+ * <p>
+ * 高频选区参数在此；进阶摘要与上限见 {@link SelectionPropertiesPanel}。
+ * Marker / RhythmDrop 已拆至独立面板。
  */
 public class ToolPanel {
 
@@ -29,12 +30,14 @@ public class ToolPanel {
 	private boolean showAutoMapSettings = false;
 	private final AutoMapSettingsPanel autoMapSettingsPanel = new AutoMapSettingsPanel();
 	private final ToolPanelPresenter presenter;
+	private final SelectionPropertiesPresenter selectionPresenter;
 	private final ImString stageObjectNameBuffer = new ImString(64);
 	private final ImBoolean stageObjectIncludeAir = new ImBoolean(false);
 	private final ImInt stageObjectSortingIndex = new ImInt(0);
 	private final ImString stageObjectStaggerBuffer = new ImString(16);
 	private final ImString selectionPresetNameBuffer = new ImString(48);
 	private final ImInt selectedPresetIndex = new ImInt(-1);
+	private final int[] primaryParamScratch = new int[1];
 	private String selectionPresetMessage;
 	private String stageObjectMessage;
 	private long stageObjectMessageTimeMs;
@@ -47,19 +50,28 @@ public class ToolPanel {
 			"beatblock.tool.sorting.all"
 		);
 	}
-	private final Runnable onSelectionToolChosen;
+	private final Runnable onOpenSelectionInspector;
 
 	public ToolPanel() {
 		this(null);
 	}
 
-	public ToolPanel(Runnable onSelectionToolChosen) {
-		this(onSelectionToolChosen, PresenterFactories.toolPanelPresenter());
+	public ToolPanel(Runnable onOpenSelectionInspector) {
+		this(
+			onOpenSelectionInspector,
+			PresenterFactories.toolPanelPresenter(),
+			PresenterFactories.selectionPropertiesPresenter()
+		);
 	}
 
-	ToolPanel(Runnable onSelectionToolChosen, ToolPanelPresenter presenter) {
-		this.onSelectionToolChosen = onSelectionToolChosen;
+	ToolPanel(
+		Runnable onOpenSelectionInspector,
+		ToolPanelPresenter presenter,
+		SelectionPropertiesPresenter selectionPresenter
+	) {
+		this.onOpenSelectionInspector = onOpenSelectionInspector;
 		this.presenter = presenter;
+		this.selectionPresenter = selectionPresenter;
 		stageObjectNameBuffer.set("selection_object");
 		stageObjectStaggerBuffer.set("0.00");
 	}
@@ -115,17 +127,14 @@ public class ToolPanel {
 
 	private void renderBlockSelectionTools() {
 		ImGui.text(BBTexts.get("beatblock.tool.block_selection"));
-		var state = presenter.selectionToolViewState();
+		SelectionPropertiesViewState sel = selectionPresenter.currentViewState();
 		ImGui.setNextItemWidth(ImGui.getContentRegionAvail().x);
-		if (ImGui.beginCombo("##bselCombo", ToolPanelPresenter.selectionModeLabel(state.mode()))) {
+		if (ImGui.beginCombo("##bselCombo", ToolPanelPresenter.selectionModeLabel(sel.mode()))) {
 			for (SelectionMode mode : ToolPanelPresenter.selectionComboOrder()) {
-				boolean selected = state.mode() == mode;
+				boolean selected = sel.mode() == mode;
 				if (ImGui.selectable(ToolPanelPresenter.selectionModeLabel(mode), selected)) {
-					if (state.mode() != mode) {
+					if (sel.mode() != mode) {
 						presenter.setSelectionMode(mode);
-						if (onSelectionToolChosen != null) {
-							onSelectionToolChosen.run();
-						}
 					}
 				}
 				if (selected) {
@@ -135,131 +144,73 @@ public class ToolPanel {
 			ImGui.endCombo();
 		}
 
-		// === 动态显示当前工具的属性（集成选择属性面板功能） ===
 		ImGui.spacing();
-		ImGui.textColored(0.7f, 0.9f, 1f, 1f, BBTexts.get("beatblock.tool.tool_settings"));
-		ImGui.separator();
-		renderToolSpecificProperties(state.mode());
-
-		// === 通用属性 ===
-		ImGui.spacing();
-		ImGui.textColored(0.7f, 0.9f, 1f, 1f, BBTexts.get("beatblock.tool.common_settings"));
-		ImGui.separator();
-		renderCommonSelectionProperties();
-
-		ImGui.separator();
-	}
-
-	/**
-	 * 根据当前选择的工具动态显示相应的属性（原SelectionPropertiesPanel的功能）
-	 */
-	private void renderToolSpecificProperties(SelectionMode mode) {
-		var selMgr = com.beatblock.selection.BeatBlockSelectionManager.get();
-
-		switch (mode) {
-			case BRUSH -> {
-				com.beatblock.selection.BrushShape shape = selMgr.getBrushShape();
-				String shapeLabel = shape == com.beatblock.selection.BrushShape.SPHERE
-					? BBTexts.get("beatblock.tool.shape.sphere")
-					: BBTexts.get("beatblock.tool.shape.cube");
-				if (ImGui.beginCombo(BBTexts.get("beatblock.tool.shape") + "##brushShape", shapeLabel)) {
-					if (ImGui.selectable(BBTexts.get("beatblock.tool.shape.sphere") + "##sphereOpt", shape == com.beatblock.selection.BrushShape.SPHERE)) {
-						selMgr.setBrushShape(com.beatblock.selection.BrushShape.SPHERE);
-					}
-					if (ImGui.selectable(BBTexts.get("beatblock.tool.shape.cube") + "##cubeOpt", shape == com.beatblock.selection.BrushShape.CUBE)) {
-						selMgr.setBrushShape(com.beatblock.selection.BrushShape.CUBE);
-					}
-					ImGui.endCombo();
-				}
-				int[] radius = {selMgr.getSphereBrushRadius()};
-				ImGui.setNextItemWidth(-1f);
-				if (ImGui.sliderInt(BBTexts.get("beatblock.tool.size") + "##brushSize", radius, 1, 32)) {
-					selMgr.setSphereBrushRadius(radius[0]);
-				}
-			}
-			case LINE -> {
-				int[] thickness = {selMgr.getLineThicknessRadius()};
-				ImGui.setNextItemWidth(-1f);
-				if (ImGui.sliderInt(BBTexts.get("beatblock.tool.line_thickness") + "##lineThick", thickness, 0, 32)) {
-					selMgr.setLineThicknessRadius(thickness[0]);
-				}
-			}
-			case CONNECTED, SELECTION_WAND -> {
-				int[] spread = {selMgr.getMaxMagicWandSpreadFromSeed()};
-				ImGui.setNextItemWidth(-1f);
-				if (ImGui.sliderInt(BBTexts.get("beatblock.tool.spread_radius") + "##wandSpread", spread, 1, 256)) {
-					selMgr.setMaxMagicWandSpreadFromSeed(spread[0]);
-				}
-				boolean fullState = selMgr.isConnectedMatchFullState();
-				if (ImGui.checkbox(BBTexts.get("beatblock.tool.full_state_match") + "##fullState", new ImBoolean(fullState))) {
-					selMgr.setConnectedMatchFullState(!fullState);
-				}
-			}
-			case PLANE_SLICE -> {
-				net.minecraft.util.math.Direction override = selMgr.getPlaneSliceFaceOverride();
-				String[] faceLabels = BBTexts.labels(
-					"beatblock.tool.face.auto", "+Y", "-Y", "+X", "-X", "+Z", "-Z");
-				int faceIndex = override == null ? 0 :
-					switch (override) {
-						case UP -> 1; case DOWN -> 2; case EAST -> 3;
-						case WEST -> 4; case SOUTH -> 5; case NORTH -> 6;
-					};
-				ImInt faceIndexImInt = new ImInt(faceIndex);
-				if (ImGui.combo(BBTexts.get("beatblock.tool.slice_direction") + "##planeDir", faceIndexImInt, faceLabels)) {
-					net.minecraft.util.math.Direction newDir = switch (faceIndexImInt.get()) {
-						case 1 -> net.minecraft.util.math.Direction.UP;
-						case 2 -> net.minecraft.util.math.Direction.DOWN;
-						case 3 -> net.minecraft.util.math.Direction.EAST;
-						case 4 -> net.minecraft.util.math.Direction.WEST;
-						case 5 -> net.minecraft.util.math.Direction.SOUTH;
-						case 6 -> net.minecraft.util.math.Direction.NORTH;
-						default -> null;
-					};
-					selMgr.setPlaneSliceFaceOverride(newDir);
-				}
-			}
-			case OFF, CLICK, BOX, COLUMN, LASSO -> ImGui.textDisabled(BBTexts.get("beatblock.tool.no_special_settings"));
-		}
-	}
-
-	/**
-	 * 渲染所有工具通用的属性
-	 */
-	private void renderCommonSelectionProperties() {
-		var selMgr = com.beatblock.selection.BeatBlockSelectionManager.get();
-
 		ImGui.text(BBTexts.get("beatblock.tool.operations"));
-		com.beatblock.selection.SelectionOperation op = selMgr.getOperation();
-		if (ImGui.radioButton(BBTexts.get("beatblock.tool.op.new") + "##opNew", op == com.beatblock.selection.SelectionOperation.NEW)) {
-			selMgr.setOperation(com.beatblock.selection.SelectionOperation.NEW);
-		}
-		ImGui.sameLine();
-		if (ImGui.radioButton(BBTexts.get("beatblock.tool.op.add") + "##opAdd", op == com.beatblock.selection.SelectionOperation.ADD)) {
-			selMgr.setOperation(com.beatblock.selection.SelectionOperation.ADD);
-		}
-		ImGui.sameLine();
-		if (ImGui.radioButton(BBTexts.get("beatblock.tool.op.subtract") + "##opSub", op == com.beatblock.selection.SelectionOperation.SUBTRACT)) {
-			selMgr.setOperation(com.beatblock.selection.SelectionOperation.SUBTRACT);
-		}
-
-		int[] maxDist = {selMgr.getMaxDistanceFromCamera()};
-		ImGui.setNextItemWidth(-1f);
-		if (ImGui.sliderInt(BBTexts.get("beatblock.tool.camera_distance") + "##camDist", maxDist, 16, 512)) {
-			selMgr.setMaxDistanceFromCamera(maxDist[0]);
+		SelectionOperation[] operations = SelectionOperation.values();
+		for (int i = 0; i < operations.length; i++) {
+			SelectionOperation op = operations[i];
+			if (i > 0) {
+				ImGui.sameLine();
+			}
+			if (ImGui.radioButton(
+				SelectionPropertiesPresenter.operationLabel(op) + "##toolOp" + op.name(),
+				sel.operation() == op
+			)) {
+				selectionPresenter.setOperation(op);
+			}
 		}
 
-		boolean includeAir = selMgr.isIncludeAir();
-		if (ImGui.checkbox(BBTexts.get("beatblock.tool.include_air") + "##includeAir", new ImBoolean(includeAir))) {
-			selMgr.setIncludeAir(!includeAir);
-		}
+		ImGui.spacing();
+		renderPrimaryToolParam(sel);
 
-		int selCount = selMgr.getSelectedBlocks().size();
+		int selCount = sel.selectionCount();
 		if (selCount > 0) {
 			ImGui.textColored(0.4f, 1f, 0.4f, 1f,
 				BBTexts.get("beatblock.common.selected_blocks", selCount));
+		} else {
+			ImGui.textDisabled(BBTexts.get("beatblock.common.selected_blocks", 0));
+		}
+
+		if (ImGui.button(BBTexts.get("beatblock.tool.advanced_selection") + "##openSelInspector", -1f, 0f)) {
+			if (onOpenSelectionInspector != null) {
+				onOpenSelectionInspector.run();
+			}
 		}
 
 		renderSelectionPresets();
+		ImGui.separator();
+	}
+
+	/**
+	 * 仅展示当前工具最高频的 1 个参数；形状 / 完整状态 / 平面朝向等在 Inspector。
+	 */
+	private void renderPrimaryToolParam(SelectionPropertiesViewState sel) {
+		switch (sel.mode()) {
+			case BRUSH -> {
+				primaryParamScratch[0] = sel.sphereBrushRadius();
+				ImGui.setNextItemWidth(-1f);
+				if (ImGui.sliderInt(BBTexts.get("beatblock.tool.size") + "##brushSize", primaryParamScratch, 1, 32)) {
+					selectionPresenter.setSphereBrushRadius(primaryParamScratch[0]);
+				}
+			}
+			case LINE -> {
+				primaryParamScratch[0] = sel.lineThicknessRadius();
+				ImGui.setNextItemWidth(-1f);
+				if (ImGui.sliderInt(BBTexts.get("beatblock.tool.line_thickness") + "##lineThick", primaryParamScratch, 0, 32)) {
+					selectionPresenter.setLineThicknessRadius(primaryParamScratch[0]);
+				}
+			}
+			case CONNECTED, SELECTION_WAND -> {
+				primaryParamScratch[0] = sel.maxMagicWandSpreadFromSeed();
+				ImGui.setNextItemWidth(-1f);
+				if (ImGui.sliderInt(BBTexts.get("beatblock.tool.spread_radius") + "##wandSpread", primaryParamScratch, 1, 256)) {
+					selectionPresenter.setMaxMagicWandSpreadFromSeed(primaryParamScratch[0]);
+				}
+			}
+			default -> {
+				// Box / Click / Lasso / Plane / Column: no primary quick param
+			}
+		}
 	}
 
 	private void renderSelectionPresets() {
