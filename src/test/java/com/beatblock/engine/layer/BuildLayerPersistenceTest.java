@@ -16,6 +16,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class BuildLayerPersistenceTest {
 
@@ -79,6 +80,28 @@ class BuildLayerPersistenceTest {
 
 		assertEquals(1, manager.getAll().size());
 		assertEquals("new-layer", manager.getAll().iterator().next().getId());
+		assertNull(stageObjects.get("s1"), "Osc reload must purge dissolved StageObjects, not orphan them");
+		assertNotNull(stageObjects.get("s2"));
+	}
+
+	@Test
+	void loadIntoPurgesOrphanStageObjectsFromPreviousSession() {
+		StageObjectSystem stageObjects = new StageObjectSystem();
+		BuildLayerManager manager = new BuildLayerManager(stageObjects);
+		BlockPos oldPos = new BlockPos(0, 64, 0);
+		RuntimeStageObject oldStage = StageObjectSystem.fromBlocks("orphan-stage", "Orphan", List.of(oldPos));
+		manager.registerRestored(new BuildLayer(
+			"orphan-layer", "Orphan", oldStage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
+
+		RuntimeStageObject keepStage = StageObjectSystem.fromBlocks("keep-stage", "Keep", List.of(new BlockPos(2, 64, 0)));
+		JsonArray arr = new JsonArray();
+		arr.add(manualLayerJson("keep-layer", "Keep", keepStage));
+
+		BuildLayerPersistence.loadInto(manager, arr);
+
+		assertNull(stageObjects.get("orphan-stage"));
+		assertNotNull(stageObjects.get("keep-stage"));
+		assertEquals(1, manager.getAll().size());
 	}
 
 	private static com.google.gson.JsonObject manualLayerJson(String id, String name, RuntimeStageObject stage) {

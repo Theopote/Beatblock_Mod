@@ -47,7 +47,8 @@ public final class BuildLayerPersistence {
 
 	public static void loadInto(BuildLayerManager manager, JsonArray arr, JsonArray groupsArr) {
 		if (manager == null) return;
-		manager.clear();
+		// Must purge (not clear): clear() leaves StageObjectSystem entries orphaned across .osc reload.
+		manager.purgeAllLayers();
 		if (groupsArr != null) {
 			for (int i = 0; i < groupsArr.size(); i++) {
 				BuildLayerGroup group = groupFromJson(groupsArr.get(i).getAsJsonObject());

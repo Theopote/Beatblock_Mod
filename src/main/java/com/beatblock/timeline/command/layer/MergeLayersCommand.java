@@ -5,6 +5,8 @@ import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.engine.RuntimeStageObject;
+import com.beatblock.timeline.StageObjectTargetRemapper;
+import com.beatblock.timeline.Timeline;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 
@@ -12,8 +14,10 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** 合并多个图层为一个新图层（不改变世界方块状态）。 */
 public final class MergeLayersCommand implements com.beatblock.timeline.command.Command {
@@ -30,14 +34,26 @@ public final class MergeLayersCommand implements com.beatblock.timeline.command.
 	) {}
 
 	private final BuildLayerManager manager;
+	private final @Nullable Timeline timeline;
 	private final List<String> sourceLayerIds;
 	private final String mergedName;
 	private final List<LayerSnapshot> snapshots = new ArrayList<>();
 	private final List<BuildLayerGroup> removedGroups = new ArrayList<>();
 	private @Nullable BuildLayer mergedLayer;
+	private StageObjectTargetRemapper.@Nullable RemapResult targetRemap;
 
 	public MergeLayersCommand(BuildLayerManager manager, List<String> sourceLayerIds, String mergedName) {
+		this(manager, sourceLayerIds, mergedName, null);
+	}
+
+	public MergeLayersCommand(
+		BuildLayerManager manager,
+		List<String> sourceLayerIds,
+		String mergedName,
+		@Nullable Timeline timeline
+	) {
 		this.manager = manager;
+		this.timeline = timeline;
 		this.sourceLayerIds = sourceLayerIds != null ? List.copyOf(sourceLayerIds) : List.of();
 		this.mergedName = mergedName;
 	}
@@ -52,7 +68,16 @@ public final class MergeLayersCommand implements com.beatblock.timeline.command.
 			return;
 		}
 		captureSnapshots();
+		Set<String> dissolvedStageIds = collectSourceStageIds();
 		mergedLayer = manager.mergeLayers(sourceLayerIds, mergedName);
+		targetRemap = null;
+		if (timeline != null && mergedLayer != null && !dissolvedStageIds.isEmpty()) {
+			targetRemap = StageObjectTargetRemapper.remap(
+				timeline,
+				dissolvedStageIds,
+				mergedLayer.getStageObjectId()
+			);
+		}
 	}
 
 	@Override
@@ -78,6 +103,22 @@ public final class MergeLayersCommand implements com.beatblock.timeline.command.
 			restored.setColorArgb(snapshot.colorArgb());
 			manager.registerRestored(restored);
 		}
+		if (timeline != null && targetRemap != null) {
+			StageObjectTargetRemapper.restore(timeline, targetRemap);
+			targetRemap = null;
+		}
+	}
+
+	private Set<String> collectSourceStageIds() {
+		Set<String> stageIds = new LinkedHashSet<>();
+		for (LayerSnapshot snapshot : snapshots) {
+			if (snapshot.stageObject() == null) continue;
+			String stageId = snapshot.stageObject().getId();
+			if (stageId != null && !stageId.isBlank()) {
+				stageIds.add(stageId);
+			}
+		}
+		return stageIds;
 	}
 
 	private void captureSnapshots() {

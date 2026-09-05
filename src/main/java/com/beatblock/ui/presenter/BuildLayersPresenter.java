@@ -4,6 +4,7 @@ import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
+import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.layer.CreateLayerCommand;
 import com.beatblock.timeline.command.layer.DeleteLayerCommand;
@@ -46,13 +47,23 @@ public final class BuildLayersPresenter {
 
 	private final Supplier<CommandManager> commandManager;
 	private final Supplier<BuildLayerManager> layerManager;
+	private final Supplier<Timeline> timeline;
 
 	public BuildLayersPresenter(
 		Supplier<CommandManager> commandManager,
 		Supplier<BuildLayerManager> layerManager
 	) {
+		this(commandManager, layerManager, () -> null);
+	}
+
+	public BuildLayersPresenter(
+		Supplier<CommandManager> commandManager,
+		Supplier<BuildLayerManager> layerManager,
+		Supplier<Timeline> timeline
+	) {
 		this.commandManager = commandManager;
 		this.layerManager = layerManager;
+		this.timeline = timeline != null ? timeline : () -> null;
 	}
 
 	public Set<String> selectedLayerIds() {
@@ -335,7 +346,7 @@ public final class BuildLayersPresenter {
 				return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.merge_not_allowed")), null);
 			}
 		}
-		var cmd = new MergeLayersCommand(manager, List.copyOf(selected), rawName);
+		var cmd = new MergeLayersCommand(manager, List.copyOf(selected), rawName, timeline.get());
 		commands.execute(cmd);
 		BuildLayer merged = cmd.getMergedLayer();
 		if (merged == null) {
