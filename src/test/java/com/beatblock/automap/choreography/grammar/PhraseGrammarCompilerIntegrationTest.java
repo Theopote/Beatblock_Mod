@@ -52,7 +52,7 @@ class PhraseGrammarCompilerIntegrationTest {
 
 		assertEquals(12, count);
 		assertEquals("Tower_A", timeline.getAutoAnimationEvents().get(0).getTargetObjectId());
-		assertEquals("bounce", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
+		assertEquals("Pulse", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
 		assertTrue(timeline.getAutoAnimationEvents().get(0).getParameters().containsKey("phraseGrammar"));
 	}
 

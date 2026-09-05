@@ -110,7 +110,7 @@ class TimelineSectionEditPresenterTest {
 		assertTrue(outcome.result().ok());
 		assertEquals(2, timeline.getAutoAnimationEvents().size());
 		assertEquals("spin", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
-		assertEquals("pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
+		assertEquals("Pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
 	}
 
 	@Test

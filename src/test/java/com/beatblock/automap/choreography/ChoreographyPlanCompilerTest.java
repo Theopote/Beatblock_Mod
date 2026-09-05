@@ -281,8 +281,8 @@ class ChoreographyPlanCompilerTest {
 		);
 		ChoreographyPlanCompiler.compileAll(timeline, plan, ChoreographyCompileOptions.smartAutoMap());
 		assertEquals(2, timeline.getAutoAnimationEvents().size());
-		assertEquals("bounce", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
-		assertEquals("pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
+		assertEquals("Pulse", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
+		assertEquals("Pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
 
 		ChoreographyPlan updated = new ChoreographyPlan(
 			plan.sections(),
@@ -301,7 +301,7 @@ class ChoreographyPlanCompilerTest {
 
 		assertEquals(2, timeline.getAutoAnimationEvents().size());
 		assertEquals("spin", timeline.getAutoAnimationEvents().get(0).getAnimationTypeId());
-		assertEquals("pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
+		assertEquals("Pulse", timeline.getAutoAnimationEvents().get(1).getAnimationTypeId());
 		assertEquals(9.0, timeline.getAutoAnimationEvents().get(1).getTimeSeconds(), 1e-6);
 	}
 

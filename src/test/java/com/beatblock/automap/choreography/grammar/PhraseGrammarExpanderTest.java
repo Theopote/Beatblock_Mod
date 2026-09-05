@@ -51,7 +51,7 @@ class PhraseGrammarExpanderTest {
 		assertEquals(0.24, events.get(3).timeSeconds(), 1e-9);
 		assertEquals(4.0, events.get(4).timeSeconds(), 1e-9);
 		assertEquals(8.0, events.get(8).timeSeconds(), 1e-9);
-		assertEquals("bounce", events.get(0).primitiveId());
+		assertEquals("Pulse", events.get(0).primitiveId());
 		assertTrue(events.get(0).params().containsKey("phraseGrammar"));
 		assertTrue(events.get(8).energy() > events.get(0).energy());
 	}

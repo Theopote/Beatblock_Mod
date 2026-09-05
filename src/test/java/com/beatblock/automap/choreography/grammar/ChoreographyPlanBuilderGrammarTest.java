@@ -67,6 +67,8 @@ class ChoreographyPlanBuilderGrammarTest {
 			timeline, plan, com.beatblock.automap.choreography.ReplaceMode.APPEND);
 
 		assertEquals(2, plan.choreographyPhrases().size());
-		assertEquals(6, count);
+		// Phrase EveryN=4 → triggers @0,@4 (×2 targets); Hero FirstFeature @0 shares targets and
+		// suppresses the overlapping Phrase instance → 2 hero + 2 phrase = 4 events.
+		assertEquals(4, count);
 	}
 }
