@@ -187,8 +187,7 @@ public final class EventPropertiesPresenter {
 		AnimationEventSnapshot after = ((GlobalEventPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.capture(
 			ref.event(), ref.clip(), timeline, ref.clip().getId());
-		commitEventEdit(ref, timeline, commandManager, before, after);
-		return new ApplyResult.Ok();
+		return commitEventEditResult(ref, timeline, commandManager, before, after);
 	}
 
 	public AudioClipFormSnapshot buildAudioClipFormSnapshot(EventPropertiesRef ref, Timeline timeline) {
@@ -283,11 +282,8 @@ public final class EventPropertiesPresenter {
 		}
 		AnimationEventSnapshot after = ((ClipTimingPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.captureClipOnly(ref.clip(), timeline, ref.clip().getId());
-		if (ref.event() != null) {
-			before = AnimationEventSnapshot.capture(ref.event(), ref.clip(), timeline, ref.clip().getId());
-		}
-		commitEventEdit(ref, timeline, commandManager, before, after);
-		return new ApplyResult.Ok();
+		before = withPreservedMetadataKeys(before, timeline, metadataUpdates);
+		return commitClipEdit(ref, timeline, commandManager, before, after);
 	}
 
 	public boolean isTrackLocked(Timeline timeline, TimelineEditor editor, String trackId) {
@@ -371,8 +367,7 @@ public final class EventPropertiesPresenter {
 			after.clipEndSeconds()
 		);
 		AnimationEventSnapshot before = AnimationEventSnapshot.capture(ref.event(), ref.clip());
-		commitEventEdit(ref, timeline, commandManager, before, after);
-		return new ApplyResult.Ok();
+		return commitEventEditResult(ref, timeline, commandManager, before, after);
 	}
 
 	public ApplyResult applyCameraClipOnly(
@@ -403,8 +398,7 @@ public final class EventPropertiesPresenter {
 		}
 		AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.captureClipOnly(ref.clip(), timeline, ref.clip().getId());
-		commitEventEdit(ref, timeline, commandManager, before, after);
-		return new ApplyResult.Ok();
+		return commitClipEdit(ref, timeline, commandManager, before, after);
 	}
 
 	public ApplyResult applyCameraKindChange(
@@ -432,8 +426,7 @@ public final class EventPropertiesPresenter {
 		AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.capture(
 			ref.event(), ref.clip(), timeline, ref.clip().getId());
-		commitEventEdit(ref, timeline, commandManager, before, after);
-		return new ApplyResult.Ok();
+		return commitEventEditResult(ref, timeline, commandManager, before, after);
 	}
 
 	public ApplyResult applyCameraSegment(
@@ -467,8 +460,7 @@ public final class EventPropertiesPresenter {
 		AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.capture(
 			ref.event(), ref.clip(), timeline, ref.clip().getId());
-		commitEventEdit(ref, timeline, commandManager, before, after);
-		return new ApplyResult.Ok();
+		return commitEventEditResult(ref, timeline, commandManager, before, after);
 	}
 
 	public ApplyResult applyCameraKeyframe(
@@ -500,8 +492,7 @@ public final class EventPropertiesPresenter {
 		}
 		AnimationEventSnapshot after = ((CameraEventPropertiesEditor.Result.Ok) result).snapshot();
 		AnimationEventSnapshot before = AnimationEventSnapshot.capture(ref.event(), ref.clip());
-		commitEventEdit(ref, timeline, commandManager, before, after);
-		return new ApplyResult.Ok();
+		return commitEventEditResult(ref, timeline, commandManager, before, after);
 	}
 
 	public Optional<Map<String, String>> captureSegmentViewParams(CameraSegmentKind kind) {
@@ -816,17 +807,20 @@ public final class EventPropertiesPresenter {
 		params.put(key, UiNumberFormatter.format(value));
 	}
 
-	private void commitEventEdit(
+	private ApplyResult commitEventEditResult(
 		EventPropertiesRef ref,
 		Timeline timeline,
 		CommandManager commandManager,
 		AnimationEventSnapshot before,
 		AnimationEventSnapshot after
 	) {
-		commitEventEdit(ref, timeline, commandManager, before, after, true);
+		if (!commitEventEdit(ref, timeline, commandManager, before, after, true)) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.message.event_edit_failed"));
+		}
+		return new ApplyResult.Ok();
 	}
 
-	private void commitEventEdit(
+	private boolean commitEventEdit(
 		EventPropertiesRef ref,
 		Timeline timeline,
 		CommandManager commandManager,
@@ -834,6 +828,9 @@ public final class EventPropertiesPresenter {
 		AnimationEventSnapshot after,
 		boolean notifyAfter
 	) {
+		if (ref == null || ref.event() == null || ref.clip() == null || ref.track() == null) {
+			return false;
+		}
 		boolean ok = TimelineEventEditActions.execute(
 			timeline,
 			commandManager,
@@ -846,6 +843,64 @@ public final class EventPropertiesPresenter {
 		if (ok && notifyAfter) {
 			notifyDocumentEdited();
 		}
+		return ok;
+	}
+
+	private ApplyResult commitClipEdit(
+		EventPropertiesRef ref,
+		Timeline timeline,
+		CommandManager commandManager,
+		AnimationEventSnapshot before,
+		AnimationEventSnapshot after
+	) {
+		if (ref == null || ref.clip() == null || ref.track() == null) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.message.no_clip"));
+		}
+		boolean ok = TimelineEventEditActions.executeClipOnly(
+			timeline,
+			commandManager,
+			ref.track().getId(),
+			ref.clip(),
+			before,
+			after
+		);
+		if (!ok) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.message.clip_edit_failed"));
+		}
+		notifyDocumentEdited();
+		return new ApplyResult.Ok();
+	}
+
+	/**
+	 * Ensures undo can restore metadata keys that the after-snapshot will write
+	 * (e.g. {@code clipLabel_*}), which {@link AnimationEventSnapshot#captureClipOnly}
+	 * does not include by default.
+	 */
+	private static AnimationEventSnapshot withPreservedMetadataKeys(
+		AnimationEventSnapshot before,
+		@Nullable Timeline timeline,
+		@Nullable Map<String, String> keysToPreserve
+	) {
+		if (before == null || keysToPreserve == null || keysToPreserve.isEmpty()) {
+			return before;
+		}
+		Map<String, String> merged = new HashMap<>(before.timelineMetadata());
+		for (String key : keysToPreserve.keySet()) {
+			if (key == null || key.isBlank()) {
+				continue;
+			}
+			Object current = timeline != null ? timeline.getMetadata(key) : null;
+			merged.put(key, current != null ? String.valueOf(current) : "");
+		}
+		return new AnimationEventSnapshot(
+			before.timeSeconds(),
+			before.parameters(),
+			before.clipStartSeconds(),
+			before.clipEndSeconds(),
+			before.clipEventTimesById(),
+			merged,
+			before.timelineDurationSeconds()
+		);
 	}
 
 	private void notifyDocumentEdited() {
@@ -1103,8 +1158,11 @@ public final class EventPropertiesPresenter {
 				before.timelineDurationSeconds()
 			);
 			try {
-				commitEventEdit(ref, timeline, commandManager, before, after, false);
-				updated++;
+				if (commitEventEdit(ref, timeline, commandManager, before, after, false)) {
+					updated++;
+				} else {
+					lastError = BBTexts.get("beatblock.message.event_edit_failed");
+				}
 			} catch (RuntimeException ex) {
 				lastError = ex.getMessage();
 			}

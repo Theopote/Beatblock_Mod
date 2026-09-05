@@ -18,6 +18,9 @@ public final class CommandDescriptions {
 		if (command instanceof UpdateAnimationEventCommand) {
 			return BBTexts.get("beatblock.undo.update_animation");
 		}
+		if (command instanceof UpdateClipPropertiesCommand) {
+			return BBTexts.get("beatblock.undo.update_clip");
+		}
 		if (command instanceof MoveEventCommand) {
 			return BBTexts.get("beatblock.undo.move_event");
 		}

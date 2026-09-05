@@ -2,7 +2,6 @@ package com.beatblock.timeline.command;
 
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
-import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.editing.AnimationEventSnapshot;
 
@@ -10,34 +9,33 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
- * 更新时间线事件属性、片段时间与相关元数据；支持 Undo/Redo。
+ * Clip-only property edit: timing, child event time shifts, and timeline metadata.
+ * Does not require a {@link com.beatblock.timeline.TimelineEvent} on the clip
+ * (Audio / empty Camera / BuildLayer clips).
  */
-public final class UpdateAnimationEventCommand implements MergeableCommand {
+public final class UpdateClipPropertiesCommand implements MergeableCommand {
 
 	private final Timeline timeline;
 	private final String trackId;
 	private final String clipId;
-	private final String eventId;
 	private final AnimationEventSnapshot before;
 	private final AnimationEventSnapshot after;
 	private final long mergeAnchorMs;
 
-	public UpdateAnimationEventCommand(
+	public UpdateClipPropertiesCommand(
 		@NonNull Timeline timeline,
 		@NonNull String trackId,
 		@NonNull String clipId,
-		@NonNull String eventId,
 		@NonNull AnimationEventSnapshot before,
 		@NonNull AnimationEventSnapshot after
 	) {
-		this(timeline, trackId, clipId, eventId, before, after, System.currentTimeMillis());
+		this(timeline, trackId, clipId, before, after, System.currentTimeMillis());
 	}
 
-	UpdateAnimationEventCommand(
+	UpdateClipPropertiesCommand(
 		@NonNull Timeline timeline,
 		@NonNull String trackId,
 		@NonNull String clipId,
-		@NonNull String eventId,
 		@NonNull AnimationEventSnapshot before,
 		@NonNull AnimationEventSnapshot after,
 		long mergeAnchorMs
@@ -45,7 +43,6 @@ public final class UpdateAnimationEventCommand implements MergeableCommand {
 		this.timeline = timeline;
 		this.trackId = trackId;
 		this.clipId = clipId;
-		this.eventId = eventId;
 		this.before = before;
 		this.after = after;
 		this.mergeAnchorMs = mergeAnchorMs;
@@ -58,20 +55,19 @@ public final class UpdateAnimationEventCommand implements MergeableCommand {
 
 	@Override
 	public boolean canMergeWith(Command other) {
-		if (!(other instanceof UpdateAnimationEventCommand cmd)) return false;
+		if (!(other instanceof UpdateClipPropertiesCommand cmd)) return false;
 		if (!CommandMergePolicy.withinMergeWindow(mergeAnchorMs, mergeWindowMs())) return false;
 		if (!CommandMergePolicy.withinMergeWindow(cmd.mergeAnchorMs, cmd.mergeWindowMs())) return false;
 		return timeline == cmd.timeline
 			&& trackId.equals(cmd.trackId)
-			&& clipId.equals(cmd.clipId)
-			&& eventId.equals(cmd.eventId);
+			&& clipId.equals(cmd.clipId);
 	}
 
 	@Override
 	public @NonNull Command mergeWith(@NonNull Command other) {
-		UpdateAnimationEventCommand cmd = (UpdateAnimationEventCommand) other;
-		return new UpdateAnimationEventCommand(
-			timeline, trackId, clipId, eventId, before, cmd.after, mergeAnchorMs);
+		UpdateClipPropertiesCommand cmd = (UpdateClipPropertiesCommand) other;
+		return new UpdateClipPropertiesCommand(
+			timeline, trackId, clipId, before, cmd.after, mergeAnchorMs);
 	}
 
 	@Override
@@ -90,15 +86,13 @@ public final class UpdateAnimationEventCommand implements MergeableCommand {
 		if (track == null) return;
 		Clip clip = track.getClip(clipId);
 		if (clip == null) return;
-		TimelineEvent event = clip.getEvent(eventId);
-		if (event == null) return;
-		snapshot.applyTo(event, clip, timeline);
-		if (isAnimationTrack(trackId)) {
+		snapshot.applyTo(null, clip, timeline);
+		if (Timeline.isAnimationEventsTrackId(trackId)
+			|| Timeline.TRACK_ID_CAMERA.equals(trackId)
+			|| Timeline.TRACK_ID_GLOBAL.equals(trackId)
+			|| Timeline.TRACK_ID_AUDIO.equals(trackId)
+			|| com.beatblock.timeline.layer.BuildLayerTrackSupport.isBuildLayerTrackId(trackId)) {
 			timeline.markAnimationEventsDirty(trackId);
 		}
-	}
-
-	private static boolean isAnimationTrack(String trackId) {
-		return Timeline.isAnimationEventsTrackId(trackId);
 	}
 }

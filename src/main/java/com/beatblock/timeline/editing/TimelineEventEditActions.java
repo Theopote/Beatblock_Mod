@@ -7,13 +7,14 @@ import com.beatblock.timeline.command.ApplyClipDragCommand;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.command.MoveEventCommand;
 import com.beatblock.timeline.command.UpdateAnimationEventCommand;
+import com.beatblock.timeline.command.UpdateClipPropertiesCommand;
 
 import com.beatblock.timeline.Track;
 
 import org.jspecify.annotations.Nullable;
 
 /**
- * 通过 CommandManager 提交事件属性编辑，供 Panel 与 Interaction 共用。
+ * 通过 CommandManager 提交事件 / 片段属性编辑，供 Panel 与 Interaction 共用。
  */
 public final class TimelineEventEditActions {
 
@@ -31,15 +32,16 @@ public final class TimelineEventEditActions {
 		if (timeline == null || commandManager == null || trackId == null || clipId == null) {
 			return false;
 		}
-		String resolvedEventId = eventId;
-		if (resolvedEventId == null || resolvedEventId.isBlank()) {
-			Track track = timeline.getTrack(trackId);
-			Clip clip = track != null ? track.getClip(clipId) : null;
-			if (clip == null || clip.getEvents().isEmpty()) return false;
-			resolvedEventId = clip.getEvents().get(0).getId();
+		if (eventId == null || eventId.isBlank()) {
+			return false;
+		}
+		Track track = timeline.getTrack(trackId);
+		Clip clip = track != null ? track.getClip(clipId) : null;
+		if (clip == null || clip.getEvent(eventId) == null) {
+			return false;
 		}
 		commandManager.execute(new UpdateAnimationEventCommand(
-			timeline, trackId, clipId, resolvedEventId, before, after
+			timeline, trackId, clipId, eventId, before, after
 		));
 		return true;
 	}
@@ -53,9 +55,51 @@ public final class TimelineEventEditActions {
 		AnimationEventSnapshot before,
 		AnimationEventSnapshot after
 	) {
-		if (clip == null) return false;
-		String eventId = event != null ? event.getId() : null;
-		return execute(timeline, commandManager, trackId, clip.getId(), eventId, before, after);
+		if (clip == null || event == null) {
+			return false;
+		}
+		return execute(timeline, commandManager, trackId, clip.getId(), event.getId(), before, after);
+	}
+
+	/**
+	 * Clip-only edit (no event required): timing, shifted child event times, timeline metadata.
+	 */
+	public static boolean executeClipOnly(
+		@Nullable Timeline timeline,
+		@Nullable CommandManager commandManager,
+		@Nullable String trackId,
+		@Nullable String clipId,
+		AnimationEventSnapshot before,
+		AnimationEventSnapshot after
+	) {
+		if (timeline == null || commandManager == null || trackId == null || clipId == null) {
+			return false;
+		}
+		if (before == null || after == null) {
+			return false;
+		}
+		Track track = timeline.getTrack(trackId);
+		if (track == null || track.getClip(clipId) == null) {
+			return false;
+		}
+		commandManager.execute(new UpdateClipPropertiesCommand(
+			timeline, trackId, clipId, before, after
+		));
+		return true;
+	}
+
+	public static boolean executeClipOnly(
+		@Nullable Timeline timeline,
+		@Nullable CommandManager commandManager,
+		@Nullable String trackId,
+		@Nullable Clip clip,
+		AnimationEventSnapshot before,
+		AnimationEventSnapshot after
+	) {
+		if (clip == null) {
+			return false;
+		}
+		return executeClipOnly(timeline, commandManager, trackId, clip.getId(), before, after);
 	}
 
 	public static boolean commitEventMove(

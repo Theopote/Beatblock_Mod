@@ -412,4 +412,44 @@ class EventPropertiesPresenterTest {
 		assertNotNull(clip.getEvent(keyframe.getId()));
 		assertEquals(1.0, clip.getEvent(keyframe.getId()).getTimeSeconds(), 1e-9);
 	}
+
+	@Test
+	void applyAudioClipPropertiesOnEmptyClipIsUndoable() {
+		Track audio = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		var clip = TimelineOperations.addClip(audio, 0.0, 6.0);
+		assertTrue(clip.getEvents().isEmpty());
+		EventPropertiesRef ref = new EventPropertiesRef(audio, clip, null);
+
+		var result = presenter.applyAudioClipProperties(ref, timeline, commandManager, 5.0, 20.0, "Verse");
+		assertTrue(result instanceof EventPropertiesPresenter.ApplyResult.Ok);
+		assertEquals(5.0, clip.getStartTimeSeconds(), 1e-9);
+		assertEquals(20.0, clip.getEndTimeSeconds(), 1e-9);
+		assertEquals("Verse", String.valueOf(timeline.getMetadata("clipLabel_" + clip.getId())));
+		assertTrue(commandManager.canUndo());
+
+		commandManager.undo();
+		assertEquals(0.0, clip.getStartTimeSeconds(), 1e-9);
+		assertEquals(6.0, clip.getEndTimeSeconds(), 1e-9);
+		Object restoredLabel = timeline.getMetadata("clipLabel_" + clip.getId());
+		assertTrue(restoredLabel == null || String.valueOf(restoredLabel).isBlank());
+	}
+
+	@Test
+	void applyCameraClipOnlyOnEmptyClipIsUndoable() {
+		Track camera = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		assertNotNull(camera);
+		var clip = TimelineOperations.addClip(camera, 0.0, 4.0);
+		assertTrue(clip.getEvents().isEmpty());
+		EventPropertiesRef ref = new EventPropertiesRef(camera, clip, null);
+
+		var result = presenter.applyCameraClipOnly(ref, timeline, commandManager, 2.0, 8.0, false);
+		assertTrue(result instanceof EventPropertiesPresenter.ApplyResult.Ok);
+		assertEquals(2.0, clip.getStartTimeSeconds(), 1e-9);
+		assertEquals(8.0, clip.getEndTimeSeconds(), 1e-9);
+		assertTrue(commandManager.canUndo());
+
+		commandManager.undo();
+		assertEquals(0.0, clip.getStartTimeSeconds(), 1e-9);
+		assertEquals(4.0, clip.getEndTimeSeconds(), 1e-9);
+	}
 }
