@@ -346,12 +346,16 @@ final class AudioAnalysisAssetListControls {
 		}
 
 		if (ImGui.button(BBTexts.get("beatblock.audio.clear_completed") + "##clearDone", clearDoneWidth, AudioAnalysisPanelImGui.FOOTER_BUTTON_HEIGHT)) {
+			AudioAsset selected = state.selectedAsset();
+			if (selected != null && selected.getStatus() == AudioAssetStatus.COMPLETED) {
+				// Selected row is about to be removed from the media bin — not "hide detail on analyze complete".
+				state.setSelectedAsset(null);
+			}
 			assets.stream()
 				.filter(a -> a.getStatus() == AudioAssetStatus.COMPLETED)
 				.map(AudioAsset::getId)
 				.toList()
 				.forEach(id -> host.presenter().removeAsset(id));
-			state.clearSelectedAssetIfCompleted();
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.audio.clear_completed.tooltip"));
 

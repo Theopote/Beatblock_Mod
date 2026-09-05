@@ -34,12 +34,6 @@ public final class AudioAnalysisPanelUiState {
 		}
 	}
 
-	public void clearSelectedAssetIfCompleted() {
-		if (selectedAsset != null && selectedAsset.getStatus() == com.beatblock.audio.assets.AudioAssetStatus.COMPLETED) {
-			selectedAsset = null;
-		}
-	}
-
 	public boolean detailExpanded() {
 		return detailExpanded;
 	}
