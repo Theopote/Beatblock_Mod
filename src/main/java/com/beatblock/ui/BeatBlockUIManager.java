@@ -81,7 +81,7 @@ public class BeatBlockUIManager {
 			this::playPreviewFromWizard,
 			this::editTimelineFromWizard,
 			this::editChoreographyFromWizard,
-			menuBarPanel::requestSaveProject
+			this::saveProjectFromWizard
 		));
 		this.environmentSetupPanel = new EnvironmentSetupPanel();
 		this.undoHistoryPanel = new UndoHistoryPanel();
@@ -112,6 +112,10 @@ public class BeatBlockUIManager {
 	private void editChoreographyFromWizard() {
 		panelVisibility.tool.set(true);
 		toolPanel.setShowAutoMapSettings(true);
+	}
+
+	private void saveProjectFromWizard() {
+		menuBarPanel.requestSaveProject();
 	}
 
 	public void openEnvironmentSetup() {
