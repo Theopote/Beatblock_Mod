@@ -27,12 +27,10 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 /**
- * .osc 项目文件读写（轻量版）。
+ * .osc 项目文件读写。
  *
- * 当前版本仅存储项目身份与时间线基础信息：
- * - projectId / projectPath
- * - timelineName
- * - audioPath
+ * <p>存储项目身份、时间线基础信息、animationTracks（含音频轨 clips）、
+ * clipMetadata（音频片段标签/路径等）、建造图层与编舞计划。
  */
 public final class OscProjectStore {
 
@@ -81,6 +79,10 @@ public final class OscProjectStore {
 			root.add("buildLayerGroups", BuildLayerPersistence.groupsToJson(layerManager));
 		}
 		root.add("animationTracks", TimelineAnimationPersistence.toJson(timeline));
+		JsonObject clipMetadata = TimelineClipMetadataPersistence.toJson(timeline);
+		if (clipMetadata != null) {
+			root.add("clipMetadata", clipMetadata);
+		}
 		JsonObject choreography = ChoreographyPlanPersistence.toJson(timeline);
 		if (choreography != null) root.add("choreography", choreography);
 
@@ -182,6 +184,9 @@ public final class OscProjectStore {
 				? root.getAsJsonArray("animationTracks")
 				: null;
 			TimelineAnimationPersistence.loadInto(timeline, animationTracks);
+			if (root.has("clipMetadata")) {
+				TimelineClipMetadataPersistence.loadInto(timeline, root.get("clipMetadata"));
+			}
 			if (root.has("choreography")) {
 				ChoreographyPlanPersistence.loadInto(timeline, root.get("choreography"));
 			}

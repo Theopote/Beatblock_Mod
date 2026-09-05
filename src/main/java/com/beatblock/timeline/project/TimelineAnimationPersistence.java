@@ -17,11 +17,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 时间线 clips/events ↔ JSON（.osc 持久化：动画 / 摄像机 / 全局事件轨）。
+ * 时间线 clips/events ↔ JSON（.osc 持久化：音频 / 动画 / 摄像机 / 全局事件轨）。
  */
 public final class TimelineAnimationPersistence {
 
 	private static final List<String> CORE_TRACK_IDS = List.of(
+		Timeline.TRACK_ID_AUDIO,
 		Timeline.TRACK_ID_ANIMATION_BLOCK,
 		Timeline.TRACK_ID_ANIMATION_AUTO,
 		Timeline.TRACK_ID_CAMERA,

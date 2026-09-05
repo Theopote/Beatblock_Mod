@@ -1,10 +1,12 @@
 package com.beatblock.timeline.project;
 
+import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.GlobalEvent;
 import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
+import com.beatblock.timeline.Track;
 import com.google.gson.JsonArray;
 import org.junit.jupiter.api.Test;
 
@@ -93,5 +95,30 @@ class TimelineAnimationPersistenceTest {
 		assertNotNull(restored.getTrack(featureTrackId));
 		assertEquals(1, restored.getAnimationEvents(featureTrackId).size());
 		assertEquals("stage", restored.getAnimationEvents(featureTrackId).getFirst().getTargetObjectId());
+	}
+
+	@Test
+	void roundTripsAudioTrackClips() {
+		Timeline original = Timeline.createDefault();
+		Track audio = original.getTrack(Timeline.TRACK_ID_AUDIO);
+		assertNotNull(audio);
+		Clip clip = new Clip("audio-clip-1", 1.5, 8.0);
+		audio.addClip(clip);
+
+		JsonArray json = TimelineAnimationPersistence.toJson(original);
+		assertEquals(1, json.size());
+		assertEquals(Timeline.TRACK_ID_AUDIO, json.get(0).getAsJsonObject().get("trackId").getAsString());
+
+		Timeline restored = Timeline.createDefault();
+		restored.getTrack(Timeline.TRACK_ID_AUDIO).addClip(new Clip("stale", 0.0, 1.0));
+		TimelineAnimationPersistence.loadInto(restored, json);
+
+		Track restoredAudio = restored.getTrack(Timeline.TRACK_ID_AUDIO);
+		assertNotNull(restoredAudio);
+		assertEquals(1, restoredAudio.getClips().size());
+		Clip restoredClip = restoredAudio.getClips().getFirst();
+		assertEquals("audio-clip-1", restoredClip.getId());
+		assertEquals(1.5, restoredClip.getStartTimeSeconds(), 1e-9);
+		assertEquals(8.0, restoredClip.getEndTimeSeconds(), 1e-9);
 	}
 }

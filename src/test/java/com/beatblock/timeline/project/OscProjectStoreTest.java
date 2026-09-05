@@ -12,6 +12,7 @@ import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
 import com.beatblock.testutil.MinecraftTestBootstrap;
+import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.GlobalEvent;
 import com.beatblock.timeline.GlobalEventType;
 import com.beatblock.timeline.MarkerType;
@@ -19,6 +20,7 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.timeline.Track;
 import com.beatblock.timeline.project.migration.OscSchemaVersions;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -89,6 +91,46 @@ class OscProjectStoreTest {
 		assertEquals("mk1", loaded.getMarkers().getFirst().getId());
 		assertEquals(12.5, loaded.getMarkers().getFirst().getTimeSeconds(), 1e-6);
 		assertEquals(MarkerType.DROP, loaded.getMarkers().getFirst().getType());
+	}
+
+	@Test
+	void roundTripsAudioClipsAndClipMetadata() throws Exception {
+		Path file = tempDir.resolve("audio-clips.osc");
+		Timeline timeline = Timeline.createDefault();
+		timeline.setName("Audio Show");
+		timeline.setMetadata("audioPath", "C:/music/show.wav");
+		timeline.setMetadata("audioAssetId", "asset-show");
+		Track audio = timeline.getTrack(Timeline.TRACK_ID_AUDIO);
+		Clip clip = new Clip("clip-a", 0.0, 12.0);
+		audio.addClip(clip);
+		timeline.setMetadata("audioRootClipId", clip.getId());
+		timeline.setMetadata("clipLabel_" + clip.getId(), "Verse");
+		timeline.setMetadata("clipAudioPath_" + clip.getId(), "C:/music/show.wav");
+		timeline.setMetadata("clipAudioKey_" + clip.getId(), "key-show");
+
+		OscProjectStore.save(file, timeline);
+
+		JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+		assertTrue(root.has("clipMetadata"));
+		assertTrue(root.has("animationTracks"));
+
+		Timeline restored = Timeline.createDefault();
+		restored.getTrack(Timeline.TRACK_ID_AUDIO).addClip(new Clip("stale", 0.0, 1.0));
+		restored.setMetadata("clipLabel_stale", "gone");
+		OscProjectStore.load(file, null, restored);
+
+		Track restoredAudio = restored.getTrack(Timeline.TRACK_ID_AUDIO);
+		assertEquals(1, restoredAudio.getClips().size());
+		Clip restoredClip = restoredAudio.getClips().getFirst();
+		assertEquals("clip-a", restoredClip.getId());
+		assertEquals(0.0, restoredClip.getStartTimeSeconds(), 1e-9);
+		assertEquals(12.0, restoredClip.getEndTimeSeconds(), 1e-9);
+		assertEquals("Verse", restored.getMetadata("clipLabel_clip-a"));
+		assertEquals("C:/music/show.wav", String.valueOf(restored.getMetadata("clipAudioPath_clip-a")).replace('\\', '/'));
+		assertEquals("key-show", restored.getMetadata("clipAudioKey_clip-a"));
+		assertEquals("clip-a", restored.getMetadata("audioRootClipId"));
+		assertEquals("asset-show", restored.getMetadata("audioAssetId"));
+		assertEquals(null, restored.getMetadata("clipLabel_stale"));
 	}
 
 	@Test
