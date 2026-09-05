@@ -44,5 +44,32 @@ class BeatmapStructureAdapterTest {
 		assertEquals(SectionType.CHORUS, structure.sections().get(1).getType());
 		assertFalse(structure.bars().isEmpty());
 		assertEquals(0, structure.bars().getFirst().barIndex());
+		assertFalse(structure.phrases().isEmpty());
+		assertEquals(2, structure.phrases().size());
+	}
+
+	@Test
+	void buildPhrasesFromBarsChunksByFourBarsWithinSection() {
+		var bars = List.of(
+			new com.beatblock.audio.analysis.structure.BarGridBuilder.BarSpan(0, 2, 0),
+			new com.beatblock.audio.analysis.structure.BarGridBuilder.BarSpan(2, 4, 1),
+			new com.beatblock.audio.analysis.structure.BarGridBuilder.BarSpan(4, 6, 2),
+			new com.beatblock.audio.analysis.structure.BarGridBuilder.BarSpan(6, 8, 3),
+			new com.beatblock.audio.analysis.structure.BarGridBuilder.BarSpan(8, 10, 4),
+			new com.beatblock.audio.analysis.structure.BarGridBuilder.BarSpan(10, 12, 5),
+			new com.beatblock.audio.analysis.structure.BarGridBuilder.BarSpan(12, 14, 6),
+			new com.beatblock.audio.analysis.structure.BarGridBuilder.BarSpan(14, 16, 7)
+		);
+		var sections = List.of(
+			new com.beatblock.automap.engine.StructuralSection(0, 16, SectionType.VERSE)
+		);
+
+		var phrases = BeatmapStructureAdapter.buildPhrasesFromBars(bars, sections, 16.0);
+
+		assertEquals(2, phrases.size());
+		assertEquals(0.0, phrases.get(0).startSeconds(), 1e-6);
+		assertEquals(8.0, phrases.get(0).endSeconds(), 1e-6);
+		assertEquals(8.0, phrases.get(1).startSeconds(), 1e-6);
+		assertEquals(16.0, phrases.get(1).endSeconds(), 1e-6);
 	}
 }

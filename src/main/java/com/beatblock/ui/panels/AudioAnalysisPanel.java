@@ -1,8 +1,5 @@
 package com.beatblock.ui.panels;
 
-import com.beatblock.audio.assets.AudioAsset;
-import com.beatblock.audio.assets.AudioAssetManager;
-import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.panels.audioanalysis.AudioAnalysisPanelHost;
@@ -26,13 +23,23 @@ public final class AudioAnalysisPanel implements AudioAnalysisPanelHost {
 
 	private final AudioAnalysisPanelPresenter presenter;
 	private final AudioAnalysisPanelUiState uiState = new AudioAnalysisPanelUiState();
+	private final Runnable showTimelineAfterApply;
 
 	public AudioAnalysisPanel() {
-		this(PresenterFactories.audioAnalysisPanelPresenter());
+		this(PresenterFactories.audioAnalysisPanelPresenter(), () -> {});
+	}
+
+	public AudioAnalysisPanel(Runnable showTimelineAfterApply) {
+		this(PresenterFactories.audioAnalysisPanelPresenter(), showTimelineAfterApply);
 	}
 
 	AudioAnalysisPanel(AudioAnalysisPanelPresenter presenter) {
+		this(presenter, () -> {});
+	}
+
+	AudioAnalysisPanel(AudioAnalysisPanelPresenter presenter, Runnable showTimelineAfterApply) {
 		this.presenter = presenter;
+		this.showTimelineAfterApply = showTimelineAfterApply != null ? showTimelineAfterApply : () -> {};
 	}
 
 	@Override
@@ -43,6 +50,11 @@ public final class AudioAnalysisPanel implements AudioAnalysisPanelHost {
 	@Override
 	public AudioAnalysisPanelUiState uiState() {
 		return uiState;
+	}
+
+	@Override
+	public void showTimelineAfterApply() {
+		showTimelineAfterApply.run();
 	}
 
     public void render(ImBoolean pOpen) {
@@ -67,22 +79,15 @@ public final class AudioAnalysisPanel implements AudioAnalysisPanelHost {
 
 	@Override
 	public boolean handleIncomingAudioPath(String path) {
-        if (path == null || path.isBlank()) return false;
-        AudioAssetManager manager = AudioAssetManager.getInstance();
-        if (!manager.isSupportedAudioPath(path)) {
-			uiState.setPanelHint(BBTexts.get("beatblock.audio.unsupported_extensions", manager.getSupportedAudioExtensionsLabel()), true);
-            return false;
-        }
-		AudioAsset asset = manager.addFromPath(path);
-        if (asset != null) {
-			uiState.setSelectedAsset(asset);
-			manager.startAnalysis(asset);
-			uiState.setPanelHint(BBTexts.get("beatblock.audio.added_and_analyzing", asset.getFileName()), false);
-            return true;
-        }
-		uiState.setPanelHint(BBTexts.get("beatblock.audio.path_invalid"), true);
-        return false;
-    }
+		var outcome = presenter.importAndAnalyze(path);
+		if (outcome.ok() && outcome.asset() != null) {
+			uiState.setSelectedAsset(outcome.asset());
+			uiState.setPanelHint(outcome.message(), false);
+			return true;
+		}
+		uiState.setPanelHint(outcome.message(), true);
+		return false;
+	}
 
 	@Override
 	public String chooseAudioFilePath() {

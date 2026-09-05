@@ -63,7 +63,7 @@ public class BeatBlockUIManager {
 		this.timelineActions = PresenterFactories.timelineActionDispatcher();
 		this.toolPanel = new ToolPanel();
 		this.markerPanel = new MarkerPanel();
-		this.audioAnalysisPanel = new AudioAnalysisPanel();
+		this.audioAnalysisPanel = new AudioAnalysisPanel(() -> panelVisibility.timeline.set(true));
 		this.menuBarPanel = new MenuBarPanel(onCloseRequest, panelVisibility,
 			() -> toolPanel.setShowAutoMapSettings(true),
 			this::generateRhythmDropFromMenu,

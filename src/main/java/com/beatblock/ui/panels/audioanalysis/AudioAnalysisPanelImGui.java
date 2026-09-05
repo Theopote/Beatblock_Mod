@@ -5,6 +5,7 @@ import com.beatblock.audio.assets.AudioAnalysisPhase;
 import com.beatblock.audio.assets.AudioAnalysisStep;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.beatmap.Beatmap;
+import com.beatblock.audio.beatmap.SectionLabel;
 import com.beatblock.audio.beatmap.WaveformPreview;
 import com.beatblock.client.imgui.ImGuiFontManager;
 import com.beatblock.ui.i18n.BBTexts;
@@ -96,6 +97,28 @@ final class AudioAnalysisPanelImGui {
 
 	static void compactGap() {
 		ImGui.dummy(0f, 4f);
+	}
+
+	static String sectionLabelText(SectionLabel label) {
+		if (label == null) {
+			return BBTexts.get("beatblock.audio.section.label.unknown");
+		}
+		return switch (label) {
+			case INTRO -> BBTexts.get("beatblock.audio.section.label.intro");
+			case VERSE -> BBTexts.get("beatblock.audio.section.label.verse");
+			case CHORUS -> BBTexts.get("beatblock.audio.section.label.chorus");
+			case BRIDGE -> BBTexts.get("beatblock.audio.section.label.bridge");
+			case OUTRO -> BBTexts.get("beatblock.audio.section.label.outro");
+			case UNKNOWN -> BBTexts.get("beatblock.audio.section.label.unknown");
+		};
+	}
+
+	static String formatSectionTimeRange(long startMs, long endMs) {
+		return BBTexts.get(
+			"beatblock.audio.section.time_range",
+			startMs / 1000.0,
+			endMs / 1000.0
+		);
 	}
 
 	static boolean beginDetailSection(String id, String title, boolean defaultOpen) {

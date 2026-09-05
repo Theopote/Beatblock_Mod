@@ -163,6 +163,18 @@ public final class AudioAnalysisEngine {
 	 * <p>BeatEvent.bandKey 写入 Timeline.featureTracks（开放键）。</p>
 	 */
 	public void fillTimelineFromBeatmap(Timeline timeline, Beatmap beatmap) {
+		fillTimelineFromBeatmap(timeline, beatmap, null);
+	}
+
+	/**
+	 * 与 {@link #fillTimelineFromBeatmap(Timeline, Beatmap)} 相同，并可附带 FeatureTimeline
+	 * 以优先用 {@link com.beatblock.automap.engine.MusicStructureAnalyzer} 推导 Phrase。
+	 */
+	public void fillTimelineFromBeatmap(
+		Timeline timeline,
+		Beatmap beatmap,
+		@Nullable AudioFeatureTimeline features
+	) {
 		if (timeline == null || beatmap == null) return;
 
 		timeline.setDurationSeconds(Math.max(0.0, beatmap.meta.durationMs() / 1000.0));
@@ -230,7 +242,7 @@ public final class AudioAnalysisEngine {
 		}
 
 		timeline.sortAll();
-		ChoreographyPlanSeeder.seedFromBeatmap(timeline, beatmap);
+		ChoreographyPlanSeeder.seedFromBeatmap(timeline, beatmap, features);
 	}
 
 	/**

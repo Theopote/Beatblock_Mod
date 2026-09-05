@@ -71,7 +71,8 @@ public final class TimelineDenseFeatureApplier {
 		double prevDuration = timeline.getDurationSeconds();
 		Map<String, TimelineAudioFeatureFillSupport.SavedFeatureTrack> savedFeatureEvents =
 			TimelineAudioFeatureFillSupport.saveFeatureEvents(timeline);
-		Objects.requireNonNull(host.context().audioAnalysisEngine()).fillTimelineFromBeatmap(timeline, matched.getBeatmap());
+		Objects.requireNonNull(host.context().audioAnalysisEngine()).fillTimelineFromBeatmap(
+			timeline, matched.getBeatmap(), matched.getFeatureTimeline());
 		TimelineAudioFeatureFillSupport.shiftFeatureEventsByOffset(timeline, startOffset);
 		TimelineAudioFeatureFillSupport.restoreFeatureEvents(timeline, savedFeatureEvents);
 		timeline.setDurationSeconds(prevDuration);

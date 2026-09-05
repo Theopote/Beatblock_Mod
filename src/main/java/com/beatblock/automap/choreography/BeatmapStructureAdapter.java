@@ -1,13 +1,17 @@
 package com.beatblock.automap.choreography;
 
+import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.structure.BarGridBuilder;
 import com.beatblock.audio.analysis.structure.MusicStructure;
 import com.beatblock.audio.beatmap.BeatEvent;
 import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.audio.beatmap.MusicSection;
 import com.beatblock.audio.beatmap.SectionLabel;
+import com.beatblock.automap.engine.MusicStructureAnalyzer;
 import com.beatblock.automap.engine.SectionType;
 import com.beatblock.automap.engine.StructuralSection;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,12 +19,23 @@ import java.util.TreeMap;
 
 /**
  * 将 Python {@link Beatmap} 段落与小节索引桥接为 {@link MusicStructure}，供编舞计划种子数据使用。
+ * <p>
+ * Phrase：优先使用 {@link MusicStructureAnalyzer}（有 FeatureTimeline 时）；否则按小节网格
+ * （默认每 4 小节一段，并贴合 Section 边界）推导，避免空 Phrase 破坏 Phrase Grammar。
  */
 public final class BeatmapStructureAdapter {
+
+	/** 无 novelty 特征时，按常见流行乐句长：4 小节 = 1 Phrase。 */
+	static final int BARS_PER_PHRASE = 4;
+	private static final double DEFAULT_PHRASE_REPETITION = 0.45;
 
 	private BeatmapStructureAdapter() {}
 
 	public static MusicStructure fromBeatmap(Beatmap beatmap) {
+		return fromBeatmap(beatmap, null);
+	}
+
+	public static MusicStructure fromBeatmap(Beatmap beatmap, @Nullable AudioFeatureTimeline features) {
 		if (beatmap == null) {
 			return MusicStructure.fallback(0);
 		}
@@ -33,7 +48,85 @@ public final class BeatmapStructureAdapter {
 			.sorted()
 			.boxed()
 			.toList();
-		return new MusicStructure(duration, beatTimes, bars, List.of(), sections);
+		List<MusicStructure.PhraseSpan> phrases = resolvePhrases(features, bars, sections, duration);
+		return new MusicStructure(duration, beatTimes, bars, phrases, sections);
+	}
+
+	private static List<MusicStructure.PhraseSpan> resolvePhrases(
+		@Nullable AudioFeatureTimeline features,
+		List<BarGridBuilder.BarSpan> bars,
+		List<StructuralSection> sections,
+		double durationSeconds
+	) {
+		if (features != null && features.getDurationSeconds() > 0) {
+			List<MusicStructure.PhraseSpan> analyzed = MusicStructureAnalyzer.analyze(features).phrases();
+			if (!analyzed.isEmpty()) {
+				return analyzed;
+			}
+		}
+		return buildPhrasesFromBars(bars, sections, durationSeconds);
+	}
+
+	/**
+	 * 按小节网格推导 Phrase：优先在每个 Section 内按 {@link #BARS_PER_PHRASE} 切分；
+	 * 无小节时退化为整段 Section / 全曲一条 Phrase。
+	 */
+	static List<MusicStructure.PhraseSpan> buildPhrasesFromBars(
+		List<BarGridBuilder.BarSpan> bars,
+		List<StructuralSection> sections,
+		double durationSeconds
+	) {
+		if (durationSeconds <= 0) {
+			return List.of();
+		}
+		List<StructuralSection> scope = (sections == null || sections.isEmpty())
+			? List.of(new StructuralSection(0, durationSeconds, SectionType.VERSE))
+			: sections;
+
+		List<MusicStructure.PhraseSpan> phrases = new ArrayList<>();
+		for (StructuralSection section : scope) {
+			List<BarGridBuilder.BarSpan> inSection = barsInSection(bars, section);
+			if (inSection.isEmpty()) {
+				phrases.add(new MusicStructure.PhraseSpan(
+					section.getStartSeconds(),
+					section.getEndSeconds(),
+					phrases.size(),
+					DEFAULT_PHRASE_REPETITION
+				));
+				continue;
+			}
+			for (int i = 0; i < inSection.size(); i += BARS_PER_PHRASE) {
+				int endBar = Math.min(inSection.size() - 1, i + BARS_PER_PHRASE - 1);
+				double start = Math.max(section.getStartSeconds(), inSection.get(i).startSeconds());
+				double end = Math.min(section.getEndSeconds(), inSection.get(endBar).endSeconds());
+				if (endBar == inSection.size() - 1) {
+					end = section.getEndSeconds();
+				}
+				if (end <= start) continue;
+				phrases.add(new MusicStructure.PhraseSpan(start, end, phrases.size(), DEFAULT_PHRASE_REPETITION));
+			}
+		}
+		if (phrases.isEmpty()) {
+			phrases.add(new MusicStructure.PhraseSpan(0, durationSeconds, 0, DEFAULT_PHRASE_REPETITION));
+		}
+		return phrases;
+	}
+
+	private static List<BarGridBuilder.BarSpan> barsInSection(
+		List<BarGridBuilder.BarSpan> bars,
+		StructuralSection section
+	) {
+		if (bars == null || bars.isEmpty()) {
+			return List.of();
+		}
+		List<BarGridBuilder.BarSpan> out = new ArrayList<>();
+		for (BarGridBuilder.BarSpan bar : bars) {
+			double mid = (bar.startSeconds() + bar.endSeconds()) * 0.5;
+			if (mid >= section.getStartSeconds() && mid < section.getEndSeconds()) {
+				out.add(bar);
+			}
+		}
+		return out;
 	}
 
 	private static List<StructuralSection> toStructuralSections(List<MusicSection> sections, double durationSeconds) {

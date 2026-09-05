@@ -1,5 +1,6 @@
 package com.beatblock.automap.choreography;
 
+import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.structure.MusicStructure;
 import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.automap.AutoMapConfig;
@@ -11,7 +12,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 /**
- * 在 beatmap 导入时写入结构层 {@link ChoreographyPlan}（段落 + 小节），
+ * 在 beatmap 导入时写入结构层 {@link ChoreographyPlan}（段落 + 小节 + Phrase），
  * 保留用户已生成的动作/镜头短语。
  */
 public final class ChoreographyPlanSeeder {
@@ -19,9 +20,17 @@ public final class ChoreographyPlanSeeder {
 	private ChoreographyPlanSeeder() {}
 
 	public static void seedFromBeatmap(Timeline timeline, Beatmap beatmap) {
+		seedFromBeatmap(timeline, beatmap, null);
+	}
+
+	public static void seedFromBeatmap(
+		Timeline timeline,
+		Beatmap beatmap,
+		@Nullable AudioFeatureTimeline features
+	) {
 		if (timeline == null || beatmap == null) return;
 
-		MusicStructure structure = BeatmapStructureAdapter.fromBeatmap(beatmap);
+		MusicStructure structure = BeatmapStructureAdapter.fromBeatmap(beatmap, features);
 		AutoMapConfig config = ChoreographyPlanStore.loadConfig(timeline);
 		if (config == null) {
 			config = AutoMapConfig.createDefault();

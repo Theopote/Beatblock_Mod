@@ -318,7 +318,8 @@ public final class TimelineAudioDropHandler {
 			timeline.setMetadata("awaitingAnalyzedBeatmap", null);
 			double prevDuration = timeline.getDurationSeconds();
 			var savedFeatureEvents = saveFeatureEvents(timeline);
-			Objects.requireNonNull(host.context().audioAnalysisEngine()).fillTimelineFromBeatmap(timeline, asset.getBeatmap());
+			Objects.requireNonNull(host.context().audioAnalysisEngine()).fillTimelineFromBeatmap(
+				timeline, asset.getBeatmap(), asset.getFeatureTimeline());
 			shiftFeatureEventsByOffset(timeline, startOffset);
 			restoreFeatureEvents(timeline, savedFeatureEvents);
 			timeline.setDurationSeconds(prevDuration);

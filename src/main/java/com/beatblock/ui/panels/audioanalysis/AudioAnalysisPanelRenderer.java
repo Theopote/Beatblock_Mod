@@ -1,7 +1,6 @@
 package com.beatblock.ui.panels.audioanalysis;
 
 import com.beatblock.audio.assets.AudioAsset;
-import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
@@ -33,7 +32,7 @@ public final class AudioAnalysisPanelRenderer {
 
 		ImGui.setCursorPosX(ImGui.getCursorStartPosX());
 
-		List<AudioAsset> assets = AudioAssetManager.getInstance().getAssets();
+		List<AudioAsset> assets = host.presenter().listAssets();
 
 		float totalW = Math.max(0f, ImGui.getContentRegionAvailX());
 		float totalH = ImGui.getContentRegionAvailY() - AudioAnalysisPanelImGui.FOOTER_RESERVED_HEIGHT;

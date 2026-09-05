@@ -2,7 +2,6 @@ package com.beatblock.ui.panels.audioanalysis;
 
 import com.beatblock.audio.assets.AudioAnalysisStep;
 import com.beatblock.audio.assets.AudioAsset;
-import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.audio.beatmap.Beatmap;
 import com.beatblock.ui.i18n.BBTexts;
@@ -70,7 +69,7 @@ final class AudioAnalysisAssetListControls {
 			case PENDING -> renderPendingContent(host, asset);
 			case QUEUED -> renderQueuedContent(host, asset);
 			case ANALYZING -> renderAnalyzingContent(asset);
-			case COMPLETED -> renderCompletedContent(asset);
+			case COMPLETED -> renderCompletedContent(host, asset);
 			case FAILED -> renderFailedContent(host, asset);
 		}
 
@@ -115,11 +114,11 @@ final class AudioAnalysisAssetListControls {
 	private static void renderPendingContent(AudioAnalysisPanelHost host, AudioAsset asset) {
 		AudioAnalysisPanelUiState state = host.uiState();
 		if (ImGui.button(BBTexts.get("beatblock.audio.analyze") + "##" + asset.getId())) {
-			AudioAssetManager.getInstance().startAnalysis(asset);
+			host.presenter().startAnalysis(asset);
 		}
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.audio.remove") + "##" + asset.getId())) {
-			AudioAssetManager.getInstance().remove(asset.getId());
+			host.presenter().removeAsset(asset.getId());
 			state.clearSelectedAssetIfMatches(asset);
 		}
 	}
@@ -195,8 +194,8 @@ final class AudioAnalysisAssetListControls {
 
 	private static void renderQueuedContent(AudioAnalysisPanelHost host, AudioAsset asset) {
 		AudioAnalysisPanelUiState state = host.uiState();
-		AudioAssetManager manager = AudioAssetManager.getInstance();
-		int pos = manager.getQueuePosition(asset.getId());
+		var presenter = host.presenter();
+		int pos = presenter.queuePosition(asset.getId());
 		ImGui.pushStyleColor(ImGuiCol.Text, 0.95f, 0.78f, 0.38f, 1f);
 		if (pos > 0) {
 			ImGui.text(BBTexts.get("beatblock.audio.queued_position", pos));
@@ -218,7 +217,7 @@ final class AudioAnalysisAssetListControls {
 			if (raw != null) {
 				String movingId = AudioAnalysisPanelImGui.decodePayloadText(raw);
 				if (!movingId.isBlank()) {
-					manager.moveQueueBefore(movingId, asset.getId());
+					presenter.moveQueueBefore(movingId, asset.getId());
 				}
 			}
 			ImGui.endDragDropTarget();
@@ -229,12 +228,12 @@ final class AudioAnalysisAssetListControls {
 		ImGui.textDisabled(BBTexts.get("beatblock.audio.queue_drag_reorder"));
 
 		ImGui.spacing();
-		boolean canMoveUp = manager.canMoveQueueUp(asset.getId());
-		boolean canMoveDown = manager.canMoveQueueDown(asset.getId());
+		boolean canMoveUp = presenter.canMoveQueueUp(asset.getId());
+		boolean canMoveDown = presenter.canMoveQueueDown(asset.getId());
 
 		if (canMoveUp) {
 			if (ImGui.button(BBTexts.get("beatblock.audio.move_up") + "##queue_up_" + asset.getId())) {
-				manager.moveQueueUp(asset.getId());
+				presenter.moveQueueUp(asset.getId());
 			}
 		} else {
 			ImGui.textDisabled(BBTexts.get("beatblock.audio.move_up"));
@@ -242,19 +241,19 @@ final class AudioAnalysisAssetListControls {
 		ImGui.sameLine();
 		if (canMoveDown) {
 			if (ImGui.button(BBTexts.get("beatblock.audio.move_down") + "##queue_down_" + asset.getId())) {
-				manager.moveQueueDown(asset.getId());
+				presenter.moveQueueDown(asset.getId());
 			}
 		} else {
 			ImGui.textDisabled(BBTexts.get("beatblock.audio.move_down"));
 		}
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.audio.remove") + "##remove_queue_" + asset.getId())) {
-			manager.remove(asset.getId());
+			presenter.removeAsset(asset.getId());
 			state.clearSelectedAssetIfMatches(asset);
 		}
 	}
 
-	private static void renderCompletedContent(AudioAsset asset) {
+	private static void renderCompletedContent(AudioAnalysisPanelHost host, AudioAsset asset) {
 		ImGui.pushStyleColor(ImGuiCol.Text,
 			AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.x,
 			AudioAnalysisPanelImGui.COLOR_PROGRESS_FG.y,
@@ -290,7 +289,7 @@ final class AudioAnalysisAssetListControls {
 		ImGui.textDisabled(Icons.MENU + " " + BBTexts.get("beatblock.audio.drag_timeline"));
 
 		if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
-			AudioAssetManager.getInstance().setCurrentDragAsset(asset);
+			host.presenter().setCurrentDragAsset(asset);
 			ImGui.setDragDropPayload(
 				"BB_AUDIO_ASSET_ID",
 				asset.getId().getBytes(),
@@ -314,18 +313,18 @@ final class AudioAnalysisAssetListControls {
 
 		ImGui.spacing();
 		if (ImGui.button(BBTexts.get("beatblock.audio.retry") + "##retry_" + asset.getId())) {
-			AudioAssetManager.getInstance().startAnalysis(asset, asset.getRequestedAnalysisMode());
+			host.presenter().startAnalysis(asset, asset.getRequestedAnalysisMode());
 		}
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.audio.convert_mp3") + "##convert_" + asset.getId())) {
-			boolean accepted = AudioAssetManager.getInstance().requestConvertToMp3(asset);
+			boolean accepted = host.presenter().requestConvertToMp3(asset);
 			if (!accepted) {
 				asset.setErrorMessage(BBTexts.get("beatblock.audio.convert_not_implemented"));
 			}
 		}
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.audio.remove") + "##remove_failed_" + asset.getId())) {
-			AudioAssetManager.getInstance().remove(asset.getId());
+			host.presenter().removeAsset(asset.getId());
 			state.clearSelectedAssetIfMatches(asset);
 		}
 	}
@@ -351,7 +350,7 @@ final class AudioAnalysisAssetListControls {
 				.filter(a -> a.getStatus() == AudioAssetStatus.COMPLETED)
 				.map(AudioAsset::getId)
 				.toList()
-				.forEach(id -> AudioAssetManager.getInstance().remove(id));
+				.forEach(id -> host.presenter().removeAsset(id));
 			state.clearSelectedAssetIfCompleted();
 		}
 		if (ImGui.isItemHovered()) ImGui.setTooltip(BBTexts.get("beatblock.audio.clear_completed.tooltip"));

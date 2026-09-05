@@ -1,5 +1,7 @@
 package com.beatblock.ui.panels.audioanalysis;
 
+import com.beatblock.audio.beatmap.SectionLabel;
+import com.beatblock.ui.i18n.BBTexts;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,5 +27,29 @@ class AudioAnalysisPanelImGuiTest {
 	@Test
 	void decodePayloadStripsNullTerminator() {
 		assertEquals("asset-id", AudioAnalysisPanelImGui.decodePayloadText("asset-id\u0000extra".getBytes()));
+	}
+
+	@Test
+	void sectionLabelTextMapsKnownLabels() {
+		assertEquals(
+			BBTexts.get("beatblock.audio.section.label.intro"),
+			AudioAnalysisPanelImGui.sectionLabelText(SectionLabel.INTRO)
+		);
+		assertEquals(
+			BBTexts.get("beatblock.audio.section.label.chorus"),
+			AudioAnalysisPanelImGui.sectionLabelText(SectionLabel.CHORUS)
+		);
+		assertEquals(
+			BBTexts.get("beatblock.audio.section.label.unknown"),
+			AudioAnalysisPanelImGui.sectionLabelText(null)
+		);
+	}
+
+	@Test
+	void formatSectionTimeRangeUsesSeconds() {
+		assertEquals(
+			BBTexts.get("beatblock.audio.section.time_range", 1.0, 4.5),
+			AudioAnalysisPanelImGui.formatSectionTimeRange(1000, 4500)
+		);
 	}
 }

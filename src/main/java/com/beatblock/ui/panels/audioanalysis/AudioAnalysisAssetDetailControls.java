@@ -3,11 +3,14 @@ package com.beatblock.ui.panels.audioanalysis;
 import com.beatblock.audio.assets.AudioAnalysisMode;
 import com.beatblock.audio.assets.AudioAnalysisStep;
 import com.beatblock.audio.assets.AudioAsset;
-import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.beatmap.Beatmap;
+import com.beatblock.audio.beatmap.MusicSection;
+import com.beatblock.automap.choreography.BeatmapStructureAdapter;
+import com.beatblock.audio.analysis.structure.MusicStructure;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.imgui.IconButtonStyle;
+import com.beatblock.ui.presenter.PresenterResult;
 import imgui.ImGui;
 import imgui.ImVec4;
 import imgui.flag.ImGuiCol;
@@ -47,15 +50,15 @@ final class AudioAnalysisAssetDetailControls {
 			case COMPLETED -> renderDetailCompleted(host, asset);
 			case QUEUED -> renderDetailQueued(host, asset);
 			case ANALYZING -> renderDetailAnalyzing(state, asset);
-			case PENDING -> renderDetailPending(state, asset);
-			case FAILED -> renderDetailFailed(state, asset);
+			case PENDING -> renderDetailPending(host, asset);
+			case FAILED -> renderDetailFailed(host, asset);
 		}
 	}
 
 	private static void renderDetailQueued(AudioAnalysisPanelHost host, AudioAsset asset) {
 		AudioAnalysisPanelUiState state = host.uiState();
-		AudioAssetManager manager = AudioAssetManager.getInstance();
-		int pos = manager.getQueuePosition(asset.getId());
+		var presenter = host.presenter();
+		int pos = presenter.queuePosition(asset.getId());
 		if (AudioAnalysisPanelImGui.beginDetailSection("queued_status", BBTexts.get("beatblock.audio.queue_status"), false)) {
 			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.file_name"), asset.getFileName());
 			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.status_label"), BBTexts.get("beatblock.audio.queued"));
@@ -69,12 +72,12 @@ final class AudioAnalysisAssetDetailControls {
 		}
 
 		if (AudioAnalysisPanelImGui.beginDetailSection("queued_actions", BBTexts.get("beatblock.audio.actions"), true)) {
-			boolean canMoveUp = manager.canMoveQueueUp(asset.getId());
-			boolean canMoveDown = manager.canMoveQueueDown(asset.getId());
+			boolean canMoveUp = presenter.canMoveQueueUp(asset.getId());
+			boolean canMoveDown = presenter.canMoveQueueDown(asset.getId());
 			float half = (ImGui.getContentRegionAvailX() - 6f) * 0.5f;
 			if (canMoveUp) {
 				if (ImGui.button(BBTexts.get("beatblock.audio.move_up") + "##detailQueueUp", half, 26f)) {
-					manager.moveQueueUp(asset.getId());
+					presenter.moveQueueUp(asset.getId());
 				}
 			} else {
 				ImGui.beginDisabled();
@@ -84,7 +87,7 @@ final class AudioAnalysisAssetDetailControls {
 			ImGui.sameLine();
 			if (canMoveDown) {
 				if (ImGui.button(BBTexts.get("beatblock.audio.move_down") + "##detailQueueDown", half, 26f)) {
-					manager.moveQueueDown(asset.getId());
+					presenter.moveQueueDown(asset.getId());
 				}
 			} else {
 				ImGui.beginDisabled();
@@ -93,7 +96,7 @@ final class AudioAnalysisAssetDetailControls {
 			}
 			AudioAnalysisPanelImGui.compactGap();
 			if (ImGui.button(BBTexts.get("beatblock.audio.remove_from_queue") + "##detailRemoveQueued", ImGui.getContentRegionAvailX(), 26f)) {
-				manager.remove(asset.getId());
+				presenter.removeAsset(asset.getId());
 				state.clearSelectedAssetIfMatches(asset);
 			}
 			AudioAnalysisPanelImGui.endDetailSection();
@@ -143,6 +146,11 @@ final class AudioAnalysisAssetDetailControls {
 				AudioAnalysisPanelImGui.compactGap();
 				AudioAnalysisPanelImGui.textDisabledWrapped(asset.getInfoMessage());
 			}
+			AudioAnalysisPanelImGui.endDetailSection();
+		}
+
+		if (AudioAnalysisPanelImGui.beginDetailSection("completed_structure", BBTexts.get("beatblock.audio.music_structure"), true)) {
+			renderMusicStructure(state, detailBm);
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
 
@@ -199,9 +207,28 @@ final class AudioAnalysisAssetDetailControls {
 		}
 
 		if (AudioAnalysisPanelImGui.beginDetailSection("completed_actions", BBTexts.get("beatblock.audio.actions"), true)) {
+			float btnW = ImGui.getContentRegionAvailX();
+			ImGui.pushStyleColor(ImGuiCol.Button, 0.22f, 0.55f, 0.48f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.28f, 0.66f, 0.58f, 1f);
+			ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.18f, 0.48f, 0.42f, 1f);
+			if (ImGui.button(BBTexts.get("beatblock.audio.apply_timeline") + "##detailApplyTimeline", btnW, 28f)) {
+				PresenterResult result = host.presenter().applyToTimeline(asset);
+				state.setPanelHint(result.messageOrEmpty(), !result.ok());
+				if (result.ok()) {
+					host.showTimelineAfterApply();
+				}
+			}
+			ImGui.popStyleColor(3);
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip(BBTexts.get("beatblock.audio.apply_timeline.tooltip"));
+			}
+			AudioAnalysisPanelImGui.compactGap();
+			AudioAnalysisPanelImGui.textDisabledWrapped(BBTexts.get("beatblock.audio.apply_timeline.hint"));
+
+			AudioAnalysisPanelImGui.compactGap();
 			float actionW = (ImGui.getContentRegionAvailX() - 6f) * 0.5f;
 			if (ImGui.button(BBTexts.get("beatblock.audio.reanalyze_demucs") + "##detailReanalyzeDemucs", actionW, 26f)) {
-				String result = AudioAssetManager.getInstance().clearCacheAndReanalyze(asset, AudioAnalysisMode.DEMUCS);
+				String result = host.presenter().clearCacheAndReanalyze(asset, AudioAnalysisMode.DEMUCS);
 				state.setPanelHint(result, result.contains("未初始化") || result.contains("无效"));
 			}
 			if (ImGui.isItemHovered()) {
@@ -209,7 +236,7 @@ final class AudioAnalysisAssetDetailControls {
 			}
 			ImGui.sameLine();
 			if (ImGui.button(BBTexts.get("beatblock.audio.reanalyze_basic") + "##detailReanalyzeBasic", actionW, 26f)) {
-				String result = AudioAssetManager.getInstance().clearCacheAndReanalyze(asset, AudioAnalysisMode.BASIC);
+				String result = host.presenter().clearCacheAndReanalyze(asset, AudioAnalysisMode.BASIC);
 				state.setPanelHint(result, result.contains("未初始化") || result.contains("无效"));
 			}
 			if (ImGui.isItemHovered()) {
@@ -224,7 +251,7 @@ final class AudioAnalysisAssetDetailControls {
 				? BBTexts.get("beatblock.audio.compare_demucs") + "##detailCompareDemucs"
 				: BBTexts.get("beatblock.audio.compare_basic") + "##detailCompareBasic";
 			if (ImGui.button(compareLabel, ImGui.getContentRegionAvailX(), 24f)) {
-				String result = AudioAssetManager.getInstance().clearCacheAndReanalyze(asset, compareMode);
+				String result = host.presenter().clearCacheAndReanalyze(asset, compareMode);
 				state.setPanelHint(result, result.contains("未初始化") || result.contains("无效"));
 			}
 			if (ImGui.isItemHovered()) {
@@ -234,7 +261,6 @@ final class AudioAnalysisAssetDetailControls {
 			}
 
 			AudioAnalysisPanelImGui.compactGap();
-			float btnW = ImGui.getContentRegionAvailX();
 			ImGui.pushStyleColor(ImGuiCol.Button, 0.28f, 0.26f, 0.45f, 1f);
 			ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 0.35f, 0.33f, 0.55f, 1f);
 			ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.45f, 0.43f, 0.65f, 1f);
@@ -242,7 +268,7 @@ final class AudioAnalysisAssetDetailControls {
 			ImGui.popStyleColor(3);
 
 			if (ImGui.beginDragDropSource(imgui.flag.ImGuiDragDropFlags.SourceAllowNullID)) {
-				AudioAssetManager.getInstance().setCurrentDragAsset(asset);
+				host.presenter().setCurrentDragAsset(asset);
 				ImGui.setDragDropPayload(
 					"BB_AUDIO_ASSET_ID",
 					asset.getId().getBytes(),
@@ -255,6 +281,40 @@ final class AudioAnalysisAssetDetailControls {
 			}
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
+	}
+
+	private static void renderMusicStructure(AudioAnalysisPanelUiState state, Beatmap beatmap) {
+		if (beatmap == null || beatmap.sections == null || beatmap.sections.isEmpty()) {
+			AudioAnalysisPanelImGui.textDisabledWrapped(BBTexts.get("beatblock.audio.section_empty"));
+			return;
+		}
+		MusicStructure structure = BeatmapStructureAdapter.fromBeatmap(beatmap);
+		AudioAnalysisPanelImGui.detailRowCompact(
+			state,
+			BBTexts.get("beatblock.audio.section_count"),
+			BBTexts.get("beatblock.audio.sections_unit", beatmap.sections.size())
+		);
+		AudioAnalysisPanelImGui.detailRowCompact(
+			state,
+			BBTexts.get("beatblock.audio.phrase_count"),
+			BBTexts.get("beatblock.audio.phrases_unit", structure.phrases().size()),
+			AudioAnalysisPanelImGui.COLOR_PROGRESS_FG
+		);
+		AudioAnalysisPanelImGui.compactGap();
+		int index = 1;
+		for (MusicSection section : beatmap.sections) {
+			String label = AudioAnalysisPanelImGui.sectionLabelText(section.label());
+			String range = AudioAnalysisPanelImGui.formatSectionTimeRange(section.startMs(), section.endMs());
+			AudioAnalysisPanelImGui.detailRowCompact(
+				state,
+				BBTexts.get("beatblock.audio.section_index", index),
+				BBTexts.get("beatblock.audio.section_row", label, range),
+				AudioAnalysisPanelImGui.COLOR_MID
+			);
+			index++;
+		}
+		AudioAnalysisPanelImGui.compactGap();
+		AudioAnalysisPanelImGui.textDisabledWrapped(BBTexts.get("beatblock.audio.structure_seed_hint"));
 	}
 
 	private static void renderDetailAnalyzing(AudioAnalysisPanelUiState state, AudioAsset asset) {
@@ -328,7 +388,8 @@ final class AudioAnalysisAssetDetailControls {
 		}
 	}
 
-	private static void renderDetailPending(AudioAnalysisPanelUiState state, AudioAsset asset) {
+	private static void renderDetailPending(AudioAnalysisPanelHost host, AudioAsset asset) {
+		AudioAnalysisPanelUiState state = host.uiState();
 		if (AudioAnalysisPanelImGui.beginDetailSection("pending_basic", BBTexts.get("beatblock.audio.basic_info"), false)) {
 			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.file_name"), asset.getFileName());
 			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.duration"),
@@ -339,13 +400,14 @@ final class AudioAnalysisAssetDetailControls {
 		}
 		if (AudioAnalysisPanelImGui.beginDetailSection("pending_actions", BBTexts.get("beatblock.audio.actions"), true)) {
 			if (ImGui.button(BBTexts.get("beatblock.audio.start_analyze") + "##detailAnalyze", ImGui.getContentRegionAvailX(), 26f)) {
-				AudioAssetManager.getInstance().startAnalysis(asset);
+				host.presenter().startAnalysis(asset);
 			}
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
 	}
 
-	private static void renderDetailFailed(AudioAnalysisPanelUiState state, AudioAsset asset) {
+	private static void renderDetailFailed(AudioAnalysisPanelHost host, AudioAsset asset) {
+		AudioAnalysisPanelUiState state = host.uiState();
 		if (AudioAnalysisPanelImGui.beginDetailSection("failed_error", BBTexts.get("beatblock.audio.error_section"), false)) {
 			ImGui.pushStyleColor(ImGuiCol.Text, 0.87f, 0.30f, 0.30f, 1f);
 			ImGui.textWrapped(asset.getErrorMessage() != null
@@ -362,14 +424,14 @@ final class AudioAnalysisAssetDetailControls {
 		}
 		if (AudioAnalysisPanelImGui.beginDetailSection("failed_actions", BBTexts.get("beatblock.audio.actions"), true)) {
 			if (ImGui.button(BBTexts.get("beatblock.audio.convert_mp3_one_click") + "##detailConvert", ImGui.getContentRegionAvailX(), 26f)) {
-				boolean accepted = AudioAssetManager.getInstance().requestConvertToMp3(asset);
+				boolean accepted = host.presenter().requestConvertToMp3(asset);
 				if (!accepted) {
 					asset.setErrorMessage(BBTexts.get("beatblock.audio.convert_not_implemented"));
 				}
 			}
 			AudioAnalysisPanelImGui.compactGap();
 			if (ImGui.button(BBTexts.get("beatblock.audio.retry") + "##detailRetry", ImGui.getContentRegionAvailX(), 26f)) {
-				AudioAssetManager.getInstance().startAnalysis(asset, asset.getRequestedAnalysisMode());
+				host.presenter().startAnalysis(asset, asset.getRequestedAnalysisMode());
 			}
 			AudioAnalysisPanelImGui.endDetailSection();
 		}

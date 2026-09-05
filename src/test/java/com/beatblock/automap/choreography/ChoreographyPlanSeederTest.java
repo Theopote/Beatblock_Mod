@@ -31,6 +31,7 @@ class ChoreographyPlanSeederTest {
 		assertNotNull(plan);
 		assertEquals(2, plan.sections().size());
 		assertFalse(plan.musicalStructure().bars().isEmpty());
+		assertFalse(plan.musicalStructure().phrases().isEmpty());
 		assertTrue(plan.motionPhrases().isEmpty());
 	}
 
