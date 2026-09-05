@@ -507,9 +507,7 @@ public class LayerPanel {
 			return;
 		}
 		BuildLayer layer = presenter.findLayer(pendingDeleteLayerId);
-		var refs = pendingDeleteLayerId != null
-			? presenter.findStageObjectReferences(pendingDeleteLayerId)
-			: new com.beatblock.timeline.StageObjectReferenceService.ReferenceSummary(java.util.List.of());
+		var refs = presenter.findStageObjectReferences(pendingDeleteLayerId);
 
 		ImGui.setNextWindowSize(420f, 0f, ImGuiCond.Appearing);
 		if (!ImGui.beginPopupModal(DELETE_CONFIRM_POPUP)) {

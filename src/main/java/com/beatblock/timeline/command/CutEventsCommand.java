@@ -86,7 +86,7 @@ public final class CutEventsCommand implements Command {
 	private static @Nullable BuildLayerManager currentLayerManager() {
 		try {
 			return BeatBlock.getContext().buildLayerManager();
-		} catch (IllegalStateException | NullPointerException ignored) {
+		} catch (IllegalStateException ignored) {
 			return null;
 		}
 	}

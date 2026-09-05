@@ -424,7 +424,6 @@ final class AudioAnalysisAssetDetailControls {
 	}
 
 	private static void renderDetailFailed(AudioAnalysisPanelHost host, AudioAsset asset) {
-		AudioAnalysisPanelUiState state = host.uiState();
 		if (AudioAnalysisPanelImGui.beginDetailSection("failed_error", BBTexts.get("beatblock.audio.error_section"), false)) {
 			ImGui.pushStyleColor(ImGuiCol.Text, 0.87f, 0.30f, 0.30f, 1f);
 			ImGui.textWrapped(asset.getErrorMessage() != null

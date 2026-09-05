@@ -23,17 +23,46 @@ public final class StageObjectTargetRemapper {
 		@NonNull String previousTargetObjectId
 	) {}
 
-	public record RemapResult(
-		@NonNull List<EventTargetPatch> eventPatches,
-		@Nullable List<Map<String, Object>> previousBindingRulesEncoded,
-		@Nullable ChoreographyPlan previousPlan,
-		boolean planChanged
-	) {
-		public RemapResult {
-			eventPatches = eventPatches != null ? List.copyOf(eventPatches) : List.of();
+	public static final class RemapResult {
+		private final @NonNull List<EventTargetPatch> eventPatches;
+		private final @Nullable List<Map<String, Object>> previousBindingRulesEncoded;
+		private final @Nullable ChoreographyPlan previousPlan;
+		private final boolean planChanged;
+
+		public RemapResult(
+			@Nullable List<EventTargetPatch> eventPatches,
+			@Nullable List<Map<String, Object>> previousBindingRulesEncoded,
+			@Nullable ChoreographyPlan previousPlan,
+			boolean planChanged
+		) {
+			this.eventPatches = eventPatches != null ? List.copyOf(eventPatches) : List.of();
 			if (previousBindingRulesEncoded != null) {
-				previousBindingRulesEncoded = List.copyOf(previousBindingRulesEncoded);
+				List<Map<String, Object>> copied = new ArrayList<>(previousBindingRulesEncoded.size());
+				for (Map<String, Object> map : previousBindingRulesEncoded) {
+					copied.add(map != null ? Map.copyOf(map) : Map.of());
+				}
+				this.previousBindingRulesEncoded = List.copyOf(copied);
+			} else {
+				this.previousBindingRulesEncoded = null;
 			}
+			this.previousPlan = previousPlan;
+			this.planChanged = planChanged;
+		}
+
+		public @NonNull List<EventTargetPatch> eventPatches() {
+			return eventPatches;
+		}
+
+		public @Nullable List<Map<String, Object>> previousBindingRulesEncoded() {
+			return previousBindingRulesEncoded == null ? null : List.copyOf(previousBindingRulesEncoded);
+		}
+
+		public @Nullable ChoreographyPlan previousPlan() {
+			return previousPlan;
+		}
+
+		public boolean planChanged() {
+			return planChanged;
 		}
 
 		public boolean isEmpty() {
@@ -71,7 +100,6 @@ public final class StageObjectTargetRemapper {
 		if (timeline == null || result == null || result.isEmpty()) {
 			return;
 		}
-		// Full restore goes through the service mutation shape.
 		List<StageObjectReferenceService.EventTargetPatch> eventPatches = new ArrayList<>();
 		for (EventTargetPatch p : result.eventPatches()) {
 			eventPatches.add(new StageObjectReferenceService.EventTargetPatch(

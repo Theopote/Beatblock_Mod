@@ -61,8 +61,9 @@ public final class BuildLayerBindingSupport {
 	/**
 	 * Clears dangling bindings after load:
 	 * <ul>
-	 *   <li>{@code BOUND_TO_TRACK} with missing clip → unbind to {@code FREE_HIDDEN}</li>
-	 *   <li>non-bound state with leftover {@code boundClipId} → clear clip id</li>
+	 *   <li>{@code BOUND_TO_TRACK} with missing clip (or no timeline to verify) → unbind</li>
+	 *   <li>non-bound state with leftover {@code boundClipId} → clear only when a timeline is present
+	 *       (layer-only loads may still round-trip orphan clip ids until timeline reconcile)</li>
 	 * </ul>
 	 *
 	 * @return number of layers adjusted
@@ -81,7 +82,7 @@ public final class BuildLayerBindingSupport {
 					manager.unbindFromClip(layer);
 					adjusted++;
 				}
-			} else if (clipId != null && !clipId.isBlank()) {
+			} else if (timeline != null && clipId != null && !clipId.isBlank()) {
 				layer.setBoundClipId(null);
 				adjusted++;
 			}

@@ -115,37 +115,85 @@ public final class StageObjectReferenceService {
 		@NonNull String previousTargetObjectId
 	) {}
 
-	public record CameraSegmentPatch(
-		@NonNull String clipId,
-		@NonNull String eventId,
-		@NonNull Map<String, Object> previousParameters
-	) {}
+	public static final class CameraSegmentPatch {
+		private final @NonNull String clipId;
+		private final @NonNull String eventId;
+		private final @NonNull Map<String, Object> previousParameters;
+
+		public CameraSegmentPatch(
+			@NonNull String clipId,
+			@NonNull String eventId,
+			@Nullable Map<String, Object> previousParameters
+		) {
+			this.clipId = clipId != null ? clipId : "";
+			this.eventId = eventId != null ? eventId : "";
+			this.previousParameters = previousParameters != null ? Map.copyOf(previousParameters) : Map.of();
+		}
+
+		public @NonNull String clipId() { return clipId; }
+		public @NonNull String eventId() { return eventId; }
+		public @NonNull Map<String, Object> previousParameters() { return Map.copyOf(previousParameters); }
+	}
 
 	/**
 	 * Undo payload for {@link #remap} / {@link #clear}.
 	 * Nullable snapshot fields mean that store was not mutated.
 	 */
-	public record MutationResult(
-		@NonNull List<EventTargetPatch> eventPatches,
-		@NonNull List<CameraSegmentPatch> cameraPatches,
-		@Nullable List<Map<String, Object>> previousBindingRulesEncoded,
-		@Nullable ChoreographyPlan previousPlan,
-		boolean planChanged,
-		@Nullable AutoMapConfig previousConfig,
-		boolean configChanged,
-		@Nullable List<String> previousAutoMapSettingsTargets,
-		boolean autoMapSettingsChanged
-	) {
-		public MutationResult {
-			eventPatches = eventPatches != null ? List.copyOf(eventPatches) : List.of();
-			cameraPatches = cameraPatches != null ? List.copyOf(cameraPatches) : List.of();
+	public static final class MutationResult {
+		private final @NonNull List<EventTargetPatch> eventPatches;
+		private final @NonNull List<CameraSegmentPatch> cameraPatches;
+		private final @Nullable List<Map<String, Object>> previousBindingRulesEncoded;
+		private final @Nullable ChoreographyPlan previousPlan;
+		private final boolean planChanged;
+		private final @Nullable AutoMapConfig previousConfig;
+		private final boolean configChanged;
+		private final @Nullable List<String> previousAutoMapSettingsTargets;
+		private final boolean autoMapSettingsChanged;
+
+		public MutationResult(
+			@Nullable List<EventTargetPatch> eventPatches,
+			@Nullable List<CameraSegmentPatch> cameraPatches,
+			@Nullable List<Map<String, Object>> previousBindingRulesEncoded,
+			@Nullable ChoreographyPlan previousPlan,
+			boolean planChanged,
+			@Nullable AutoMapConfig previousConfig,
+			boolean configChanged,
+			@Nullable List<String> previousAutoMapSettingsTargets,
+			boolean autoMapSettingsChanged
+		) {
+			this.eventPatches = eventPatches != null ? List.copyOf(eventPatches) : List.of();
+			this.cameraPatches = cameraPatches != null ? List.copyOf(cameraPatches) : List.of();
 			if (previousBindingRulesEncoded != null) {
-				previousBindingRulesEncoded = List.copyOf(previousBindingRulesEncoded);
+				List<Map<String, Object>> copied = new ArrayList<>(previousBindingRulesEncoded.size());
+				for (Map<String, Object> map : previousBindingRulesEncoded) {
+					copied.add(map != null ? Map.copyOf(map) : Map.of());
+				}
+				this.previousBindingRulesEncoded = List.copyOf(copied);
+			} else {
+				this.previousBindingRulesEncoded = null;
 			}
-			if (previousAutoMapSettingsTargets != null) {
-				previousAutoMapSettingsTargets = List.copyOf(previousAutoMapSettingsTargets);
-			}
+			this.previousPlan = previousPlan;
+			this.planChanged = planChanged;
+			this.previousConfig = previousConfig;
+			this.configChanged = configChanged;
+			this.previousAutoMapSettingsTargets = previousAutoMapSettingsTargets != null
+				? List.copyOf(previousAutoMapSettingsTargets) : null;
+			this.autoMapSettingsChanged = autoMapSettingsChanged;
 		}
+
+		public @NonNull List<EventTargetPatch> eventPatches() { return eventPatches; }
+		public @NonNull List<CameraSegmentPatch> cameraPatches() { return cameraPatches; }
+		public @Nullable List<Map<String, Object>> previousBindingRulesEncoded() {
+			return previousBindingRulesEncoded == null ? null : List.copyOf(previousBindingRulesEncoded);
+		}
+		public @Nullable ChoreographyPlan previousPlan() { return previousPlan; }
+		public boolean planChanged() { return planChanged; }
+		public @Nullable AutoMapConfig previousConfig() { return previousConfig; }
+		public boolean configChanged() { return configChanged; }
+		public @Nullable List<String> previousAutoMapSettingsTargets() {
+			return previousAutoMapSettingsTargets == null ? null : List.copyOf(previousAutoMapSettingsTargets);
+		}
+		public boolean autoMapSettingsChanged() { return autoMapSettingsChanged; }
 
 		public boolean isEmpty() {
 			return eventPatches.isEmpty()
@@ -222,9 +270,10 @@ public final class StageObjectReferenceService {
 			if (timeline == null) break;
 			applyCameraSegmentParams(timeline, patch.clipId(), patch.eventId(), patch.previousParameters());
 		}
-		if (timeline != null && result.previousBindingRulesEncoded() != null) {
+		List<Map<String, Object>> previousRules = result.previousBindingRulesEncoded();
+		if (timeline != null && previousRules != null) {
 			List<AnimationBindingRule> rules = new ArrayList<>();
-			for (Map<String, Object> encoded : result.previousBindingRulesEncoded()) {
+			for (Map<String, Object> encoded : previousRules) {
 				AnimationBindingRule rule = AnimationBindingRule.fromMap(encoded);
 				if (rule != null) rules.add(rule);
 			}
@@ -236,8 +285,9 @@ public final class StageObjectReferenceService {
 		if (timeline != null && result.configChanged()) {
 			timeline.setMetadata(ChoreographyPlanStore.KEY_CONFIG, result.previousConfig());
 		}
-		if (result.autoMapSettingsChanged() && result.previousAutoMapSettingsTargets() != null) {
-			AutoMapSettingsStore.current().setTargetObjectIds(result.previousAutoMapSettingsTargets());
+		List<String> previousSettingsTargets = result.previousAutoMapSettingsTargets();
+		if (result.autoMapSettingsChanged() && previousSettingsTargets != null) {
+			AutoMapSettingsStore.current().setTargetObjectIds(previousSettingsTargets);
 		}
 	}
 
@@ -245,7 +295,7 @@ public final class StageObjectReferenceService {
 		return new MutationResult(List.of(), List.of(), null, null, false, null, false, null, false);
 	}
 
-	private static MutationResult mutate(Timeline timeline, Set<String> fromIds, @Nullable String toId) {
+	private static MutationResult mutate(@Nullable Timeline timeline, Set<String> fromIds, @Nullable String toId) {
 		List<EventTargetPatch> eventPatches = mutateAnimationEvents(timeline, fromIds, toId);
 		List<CameraSegmentPatch> cameraPatches = mutateCameraSegments(timeline, fromIds, toId);
 		List<Map<String, Object>> previousRules = mutateBindingRules(timeline, fromIds, toId);

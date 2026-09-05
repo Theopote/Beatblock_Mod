@@ -184,9 +184,10 @@ public final class BuildLayerWorldStore {
 	private static void reconcileLoadedBindings(BuildLayerManager manager) {
 		Timeline timeline = null;
 		try {
-			timeline = BeatBlock.getContext().timeline();
-		} catch (IllegalStateException | NullPointerException ignored) {
-			// no runtime context / timeline yet
+			var ctx = BeatBlock.getContext();
+			timeline = ctx.timeline();
+		} catch (IllegalStateException ignored) {
+			// mod context not initialized yet
 		}
 		int adjusted = BuildLayerBindingSupport.reconcileBindings(manager, timeline);
 		if (adjusted > 0) {

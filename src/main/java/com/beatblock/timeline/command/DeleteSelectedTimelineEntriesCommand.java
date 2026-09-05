@@ -5,7 +5,6 @@ import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerBindingSupport;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Clip;
-import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
@@ -101,8 +100,8 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 					Clip snapshot = copyClip(clip);
 					BuildLayerBindingSupport.BindingSnapshot binding = captureBindingForClip(clipId);
 					if (!track.removeClip(clipId)) continue;
-					if (binding != null) {
-						BuildLayer layer = layerManager != null ? layerManager.get(binding.layerId()) : null;
+					if (binding != null && layerManager != null) {
+						BuildLayer layer = layerManager.get(binding.layerId());
 						if (layer != null) {
 							layerManager.unbindFromClip(layer);
 						}
@@ -178,11 +177,12 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 		// Restore clips first (empty binding shells + full clip deletes)
 		for (int i = removedEvents.size() - 1; i >= 0; i--) {
 			RemovedEvent removed = removedEvents.get(i);
-			if (!removed.removedEmptyClip() || removed.emptyClipSnapshot() == null) continue;
+			Clip emptySnap = removed.emptyClipSnapshot();
+			if (!removed.removedEmptyClip() || emptySnap == null) continue;
 			Track track = timeline.getTrack(removed.trackId());
 			if (track == null) continue;
 			if (track.getClip(removed.clipId()) == null) {
-				track.addClip(copyClip(removed.emptyClipSnapshot()));
+				track.addClip(copyClip(emptySnap));
 			}
 		}
 		for (int i = removedClips.size() - 1; i >= 0; i--) {
@@ -233,17 +233,14 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 	}
 
 	private static TimelineEvent copyEvent(TimelineEvent source) {
-		Map<String, Object> params = source.getParameters() != null
-			? new HashMap<>(source.getParameters())
-			: new HashMap<>();
-		EventType type = source.getType();
-		return new TimelineEvent(source.getId(), source.getTimeSeconds(), type, params);
+		Map<String, Object> params = new HashMap<>(source.getParameters());
+		return new TimelineEvent(source.getId(), source.getTimeSeconds(), source.getType(), params);
 	}
 
 	private static @Nullable BuildLayerManager currentLayerManager() {
 		try {
 			return BeatBlock.getContext().buildLayerManager();
-		} catch (IllegalStateException | NullPointerException ignored) {
+		} catch (IllegalStateException ignored) {
 			return null;
 		}
 	}
