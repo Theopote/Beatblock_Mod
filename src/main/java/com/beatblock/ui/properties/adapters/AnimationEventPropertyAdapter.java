@@ -1,9 +1,11 @@
 package com.beatblock.ui.properties.adapters;
 
-import com.beatblock.ui.properties.editors.AnimationPropertyEditor;
+import com.beatblock.BeatBlock;
+import com.beatblock.ui.presenter.EventPropertiesPresenter;
 import com.beatblock.ui.properties.IPropertyAdapter;
 import com.beatblock.ui.properties.TimelinePropertyContext;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
+import com.beatblock.ui.properties.editors.AnimationPropertyEditor;
 
 /**
  * 方块动画事件属性适配器（含多选批量编辑）。
@@ -11,10 +13,14 @@ import com.beatblock.ui.properties.TimelinePropertyKinds;
 public final class AnimationEventPropertyAdapter implements IPropertyAdapter<TimelinePropertyContext> {
 
 	private AnimationPropertyEditor editor;
+	private EventPropertiesPresenter boundPresenter;
 
-	private AnimationPropertyEditor editor() {
-		if (editor == null) {
-			editor = new AnimationPropertyEditor();
+	private AnimationPropertyEditor editor(EventPropertiesPresenter presenter) {
+		if (editor == null || boundPresenter != presenter) {
+			editor = presenter != null
+				? new AnimationPropertyEditor(presenter, BeatBlock::getContext)
+				: new AnimationPropertyEditor();
+			boundPresenter = presenter;
 		}
 		return editor;
 	}
@@ -44,7 +50,7 @@ public final class AnimationEventPropertyAdapter implements IPropertyAdapter<Tim
 
 	@Override
 	public boolean renderProperties(TimelinePropertyContext ctx) {
-		editor().renderBody(ctx.ref(), ctx.timeline(), ctx.editor());
+		editor(ctx.presenter()).renderBody(ctx.ref(), ctx.timeline(), ctx.editor());
 		return false;
 	}
 }

@@ -1,5 +1,6 @@
 package com.beatblock.ui.properties.adapters;
 
+import com.beatblock.ui.presenter.EventPropertiesPresenter;
 import com.beatblock.ui.properties.IPropertyAdapter;
 import com.beatblock.ui.properties.TimelinePropertyContext;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
@@ -8,10 +9,14 @@ import com.beatblock.ui.properties.editors.GlobalPropertyEditor;
 public final class GlobalEventPropertyAdapter implements IPropertyAdapter<TimelinePropertyContext> {
 
 	private GlobalPropertyEditor editor;
+	private EventPropertiesPresenter boundPresenter;
 
-	private GlobalPropertyEditor editor() {
-		if (editor == null) {
-			editor = new GlobalPropertyEditor();
+	private GlobalPropertyEditor editor(EventPropertiesPresenter presenter) {
+		if (editor == null || boundPresenter != presenter) {
+			editor = presenter != null
+				? new GlobalPropertyEditor(presenter)
+				: new GlobalPropertyEditor();
+			boundPresenter = presenter;
 		}
 		return editor;
 	}
@@ -38,7 +43,7 @@ public final class GlobalEventPropertyAdapter implements IPropertyAdapter<Timeli
 
 	@Override
 	public boolean renderProperties(TimelinePropertyContext ctx) {
-		editor().renderBody(ctx.ref(), ctx.timeline(), ctx.editor());
+		editor(ctx.presenter()).renderBody(ctx.ref(), ctx.timeline(), ctx.editor());
 		return false;
 	}
 }

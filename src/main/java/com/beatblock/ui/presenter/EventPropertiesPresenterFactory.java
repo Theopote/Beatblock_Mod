@@ -1,5 +1,7 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.BeatBlock;
+import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.runtime.BeatBlockContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.Registries;
@@ -33,8 +35,17 @@ final class EventPropertiesPresenterFactory {
 				}
 				return new ArrayList<>(context.blockAnimationEngine().getStageObjectSystem().getAll());
 			}),
-			EventPropertiesPresenterFactory::readCameraView
+			EventPropertiesPresenterFactory::readCameraView,
+			EventPropertiesPresenterFactory::reloadCompiledPlaybackIfDriving
 		);
+	}
+
+	private static void reloadCompiledPlaybackIfDriving() {
+		try {
+			BeatBlockClientDriver.reloadCompiledPlaybackIfDriving();
+		} catch (Throwable error) {
+			BeatBlock.LOGGER.debug("Skip compiled playback reload after property edit", error);
+		}
 	}
 
 	private static EventPropertiesPresenter.CameraViewSample readCameraView() {

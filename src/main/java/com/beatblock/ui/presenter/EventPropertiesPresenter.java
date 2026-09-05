@@ -96,6 +96,7 @@ public final class EventPropertiesPresenter {
 	private final Supplier<List<EventPropertiesOption>> animationOptionsSupplier;
 	private final Supplier<List<EventPropertiesOption>> targetOptionsSupplier;
 	private final CameraViewProvider cameraViewProvider;
+	private final Runnable afterDocumentEdit;
 
 	public EventPropertiesPresenter(
 		Predicate<String> stageObjectExists,
@@ -104,11 +105,23 @@ public final class EventPropertiesPresenter {
 		Supplier<List<EventPropertiesOption>> targetOptionsSupplier,
 		CameraViewProvider cameraViewProvider
 	) {
+		this(stageObjectExists, blockIdValid, animationOptionsSupplier, targetOptionsSupplier, cameraViewProvider, null);
+	}
+
+	public EventPropertiesPresenter(
+		Predicate<String> stageObjectExists,
+		Predicate<String> blockIdValid,
+		Supplier<List<EventPropertiesOption>> animationOptionsSupplier,
+		Supplier<List<EventPropertiesOption>> targetOptionsSupplier,
+		CameraViewProvider cameraViewProvider,
+		@Nullable Runnable afterDocumentEdit
+	) {
 		this.stageObjectExists = stageObjectExists;
 		this.blockIdValid = blockIdValid;
 		this.animationOptionsSupplier = animationOptionsSupplier;
 		this.targetOptionsSupplier = targetOptionsSupplier;
 		this.cameraViewProvider = cameraViewProvider;
+		this.afterDocumentEdit = afterDocumentEdit != null ? afterDocumentEdit : () -> {};
 	}
 
 	public EventPropertiesRef resolvePropertiesRef(Timeline timeline, SelectionState selectionState) {
@@ -810,7 +823,18 @@ public final class EventPropertiesPresenter {
 		AnimationEventSnapshot before,
 		AnimationEventSnapshot after
 	) {
-		TimelineEventEditActions.execute(
+		commitEventEdit(ref, timeline, commandManager, before, after, true);
+	}
+
+	private void commitEventEdit(
+		EventPropertiesRef ref,
+		Timeline timeline,
+		CommandManager commandManager,
+		AnimationEventSnapshot before,
+		AnimationEventSnapshot after,
+		boolean notifyAfter
+	) {
+		boolean ok = TimelineEventEditActions.execute(
 			timeline,
 			commandManager,
 			ref.track().getId(),
@@ -819,6 +843,40 @@ public final class EventPropertiesPresenter {
 			before,
 			after
 		);
+		if (ok && notifyAfter) {
+			notifyDocumentEdited();
+		}
+	}
+
+	private void notifyDocumentEdited() {
+		afterDocumentEdit.run();
+	}
+
+	/**
+	 * Deletes a camera keyframe through {@link com.beatblock.timeline.command.DeleteEventCommand}.
+	 */
+	public ApplyResult deleteCameraKeyframe(
+		EventPropertiesRef ref,
+		Timeline timeline,
+		CommandManager commandManager
+	) {
+		if (commandManager == null) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.common.timeline_editor_not_initialized"));
+		}
+		if (ref == null || ref.event() == null || ref.clip() == null || ref.track() == null) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.message.no_camera_keyframe"));
+		}
+		if (ref.event().getType() != EventType.CAMERA_KEYFRAME) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.message.no_camera_keyframe"));
+		}
+		commandManager.execute(new com.beatblock.timeline.command.DeleteEventCommand(
+			timeline,
+			ref.track().getId(),
+			ref.clip().getId(),
+			ref.event()
+		));
+		notifyDocumentEdited();
+		return new ApplyResult.Ok();
 	}
 
 	private static EventPropertiesRef resolveSelectedClipRef(
@@ -1045,7 +1103,7 @@ public final class EventPropertiesPresenter {
 				before.timelineDurationSeconds()
 			);
 			try {
-				commitEventEdit(ref, timeline, commandManager, before, after);
+				commitEventEdit(ref, timeline, commandManager, before, after, false);
 				updated++;
 			} catch (RuntimeException ex) {
 				lastError = ex.getMessage();
@@ -1055,6 +1113,7 @@ public final class EventPropertiesPresenter {
 			return new BatchEditOutcome(0, lastError != null ? lastError : BBTexts.get("beatblock.event.batch.none"));
 		}
 		timeline.sortAll();
+		notifyDocumentEdited();
 		return new BatchEditOutcome(updated, lastError);
 	}
 

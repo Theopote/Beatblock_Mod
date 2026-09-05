@@ -936,6 +936,7 @@
   "beatblock.message.object_deleted": "已删除 StageObject: %s",
   "beatblock.message.no_animation_event": "无动画事件。",
   "beatblock.message.no_camera_clip": "无摄像机片段。",
+  "beatblock.message.no_camera_keyframe": "无摄像机关键帧。",
   "beatblock.message.no_clip": "未选中片段。",
   "beatblock.message.no_global_event": "未选中全局事件。",
   "beatblock.message.no_segment_event": "无镜头段事件。",

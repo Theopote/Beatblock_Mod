@@ -32,7 +32,7 @@ public final class AudioClipPropertyEditor {
 		this(PresenterFactories.eventPropertiesPresenter(), BeatBlock::getContext);
 	}
 
-	AudioClipPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
+	public AudioClipPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
 		this.presenter = presenter;
 		this.context = context;
 	}

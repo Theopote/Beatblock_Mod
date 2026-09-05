@@ -1,7 +1,6 @@
 package com.beatblock.ui.properties.editors;
 
 import com.beatblock.BeatBlock;
-import com.beatblock.client.camera.CameraKeyframeActions;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
@@ -56,7 +55,7 @@ public final class CameraPropertyEditor {
 		this(PresenterFactories.eventPropertiesPresenter(), BeatBlock::getContext);
 	}
 
-	CameraPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
+	public CameraPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
 		this.presenter = presenter;
 		this.context = context;
 	}
@@ -463,10 +462,21 @@ public final class CameraPropertyEditor {
 		}
 		ImGui.spacing();
 		if (ImGui.button(BBTexts.get("beatblock.camera.delete_keyframe") + "##camKfDelete", 160f, 0f)) {
-			String id = ref.event().getId();
-			if (CameraKeyframeActions.deleteKeyframeEvent(timeline, id) && selectionState != null) {
-				selectionState.deselectEvent(id);
-				boundRefKey = null;
+			TimelineEditor editor = runtime().timelineEditor();
+			if (editor == null) {
+				validationError = BBTexts.get("beatblock.common.timeline_editor_not_initialized");
+			} else {
+				var result = presenter.deleteCameraKeyframe(ref, timeline, editor.getCommandManager());
+				if (result instanceof EventPropertiesPresenter.ApplyResult.Err(String message)) {
+					validationError = message;
+				} else {
+					validationError = null;
+					String id = ref.event().getId();
+					if (selectionState != null) {
+						selectionState.deselectEvent(id);
+					}
+					boundRefKey = null;
+				}
 			}
 		}
 

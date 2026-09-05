@@ -28,7 +28,7 @@ public final class GlobalPropertyEditor {
 		this(PresenterFactories.eventPropertiesPresenter());
 	}
 
-	GlobalPropertyEditor(EventPropertiesPresenter presenter) {
+	public GlobalPropertyEditor(EventPropertiesPresenter presenter) {
 		this.presenter = presenter;
 	}
 

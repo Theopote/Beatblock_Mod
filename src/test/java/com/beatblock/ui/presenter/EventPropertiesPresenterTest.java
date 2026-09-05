@@ -389,4 +389,27 @@ class EventPropertiesPresenterTest {
 		assertEquals("minecraft:gold_block", event.getParameters().get("placeBlock"));
 		assertEquals("wall", event.getParameters().get("buildMode"));
 	}
+
+	@Test
+	void deleteCameraKeyframeUsesCommandAndSupportsUndo() {
+		Track camera = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		assertNotNull(camera);
+		var clip = TimelineOperations.addClip(camera, 0.0, 4.0);
+		var keyframe = TimelineOperations.addEvent(
+			clip,
+			1.0,
+			EventType.CAMERA_KEYFRAME,
+			Map.of("x", "1", "y", "2", "z", "3", "yaw", "0", "pitch", "0", "ease", "SMOOTH")
+		);
+		EventPropertiesRef ref = new EventPropertiesRef(camera, clip, keyframe);
+
+		var result = presenter.deleteCameraKeyframe(ref, timeline, commandManager);
+		assertTrue(result instanceof EventPropertiesPresenter.ApplyResult.Ok);
+		assertNull(clip.getEvent(keyframe.getId()));
+		assertTrue(commandManager.canUndo());
+
+		commandManager.undo();
+		assertNotNull(clip.getEvent(keyframe.getId()));
+		assertEquals(1.0, clip.getEvent(keyframe.getId()).getTimeSeconds(), 1e-9);
+	}
 }

@@ -102,7 +102,7 @@ public final class AnimationPropertyEditor {
 		this(PresenterFactories.eventPropertiesPresenter(), BeatBlock::getContext);
 	}
 
-	AnimationPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
+	public AnimationPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
 		this(presenter, context, EventPropertySectionRegistry.createDefault());
 	}
 

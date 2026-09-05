@@ -189,6 +189,27 @@ public final class BeatBlockClientDriver {
 		requireInstance().startDrivingInternal();
 	}
 
+	/**
+	 * Hot-reloads the formal playback snapshot from the live Timeline while driving.
+	 * No-op when not driving (preview already reads the live document).
+	 */
+	public static void reloadCompiledPlaybackIfDriving() {
+		requireInstance().reloadCompiledPlaybackIfDrivingInternal();
+	}
+
+	private void reloadCompiledPlaybackIfDrivingInternal() {
+		ClientThreadGuard.assertClientThread();
+		if (!driving) {
+			return;
+		}
+		compiledPlayback = TimelineCompiler.compile(
+			ctx().timeline(),
+			ctx().blockAnimationEngine(),
+			ctx().buildLayerManager()
+		);
+		playbackEngine.load(compiledPlayback);
+	}
+
 	private void startDrivingInternal() {
 		ClientThreadGuard.assertClientThread();
 		lastTickNanos = 0;

@@ -31,7 +31,7 @@ public final class BuildLayerClipPropertyEditor {
 		this(PresenterFactories.eventPropertiesPresenter(), BeatBlock::getContext);
 	}
 
-	BuildLayerClipPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
+	public BuildLayerClipPropertyEditor(EventPropertiesPresenter presenter, Supplier<BeatBlockContext> context) {
 		this.presenter = presenter;
 		this.context = context;
 	}

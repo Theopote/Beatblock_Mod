@@ -1,5 +1,7 @@
 package com.beatblock.ui.properties.adapters;
 
+import com.beatblock.BeatBlock;
+import com.beatblock.ui.presenter.EventPropertiesPresenter;
 import com.beatblock.ui.properties.IPropertyAdapter;
 import com.beatblock.ui.properties.TimelinePropertyContext;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
@@ -8,10 +10,14 @@ import com.beatblock.ui.properties.editors.BuildLayerClipPropertyEditor;
 public final class BuildLayerClipPropertyAdapter implements IPropertyAdapter<TimelinePropertyContext> {
 
 	private BuildLayerClipPropertyEditor editor;
+	private EventPropertiesPresenter boundPresenter;
 
-	private BuildLayerClipPropertyEditor editor() {
-		if (editor == null) {
-			editor = new BuildLayerClipPropertyEditor();
+	private BuildLayerClipPropertyEditor editor(EventPropertiesPresenter presenter) {
+		if (editor == null || boundPresenter != presenter) {
+			editor = presenter != null
+				? new BuildLayerClipPropertyEditor(presenter, BeatBlock::getContext)
+				: new BuildLayerClipPropertyEditor();
+			boundPresenter = presenter;
 		}
 		return editor;
 	}
@@ -38,7 +44,7 @@ public final class BuildLayerClipPropertyAdapter implements IPropertyAdapter<Tim
 
 	@Override
 	public boolean renderProperties(TimelinePropertyContext ctx) {
-		editor().renderBody(ctx.ref(), ctx.timeline(), ctx.editor());
+		editor(ctx.presenter()).renderBody(ctx.ref(), ctx.timeline(), ctx.editor());
 		return false;
 	}
 }

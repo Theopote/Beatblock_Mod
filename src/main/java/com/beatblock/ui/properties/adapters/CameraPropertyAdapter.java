@@ -1,9 +1,11 @@
 package com.beatblock.ui.properties.adapters;
 
-import com.beatblock.ui.properties.editors.CameraPropertyEditor;
+import com.beatblock.BeatBlock;
+import com.beatblock.ui.presenter.EventPropertiesPresenter;
 import com.beatblock.ui.properties.IPropertyAdapter;
 import com.beatblock.ui.properties.TimelinePropertyContext;
 import com.beatblock.ui.properties.TimelinePropertyKinds;
+import com.beatblock.ui.properties.editors.CameraPropertyEditor;
 
 /**
  * 摄像机片段 / 分段 / 关键帧属性适配器。
@@ -11,10 +13,14 @@ import com.beatblock.ui.properties.TimelinePropertyKinds;
 public final class CameraPropertyAdapter implements IPropertyAdapter<TimelinePropertyContext> {
 
 	private CameraPropertyEditor editor;
+	private EventPropertiesPresenter boundPresenter;
 
-	private CameraPropertyEditor editor() {
-		if (editor == null) {
-			editor = new CameraPropertyEditor();
+	private CameraPropertyEditor editor(EventPropertiesPresenter presenter) {
+		if (editor == null || boundPresenter != presenter) {
+			editor = presenter != null
+				? new CameraPropertyEditor(presenter, BeatBlock::getContext)
+				: new CameraPropertyEditor();
+			boundPresenter = presenter;
 		}
 		return editor;
 	}
@@ -41,7 +47,7 @@ public final class CameraPropertyAdapter implements IPropertyAdapter<TimelinePro
 
 	@Override
 	public boolean renderProperties(TimelinePropertyContext ctx) {
-		editor().renderBody(ctx.ref(), ctx.timeline(), ctx.editor());
+		editor(ctx.presenter()).renderBody(ctx.ref(), ctx.timeline(), ctx.editor());
 		return false;
 	}
 }

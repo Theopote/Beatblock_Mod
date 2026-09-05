@@ -936,6 +936,7 @@
   "beatblock.message.object_deleted": "Deleted StageObject: %s",
   "beatblock.message.no_animation_event": "No animation event.",
   "beatblock.message.no_camera_clip": "No camera clip.",
+  "beatblock.message.no_camera_keyframe": "No camera keyframe.",
   "beatblock.message.no_clip": "No clip selected.",
   "beatblock.message.no_global_event": "No global event selected.",
   "beatblock.message.no_segment_event": "No segment event.",
