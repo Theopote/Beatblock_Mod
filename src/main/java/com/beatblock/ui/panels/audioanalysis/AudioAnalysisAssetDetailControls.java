@@ -122,7 +122,11 @@ final class AudioAnalysisAssetDetailControls {
 				AudioAnalysisPanelImGui.compactGap();
 				AudioAnalysisPanelImGui.renderWarningBanner("beatblock.audio.bpm_low_confidence");
 			}
-			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.time_signature"), "4/4");
+			AudioAnalysisPanelImGui.detailRowCompact(
+				state,
+				BBTexts.get("beatblock.audio.time_signature"),
+				BBTexts.get("beatblock.audio.time_signature_assumed", "4/4")
+			);
 			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.analysis_mode"),
 				hasStemSeparation ? BBTexts.get("beatblock.audio.demucs_mode") : BBTexts.get("beatblock.audio.basic_mode"));
 			AudioAnalysisPanelImGui.detailRowCompact(state, BBTexts.get("beatblock.audio.requested_mode"),
@@ -150,7 +154,7 @@ final class AudioAnalysisAssetDetailControls {
 		}
 
 		if (AudioAnalysisPanelImGui.beginDetailSection("completed_structure", BBTexts.get("beatblock.audio.music_structure"), true)) {
-			renderMusicStructure(state, detailBm);
+			renderMusicStructure(host, asset, detailBm);
 			AudioAnalysisPanelImGui.endDetailSection();
 		}
 
@@ -244,20 +248,20 @@ final class AudioAnalysisAssetDetailControls {
 			}
 
 			AudioAnalysisPanelImGui.compactGap();
-			AudioAnalysisMode compareMode = asset.getResolvedAnalysisMode() == AudioAnalysisMode.DEMUCS
+			AudioAnalysisMode switchMode = asset.getResolvedAnalysisMode() == AudioAnalysisMode.DEMUCS
 				? AudioAnalysisMode.BASIC
 				: AudioAnalysisMode.DEMUCS;
-			String compareLabel = compareMode == AudioAnalysisMode.DEMUCS
-				? BBTexts.get("beatblock.audio.compare_demucs") + "##detailCompareDemucs"
-				: BBTexts.get("beatblock.audio.compare_basic") + "##detailCompareBasic";
-			if (ImGui.button(compareLabel, ImGui.getContentRegionAvailX(), 24f)) {
-				String result = host.presenter().clearCacheAndReanalyze(asset, compareMode);
+			String switchLabel = switchMode == AudioAnalysisMode.DEMUCS
+				? BBTexts.get("beatblock.audio.switch_demucs") + "##detailSwitchDemucs"
+				: BBTexts.get("beatblock.audio.switch_basic") + "##detailSwitchBasic";
+			if (ImGui.button(switchLabel, ImGui.getContentRegionAvailX(), 24f)) {
+				String result = host.presenter().clearCacheAndReanalyze(asset, switchMode);
 				state.setPanelHint(result, result.contains("未初始化") || result.contains("无效"));
 			}
 			if (ImGui.isItemHovered()) {
-				ImGui.setTooltip(compareMode == AudioAnalysisMode.DEMUCS
-					? BBTexts.get("beatblock.audio.compare_demucs.tooltip")
-					: BBTexts.get("beatblock.audio.compare_basic.tooltip"));
+				ImGui.setTooltip(switchMode == AudioAnalysisMode.DEMUCS
+					? BBTexts.get("beatblock.audio.switch_demucs.tooltip")
+					: BBTexts.get("beatblock.audio.switch_basic.tooltip"));
 			}
 
 			AudioAnalysisPanelImGui.compactGap();
@@ -283,7 +287,8 @@ final class AudioAnalysisAssetDetailControls {
 		}
 	}
 
-	private static void renderMusicStructure(AudioAnalysisPanelUiState state, Beatmap beatmap) {
+	private static void renderMusicStructure(AudioAnalysisPanelHost host, AudioAsset asset, Beatmap beatmap) {
+		AudioAnalysisPanelUiState state = host.uiState();
 		if (beatmap == null || beatmap.sections == null || beatmap.sections.isEmpty()) {
 			AudioAnalysisPanelImGui.textDisabledWrapped(BBTexts.get("beatblock.audio.section_empty"));
 			return;
@@ -315,6 +320,18 @@ final class AudioAnalysisAssetDetailControls {
 		}
 		AudioAnalysisPanelImGui.compactGap();
 		AudioAnalysisPanelImGui.textDisabledWrapped(BBTexts.get("beatblock.audio.structure_seed_hint"));
+		AudioAnalysisPanelImGui.compactGap();
+		if (ImGui.button(BBTexts.get("beatblock.audio.review_structure") + "##detailReviewStructure",
+			ImGui.getContentRegionAvailX(), 24f)) {
+			PresenterResult result = host.presenter().reviewStructureInTimeline(asset);
+			state.setPanelHint(result.messageOrEmpty(), !result.ok());
+			if (result.ok()) {
+				host.showTimelineAfterApply();
+			}
+		}
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.audio.review_structure.tooltip"));
+		}
 	}
 
 	private static void renderDetailAnalyzing(AudioAnalysisPanelUiState state, AudioAsset asset) {

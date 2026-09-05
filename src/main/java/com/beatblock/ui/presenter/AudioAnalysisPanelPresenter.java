@@ -46,18 +46,63 @@ public final class AudioAnalysisPanelPresenter {
 
 	public void startAnalysis(AudioAsset asset) {
 		assets().startAnalysis(asset);
+		markTimelineAwaitingIfActive(asset);
 	}
 
 	public void startAnalysis(AudioAsset asset, AudioAnalysisMode mode) {
 		assets().startAnalysis(asset, mode);
+		markTimelineAwaitingIfActive(asset);
 	}
 
 	public void removeAsset(String assetId) {
 		assets().remove(assetId);
 	}
 
+	/**
+	 * 清缓存并重解析；若该资产是当前 Timeline 主音频，则标记 awaiting，
+	 * 分析完成后自动回填 beatmap / MusicStructure（含 protected section merge）。
+	 */
 	public String clearCacheAndReanalyze(AudioAsset asset, AudioAnalysisMode mode) {
-		return assets().clearCacheAndReanalyze(asset, mode);
+		String result = assets().clearCacheAndReanalyze(asset, mode);
+		if (markTimelineAwaitingIfActive(asset)) {
+			return result + " " + BBTexts.get("beatblock.audio.reanalyze_will_apply_timeline");
+		}
+		return result;
+	}
+
+	/**
+	 * 打开时间线审阅结构：若资产尚未接入当前时间线则先应用，再导航到时间线。
+	 */
+	public PresenterResult reviewStructureInTimeline(AudioAsset asset) {
+		if (asset == null) {
+			return PresenterResult.failure(BBTexts.get("beatblock.audio.apply_timeline.need_complete"));
+		}
+		TimelineEditor editor = context.get().timelineEditor();
+		if (editor == null) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
+		}
+		if (!editor.isActiveTimelineAudio(asset)) {
+			PresenterResult apply = applyToTimeline(asset);
+			if (!apply.ok()) {
+				return apply;
+			}
+		}
+		return PresenterResult.success(BBTexts.get("beatblock.audio.review_structure.ok"));
+	}
+
+	private boolean markTimelineAwaitingIfActive(@Nullable AudioAsset asset) {
+		if (asset == null) {
+			return false;
+		}
+		AudioAssetStatus status = asset.getStatus();
+		boolean analysisStarted = status == AudioAssetStatus.QUEUED
+			|| status == AudioAssetStatus.ANALYZING
+			|| status == AudioAssetStatus.PENDING;
+		if (!analysisStarted) {
+			return false;
+		}
+		TimelineEditor editor = context.get().timelineEditor();
+		return editor != null && editor.markAwaitingAnalyzedBeatmapIfActive(asset);
 	}
 
 	public boolean requestConvertToMp3(AudioAsset asset) {

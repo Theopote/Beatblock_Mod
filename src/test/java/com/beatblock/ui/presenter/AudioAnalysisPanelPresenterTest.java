@@ -3,6 +3,7 @@ package com.beatblock.ui.presenter;
 import com.beatblock.BeatBlock;
 import com.beatblock.audio.AudioAnalysisService;
 import com.beatblock.audio.IAudioAnalyzer;
+import com.beatblock.audio.assets.AudioAnalysisMode;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.audio.beatmap.AnchorType;
@@ -16,8 +17,11 @@ import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.test.WithBeatBlockContext;
+import com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport;
+import com.beatblock.ui.i18n.BBTexts;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -123,14 +127,64 @@ class AudioAnalysisPanelPresenterTest {
 		assertFalse(plan.musicalStructure().phrases().isEmpty());
 	}
 
+	@Test
+	void clearCacheAndReanalyzeMarksTimelineAwaitingWhenAssetIsActive() {
+		BeatBlockContext context = BeatBlock.getContext();
+		AudioAnalysisPanelPresenter presenter = new AudioAnalysisPanelPresenter(() -> context);
+		AudioAsset asset = completedAsset();
+
+		assertTrue(presenter.applyToTimeline(asset).ok());
+		assertNull(context.timeline().getMetadata("awaitingAnalyzedBeatmap"));
+
+		String result = presenter.clearCacheAndReanalyze(asset, AudioAnalysisMode.BASIC);
+		assertTrue(
+			result.contains(BBTexts.get("beatblock.audio.reanalyze_will_apply_timeline")),
+			result
+		);
+		Object awaiting = context.timeline().getMetadata("awaitingAnalyzedBeatmap");
+		assertNotNull(awaiting);
+		assertEquals(
+			TimelineAudioFeatureFillSupport.buildAudioAssetKey(asset),
+			TimelineAudioFeatureFillSupport.normalizeAudioPath(awaiting.toString())
+		);
+	}
+
+	@Test
+	void clearCacheAndReanalyzeDoesNotMarkAwaitingForUnrelatedAsset() {
+		BeatBlockContext context = BeatBlock.getContext();
+		AudioAnalysisPanelPresenter presenter = new AudioAnalysisPanelPresenter(() -> context);
+		AudioAsset onTimeline = completedAsset();
+		AudioAsset other = completedAsset(Path.of("other.wav"));
+
+		assertTrue(presenter.applyToTimeline(onTimeline).ok());
+		presenter.clearCacheAndReanalyze(other, AudioAnalysisMode.BASIC);
+
+		assertNull(context.timeline().getMetadata("awaitingAnalyzedBeatmap"));
+	}
+
+	@Test
+	void reviewStructureAppliesWhenNotOnTimeline() {
+		BeatBlockContext context = BeatBlock.getContext();
+		AudioAnalysisPanelPresenter presenter = new AudioAnalysisPanelPresenter(() -> context);
+		AudioAsset asset = completedAsset();
+
+		PresenterResult result = presenter.reviewStructureInTimeline(asset);
+		assertTrue(result.ok(), result.messageOrEmpty());
+		assertTrue(context.timelineEditor().isActiveTimelineAudio(asset));
+	}
+
 	private static AudioAsset completedAsset() {
-		AudioAsset asset = new AudioAsset(java.nio.file.Path.of("song.wav"));
+		return completedAsset(Path.of("song.wav"));
+	}
+
+	private static AudioAsset completedAsset(Path path) {
+		AudioAsset asset = new AudioAsset(path);
 		asset.setStatus(AudioAssetStatus.COMPLETED);
 		asset.setBpm(120f);
 		asset.setSectionCount(2);
 		asset.setBeatmap(new Beatmap(
 			1,
-			new BeatmapMeta("song.wav", 16000, 120, 1.0, "4/4", 44100, "", "", null, null, null),
+			new BeatmapMeta(path.getFileName().toString(), 16000, 120, 1.0, "4/4", 44100, "", "", null, null, null),
 			List.of(
 				new BeatEvent(0, "kick", 0.8f, AnchorType.ARRIVE, 0, 0, 0),
 				new BeatEvent(500, "snare", 0.7f, AnchorType.ARRIVE, 1, 0, 1)

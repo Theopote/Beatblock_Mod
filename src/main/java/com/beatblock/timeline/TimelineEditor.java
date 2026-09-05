@@ -7,6 +7,7 @@ import com.beatblock.timeline.editor.*;
 import com.beatblock.timeline.editing.TimelineEditSession;
 import com.beatblock.timeline.interaction.TimelineInteraction;
 import com.beatblock.timeline.playback.PlaybackSession;
+import com.beatblock.timeline.rendering.TimelineAudioFeatureFillSupport;
 import com.beatblock.timeline.rendering.TimelineFrameTrackSnapshot;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineRenderer;
@@ -140,6 +141,41 @@ public final class TimelineEditor {
 	 */
 	public void connectAudioAsset(@NonNull AudioAsset asset) {
 		TimelineAudioDropHandler.handleDroppedAudioAsset(renderer, timeline, asset, -1);
+	}
+
+	/**
+	 * 若该资产是当前时间线正在使用的音频，则标记等待新分析结果自动回填
+	 * （重解析 / 切换分析模式后由 {@code TimelineDenseFeatureApplier} 应用，并走 protected merge）。
+	 *
+	 * @return true 表示已标记，完成后会自动写回 Timeline
+	 */
+	public boolean markAwaitingAnalyzedBeatmapIfActive(@NonNull AudioAsset asset) {
+		if (!isActiveTimelineAudio(asset)) {
+			return false;
+		}
+		String audioKey = TimelineAudioFeatureFillSupport.buildAudioAssetKey(asset);
+		if (audioKey == null) {
+			audioKey = TimelineAudioFeatureFillSupport.getTimelineAudioPathKey(timeline);
+		}
+		if (audioKey == null) {
+			return false;
+		}
+		timeline.setMetadata("awaitingAnalyzedBeatmap", audioKey);
+		renderer.resetBeatmapAutoApplySignature();
+		return true;
+	}
+
+	/** 判断资产是否为当前时间线绑定的主音频（路径 key 或 audioAssetId）。 */
+	public boolean isActiveTimelineAudio(@NonNull AudioAsset asset) {
+		String assetKey = TimelineAudioFeatureFillSupport.buildAudioAssetKey(asset);
+		String timelineKey = TimelineAudioFeatureFillSupport.getTimelineAudioPathKey(timeline);
+		if (assetKey != null && java.util.Objects.equals(assetKey, timelineKey)) {
+			return true;
+		}
+		Object assetIdMeta = timeline.getMetadata("audioAssetId");
+		return assetIdMeta != null
+			&& asset.getId() != null
+			&& asset.getId().equals(String.valueOf(assetIdMeta));
 	}
 
 	public @NonNull TimelineToolbarState getToolbarState() {
