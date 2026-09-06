@@ -114,8 +114,9 @@ public final class GlobalEventPayloadCodec {
 				params.put("count", value.count());
 				params.put("spread", value.spread());
 				params.put("speed", value.speed());
-				if (value.followSubjectKind() != null) {
-					params.put("followSubjectKind", value.followSubjectKind().name());
+				CameraSubjectKind followKind = value.followSubjectKind();
+				if (followKind != null) {
+					params.put("followSubjectKind", followKind.name());
 					if (!value.followSubjectRef().isBlank()) {
 						params.put("followSubjectRef", value.followSubjectRef());
 					}

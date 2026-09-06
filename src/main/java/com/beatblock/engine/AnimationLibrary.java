@@ -2,6 +2,7 @@ package com.beatblock.engine;
 
 import com.beatblock.engine.influence.BlockInfluencePreset;
 import com.beatblock.engine.influence.BlockInfluencePresets;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -28,7 +29,7 @@ public final class AnimationLibrary {
 		if (definition != null) animations.put(definition.getId(), definition);
 	}
 
-	public AnimationDefinition get(String id) {
+	public @Nullable AnimationDefinition get(String id) {
 		return animations.get(id);
 	}
 

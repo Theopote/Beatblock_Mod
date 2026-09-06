@@ -239,12 +239,10 @@ public final class CameraViewCaptureService {
 		String eventId
 	) {
 		SelectionState selection = editor.getSelectionState();
-		if (selection != null) {
-			selection.clearEvents();
-			selection.clearClips();
-			selection.selectClip(clipId);
-			selection.selectEvent(eventId);
-		}
+		selection.clearEvents();
+		selection.clearClips();
+		selection.selectClip(clipId);
+		selection.selectEvent(eventId);
 		TimelinePanelVisibility.openTimelineProperties();
 	}
 

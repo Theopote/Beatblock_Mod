@@ -63,6 +63,7 @@ public sealed interface GlobalEventPayload {
 		public static final double DEFAULT_SPREAD = 0.5;
 		public static final double DEFAULT_SPEED = 0.04;
 
+		@SuppressWarnings("NullAway")
 		public ParticleBurst(
 			String name,
 			String particleType,
@@ -73,7 +74,11 @@ public sealed interface GlobalEventPayload {
 			double spread,
 			double speed
 		) {
-			this(name, particleType, x, y, z, count, spread, speed, null, null);
+			this(name, particleType, x, y, z, count, spread, speed, absentFollowKind(), "");
+		}
+
+		private static @Nullable CameraSubjectKind absentFollowKind() {
+			return null;
 		}
 
 		public ParticleBurst {

@@ -84,25 +84,20 @@ public final class CameraShotInsertionService {
 		CreateCameraClipCommand command
 	) {
 		CommandManager commandManager = editor.getCommandManager();
-		if (commandManager == null) {
-			return InsertionResult.EMPTY;
-		}
 		commandManager.execute(command);
 		if (!command.wasApplied()) {
 			return InsertionResult.EMPTY;
 		}
 		String clipId = Objects.requireNonNull(command.createdClipId());
 		SelectionState selection = editor.getSelectionState();
-		if (selection != null) {
-			selection.clearEvents();
-			selection.clearClips();
-			selection.selectClip(clipId);
-			Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
-			Clip clip = cam != null ? cam.getClip(clipId) : null;
-			TimelineEvent segment = CameraTrackFactory.findSegmentHeadEvent(clip);
-			if (segment != null) {
-				selection.selectEvent(segment.getId());
-			}
+		selection.clearEvents();
+		selection.clearClips();
+		selection.selectClip(clipId);
+		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		Clip clip = cam != null ? cam.getClip(clipId) : null;
+		TimelineEvent segment = CameraTrackFactory.findSegmentHeadEvent(clip);
+		if (segment != null) {
+			selection.selectEvent(segment.getId());
 		}
 		editor.syncClockDuration();
 		TimelinePanelVisibility.openTimelineProperties();

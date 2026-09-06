@@ -62,9 +62,6 @@ public final class GlobalEventInsertionService {
 			return InsertionResult.EMPTY;
 		}
 		CommandManager commandManager = editor.getCommandManager();
-		if (commandManager == null) {
-			return InsertionResult.EMPTY;
-		}
 		CreateGlobalEventCommand command = new CreateGlobalEventCommand(
 			timeline,
 			request,
@@ -77,12 +74,10 @@ public final class GlobalEventInsertionService {
 		String clipId = Objects.requireNonNull(command.createdClipId());
 		String eventId = Objects.requireNonNull(command.createdEventId());
 		SelectionState selection = editor.getSelectionState();
-		if (selection != null) {
-			selection.clearEvents();
-			selection.clearClips();
-			selection.selectClip(clipId);
-			selection.selectEvent(eventId);
-		}
+		selection.clearEvents();
+		selection.clearClips();
+		selection.selectClip(clipId);
+		selection.selectEvent(eventId);
 		editor.syncClockDuration();
 		TimelinePanelVisibility.openTimelineProperties();
 		TimelineDocumentChangeNotifier.notifyDocumentEdited();
@@ -103,9 +98,6 @@ public final class GlobalEventInsertionService {
 			return PresetInsertionResult.EMPTY;
 		}
 		CommandManager commandManager = editor.getCommandManager();
-		if (commandManager == null) {
-			return PresetInsertionResult.EMPTY;
-		}
 		ApplyEnvironmentPresetCommand command = ApplyEnvironmentPresetCommand.of(
 			timeline, Math.max(0.0, timeSeconds), preset);
 		commandManager.execute(command);
@@ -115,18 +107,16 @@ public final class GlobalEventInsertionService {
 		List<String> clipIds = command.createdClipIds();
 		List<String> eventIds = command.createdEventIds();
 		SelectionState selection = editor.getSelectionState();
-		if (selection != null) {
-			selection.clearEvents();
-			selection.clearClips();
-			for (String clipId : clipIds) {
-				selection.selectClip(clipId);
-			}
-			for (String eventId : eventIds) {
-				selection.selectEvent(eventId);
-			}
-			if (!eventIds.isEmpty()) {
-				selection.setRangeAnchorEventId(eventIds.getFirst());
-			}
+		selection.clearEvents();
+		selection.clearClips();
+		for (String clipId : clipIds) {
+			selection.selectClip(clipId);
+		}
+		for (String eventId : eventIds) {
+			selection.selectEvent(eventId);
+		}
+		if (!eventIds.isEmpty()) {
+			selection.setRangeAnchorEventId(eventIds.getFirst());
 		}
 		editor.syncClockDuration();
 		TimelinePanelVisibility.openTimelineProperties();

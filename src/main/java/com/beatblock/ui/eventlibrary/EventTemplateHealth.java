@@ -24,7 +24,7 @@ public final class EventTemplateHealth {
 				BBTexts.get("beatblock.event_library.health.invalid_parameters")
 			);
 		}
-		String typeId = template.animationTypeId() != null ? template.animationTypeId().trim() : "";
+		String typeId = template.animationTypeId().trim();
 		if (typeId.isEmpty()) {
 			return item(template, EventTemplateStatus.INVALID_PARAMETERS,
 				BBTexts.get("beatblock.event_library.health.invalid_parameters"));

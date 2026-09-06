@@ -62,9 +62,9 @@ public record CameraShotDraft(
 	}
 
 	private static CameraSubject lookAtSubject(CapturedCameraPose pose) {
-		if (pose.orbit() != null) {
-			CapturedCameraPose.OrbitCapture o = pose.orbit();
-			return CameraSubject.worldPosition(o.targetX(), o.targetY(), o.targetZ());
+		CapturedCameraPose.OrbitCapture orbit = pose.orbit();
+		if (orbit != null) {
+			return CameraSubject.worldPosition(orbit.targetX(), orbit.targetY(), orbit.targetZ());
 		}
 		return CameraSubject.worldPosition(pose.eyeX(), pose.eyeY(), pose.eyeZ());
 	}

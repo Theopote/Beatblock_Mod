@@ -1,6 +1,7 @@
 package com.beatblock.automap.vfx;
 
 import com.beatblock.automap.camera.CameraSubject;
+import com.beatblock.automap.camera.CameraSubjectKind;
 import com.beatblock.client.BeatBlockUIScreen;
 import com.beatblock.client.camera.CameraKeyframeActions;
 import com.beatblock.client.input.BeatBlockInputSystem;
@@ -108,8 +109,9 @@ public final class VfxParticlePositionResolver {
 		if (payload == null) {
 			return "";
 		}
-		if (payload.followSubjectKind() != null) {
-			return switch (payload.followSubjectKind()) {
+		CameraSubjectKind followKind = payload.followSubjectKind();
+		if (followKind != null) {
+			return switch (followKind) {
 				case STAGE_OBJECT -> centerLabel(stageObjectDisplayName(
 					stageObjects != null ? stageObjects.get(payload.followSubjectRef()) : null,
 					payload.followSubjectRef()));

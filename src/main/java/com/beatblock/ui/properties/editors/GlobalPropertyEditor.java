@@ -415,21 +415,18 @@ public final class GlobalPropertyEditor {
 		}
 	}
 
-	private static @Nullable StageObjectSystem stageObjectSystemOrNull() {
+	private static @Nullable BuildLayerManager layerManagerOrNull() {
 		try {
-			var ctx = BeatBlock.getContext();
-			if (ctx != null && ctx.blockAnimationEngine() != null) {
-				return ctx.blockAnimationEngine().getStageObjectSystem();
-			}
+			return BeatBlock.getContext().buildLayerManager();
 		} catch (Exception ignored) {
 		}
 		return null;
 	}
 
-	private static @Nullable BuildLayerManager layerManagerOrNull() {
+	private static @Nullable StageObjectSystem stageObjectSystemOrNull() {
 		try {
-			var ctx = BeatBlock.getContext();
-			return ctx != null ? ctx.buildLayerManager() : null;
+			var engine = BeatBlock.getContext().blockAnimationEngine();
+			return engine != null ? engine.getStageObjectSystem() : null;
 		} catch (Exception ignored) {
 		}
 		return null;

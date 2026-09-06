@@ -18,7 +18,7 @@ public enum VfxEffectCategory {
 	}
 
 	public GlobalEffectKind[] kinds() {
-		return kinds;
+		return kinds.clone();
 	}
 
 	public GlobalEffectKind defaultKind() {

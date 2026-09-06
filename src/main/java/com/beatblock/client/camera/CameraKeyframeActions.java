@@ -2,7 +2,6 @@ package com.beatblock.client.camera;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.automap.camera.CapturedCameraPose;
-import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
@@ -75,8 +74,7 @@ public final class CameraKeyframeActions {
 
 	private static @Nullable TimelineEditor timelineEditorOrNull() {
 		try {
-			BeatBlockContext context = BeatBlock.getContext();
-			return context != null ? context.timelineEditor() : null;
+			return BeatBlock.getContext().timelineEditor();
 		} catch (Exception ignored) {
 			return null;
 		}
