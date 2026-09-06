@@ -101,6 +101,12 @@ public final class CommandDescriptions {
 		if (command instanceof SplitClipCommand) {
 			return BBTexts.get("beatblock.undo.split_clip");
 		}
+		if (command instanceof CreateCameraClipCommand) {
+			return BBTexts.get("beatblock.undo.create_camera_shot");
+		}
+		if (command instanceof AddCameraKeyframeCommand) {
+			return BBTexts.get("beatblock.undo.add_camera_keyframe");
+		}
 		return command.getClass().getSimpleName();
 	}
 }

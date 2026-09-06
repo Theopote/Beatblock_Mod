@@ -18,14 +18,15 @@ import imgui.type.ImInt;
 import java.util.List;
 
 /**
- * Camera Creator: Capture-First shot creation (Subject / Framing / Movement / Timing).
- * Advanced geometry stays in Timeline Properties.
+ * Camera Creator: StageObject Subject + Framing + Movement (geometry from framing engine).
+ * Capture Current View is the pose-first path; Create Shot is the semantic path.
+ * Coordinate fine-tune stays in Timeline Properties.
  */
 public final class CameraCreatorPanel {
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private static final CameraShotFraming[] FRAMINGS = {
-		CameraShotFraming.WIDE, CameraShotFraming.MEDIUM, CameraShotFraming.CLOSE
+		CameraShotFraming.WIDE, CameraShotFraming.MEDIUM, CameraShotFraming.CLOSE, CameraShotFraming.OVERVIEW
 	};
 	private static final CameraShotMovement[] MOVEMENTS = {
 		CameraShotMovement.HOLD,
@@ -60,6 +61,8 @@ public final class CameraCreatorPanel {
 			var state = presenter.viewState();
 			ImGui.text(BBTexts.get("beatblock.camera_creator.title"));
 			ImGui.separator();
+			renderVisualizationToolbar(state);
+			ImGui.separator();
 			ImGui.textWrapped(BBTexts.get("beatblock.camera_creator.hint"));
 
 			if (!state.editorReady()) {
@@ -76,6 +79,12 @@ public final class CameraCreatorPanel {
 			ImGui.spacing();
 			renderTiming(state);
 			ImGui.spacing();
+			ImGui.textDisabled(BBTexts.get("beatblock.camera_creator.framing_engine_note"));
+			ImGui.spacing();
+			if (ImGui.button(BBTexts.get("beatblock.camera_creator.capture") + "##cameraCreatorCapture")) {
+				notify(presenter.captureCurrentView());
+			}
+			ImGui.sameLine();
 			if (ImGui.button(BBTexts.get("beatblock.camera_creator.create") + "##cameraCreatorCreate")) {
 				var outcome = presenter.createShot();
 				notify(outcome);
@@ -86,6 +95,24 @@ public final class CameraCreatorPanel {
 			}
 		} finally {
 			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.cameraCreatorWindow());
+		}
+	}
+
+	private void renderVisualizationToolbar(CameraCreatorPanelPresenter.ViewState state) {
+		ImGui.textDisabled(BBTexts.get("beatblock.camera_creator.viz_toolbar"));
+		ImBoolean path = new ImBoolean(state.showCameraPath());
+		if (ImGui.checkbox(BBTexts.get("beatblock.camera_creator.show_path") + "##camCreatorShowPath", path)) {
+			presenter.setShowCameraPath(path.get());
+		}
+		ImGui.sameLine();
+		ImBoolean frustum = new ImBoolean(state.showFrustum());
+		if (ImGui.checkbox(BBTexts.get("beatblock.camera_creator.show_frustum") + "##camCreatorShowFrustum", frustum)) {
+			presenter.setShowFrustum(frustum.get());
+		}
+		ImGui.sameLine();
+		ImBoolean bounds = new ImBoolean(state.showSubjectBounds());
+		if (ImGui.checkbox(BBTexts.get("beatblock.camera_creator.show_subject_bounds") + "##camCreatorShowBounds", bounds)) {
+			presenter.setShowSubjectBounds(bounds.get());
 		}
 	}
 

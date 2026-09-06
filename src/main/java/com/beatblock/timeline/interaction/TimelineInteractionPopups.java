@@ -1,6 +1,10 @@
 package com.beatblock.timeline.interaction;
 
 import com.beatblock.BeatBlockClient;
+import com.beatblock.automap.camera.CameraShotDraft;
+import com.beatblock.automap.camera.CameraShotInsertionService;
+import com.beatblock.automap.camera.CameraShotMovement;
+import com.beatblock.automap.camera.CapturedCameraPose;
 import com.beatblock.client.camera.CameraKeyframeActions;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
@@ -157,23 +161,39 @@ public final class TimelineInteractionPopups {
 				CameraKeyframeActions.addKeyframeAtTime(timeline, state.contextTimeSeconds);
 			}
 			if (ImGui.beginMenu(BBTexts.get("beatblock.timeline.interaction.add_segment_menu"))) {
+				TimelineEditor editor = host.timelineEditor();
+				double t = state.contextTimeSeconds;
 				double[] a = TimelineContentHitTest.readCameraAnchorFive();
 				if (ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.custom_path"))) {
-					CameraTrackFactory.addPathSegment(timeline, state.contextTimeSeconds, a[0], a[1], a[2], a[3], a[4]);
+					CameraShotInsertionService.insertManualDraft(timeline, editor,
+						CameraShotDraft.fromLivePose(
+							t, CameraShotInsertionService.DEFAULT_PATH_DURATION_SECONDS,
+							CameraShotMovement.HOLD, CapturedCameraPose.fromAnchorFive(a)));
 				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.dolly"))) {
-					CameraTrackFactory.addDollySegment(timeline, state.contextTimeSeconds, a[0], a[1], a[2], a[3], 8.0);
+					CameraShotInsertionService.insertManualDraft(timeline, editor,
+						CameraShotDraft.fromLivePose(
+							t, CameraShotInsertionService.DEFAULT_PROC_DURATION_SECONDS,
+							CameraShotMovement.PUSH_IN, CapturedCameraPose.fromAnchorFive(a)));
 				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.orbit"))) {
 					double[] o = TimelineContentHitTest.readOrbitParamsFromView();
-					CameraTrackFactory.addOrbitSegment(timeline, state.contextTimeSeconds,
-						o[0], o[1], o[2], o[3], o[4], o[5], o[6]);
+					CameraShotInsertionService.insertManualDraft(timeline, editor,
+						CameraShotDraft.fromLivePose(
+							t, CameraShotInsertionService.DEFAULT_PROC_DURATION_SECONDS,
+							CameraShotMovement.ORBIT, CapturedCameraPose.fromOrbitParams(o)));
 				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.crane"))) {
-					CameraTrackFactory.addCraneSegment(timeline, state.contextTimeSeconds, a[0], a[1], a[2], a[3], a[4], 6.0);
+					CameraShotInsertionService.insertManualDraft(timeline, editor,
+						CameraShotDraft.fromLivePose(
+							t, CameraShotInsertionService.DEFAULT_PROC_DURATION_SECONDS,
+							CameraShotMovement.PAN, CapturedCameraPose.fromAnchorFive(a)));
 				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.shake"))) {
-					CameraTrackFactory.addShakeSegment(timeline, state.contextTimeSeconds, a[0], a[1], a[2], a[3], a[4]);
+					CameraShotInsertionService.insertManualDraft(timeline, editor,
+						CameraShotDraft.fromLivePose(
+							t, CameraShotInsertionService.DEFAULT_PROC_DURATION_SECONDS,
+							CameraShotMovement.SHAKE, CapturedCameraPose.fromAnchorFive(a)));
 				}
 				ImGui.endMenu();
 			}

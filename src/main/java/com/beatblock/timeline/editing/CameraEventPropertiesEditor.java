@@ -3,6 +3,7 @@ package com.beatblock.timeline.editing;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.camera.CameraPathMetadata;
 import com.beatblock.timeline.camera.CameraSegmentKind;
+import com.beatblock.timeline.camera.CameraSegmentParamSchema;
 import com.beatblock.ui.i18n.BBTexts;
 
 import java.util.HashMap;
@@ -11,6 +12,7 @@ import java.util.Map;
 
 /**
  * 摄像机片段 / 关键帧 / 纯片段编辑（无 ImGui 依赖）。
+ * Kind 切换走 {@link CameraSegmentParamSchema#remintForKind}，避免旧 kind 参数污染。
  */
 public final class CameraEventPropertiesEditor {
 
@@ -21,17 +23,9 @@ public final class CameraEventPropertiesEditor {
 		record Err(String message) implements Result {}
 	}
 
+	/** @see CameraSegmentParamSchema#geometryKeys(CameraSegmentKind) */
 	public static List<String> paramKeysForKind(CameraSegmentKind kind) {
-		return switch (kind) {
-			case PATH -> List.of();
-			case DOLLY -> List.of("startX", "startY", "startZ", "endX", "endY", "endZ", "baseYawDeg", "basePitchDeg");
-			case ORBIT -> List.of("targetX", "targetY", "targetZ", "radius", "height", "yawStartDeg", "yawEndDeg");
-			case CRANE -> List.of("startX", "startY", "startZ", "endX", "endY", "endZ", "yawDeg", "pitchDeg");
-			case SHAKE -> List.of(
-				"anchorX", "anchorY", "anchorZ", "yawDeg", "pitchDeg",
-				"distance", "amplitude", "frequencyHz", "beatSync", "beatsPerPulse"
-			);
-		};
+		return CameraSegmentParamSchema.geometryKeys(kind);
 	}
 
 	public static Result buildSegmentSnapshot(
@@ -46,16 +40,8 @@ public final class CameraEventPropertiesEditor {
 	) {
 		durationSeconds = Math.max(0.05, durationSeconds);
 		double clipEnd = clipStartSeconds + durationSeconds;
-		Map<String, Object> parameters = new HashMap<>(
-			existingParameters != null ? existingParameters : Map.of()
-		);
-		for (String key : new HashMap<>(parameters).keySet()) {
-			if ("kind".equals(key)) continue;
-			if (!paramKeysForKind(kind).contains(key)) {
-				parameters.remove(key);
-			}
-		}
-		for (String key : paramKeysForKind(kind)) {
+		Map<String, Object> parameters = CameraSegmentParamSchema.sanitizeForKind(existingParameters, kind);
+		for (String key : CameraSegmentParamSchema.geometryKeys(kind)) {
 			String raw = paramRawValues != null ? paramRawValues.get(key) : null;
 			if (raw == null || raw.isBlank()) continue;
 			try {
@@ -88,21 +74,8 @@ public final class CameraEventPropertiesEditor {
 		double clipStartSeconds,
 		double clipEndSeconds
 	) {
-		Map<String, Object> parameters = new HashMap<>(
-			existingParameters != null ? existingParameters : Map.of()
-		);
-		for (String key : new HashMap<>(parameters).keySet()) {
-			if ("kind".equals(key)) continue;
-			if (!paramKeysForKind(newKind).contains(key)) {
-				parameters.remove(key);
-			}
-		}
-		parameters.put("kind", newKind.name());
-		if (defaultValues != null) {
-			for (Map.Entry<String, Object> entry : defaultValues.entrySet()) {
-				parameters.putIfAbsent(entry.getKey(), entry.getValue());
-			}
-		}
+		Map<String, Object> parameters = CameraSegmentParamSchema.remintForKind(
+			existingParameters, newKind, defaultValues);
 		return new Result.Ok(new AnimationEventSnapshot(
 			clipStartSeconds,
 			parameters,

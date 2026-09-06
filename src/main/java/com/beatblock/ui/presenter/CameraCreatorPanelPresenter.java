@@ -7,17 +7,20 @@ import com.beatblock.automap.camera.CameraShotBeatAlignment;
 import com.beatblock.automap.camera.CameraShotEasing;
 import com.beatblock.automap.camera.CameraShotFraming;
 import com.beatblock.automap.camera.CameraShotMovement;
-import com.beatblock.automap.camera.CameraShotTimelineWriter;
+import com.beatblock.automap.camera.CameraShotInsertionService;
 import com.beatblock.automap.camera.CameraShotTransition;
 import com.beatblock.automap.camera.CameraShotValidator;
 import com.beatblock.automap.camera.CameraSubject;
+import com.beatblock.automap.camera.CapturedCameraPose;
+import com.beatblock.client.camera.CameraCreatorVisualization;
+import com.beatblock.client.camera.CameraKeyframeActions;
+import com.beatblock.client.camera.CameraViewCaptureService;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
-import com.beatblock.timeline.generation.TimelineGenerationMetadata;
 import com.beatblock.timeline.playback.TimelineDiagnostic;
 import com.beatblock.ui.i18n.BBTexts;
 import org.jspecify.annotations.Nullable;
@@ -27,7 +30,8 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Camera Creator: Capture-First shot creation via {@link CameraShot} + {@link CameraShotTimelineWriter}.
+ * Camera Creator: StageObject subject + framing + movement via {@link CameraShot}
+ * + {@link CameraShotInsertionService} (Command / one Undo / select clip+segment / Properties / notify).
  */
 public final class CameraCreatorPanelPresenter {
 
@@ -44,6 +48,9 @@ public final class CameraCreatorPanelPresenter {
 		CameraShotFraming framing,
 		CameraShotMovement movement,
 		double durationSeconds,
+		boolean showCameraPath,
+		boolean showFrustum,
+		boolean showSubjectBounds,
 		String statusMessage
 	) {}
 
@@ -54,6 +61,7 @@ public final class CameraCreatorPanelPresenter {
 	private final Supplier<StageObjectSystem> stageObjectSystem;
 	private final Supplier<BlockAnimationEngine> animationEngine;
 	private final Supplier<BuildLayerManager> layerManager;
+	private final Supplier<CapturedCameraPose> viewPoseSupplier;
 
 	private String selectedSubjectId = SUBJECT_ALL_ID;
 	private CameraShotFraming framing = CameraShotFraming.MEDIUM;
@@ -76,19 +84,45 @@ public final class CameraCreatorPanelPresenter {
 		Supplier<BlockAnimationEngine> animationEngine,
 		Supplier<BuildLayerManager> layerManager
 	) {
+		this(
+			timeline,
+			timelineEditor,
+			stageObjectSystem,
+			animationEngine,
+			layerManager,
+			() -> CameraKeyframeActions.sampleCurrentView().orElse(null)
+		);
+	}
+
+	public CameraCreatorPanelPresenter(
+		Supplier<Timeline> timeline,
+		Supplier<TimelineEditor> timelineEditor,
+		Supplier<StageObjectSystem> stageObjectSystem,
+		Supplier<BlockAnimationEngine> animationEngine,
+		Supplier<BuildLayerManager> layerManager,
+		Supplier<CapturedCameraPose> viewPoseSupplier
+	) {
 		this.timeline = timeline;
 		this.timelineEditor = timelineEditor;
 		this.stageObjectSystem = stageObjectSystem != null ? stageObjectSystem : () -> null;
 		this.animationEngine = animationEngine != null ? animationEngine : () -> null;
 		this.layerManager = layerManager != null ? layerManager : () -> null;
+		this.viewPoseSupplier = viewPoseSupplier != null
+			? viewPoseSupplier
+			: () -> CameraKeyframeActions.sampleCurrentView().orElse(null);
 	}
 
 	public ViewState viewState() {
 		TimelineEditor editor = timelineEditor.get();
 		List<SubjectOption> subjects = subjectOptions();
+		syncSubjectBoundsTarget();
 		if (editor == null || timeline.get() == null) {
 			return new ViewState(
-				false, 0.0, subjects, selectedSubjectId, framing, movement, durationSeconds, statusMessage);
+				false, 0.0, subjects, selectedSubjectId, framing, movement, durationSeconds,
+				CameraCreatorVisualization.showCameraPath(),
+				CameraCreatorVisualization.showFrustum(),
+				CameraCreatorVisualization.showSubjectBounds(),
+				statusMessage);
 		}
 		return new ViewState(
 			true,
@@ -98,12 +132,33 @@ public final class CameraCreatorPanelPresenter {
 			framing,
 			movement,
 			durationSeconds,
+			CameraCreatorVisualization.showCameraPath(),
+			CameraCreatorVisualization.showFrustum(),
+			CameraCreatorVisualization.showSubjectBounds(),
 			statusMessage
 		);
 	}
 
 	public void setSelectedSubjectId(@Nullable String subjectId) {
 		this.selectedSubjectId = subjectId != null ? subjectId : SUBJECT_ALL_ID;
+		syncSubjectBoundsTarget();
+	}
+
+	public void setShowCameraPath(boolean show) {
+		CameraCreatorVisualization.setShowCameraPath(show);
+	}
+
+	public void setShowFrustum(boolean show) {
+		CameraCreatorVisualization.setShowFrustum(show);
+	}
+
+	public void setShowSubjectBounds(boolean show) {
+		CameraCreatorVisualization.setShowSubjectBounds(show);
+		syncSubjectBoundsTarget();
+	}
+
+	private void syncSubjectBoundsTarget() {
+		CameraCreatorVisualization.setSubjectForBounds(resolveSubject(selectedSubjectId));
 	}
 
 	public void setFraming(@Nullable CameraShotFraming framing) {
@@ -151,11 +206,8 @@ public final class CameraCreatorPanelPresenter {
 				: BBTexts.get("beatblock.camera_creator.create_failed"));
 		}
 
-		int written = CameraShotTimelineWriter.writeTagged(
-			tl,
-			List.of(new CameraShotTimelineWriter.TaggedShot(shot, TimelineGenerationMetadata.manual()))
-		);
-		if (written <= 0) {
+		var inserted = CameraShotInsertionService.insertManualShot(tl, editor, shot);
+		if (!inserted.written()) {
 			return fail(BBTexts.get("beatblock.camera_creator.create_failed"));
 		}
 
@@ -164,6 +216,24 @@ public final class CameraCreatorPanelPresenter {
 			movementLabel(movement),
 			subject.displayLabel()
 		);
+		return new CreateOutcome(true, statusMessage);
+	}
+
+	/**
+	 * Capture current Minecraft view into a PATH keyframe (or new PATH clip if none selected).
+	 */
+	public CreateOutcome captureCurrentView() {
+		Timeline tl = timeline.get();
+		TimelineEditor editor = timelineEditor.get();
+		if (tl == null || editor == null) {
+			return fail(BBTexts.get("beatblock.common.timeline_not_initialized"));
+		}
+		CapturedCameraPose pose = viewPoseSupplier.get();
+		var result = CameraViewCaptureService.captureCurrentView(tl, editor, pose);
+		if (!result.success()) {
+			return fail(result.message());
+		}
+		statusMessage = result.message();
 		return new CreateOutcome(true, statusMessage);
 	}
 

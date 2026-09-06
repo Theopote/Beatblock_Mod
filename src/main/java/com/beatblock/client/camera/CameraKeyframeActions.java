@@ -1,27 +1,31 @@
 package com.beatblock.client.camera;
 
+import com.beatblock.BeatBlock;
+import com.beatblock.automap.camera.CapturedCameraPose;
+import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
-import com.beatblock.timeline.camera.CameraSegmentKind;
-import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.editor.TimelineClock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.util.math.Vec3d;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
- * 摄像机路径关键帧：在播放头或指定时间添加；记录的是当前游戏视角（玩家眼睛位置与朝向），
- * 不经过 {@link TimelineCameraEvaluator} 混合，以便多点连成真实采样的路径。
+ * 摄像机路径关键帧：捕获当前游戏视角写入 Timeline。
+ * <p>
+ * 新增关键帧走 {@link CameraViewCaptureService}（Command / one Undo）；删除仍为直接移除
+ *（Properties 删除走 {@code DeleteEventCommand}）。
  */
 public final class CameraKeyframeActions {
-
-	private static final double KEYFRAME_MERGE_EPS = 0.04;
 
 	private CameraKeyframeActions() {}
 
@@ -32,46 +36,26 @@ public final class CameraKeyframeActions {
 
 	public static void addKeyframeAtTime(Timeline timeline, double timeSeconds) {
 		if (timeline == null) return;
-		Track cam = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
-		if (cam == null) return;
-		Clip clip = findActiveClip(cam, timeSeconds);
-		if (clip == null) return;
-		TimelineEvent seg = CameraTrackFactory.findSegmentHeadEvent(clip);
-		CameraSegmentKind kind = seg != null
-			? CameraSegmentKind.fromParam(seg.getParameters().get("kind"))
-			: CameraSegmentKind.PATH;
-		if (kind != CameraSegmentKind.PATH) return;
-		double t = Math.max(clip.getStartTimeSeconds(), Math.min(timeSeconds, clip.getEndTimeSeconds()));
-		for (TimelineEvent e : clip.getEvents()) {
-			if (e.getType() != EventType.CAMERA_KEYFRAME) continue;
-			if (Math.abs(e.getTimeSeconds() - t) < KEYFRAME_MERGE_EPS) return;
+		TimelineEditor editor = timelineEditorOrNull();
+		Optional<CapturedCameraPose> pose = sampleCurrentView();
+		if (editor == null || pose.isEmpty()) {
+			return;
 		}
-		MinecraftClient mc = MinecraftClient.getInstance();
-		if (mc == null || mc.gameRenderer == null) return;
-		Camera camera = mc.gameRenderer.getCamera();
-		if (camera == null) return;
-		Vec3d eye = camera.getCameraPos();
-		float fy = camera.getYaw();
-		float fp = camera.getPitch();
-		var params = CameraTrackFactory.keyframeParams(eye.x, eye.y, eye.z, fy, fp, "SMOOTH");
-		TimelineOperations.addEvent(clip, t, EventType.CAMERA_KEYFRAME, params);
-		timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), clip.getEndTimeSeconds()));
+		CameraViewCaptureService.addKeyframeAtTime(timeline, editor, timeSeconds, pose.get());
 	}
 
-	private static Clip findActiveClip(Track cam, double t) {
-		Clip best = null;
-		double bestStart = -1;
-		for (Clip c : cam.getClips()) {
-			if (c == null) continue;
-			double s = c.getStartTimeSeconds();
-			double e = c.getEndTimeSeconds();
-			if (t + 1e-6 < s || t > e + 1e-6) continue;
-			if (s > bestStart) {
-				bestStart = s;
-				best = c;
-			}
+	public static Optional<CapturedCameraPose> sampleCurrentView() {
+		MinecraftClient mc = MinecraftClient.getInstance();
+		if (mc == null || mc.gameRenderer == null) {
+			return Optional.empty();
 		}
-		return best;
+		Camera camera = mc.gameRenderer.getCamera();
+		if (camera == null) {
+			return Optional.empty();
+		}
+		Vec3d eye = camera.getCameraPos();
+		return Optional.of(new CapturedCameraPose(
+			eye.x, eye.y, eye.z, camera.getYaw(), camera.getPitch()));
 	}
 
 	public static boolean deleteKeyframeEvent(Timeline timeline, String eventId) {
@@ -87,5 +71,14 @@ public final class CameraKeyframeActions {
 			}
 		}
 		return false;
+	}
+
+	private static @Nullable TimelineEditor timelineEditorOrNull() {
+		try {
+			BeatBlockContext context = BeatBlock.getContext();
+			return context != null ? context.timelineEditor() : null;
+		} catch (Exception ignored) {
+			return null;
+		}
 	}
 }

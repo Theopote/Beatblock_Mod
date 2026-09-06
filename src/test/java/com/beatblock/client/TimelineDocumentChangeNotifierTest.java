@@ -120,6 +120,24 @@ class TimelineDocumentChangeNotifierTest {
 	}
 
 	@Test
+	void insertManualCameraShotRefreshesCompiledPlaybackWhileDriving() {
+		BeatBlockClientDriver.startDriving();
+		assertEquals(0, BeatBlockClientDriver.compiledPlaybackForTests().cameraTrack().clips().size());
+
+		var draft = com.beatblock.automap.camera.CameraShotDraft.fromLivePose(
+			2.0,
+			com.beatblock.automap.camera.CameraShotInsertionService.DEFAULT_PATH_DURATION_SECONDS,
+			com.beatblock.automap.camera.CameraShotMovement.HOLD,
+			new com.beatblock.automap.camera.CapturedCameraPose(0, 64, 0, 0, 0)
+		);
+		var result = com.beatblock.automap.camera.CameraShotInsertionService.insertManualDraft(
+			timeline, editor, draft);
+
+		assertTrue(result.written());
+		assertEquals(1, BeatBlockClientDriver.compiledPlaybackForTests().cameraTrack().clips().size());
+	}
+
+	@Test
 	void insertGeneratedEventsDoesNotRefreshCompiledPlaybackByItself() {
 		BeatBlockClientDriver.startDriving();
 		assertEquals(0, BeatBlockClientDriver.compiledPlaybackForTests().compiledStageEvents().size());

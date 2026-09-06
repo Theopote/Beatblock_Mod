@@ -12,6 +12,7 @@ import java.util.Optional;
  * {@link CameraShot} 语义字段 ↔ Timeline 摄像机片段参数。
  * <p>
  * 写入后由 {@link com.beatblock.client.camera.TimelineCameraEvaluator} 在播放时消费。
+ * Kind 切换 remint 见 {@link com.beatblock.timeline.camera.CameraSegmentParamSchema#remintForKind}.
  */
 public final class CameraSegmentSemantics {
 
