@@ -35,6 +35,16 @@ public final class AddTimelineAnimationEventCommand implements Command {
 		this.animationEvent = animationEvent;
 	}
 
+	/** Clip id created by the last successful {@link #execute()}; null before execute / after undo. */
+	public @Nullable String createdClipId() {
+		return done ? clipId : null;
+	}
+
+	/** Event id created by the last successful {@link #execute()}; null before execute / after undo. */
+	public @Nullable String createdEventId() {
+		return done ? eventId : null;
+	}
+
 	@Override
 	public void execute() {
 		if (timeline == null || animationEvent == null || done) return;

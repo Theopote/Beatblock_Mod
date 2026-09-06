@@ -197,6 +197,7 @@ public final class TimelineAudioDropHandler {
 					var result = AnimationPresetEventWriter.writePresetEvents(
 						timeline, track, pid, time, chosenTargets);
 					if (result.written() > 0) {
+						AnimationPresetEventWriter.selectCreatedEvents(selectionState, result);
 						host.syncClockDuration();
 					}
 					AnimationPresetEventWriter.toastWriteResult(displayName, result);
@@ -214,6 +215,7 @@ public final class TimelineAudioDropHandler {
 			targets.targetsForEventCreation()
 		);
 		if (result.written() > 0) {
+			AnimationPresetEventWriter.selectCreatedEvents(selectionState, result);
 			host.syncClockDuration();
 		}
 		AnimationPresetEventWriter.toastWriteResult(preset.getDisplayName(), result);

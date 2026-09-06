@@ -34,6 +34,26 @@ import java.util.Map;
  */
 public final class TimelineDraftWriter {
 
+	/**
+	 * Created ids from a successful insertion batch.
+	 */
+	public record InsertionResult(List<String> eventIds, List<String> clipIds) {
+		public static final InsertionResult EMPTY = new InsertionResult(List.of(), List.of());
+
+		public InsertionResult {
+			eventIds = List.copyOf(eventIds != null ? eventIds : List.of());
+			clipIds = List.copyOf(clipIds != null ? clipIds : List.of());
+		}
+
+		public int written() {
+			return eventIds.size();
+		}
+
+		public boolean isEmpty() {
+			return eventIds.isEmpty();
+		}
+	}
+
 	private TimelineDraftWriter() {}
 
 	/** UI-triggered single insert; notifies document change when written. */
@@ -43,23 +63,23 @@ public final class TimelineDraftWriter {
 		@Nullable TimelineAnimationEvent event
 	) {
 		if (event == null) return false;
-		return insertManualEvents(timeline, trackId, List.of(event)) > 0;
+		return insertManualEvents(timeline, trackId, List.of(event)).written() > 0;
 	}
 
 	/**
 	 * UI-triggered batch insert as one {@link CompositeCommand}.
 	 * Notifies document change once when {@code written > 0}.
 	 */
-	public static int insertManualEvents(
+	public static InsertionResult insertManualEvents(
 		@Nullable Timeline timeline,
 		@Nullable String trackId,
 		@Nullable List<TimelineAnimationEvent> events
 	) {
-		int written = insertEvents(timeline, trackId, events, TimelineEventOrigin.MANUAL);
-		if (written > 0) {
+		InsertionResult result = insertEvents(timeline, trackId, events, TimelineEventOrigin.MANUAL);
+		if (result.written() > 0) {
 			TimelineDocumentChangeNotifier.notifyDocumentEdited();
 		}
-		return written;
+		return result;
 	}
 
 	/** Generator / draft single insert; does not notify document change. */
@@ -82,7 +102,7 @@ public final class TimelineDraftWriter {
 		@Nullable String trackId,
 		@Nullable List<TimelineAnimationEvent> events
 	) {
-		return insertEvents(timeline, trackId, events, TimelineEventOrigin.GENERATED);
+		return insertEvents(timeline, trackId, events, TimelineEventOrigin.GENERATED).written();
 	}
 
 	/**
@@ -103,7 +123,7 @@ public final class TimelineDraftWriter {
 		if (!inserts.isEmpty()) {
 			timeline.sortAll();
 		}
-		return inserts.size();
+		return collectInsertionResult(inserts).written();
 	}
 
 	public static void clearTrack(@Nullable Timeline timeline, @Nullable String trackId) {
@@ -141,18 +161,20 @@ public final class TimelineDraftWriter {
 		);
 	}
 
-	private static int insertEvents(
+	private static InsertionResult insertEvents(
 		@Nullable Timeline timeline,
 		@Nullable String trackId,
 		@Nullable List<TimelineAnimationEvent> events,
 		TimelineEventOrigin origin
 	) {
-		if (timeline == null || trackId == null || events == null || events.isEmpty()) return 0;
+		if (timeline == null || trackId == null || events == null || events.isEmpty()) {
+			return InsertionResult.EMPTY;
+		}
 		List<Command> parts = buildAddCommands(timeline, trackId, events, origin);
-		if (parts.isEmpty()) return 0;
+		if (parts.isEmpty()) return InsertionResult.EMPTY;
 		executeCommands(parts);
 		timeline.sortAll();
-		return parts.size();
+		return collectInsertionResult(parts);
 	}
 
 	private static List<Command> buildAddCommands(
@@ -170,6 +192,20 @@ public final class TimelineDraftWriter {
 			parts.add(new AddTimelineAnimationEventCommand(timeline, trackId, tagged));
 		}
 		return parts;
+	}
+
+	private static InsertionResult collectInsertionResult(List<Command> parts) {
+		List<String> eventIds = new ArrayList<>(parts.size());
+		List<String> clipIds = new ArrayList<>(parts.size());
+		for (Command part : parts) {
+			if (!(part instanceof AddTimelineAnimationEventCommand add)) continue;
+			String eventId = add.createdEventId();
+			String clipId = add.createdClipId();
+			if (eventId != null) eventIds.add(eventId);
+			if (clipId != null) clipIds.add(clipId);
+		}
+		if (eventIds.isEmpty()) return InsertionResult.EMPTY;
+		return new InsertionResult(eventIds, clipIds);
 	}
 
 	private static void executeCommands(List<Command> parts) {

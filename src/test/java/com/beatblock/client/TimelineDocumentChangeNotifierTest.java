@@ -113,7 +113,7 @@ class TimelineDocumentChangeNotifierTest {
 			Timeline.TRACK_ID_ANIMATION_BLOCK,
 			List.of(new TimelineAnimationEvent(
 				"ev1", 20.0, 0.35, "BlockTap", "stage", 1f, Map.of()))
-		);
+		).written();
 
 		assertEquals(1, written);
 		assertEquals(1, BeatBlockClientDriver.compiledPlaybackForTests().compiledStageEvents().size());

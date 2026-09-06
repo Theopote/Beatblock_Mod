@@ -16,6 +16,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @WithBeatBlockContext
 class TimelineDraftWriterTest {
@@ -89,7 +90,7 @@ class TimelineDraftWriterTest {
 			timeline,
 			Timeline.TRACK_ID_ANIMATION_BLOCK,
 			events
-		);
+		).written();
 
 		assertEquals(3, written);
 		assertEquals(3, timeline.getBlockAnimationEvents().size());
@@ -98,6 +99,60 @@ class TimelineDraftWriterTest {
 		editor.getCommandManager().undo();
 		assertEquals(0, timeline.getBlockAnimationEvents().size());
 		assertEquals(0, editor.getCommandManager().undoCount());
+	}
+
+	@Test
+	void insertManualEventsReturnsCreatedIds() {
+		Timeline timeline = Timeline.createDefault();
+		MusicPlayer musicPlayer = new MusicPlayer();
+		TimelineEditor editor = new TimelineEditor(timeline, musicPlayer);
+		BeatBlockContext context = BeatBlockContext.builder()
+			.timeline(timeline)
+			.timelineEditor(editor)
+			.musicPlayer(musicPlayer)
+			.build();
+		com.beatblock.BeatBlock.installContext(context);
+
+		var result = TimelineDraftWriter.insertManualEvents(
+			timeline,
+			Timeline.TRACK_ID_ANIMATION_BLOCK,
+			List.of(
+				new TimelineAnimationEvent("ev1", 2.0, 0.5, "Pulse", "a", 1f, Map.of()),
+				new TimelineAnimationEvent("ev2", 2.0, 0.5, "Pulse", "b", 1f, Map.of())
+			)
+		);
+
+		assertEquals(2, result.written());
+		assertEquals(2, result.eventIds().size());
+		assertEquals(2, result.clipIds().size());
+		assertEquals(result.eventIds().getFirst(), timeline.getBlockAnimationEvents().getFirst().getEventId());
+	}
+
+	@Test
+	void multiTargetPresetDropSelectsAllCreatedEvents() {
+		Timeline timeline = Timeline.createDefault();
+		MusicPlayer musicPlayer = new MusicPlayer();
+		TimelineEditor editor = new TimelineEditor(timeline, musicPlayer);
+		BeatBlockContext context = BeatBlockContext.builder()
+			.timeline(timeline)
+			.timelineEditor(editor)
+			.musicPlayer(musicPlayer)
+			.build();
+		com.beatblock.BeatBlock.installContext(context);
+
+		var result = AnimationPresetEventWriter.writePresetEvents(
+			timeline,
+			Timeline.TRACK_ID_ANIMATION_BLOCK,
+			"Pulse",
+			10.0,
+			List.of("t1", "t2", "t3")
+		);
+		AnimationPresetEventWriter.selectCreatedEvents(editor.getSelectionState(), result);
+
+		assertEquals(3, result.written());
+		assertEquals(3, editor.getSelectionState().getSelectedEvents().size());
+		assertTrue(editor.getSelectionState().getSelectedEvents().containsAll(result.eventIds()));
+		assertEquals(result.eventIds().getFirst(), editor.getSelectionState().getRangeAnchorEventId());
 	}
 
 	@Test

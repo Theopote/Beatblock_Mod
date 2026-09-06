@@ -157,15 +157,24 @@ public final class EventLibraryPanelPresenter {
 		for (String targetObjectId : targetObjectIds) {
 			events.add(template.toTimelineEvent(timeSeconds, targetObjectId));
 		}
-		int written = TimelineDraftWriter.insertManualEvents(
+		var inserted = TimelineDraftWriter.insertManualEvents(
 			tl,
 			Timeline.TRACK_ID_ANIMATION_BLOCK,
 			events
 		);
-		if (written > 0) {
+		if (inserted.written() > 0) {
+			SelectionState selection = editor.getSelectionState();
+			if (selection != null) {
+				selection.clearEvents();
+				selection.clearClips();
+				for (String eventId : inserted.eventIds()) {
+					selection.selectEvent(eventId);
+				}
+				selection.setRangeAnchorEventId(inserted.eventIds().getFirst());
+			}
 			editor.syncClockDuration();
 		}
-		return written;
+		return inserted.written();
 	}
 
 	public ApplyOutcome deleteTemplate(String templateId) {
