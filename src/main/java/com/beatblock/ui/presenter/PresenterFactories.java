@@ -317,6 +317,23 @@ public final class PresenterFactories {
 		);
 	}
 
+	public static CameraCreatorPanelPresenter cameraCreatorPanelPresenter() {
+		return cameraCreatorPanelPresenter(ctx());
+	}
+
+	public static CameraCreatorPanelPresenter cameraCreatorPanelPresenter(BeatBlockContext context) {
+		return new CameraCreatorPanelPresenter(
+			context::timeline,
+			context::timelineEditor,
+			() -> {
+				var engine = context.blockAnimationEngine();
+				return engine != null ? engine.getStageObjectSystem() : null;
+			},
+			context::blockAnimationEngine,
+			context::buildLayerManager
+		);
+	}
+
 	public static AnimationLibraryPanelPresenter animationLibraryPanelPresenter() {
 		return animationLibraryPanelPresenter(ctx());
 	}

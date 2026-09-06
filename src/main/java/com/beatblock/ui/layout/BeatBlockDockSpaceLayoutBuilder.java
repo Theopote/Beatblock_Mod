@@ -31,6 +31,7 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 	public static final String RHYTHM_DROP_PANEL_ID = "RhythmDropPanel";
 	public static final String UNDO_HISTORY_PANEL_ID = "UndoHistoryPanel";
 	public static final String EVENT_LIBRARY_PANEL_ID = "EventLibraryPanel";
+	public static final String CAMERA_CREATOR_PANEL_ID = "CameraCreatorPanel";
 	public static final String PERFORMANCE_MONITOR_PANEL_ID = "PerformanceMonitorPanel";
 	public static final String PREFERENCES_PANEL_ID = "PreferencesPanel";
 
@@ -78,6 +79,10 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 
 	public static String eventLibraryWindow() {
 		return BBTexts.windowTitle("beatblock.panel.event_library", EVENT_LIBRARY_PANEL_ID);
+	}
+
+	public static String cameraCreatorWindow() {
+		return BBTexts.windowTitle("beatblock.panel.camera_creator", CAMERA_CREATOR_PANEL_ID);
 	}
 
 	public static String performanceMonitorWindow() {
