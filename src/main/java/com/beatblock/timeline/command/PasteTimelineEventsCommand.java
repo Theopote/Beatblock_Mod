@@ -7,6 +7,7 @@ import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.interaction.TimelineInteractionClipboard;
 import com.beatblock.timeline.interaction.TimelineInteractionClipboard.CreatedClipRef;
+import com.beatblock.timeline.interaction.TimelineInteractionClipboard.ModifiedClipBounds;
 import com.beatblock.timeline.interaction.TimelineInteractionClipboard.PasteResult;
 import com.beatblock.timeline.interaction.TimelineInteractionClipboard.PastedEventRef;
 import java.util.HashMap;
@@ -23,6 +24,10 @@ public final class PasteTimelineEventsCommand implements Command {
 
 	public PasteTimelineEventsCommand(TimelineInteractionClipboard.PasteRequest request) {
 		this.request = request;
+	}
+
+	public boolean wasApplied() {
+		return applied;
 	}
 
 	@Override
@@ -62,12 +67,19 @@ public final class PasteTimelineEventsCommand implements Command {
 			}
 			Clip clip = track.getClip(created.clipId());
 			if (clip == null) {
-				double start = Math.max(0, request.anchorTimeSeconds() - 0.05);
-				clip = TimelineOperations.addClip(track, start, start + 0.2);
+				clip = new Clip(created.clipId(), created.startTimeSeconds(), created.endTimeSeconds());
+				track.addClip(clip);
 			}
-			if (clip != null) {
-				clipsByTrack.put(created.trackId(), clip);
-			}
+			clipsByTrack.put(created.trackId(), clip);
+		}
+		for (ModifiedClipBounds modified : result.modifiedClips()) {
+			Track track = timeline.getTrack(modified.trackId());
+			if (track == null) continue;
+			Clip clip = track.getClip(modified.clipId());
+			if (clip == null) continue;
+			clip.setStartTimeSeconds(modified.newStartSeconds());
+			clip.setEndTimeSeconds(modified.newEndSeconds());
+			dirtyTracks.add(track.getId());
 		}
 		for (PastedEventRef pasted : result.pastedEvents()) {
 			Track track = timeline.getTrack(pasted.trackId());
@@ -119,6 +131,15 @@ public final class PasteTimelineEventsCommand implements Command {
 				track.removeClip(created.clipId());
 				dirtyTracks.add(track.getId());
 			}
+		}
+		for (ModifiedClipBounds modified : result.modifiedClips()) {
+			Track track = timeline.getTrack(modified.trackId());
+			if (track == null) continue;
+			Clip clip = track.getClip(modified.clipId());
+			if (clip == null) continue;
+			clip.setStartTimeSeconds(modified.originalStartSeconds());
+			clip.setEndTimeSeconds(modified.originalEndSeconds());
+			dirtyTracks.add(track.getId());
 		}
 		for (String trackId : dirtyTracks) {
 			timeline.markAnimationEventsDirty(trackId);

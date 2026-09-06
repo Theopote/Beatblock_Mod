@@ -19,7 +19,13 @@ public final class TimelineActionDispatcher {
 		}
 	}
 
-	public record EditState(boolean hasSelection, boolean hasClipboard, boolean canDelete) {}
+	public record EditState(
+		boolean hasSelection,
+		boolean hasClipboard,
+		boolean canDelete,
+		boolean canDuplicate,
+		boolean canSplitAtPlayhead
+	) {}
 
 	private final TimelineEditorPresenter editorPresenter;
 	private final Supplier<TimelineEditor> timelineEditor;
@@ -41,8 +47,10 @@ public final class TimelineActionDispatcher {
 			? new EditState(
 				editor.getEditSession().hasSelection(),
 				editor.getEditSession().hasClipboardContent(),
-				editor.getEditSession().canDelete())
-			: new EditState(false, false, false);
+				editor.getEditSession().canDelete(),
+				editor.getEditSession().canDuplicate(),
+				editor.getEditSession().canSplitAtPlayhead())
+			: new EditState(false, false, false, false, false);
 	}
 
 	public boolean isEnabled(TimelineActionId actionId) {
@@ -54,6 +62,8 @@ public final class TimelineActionDispatcher {
 			case CUT, COPY -> editor != null && editor.getEditSession().hasSelection();
 			case PASTE_AT_PLAYHEAD -> editor != null && editor.getEditSession().hasClipboardContent();
 			case DELETE -> editor != null && editor.getEditSession().canDelete();
+			case DUPLICATE -> editor != null && editor.getEditSession().canDuplicate();
+			case SPLIT_AT_PLAYHEAD -> editor != null && editor.getEditSession().canSplitAtPlayhead();
 			case RUN_BINDING_MAP, RUN_AUTO_MAP, BAKE_STEP, GENERATE_RHYTHM_DROP -> true;
 		};
 	}
@@ -68,6 +78,8 @@ public final class TimelineActionDispatcher {
 			case COPY -> { editor.getEditSession().copy(); yield ActionResult.completed(true); }
 			case PASTE_AT_PLAYHEAD -> { editor.getEditSession().pasteAtPlayhead(); yield ActionResult.completed(true); }
 			case DELETE -> { editor.getEditSession().deleteSelection(); yield ActionResult.completed(true); }
+			case DUPLICATE -> ActionResult.completed(editor.getEditSession().duplicateSelection());
+			case SPLIT_AT_PLAYHEAD -> ActionResult.completed(editor.getEditSession().splitAtPlayhead());
 			case RUN_BINDING_MAP -> fromOutcome(generatedActions.runBindingMap());
 			case RUN_AUTO_MAP -> fromOutcome(generatedActions.runAutoMap());
 			case BAKE_STEP -> fromOutcome(generatedActions.runBakeStepSequences());

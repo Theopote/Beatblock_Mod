@@ -28,14 +28,23 @@ import java.util.Set;
  * <p>
  * Unbinds BuildLayers when a binding clip/event is removed, and drops empty
  * binding clips after event-only deletes so layers are not left orphaned.
+ * <p>
+ * First execute captures a deletion snapshot from the current selection; undo
+ * restores document state but keeps the snapshot so redo does not depend on
+ * selection still being intact.
  */
 public final class DeleteSelectedTimelineEntriesCommand implements Command {
 
 	private record RemovedClip(
 		@NonNull String trackId,
 		@NonNull Clip snapshot,
-		BuildLayerBindingSupport.@Nullable BindingSnapshot binding
-	) {}
+		BuildLayerBindingSupport.@Nullable BindingSnapshot binding,
+		Map<String, Object> clipAudioMetadata
+	) {
+		private RemovedClip {
+			clipAudioMetadata = clipAudioMetadata != null ? Map.copyOf(clipAudioMetadata) : Map.of();
+		}
+	}
 
 	private record RemovedEvent(
 		@NonNull String trackId,
@@ -54,7 +63,14 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 	private final List<RemovedClip> removedClips = new ArrayList<>();
 	private final List<RemovedEvent> removedEvents = new ArrayList<>();
 	private final List<String> audioRootCleanupClipIds = new ArrayList<>();
+	private TimelineInteractionDeleteSupport.@Nullable AudioRootCleanupSnapshot audioRootSnapshot;
+	private TimelineInteractionDeleteSupport.@Nullable AudioRootReassignSnapshot audioRootReassign;
 	private boolean executed;
+	private boolean snapshotCaptured;
+
+	public boolean wasApplied() {
+		return executed;
+	}
 
 	public DeleteSelectedTimelineEntriesCommand(
 		@NonNull Timeline timeline,
@@ -81,9 +97,17 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 		if (executed || timeline == null || selectionState == null) {
 			return;
 		}
+		if (snapshotCaptured) {
+			reapplyFromSnapshots();
+			executed = true;
+			return;
+		}
+
 		removedClips.clear();
 		removedEvents.clear();
 		audioRootCleanupClipIds.clear();
+		audioRootSnapshot = null;
+		audioRootReassign = null;
 
 		Set<String> clipIds = new LinkedHashSet<>(selectionState.getSelectedClips());
 		Set<String> eventIds = new LinkedHashSet<>(selectionState.getSelectedEvents());
@@ -99,20 +123,14 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 					if (clip == null) continue;
 					Clip snapshot = copyClip(clip);
 					BuildLayerBindingSupport.BindingSnapshot binding = captureBindingForClip(clipId);
-					if (!track.removeClip(clipId)) continue;
-					if (binding != null && layerManager != null) {
-						BuildLayer layer = layerManager.get(binding.layerId());
-						if (layer != null) {
-							layerManager.unbindFromClip(layer);
-						}
+					Map<String, Object> clipMeta = Timeline.TRACK_ID_AUDIO.equals(track.getId())
+						? TimelineInteractionDeleteSupport.captureAndClearClipAudioMetadata(timeline, clipId)
+						: Map.of();
+					if (!removeClipNow(track, clipId, snapshot, binding)) {
+						TimelineInteractionDeleteSupport.restoreClipAudioMetadata(timeline, clipMeta);
+						continue;
 					}
-					removedClips.add(new RemovedClip(track.getId(), snapshot, binding));
-					selectionState.deselectClip(clipId);
-					timeline.markAnimationEventsDirty(track.getId());
-					if (Timeline.TRACK_ID_AUDIO.equals(track.getId())) {
-						audioRootCleanupClipIds.add(clipId);
-						TimelineInteractionDeleteSupport.onAudioRootClipDeleted(timeline, clipId);
-					}
+					removedClips.add(new RemovedClip(track.getId(), snapshot, binding, clipMeta));
 				}
 			}
 		}
@@ -122,7 +140,6 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 				if (track == null || TimelineInteractiveTrackSlots.isTrackLocked(timeline, trackListState, track.getId())) {
 					continue;
 				}
-				// Snapshot clip list — may mutate while iterating
 				List<Clip> clips = new ArrayList<>(track.getClips());
 				for (Clip clip : clips) {
 					if (clip == null) continue;
@@ -130,43 +147,17 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 						if (eventId == null) continue;
 						TimelineEvent event = clip.getEvent(eventId);
 						if (event == null) continue;
-						TimelineEvent eventSnapshot = copyEvent(event);
-						BuildLayerBindingSupport.BindingSnapshot binding =
-							BuildLayerBindingSupport.unbindIfBindingEvent(layerManager, clip.getId(), event);
-						if (!clip.removeEvent(eventId)) {
-							if (binding != null) {
-								BuildLayerBindingSupport.restoreBinding(layerManager, binding);
-							}
-							continue;
+						RemovedEvent removed = removeEventNow(track, clip, event);
+						if (removed != null) {
+							removedEvents.add(removed);
 						}
-						selectionState.deselectEvent(eventId);
-						timeline.markAnimationEventsDirty(track.getId());
-
-						boolean removedEmpty = false;
-						Clip emptySnap = null;
-						if (clip.getEvents().isEmpty() && binding != null) {
-							emptySnap = copyClip(clip);
-							if (track.removeClip(clip.getId())) {
-								removedEmpty = true;
-								selectionState.deselectClip(clip.getId());
-							} else {
-								emptySnap = null;
-							}
-						}
-						removedEvents.add(new RemovedEvent(
-							track.getId(),
-							clip.getId(),
-							eventSnapshot,
-							binding,
-							removedEmpty,
-							emptySnap
-						));
 					}
 				}
 			}
 		}
 
-		executed = !removedClips.isEmpty() || !removedEvents.isEmpty();
+		snapshotCaptured = !removedClips.isEmpty() || !removedEvents.isEmpty();
+		executed = snapshotCaptured;
 	}
 
 	@Override
@@ -174,7 +165,6 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 		if (!executed) {
 			return;
 		}
-		// Restore clips first (empty binding shells + full clip deletes)
 		for (int i = removedEvents.size() - 1; i >= 0; i--) {
 			RemovedEvent removed = removedEvents.get(i);
 			Clip emptySnap = removed.emptyClipSnapshot();
@@ -193,6 +183,7 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 				track.addClip(copyClip(removed.snapshot()));
 			}
 			BuildLayerBindingSupport.restoreBinding(layerManager, removed.binding());
+			TimelineInteractionDeleteSupport.restoreClipAudioMetadata(timeline, removed.clipAudioMetadata());
 			timeline.markAnimationEventsDirty(track.getId());
 		}
 		for (int i = removedEvents.size() - 1; i >= 0; i--) {
@@ -207,10 +198,125 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 			BuildLayerBindingSupport.restoreBinding(layerManager, removed.binding());
 			timeline.markAnimationEventsDirty(track.getId());
 		}
-		removedClips.clear();
-		removedEvents.clear();
-		audioRootCleanupClipIds.clear();
+		if (audioRootReassign != null) {
+			TimelineInteractionDeleteSupport.restoreAudioRootReassign(timeline, audioRootReassign);
+		}
+		if (audioRootSnapshot != null) {
+			TimelineInteractionDeleteSupport.restoreAudioRootState(timeline, audioRootSnapshot);
+		}
+		// Keep snapshots so redo can reapply without relying on selection.
 		executed = false;
+	}
+
+	private void reapplyFromSnapshots() {
+		for (RemovedClip removed : removedClips) {
+			Track track = timeline.getTrack(removed.trackId());
+			if (track == null) continue;
+			Clip clip = track.getClip(removed.snapshot().getId());
+			if (clip == null) continue;
+			if (Timeline.TRACK_ID_AUDIO.equals(track.getId())) {
+				TimelineInteractionDeleteSupport.captureAndClearClipAudioMetadata(
+					timeline, removed.snapshot().getId());
+			}
+			removeClipNow(track, removed.snapshot().getId(), removed.snapshot(), removed.binding());
+		}
+		for (RemovedEvent removed : removedEvents) {
+			Track track = timeline.getTrack(removed.trackId());
+			if (track == null) continue;
+			Clip clip = track.getClip(removed.clipId());
+			if (clip == null) {
+				if (removed.removedEmptyClip() && removed.emptyClipSnapshot() != null) {
+					clip = copyClip(removed.emptyClipSnapshot());
+					track.addClip(clip);
+				} else {
+					continue;
+				}
+			}
+			TimelineEvent event = clip.getEvent(removed.snapshot().getId());
+			if (event == null) {
+				event = copyEvent(removed.snapshot());
+				clip.addEvent(event);
+			}
+			removeEventNow(track, clip, event);
+		}
+	}
+
+	private boolean removeClipNow(
+		Track track,
+		String clipId,
+		Clip snapshot,
+		BuildLayerBindingSupport.@Nullable BindingSnapshot binding
+	) {
+		if (!track.removeClip(clipId)) return false;
+		if (binding != null && layerManager != null) {
+			BuildLayer layer = layerManager.get(binding.layerId());
+			if (layer != null) {
+				layerManager.unbindFromClip(layer);
+			}
+		}
+		for (TimelineEvent event : snapshot.getEvents()) {
+			selectionState.deselectEvent(event.getId());
+		}
+		if (selectionState.getRangeAnchorEventId() != null
+			&& snapshot.getEvent(selectionState.getRangeAnchorEventId()) != null) {
+			selectionState.setRangeAnchorEventId(null);
+		}
+		selectionState.deselectClip(clipId);
+		timeline.markAnimationEventsDirty(track.getId());
+		if (Timeline.TRACK_ID_AUDIO.equals(track.getId())) {
+			if (!audioRootCleanupClipIds.contains(clipId)) {
+				audioRootCleanupClipIds.add(clipId);
+			}
+			var cleanup = TimelineInteractionDeleteSupport.cleanupAudioRootIfEmpty(timeline, clipId);
+			if (cleanup != null) {
+				if (audioRootSnapshot == null) {
+					audioRootSnapshot = cleanup;
+				}
+			} else {
+				var reassign = TimelineInteractionDeleteSupport.reassignAudioRootIfNeeded(timeline, clipId);
+				if (reassign != null && audioRootReassign == null) {
+					audioRootReassign = reassign;
+				}
+			}
+		}
+		return true;
+	}
+
+	private @Nullable RemovedEvent removeEventNow(Track track, Clip clip, TimelineEvent event) {
+		TimelineEvent eventSnapshot = copyEvent(event);
+		BuildLayerBindingSupport.BindingSnapshot binding =
+			BuildLayerBindingSupport.unbindIfBindingEvent(layerManager, clip.getId(), event);
+		if (!clip.removeEvent(event.getId())) {
+			if (binding != null) {
+				BuildLayerBindingSupport.restoreBinding(layerManager, binding);
+			}
+			return null;
+		}
+		selectionState.deselectEvent(event.getId());
+		if (event.getId().equals(selectionState.getRangeAnchorEventId())) {
+			selectionState.setRangeAnchorEventId(null);
+		}
+		timeline.markAnimationEventsDirty(track.getId());
+
+		boolean removedEmpty = false;
+		Clip emptySnap = null;
+		if (clip.getEvents().isEmpty() && binding != null) {
+			emptySnap = copyClip(clip);
+			if (track.removeClip(clip.getId())) {
+				removedEmpty = true;
+				selectionState.deselectClip(clip.getId());
+			} else {
+				emptySnap = null;
+			}
+		}
+		return new RemovedEvent(
+			track.getId(),
+			clip.getId(),
+			eventSnapshot,
+			binding,
+			removedEmpty,
+			emptySnap
+		);
 	}
 
 	private BuildLayerBindingSupport.@Nullable BindingSnapshot captureBindingForClip(String clipId) {

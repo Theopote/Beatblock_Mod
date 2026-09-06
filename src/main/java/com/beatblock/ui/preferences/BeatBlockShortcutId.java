@@ -7,6 +7,8 @@ public enum BeatBlockShortcutId {
 	COPY("copy", "Ctrl+C"),
 	CUT("cut", "Ctrl+X"),
 	PASTE("paste", "Ctrl+V"),
+	DUPLICATE("duplicate", "Ctrl+D"),
+	SPLIT("split", "Ctrl+E"),
 	DELETE("delete", "Delete"),
 	IMPORT_MUSIC("import_music", "Ctrl+O"),
 	SAVE_PROJECT("save_project", "Ctrl+S"),

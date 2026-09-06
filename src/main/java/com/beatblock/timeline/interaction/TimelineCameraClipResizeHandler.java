@@ -122,10 +122,13 @@ public final class TimelineCameraClipResizeHandler {
 		} else {
 			double newEnd = Math.max(session.initialStart() + CAMERA_MIN_CLIP_DURATION, snapped);
 			c.setEndTimeSeconds(newEnd);
+			// Always recompute from gesture-start originals — never from the previous frame.
 			for (TimelineEvent se : c.getEvents()) {
-				if (se.getTimeSeconds() > newEnd) {
-					se.setTimeSeconds(newEnd);
+				Double original = session.eventOrigTimes().get(se.getId());
+				if (original == null) {
+					continue;
 				}
+				se.setTimeSeconds(Math.min(original, newEnd));
 			}
 		}
 		timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), c.getEndTimeSeconds()));

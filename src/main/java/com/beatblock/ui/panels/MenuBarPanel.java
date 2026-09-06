@@ -126,6 +126,12 @@ public class MenuBarPanel {
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.paste_at_playhead"), shortcut(BeatBlockShortcutId.PASTE), false, editState.hasClipboard())) {
 					presenter.pasteTimelineAtPlayhead();
 				}
+				if (ImGui.menuItem(BBTexts.get("beatblock.common.duplicate"), shortcut(BeatBlockShortcutId.DUPLICATE), false, editState.canDuplicate())) {
+					presenter.duplicateTimelineSelection();
+				}
+				if (ImGui.menuItem(BBTexts.get("beatblock.common.split"), shortcut(BeatBlockShortcutId.SPLIT), false, editState.canSplitAtPlayhead())) {
+					presenter.splitTimelineAtPlayhead();
+				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.common.delete"), shortcut(BeatBlockShortcutId.DELETE), false, editState.canDelete())) {
 					presenter.deleteTimelineSelection();
 				}

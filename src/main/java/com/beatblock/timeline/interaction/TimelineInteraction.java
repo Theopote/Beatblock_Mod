@@ -72,6 +72,23 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		this.editSession = editSession;
 	}
 
+	/**
+	 * Cancel an in-progress document-mutating gesture and restore the live Timeline
+	 * to the gesture-start snapshot. Safe to call when no gesture is active.
+	 */
+	public void cancelLiveDocumentPreview(Timeline timeline, InteractionState interactionState) {
+		TimelineGestureLifecycle.cancelLiveDocumentPreview(
+			timeline,
+			interactionState,
+			eventDragSession,
+			clipDragSession,
+			cameraResizeSession,
+			() -> eventDragSession = null,
+			() -> clipDragSession = null,
+			() -> cameraResizeSession = null
+		);
+	}
+
 	public TimelineInteraction() {
 		popupState.contextTimeSeconds = 0;
 	}
@@ -189,6 +206,14 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			return;
 		}
 
+		// Esc / interrupted capture: revert live preview mutations (not a Command commit).
+		if (TimelineGestureLifecycle.isLiveDocumentPreview(interactionState.getMode())
+			&& (ImGui.isKeyPressed(ImGuiKey.Escape) || !ImGui.isMouseDown(0))) {
+			cancelLiveDocumentPreview(timeline, interactionState);
+			if (selectionBox != null) selectionBox.setActive(false);
+			return;
+		}
+
 		if (!ImGui.isWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem | ImGuiHoveredFlags.AllowWhenBlockedByPopup)) return;
 		boolean alt = ImGui.getIO().getKeyAlt();
 
@@ -290,6 +315,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			if (!overLoopHandle && markerIndex < 0) {
 				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
 				TimelineRulerHitTest.addMarkerAtTime(timeline, t);
+				com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 				if (clock != null) seekClockAndMusic(clock, t);
 				return;
 			}
@@ -393,7 +419,6 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 					layout,
 					toolbarState,
 					trackListState,
-					duration,
 					mx,
 					clock != null ? () -> seekClockAndMusic(clock, clock.getCurrentTimeSeconds()) : null
 				);
@@ -401,7 +426,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				}
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT) {
 				TimelineEventDragHandler.applyDuringDrag(
-					timeline, interactionState, trackListState, viewState, layout, toolbarState, duration, mx);
+					timeline, interactionState, trackListState, viewState, layout, toolbarState, mx);
 				return;
 			}
 			if (interactionState.getMode() == InteractionMode.BOX_SELECT && selectionBox != null) {
@@ -491,7 +516,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				}
 				if (hit.getHitType() == HitType.EVENT || hit.getHitType() == HitType.CLIP) {
 					eventDragSession = TimelineEventDragHandler.tryBeginFromHit(
-						timeline, hit, interactionState, selectionState, mx, my, ctrl, shift);
+						timeline, hit, interactionState, selectionState, trackListState, mx, my, ctrl, shift);
 					return;
 				}
 			}
@@ -649,6 +674,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			if (!overLoopHandle && markerIndex < 0) {
 				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
 				TimelineRulerHitTest.addMarkerAtTime(timeline, t);
+				com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 				if (clock != null) seekClockAndMusic(clock, t);
 				return;
 			}
@@ -798,6 +824,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				// 拖动中已写回 newTime；此处只登记 Undo（再 execute 一次为幂等）
 				timelineEditor.getCommandManager().execute(
 					new MoveMarkerCommand(timeline, markerId, oldT, t, name));
+				com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 			}
 			interactionState.setMode(InteractionMode.NONE);
 			interactionState.clearActive();

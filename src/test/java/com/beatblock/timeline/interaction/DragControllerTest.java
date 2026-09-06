@@ -24,16 +24,22 @@ class DragControllerTest {
 	}
 
 	@Test
-	void dragEventClampsTimeToDuration() {
+	void dragEventClampsTimeToParentClipRange() {
 		Timeline timeline = Timeline.createDefault();
-		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 0, 5);
-		TimelineEvent event = TimelineOperations.addEvent(clip, 1.0, EventType.ANIMATION, Map.of());
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 2.0, 5.0);
+		TimelineEvent event = TimelineOperations.addEvent(clip, 3.0, EventType.ANIMATION, Map.of());
 
 		DragController.dragEvent(
 			timeline, Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(), event.getId(),
-			12.0, 8.0, snapDisabled(), null, null);
+			12.0, snapDisabled(), null, null);
 
-		assertEquals(8.0, event.getTimeSeconds(), 1e-9);
+		assertEquals(5.0, event.getTimeSeconds(), 1e-9);
+
+		DragController.dragEvent(
+			timeline, Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(), event.getId(),
+			0.5, snapDisabled(), null, null);
+
+		assertEquals(2.0, event.getTimeSeconds(), 1e-9);
 	}
 
 	@Test
@@ -43,11 +49,26 @@ class DragControllerTest {
 
 		double newStart = DragController.dragClip(
 			timeline, Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(),
-			4.0, 3.0, 2.0, 3.0, 60.0, snapDisabled(), null, null);
+			4.0, 3.0, 2.0, 3.0, snapDisabled(), null, null);
 
 		assertEquals(3.0, newStart, 1e-9);
 		assertEquals(3.0, clip.getStartTimeSeconds(), 1e-9);
 		assertEquals(6.0, clip.getEndTimeSeconds(), 1e-9);
+	}
+
+	@Test
+	void dragClipMayExtendTimelineDuration() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.setDurationSeconds(5.0);
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 0.0, 2.0);
+
+		double newStart = DragController.dragClip(
+			timeline, Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(),
+			8.0, 1.0, 0.0, 2.0, snapDisabled(), null, null);
+
+		assertEquals(7.0, newStart, 1e-9);
+		assertEquals(9.0, clip.getEndTimeSeconds(), 1e-9);
+		assertEquals(9.0, timeline.getDurationSeconds(), 1e-9);
 	}
 
 	@Test
@@ -67,7 +88,7 @@ class DragControllerTest {
 
 		DragController.dragEvent(
 			timeline, Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(), event.getId(),
-			1.02, 10.0, new TimelineToolbarState(), null, state);
+			1.02, new TimelineToolbarState(), null, state);
 
 		assertEquals(1.0, event.getTimeSeconds(), 1e-9);
 	}

@@ -116,7 +116,6 @@ class CameraTrackAlignmentAcceptanceTest {
 			1.0,
 			1.0,
 			3.0,
-			60,
 			toolbar,
 			view,
 			interaction

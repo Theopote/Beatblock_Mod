@@ -2,6 +2,7 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.timeline.editing.TimelineDocumentChangeNotifier;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 
 import java.util.function.Supplier;
@@ -40,6 +41,7 @@ public final class TimelineEditorPresenter {
 			return false;
 		}
 		commands.undo();
+		TimelineDocumentChangeNotifier.notifyDocumentEdited();
 		return true;
 	}
 
@@ -49,6 +51,7 @@ public final class TimelineEditorPresenter {
 			return false;
 		}
 		commands.redo();
+		TimelineDocumentChangeNotifier.notifyDocumentEdited();
 		return true;
 	}
 

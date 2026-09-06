@@ -295,6 +295,7 @@ public final class TimelineTransportPresenter {
 		double time = editor.getPlaybackSession().currentTimeSeconds();
 		int markerIndex = currentTimeline.getMarkers().size() + 1;
 		currentTimeline.addMarker(new TimelineMarker(time, "Marker " + markerIndex));
+		com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 		return true;
 	}
 

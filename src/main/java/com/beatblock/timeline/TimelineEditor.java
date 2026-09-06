@@ -137,6 +137,14 @@ public final class TimelineEditor {
 	}
 
 	/**
+	 * Abort live drag/resize preview mutations (Esc, lost capture, project switch, shutdown).
+	 * Does not create an Undo entry.
+	 */
+	public void cancelLiveDocumentPreview() {
+		interactionSystem.cancelLiveDocumentPreview(timeline, state.getInteractionState());
+	}
+
+	/**
 	 * 将音频资产接入时间线（播放绑定、音频轨片段、分析回填），与拖入时间线行为一致。
 	 */
 	public void connectAudioAsset(@NonNull AudioAsset asset) {
@@ -313,6 +321,7 @@ public final class TimelineEditor {
 	 * 编辑器生命周期结束时释放后台资源。
 	 */
 	public void shutdown() {
+		cancelLiveDocumentPreview();
 		renderer.shutdown();
 	}
 
@@ -334,6 +343,14 @@ public final class TimelineEditor {
 
 	public void deleteSelectedEntries() {
 		editSession.deleteSelection();
+	}
+
+	public boolean duplicateSelectedEntries() {
+		return editSession.duplicateSelection();
+	}
+
+	public boolean splitSelectedClipAtPlayhead() {
+		return editSession.splitAtPlayhead();
 	}
 
 	public boolean hasDeletableSelection() {

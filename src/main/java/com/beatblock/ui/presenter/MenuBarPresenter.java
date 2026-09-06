@@ -15,7 +15,13 @@ import java.util.function.Supplier;
  */
 public final class MenuBarPresenter {
 
-	public record EditViewState(boolean hasSelection, boolean hasClipboard, boolean canDelete) {}
+	public record EditViewState(
+		boolean hasSelection,
+		boolean hasClipboard,
+		boolean canDelete,
+		boolean canDuplicate,
+		boolean canSplitAtPlayhead
+	) {}
 
 	private final TimelineEditorPresenter editorPresenter;
 	private final TimelineActionDispatcher actions;
@@ -58,7 +64,12 @@ public final class MenuBarPresenter {
 
 	public EditViewState editViewState() {
 		var state = actions.editState();
-		return new EditViewState(state.hasSelection(), state.hasClipboard(), state.canDelete());
+		return new EditViewState(
+			state.hasSelection(),
+			state.hasClipboard(),
+			state.canDelete(),
+			state.canDuplicate(),
+			state.canSplitAtPlayhead());
 	}
 
 	public void cutTimelineSelection() {
@@ -75,6 +86,14 @@ public final class MenuBarPresenter {
 
 	public void deleteTimelineSelection() {
 		actions.execute(TimelineActionId.DELETE);
+	}
+
+	public void duplicateTimelineSelection() {
+		actions.execute(TimelineActionId.DUPLICATE);
+	}
+
+	public void splitTimelineAtPlayhead() {
+		actions.execute(TimelineActionId.SPLIT_AT_PLAYHEAD);
 	}
 
 	public String defaultSaveProjectPath() {
@@ -111,6 +130,12 @@ public final class MenuBarPresenter {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
 		}
 		try {
+			// Cancel live drag/resize preview before loadInto replaces timeline contents,
+			// otherwise gesture snapshots would apply onto the newly loaded document.
+			TimelineEditor editor = timelineEditor.get();
+			if (editor != null) {
+				editor.cancelLiveDocumentPreview();
+			}
 			BuildLayerManager layers = layerManager.get();
 			OscProjectStore.LoadedProject loaded = OscProjectStore.load(Path.of(path), layers, current);
 			applyLoadedProject(current, loaded);
@@ -123,7 +148,6 @@ public final class MenuBarPresenter {
 				// golden:// 等占位路径：保留元数据，不尝试本地解码
 				audioLoadFailed = true;
 			}
-			TimelineEditor editor = timelineEditor.get();
 			if (editor != null) {
 				editor.clearUndoHistory();
 				editor.syncClockDuration();

@@ -63,7 +63,6 @@ public final class TimelineClipDragCoordinator {
 		TimelineLayout layout,
 		TimelineToolbarState toolbarState,
 		TimelineTrackListState trackListState,
-		double duration,
 		float mx,
 		Runnable seekPlayback
 	) {
@@ -85,13 +84,11 @@ public final class TimelineClipDragCoordinator {
 			session.initialMouseTime(),
 			session.initialStart(),
 			clipDuration,
-			duration,
 			toolbarState,
 			viewState,
 			interactionState
 		);
 		double actualDelta = newStart - session.initialStart();
-		timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), newStart + clipDuration));
 
 		if (Timeline.TRACK_ID_CAMERA.equals(interactionState.getActiveTrackId())) {
 			Track cameraTrack = timeline.getTrack(Timeline.TRACK_ID_CAMERA);

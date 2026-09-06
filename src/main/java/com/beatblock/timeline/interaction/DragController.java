@@ -4,6 +4,7 @@ import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.editing.TimelineEventMovePolicy;
 import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.editor.TimelineViewState;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
@@ -18,27 +19,40 @@ public final class DragController {
 	private DragController() {}
 
 	/**
-	 * 将指定事件的时间设为 newTimeSeconds，根据 toolbarState 吸附后再夹到 [0, duration]。
+	 * 将指定事件的时间设为 newTimeSeconds，吸附后按 {@link TimelineEventMovePolicy} 夹取。
+	 * 不自动扩展所属 Clip。
 	 */
 	public static void dragEvent(Timeline timeline, String trackId, String clipId, String eventId,
-			double newTimeSeconds, double duration,
+			double newTimeSeconds,
 			TimelineToolbarState toolbarState, TimelineViewState viewState,
 			InteractionState interactionState) {
-		double t = computeEventDragTime(
-			newTimeSeconds, eventId, duration, timeline, toolbarState, viewState, interactionState
-		);
-		if (Double.isNaN(t)) return;
-
-		Track track = timeline.getTrack(trackId);
+		Track track = timeline != null ? timeline.getTrack(trackId) : null;
 		if (track == null) return;
 		Clip clip = track.getClip(clipId);
 		if (clip == null) return;
-		TimelineEvent e = clip.getEvent(eventId);
-		if (e != null) {
-			e.setTimeSeconds(t);
-			if (isAnimationTrack(trackId)) {
-				timeline.markAnimationEventsDirty(trackId);
-			}
+		TimelineEvent event = clip.getEvent(eventId);
+		if (event == null) return;
+
+		TimelineEventMovePolicy.MoveBounds bounds = TimelineEventMovePolicy.boundsFor(clip, event);
+		if (bounds.isFixed()) {
+			return;
+		}
+
+		double t = computeEventDragTime(
+			newTimeSeconds,
+			eventId,
+			bounds.minTimeSeconds(),
+			bounds.maxTimeSeconds(),
+			timeline,
+			toolbarState,
+			viewState,
+			interactionState
+		);
+		if (Double.isNaN(t)) return;
+
+		event.setTimeSeconds(t);
+		if (isAnimationTrack(trackId)) {
+			timeline.markAnimationEventsDirty(trackId);
 		}
 	}
 
@@ -47,12 +61,38 @@ public final class DragController {
 	}
 
 	/**
-	 * 计算吸附后的目标时间，不修改时间线。
+	 * 计算吸附后的目标时间并夹到 [0, duration]，不修改时间线。
+	 * 事件拖动请优先走 {@link #dragEvent}（使用 {@link TimelineEventMovePolicy}）。
 	 */
 	public static double computeEventDragTime(
 		double newTimeSeconds,
 		String eventId,
 		double duration,
+		Timeline timeline,
+		TimelineToolbarState toolbarState,
+		TimelineViewState viewState,
+		InteractionState interactionState
+	) {
+		return computeEventDragTime(
+			newTimeSeconds,
+			eventId,
+			0.0,
+			duration > 0 ? duration : Double.MAX_VALUE,
+			timeline,
+			toolbarState,
+			viewState,
+			interactionState
+		);
+	}
+
+	/**
+	 * 计算吸附后的目标时间并夹到给定范围，不修改时间线。
+	 */
+	public static double computeEventDragTime(
+		double newTimeSeconds,
+		String eventId,
+		double minTimeSeconds,
+		double maxTimeSeconds,
 		Timeline timeline,
 		TimelineToolbarState toolbarState,
 		TimelineViewState viewState,
@@ -64,16 +104,21 @@ public final class DragController {
 		if (interactionState != null) {
 			interactionState.setAlignmentGuideTimes(snapped.guideTimes());
 		}
-		return Math.max(0, Math.min(snapped.timeSeconds(), duration > 0 ? duration : Double.MAX_VALUE));
+		double lo = Math.min(minTimeSeconds, maxTimeSeconds);
+		double hi = Math.max(minTimeSeconds, maxTimeSeconds);
+		return Math.max(lo, Math.min(snapped.timeSeconds(), hi));
 	}
 
 	/**
-	 * 拖动音频片段到新位置，返回实际生效的新起始时间（吸附 + 夹取后）。
+	 * Drag a clip by mouse delta. Start is clamped to {@code >= 0}; length is preserved.
+	 * May extend {@link Timeline#getDurationSeconds()} so the moved clip remains in-document.
+	 *
+	 * @return applied clip start time
 	 */
 	public static double dragClip(Timeline timeline, String trackId, String clipId,
 			double mouseTimeSeconds, double dragInitialMouseTime,
 			double dragInitialClipStart, double clipDuration,
-			double maxDuration, TimelineToolbarState toolbarState, TimelineViewState viewState,
+			TimelineToolbarState toolbarState, TimelineViewState viewState,
 			InteractionState interactionState) {
 		if (timeline == null || trackId == null || clipId == null) return dragInitialClipStart;
 		Track track = timeline.getTrack(trackId);
@@ -90,6 +135,7 @@ public final class DragController {
 
 		clip.setStartTimeSeconds(clampedStart);
 		clip.setEndTimeSeconds(clampedStart + clipDuration);
+		timeline.setDurationSeconds(Math.max(timeline.getDurationSeconds(), clampedStart + clipDuration));
 		return clampedStart;
 	}
 

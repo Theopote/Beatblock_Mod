@@ -1,8 +1,7 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.BeatBlock;
-import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.runtime.BeatBlockContext;
+import com.beatblock.timeline.editing.TimelineDocumentChangeNotifier;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
@@ -36,16 +35,8 @@ final class EventPropertiesPresenterFactory {
 				return new ArrayList<>(context.blockAnimationEngine().getStageObjectSystem().getAll());
 			}),
 			EventPropertiesPresenterFactory::readCameraView,
-			EventPropertiesPresenterFactory::reloadCompiledPlaybackIfDriving
+			TimelineDocumentChangeNotifier::notifyDocumentEdited
 		);
-	}
-
-	private static void reloadCompiledPlaybackIfDriving() {
-		try {
-			BeatBlockClientDriver.reloadCompiledPlaybackIfDriving();
-		} catch (Throwable error) {
-			BeatBlock.LOGGER.debug("Skip compiled playback reload after property edit", error);
-		}
 	}
 
 	private static EventPropertiesPresenter.CameraViewSample readCameraView() {

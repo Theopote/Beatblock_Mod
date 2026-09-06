@@ -89,6 +89,18 @@ public final class CommandDescriptions {
 		if (command instanceof QuickStartGenerateCommand) {
 			return BBTexts.get("beatblock.undo.quick_start_generate");
 		}
+		if (command instanceof PasteTimelineEventsCommand) {
+			return BBTexts.get("beatblock.undo.paste_events");
+		}
+		if (command instanceof DuplicateTimelineEventsCommand) {
+			return BBTexts.get("beatblock.undo.duplicate_events");
+		}
+		if (command instanceof CutTimelineEventsCommand) {
+			return BBTexts.get("beatblock.undo.cut_events");
+		}
+		if (command instanceof SplitClipCommand) {
+			return BBTexts.get("beatblock.undo.split_clip");
+		}
 		return command.getClass().getSimpleName();
 	}
 }

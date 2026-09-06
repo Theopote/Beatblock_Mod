@@ -203,6 +203,7 @@ public final class BuildLayerDragDropHandler {
 		if (editor != null) {
 			editor.syncClockDuration();
 		}
+		com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 		ToastNotificationSystem.showSuccess(
 			BBTexts.get("beatblock.message.layer_bound_to_track", layer.getName(), formatTime(dropTime))
 		);

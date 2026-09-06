@@ -34,6 +34,15 @@ class TimelineEditSessionTest {
 		session.pasteAt(4.0);
 		assertEquals(1, session.commands().undoCount());
 
+		session.selection().selectEvent(event.getId());
+		assertTrue(session.duplicateSelection());
+		assertEquals(2, session.commands().undoCount());
+
+		session.selection().clearEvents();
+		session.selection().selectClip(clip.getId());
+		assertTrue(session.splitAt(1.0));
+		assertEquals(3, session.commands().undoCount());
+
 		session.clearHistory();
 		assertEquals(0, session.commands().undoCount());
 	}

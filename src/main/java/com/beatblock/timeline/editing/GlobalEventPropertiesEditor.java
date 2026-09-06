@@ -31,7 +31,7 @@ public final class GlobalEventPropertiesEditor {
 		Map<String, Object> parameters = new HashMap<>();
 		parameters.put("type", resolvedType.name());
 		parameters.put("name", resolvedName);
-		double clampedTime = Math.max(clipStartSeconds, Math.min(clipEndSeconds, Math.max(0.0, timeSeconds)));
+		double clampedTime = TimelineEventMovePolicy.clipRange(clipStartSeconds, clipEndSeconds).clamp(timeSeconds);
 		return new Result.Ok(new AnimationEventSnapshot(
 			clampedTime,
 			parameters,

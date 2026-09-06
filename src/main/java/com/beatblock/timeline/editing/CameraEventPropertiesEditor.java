@@ -123,7 +123,7 @@ public final class CameraEventPropertiesEditor {
 		String ease,
 		Map<String, Object> existingParameters
 	) {
-		double clampedTime = Math.max(clipStartSeconds, Math.min(clipEndSeconds, Math.max(0.0, timeSeconds)));
+		double clampedTime = TimelineEventMovePolicy.clipRange(clipStartSeconds, clipEndSeconds).clamp(timeSeconds);
 		String resolvedEase = ease == null || ease.isBlank() ? "SMOOTH" : ease.trim();
 		Map<String, Object> parameters = new HashMap<>(
 			existingParameters != null ? existingParameters : Map.of()

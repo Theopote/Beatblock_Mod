@@ -15,9 +15,11 @@ import com.beatblock.timeline.playback.GlobalEventPayload;
 import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
 import com.beatblock.timeline.playback.CompiledStageEvent;
 import com.beatblock.timeline.playback.CompilePolicy;
+import com.beatblock.timeline.playback.CompileResult;
 import com.beatblock.timeline.playback.PerformanceCheckController;
 import com.beatblock.timeline.playback.PlaybackEngine;
 import com.beatblock.timeline.playback.SeekMode;
+import com.beatblock.timeline.playback.TimelineCompilationException;
 import com.beatblock.timeline.playback.TimelineCompiler;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
@@ -74,6 +76,8 @@ public final class BeatBlockClientDriver {
 	private @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlayback;
 	/** Phase C: formal play advances only over the compiled program. */
 	private final PlaybackEngine playbackEngine = new PlaybackEngine();
+	/** Compile policy chosen when driving started; reused for hot-reload. */
+	private CompilePolicy drivingCompilePolicy = CompilePolicy.STRICT;
 	private final GlobalEventExecutor globalEventExecutor;
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
 	private volatile double lastStageEventTime;
@@ -103,6 +107,26 @@ public final class BeatBlockClientDriver {
 
 	static @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlaybackForTests() {
 		return instance != null ? instance.compiledPlayback : null;
+	}
+
+	static int scheduledStageCountForTests() {
+		return instance != null ? instance.playbackEngine.scheduledStageCount() : 0;
+	}
+
+	/** Advances formal playback to {@code timeSeconds} while driving (test helper). */
+	static void advanceFormalPlaybackForTests(double timeSeconds) {
+		requireInstance().advanceFormalPlaybackForTestsInternal(timeSeconds);
+	}
+
+	private void advanceFormalPlaybackForTestsInternal(double timeSeconds) {
+		ClientThreadGuard.assertClientThread();
+		if (!driving || compiledPlayback == null) {
+			return;
+		}
+		// Drive PlaybackEngine directly so unit tests without a BlockAnimationEngine
+		// still exercise scheduling / hot-reload reconstruct semantics.
+		playbackEngine.advance(timeSeconds, (compiled, event) -> {}, this::onCompiledGlobalEvent);
+		lastStageEventTime = timeSeconds;
 	}
 
 	public static @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlayback() {
@@ -192,6 +216,9 @@ public final class BeatBlockClientDriver {
 	/**
 	 * Hot-reloads the formal playback snapshot from the live Timeline while driving.
 	 * No-op when not driving (preview already reads the live document).
+	 * <p>
+	 * After compile, reconstructs at the current playhead so {@link PlaybackEngine#load}
+	 * does not cause the next {@code advance} to re-dispatch already-passed events.
 	 */
 	public static void reloadCompiledPlaybackIfDriving() {
 		requireInstance().reloadCompiledPlaybackIfDrivingInternal();
@@ -202,12 +229,56 @@ public final class BeatBlockClientDriver {
 		if (!driving) {
 			return;
 		}
-		compiledPlayback = TimelineCompiler.compile(
-			ctx().timeline(),
-			ctx().blockAnimationEngine(),
-			ctx().buildLayerManager()
-		);
+		double currentTime = ctx().playbackTimeSeconds();
+		if (!Double.isFinite(currentTime) || currentTime < 0) {
+			currentTime = Math.max(0, lastStageEventTime);
+		}
+
+		CompiledTimelineSnapshot next;
+		try {
+			CompileResult result = TimelineCompiler.compile(
+				ctx().timeline(),
+				ctx().blockAnimationEngine(),
+				ctx().buildLayerManager(),
+				drivingCompilePolicy
+			);
+			next = result.snapshot();
+		} catch (TimelineCompilationException error) {
+			BeatBlock.LOGGER.warn(
+				"Timeline hot-reload compile failed; keeping previous compiled playback", error);
+			return;
+		}
+
+		compiledPlayback = next;
 		playbackEngine.load(compiledPlayback);
+		reconstructFormalPlaybackAt(currentTime);
+	}
+
+	private void reconstructFormalPlaybackAt(double currentTime) {
+		var engine = ctx().blockAnimationEngine();
+		restoreTimelineMutationSnapshot();
+		if (engine != null) {
+			engine.clear();
+			var buildSequencer = engine.getBuildSequencer();
+			if (buildSequencer != null) {
+				buildSequencer.setMutationBudgetPerTick(PLAYBACK_MUTATION_BUDGET_PER_TICK);
+			}
+		}
+		if (compiledPlayback == null) {
+			lastStageEventTime = Math.max(0, currentTime);
+			return;
+		}
+		double[] referenceBeats = compiledPlayback.referenceBeatTimesSeconds();
+		double bpm = compiledPlayback.bpm();
+		PlaybackEngine.StageEventHandler stageHandler =
+			(compiled, event) -> applyTimelineActionEvent(event, compiled, false, referenceBeats, bpm);
+		playbackEngine.seek(
+			Math.max(0, currentTime),
+			SeekMode.RECONSTRUCT_STATE,
+			stageHandler,
+			this::onCompiledGlobalEvent
+		);
+		lastStageEventTime = Math.max(0, currentTime);
 	}
 
 	private void startDrivingInternal() {
@@ -216,11 +287,12 @@ public final class BeatBlockClientDriver {
 		resetTimelineAnimationScheduling();
 		// Phase B/C: full compile → load into PlaybackEngine
 		CompilePolicy policy = PerformanceCheckController.consumeNextCompilePolicy();
+		drivingCompilePolicy = policy != null ? policy : CompilePolicy.STRICT;
 		compiledPlayback = TimelineCompiler.compile(
 			ctx().timeline(),
 			ctx().blockAnimationEngine(),
 			ctx().buildLayerManager(),
-			policy
+			drivingCompilePolicy
 		).snapshot();
 		playbackEngine.load(compiledPlayback);
 		driving = true;
@@ -233,6 +305,7 @@ public final class BeatBlockClientDriver {
 	private void stopDrivingInternal() {
 		ClientThreadGuard.assertClientThread();
 		driving = false;
+		drivingCompilePolicy = CompilePolicy.STRICT;
 		resetTimelineAnimationScheduling();
 		playbackEngine.reset();
 		compiledPlayback = null;

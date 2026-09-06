@@ -99,6 +99,10 @@ public final class EventPropertiesPresenter {
 	private final Supplier<List<EventPropertiesOption>> animationOptionsSupplier;
 	private final Supplier<List<EventPropertiesOption>> targetOptionsSupplier;
 	private final CameraViewProvider cameraViewProvider;
+	/**
+	 * Side effects after a committed property mutation.
+	 * Production wiring uses {@link com.beatblock.timeline.editing.TimelineDocumentChangeNotifier#notifyDocumentEdited()}.
+	 */
 	private final Runnable afterDocumentEdit;
 
 	public EventPropertiesPresenter(

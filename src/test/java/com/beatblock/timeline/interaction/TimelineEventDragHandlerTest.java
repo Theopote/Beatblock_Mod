@@ -9,12 +9,15 @@ import com.beatblock.timeline.editor.HitResult;
 import com.beatblock.timeline.editor.InteractionMode;
 import com.beatblock.timeline.editor.InteractionState;
 import com.beatblock.timeline.editor.SelectionState;
+import com.beatblock.timeline.rendering.TimelineTrackListState;
+import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TimelineEventDragHandlerTest {
@@ -29,12 +32,34 @@ class TimelineEventDragHandlerTest {
 
 		InteractionState interaction = new InteractionState();
 		TimelineEventDragSession session = TimelineEventDragHandler.tryBeginFromHit(
-			timeline, hit, interaction, new SelectionState(), 100f, 50f, false, false);
+			timeline, hit, interaction, new SelectionState(), null, 100f, 50f, false, false);
 
 		assertNotNull(session);
 		assertEquals(2.5, session.initialTimeSeconds(), 1e-9);
 		assertEquals(InteractionMode.DRAG_EVENT, interaction.getMode());
 		assertEquals(event.getId(), interaction.getActiveEventId());
+	}
+
+	@Test
+	void lockedTrackAllowsSelectionButDoesNotBeginDragSession() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 0, 10);
+		TimelineEvent event = TimelineOperations.addEvent(clip, 2.0, EventType.ANIMATION, Map.of());
+		HitResult hit = HitResult.event(
+			Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(), event.getId(), 2.0);
+
+		TimelineTrackListState trackList = new TimelineTrackListState();
+		trackList.setLocked(TimelineTrackMeta.ROW_ANIM_AUTO, true);
+
+		InteractionState interaction = new InteractionState();
+		SelectionState selection = new SelectionState();
+		TimelineEventDragSession session = TimelineEventDragHandler.tryBeginFromHit(
+			timeline, hit, interaction, selection, trackList, 100f, 50f, false, false);
+
+		assertNull(session);
+		assertEquals(InteractionMode.NONE, interaction.getMode());
+		assertNull(interaction.getActiveEventId());
+		assertTrue(selection.isEventSelected(event.getId()));
 	}
 
 	@Test
@@ -47,7 +72,7 @@ class TimelineEventDragHandlerTest {
 
 		InteractionState interaction = new InteractionState();
 		TimelineEventDragSession session = TimelineEventDragHandler.tryBeginFromHit(
-			timeline, hit, interaction, new SelectionState(), 100f, 50f, false, false);
+			timeline, hit, interaction, new SelectionState(), null, 100f, 50f, false, false);
 		event.setTimeSeconds(5.0);
 
 		TimelineEventDragHandler.finishOnMouseRelease(
@@ -81,7 +106,7 @@ class TimelineEventDragHandlerTest {
 
 		float mx = layout.contentLeft + viewState.timeToScreen(4.0);
 		TimelineEventDragHandler.applyDuringDrag(
-			timeline, interaction, null, viewState, layout, toolbar, 10.0, mx);
+			timeline, interaction, null, viewState, layout, toolbar, mx);
 
 		assertTrue(event.getTimeSeconds() > 1.0);
 		assertEquals(4.0, event.getTimeSeconds(), 1e-9);

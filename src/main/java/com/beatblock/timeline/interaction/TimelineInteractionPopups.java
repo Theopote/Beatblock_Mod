@@ -5,6 +5,7 @@ import com.beatblock.client.camera.CameraKeyframeActions;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.TimelineOperations;
@@ -94,8 +95,20 @@ public final class TimelineInteractionPopups {
 		if (ImGui.menuItem(BBTexts.get("beatblock.common.copy"), "Ctrl+C", false, hasSelection)) {
 			host.copySelectedEvents(timeline, selectionState);
 		}
+		if (ImGui.menuItem(BBTexts.get("beatblock.common.cut"), "Ctrl+X", false, hasSelection && host.timelineEditor() != null)) {
+			host.timelineEditor().cutSelectedEvents();
+		}
 		if (ImGui.menuItem(BBTexts.get("beatblock.common.paste"), "Ctrl+V", false, hasClipboard)) {
 			host.pasteClipboardEvents(timeline, selectionState, state.contextTimeSeconds, trackListState);
+		}
+		boolean canDuplicate = host.timelineEditor() != null && host.timelineEditor().getEditSession().canDuplicate();
+		if (ImGui.menuItem(BBTexts.get("beatblock.common.duplicate"), "Ctrl+D", false, canDuplicate)) {
+			host.timelineEditor().getEditSession().duplicateSelection();
+		}
+		boolean canSplit = host.timelineEditor() != null
+			&& host.timelineEditor().getEditSession().canSplitAt(state.contextTimeSeconds);
+		if (ImGui.menuItem(BBTexts.get("beatblock.common.split"), "Ctrl+E", false, canSplit)) {
+			host.timelineEditor().getEditSession().splitAt(state.contextTimeSeconds);
 		}
 		renderBuildLayerTrackMenuItems(timeline, state, host);
 		if (timeline != null && Timeline.TRACK_ID_CAMERA.equals(state.contextTrackId)
@@ -109,7 +122,18 @@ public final class TimelineInteractionPopups {
 				? TimelineEventRefs.find(timeline, state.contextEventId) : null;
 			if (ctxEv != null && ctxEv.event() != null && ctxEv.event().getType() == EventType.CAMERA_KEYFRAME) {
 				if (ImGui.menuItem(BBTexts.get("beatblock.camera.delete_keyframe") + "##camDelKf")) {
-					TimelineOperations.removeEvent(ctxEv.clip(), ctxEv.event().getId());
+					TimelineEditor editor = host.timelineEditor();
+					if (editor != null) {
+						editor.getCommandManager().execute(new com.beatblock.timeline.command.DeleteEventCommand(
+							timeline,
+							ctxEv.track().getId(),
+							ctxEv.clip().getId(),
+							ctxEv.event()
+						));
+						com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
+					} else {
+						TimelineOperations.removeEvent(ctxEv.clip(), ctxEv.event().getId());
+					}
 					if (selectionState != null) {
 						selectionState.deselectEvent(ctxEv.event().getId());
 					}
@@ -213,11 +237,13 @@ public final class TimelineInteractionPopups {
 		if (canCreate
 			&& ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.create_build_layer_track"))) {
 			commandManager.execute(new CreateBuildLayerTrackCommand(timeline));
+			com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 			ImGui.closeCurrentPopup();
 		}
 		if (canDeleteEmpty
 			&& ImGui.menuItem(BBTexts.get("beatblock.timeline.interaction.delete_build_layer_track"))) {
 			commandManager.execute(new DeleteBuildLayerTrackCommand(timeline, contextTrackId));
+			com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 			ImGui.closeCurrentPopup();
 		}
 	}

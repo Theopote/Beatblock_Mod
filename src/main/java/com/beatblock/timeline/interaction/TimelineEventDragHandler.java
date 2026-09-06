@@ -18,11 +18,16 @@ public final class TimelineEventDragHandler {
 
 	private TimelineEventDragHandler() {}
 
+	/**
+	 * Begin an event drag from a content hit.
+	 * Locked tracks still receive click selection, but do not enter a drag session.
+	 */
 	public static TimelineEventDragSession tryBeginFromHit(
 		Timeline timeline,
 		HitResult hit,
 		InteractionState interactionState,
 		SelectionState selectionState,
+		TimelineTrackListState trackListState,
 		float mx,
 		float my,
 		boolean ctrl,
@@ -31,11 +36,14 @@ public final class TimelineEventDragHandler {
 		if (timeline == null || hit == null || interactionState == null) return null;
 		if (hit.getHitType() != HitType.EVENT && hit.getHitType() != HitType.CLIP) return null;
 
-		TimelineEventDragSession session = TimelineEventDragSession.begin(timeline, hit, interactionState, mx, my);
 		if (selectionState != null) {
 			TimelineEventSelectionHandler.applyClickSelection(timeline, selectionState, hit, ctrl, shift);
 		}
-		return session;
+		if (TimelineInteractiveTrackSlots.isTrackLocked(timeline, trackListState, hit.getTrackId())) {
+			return null;
+		}
+
+		return TimelineEventDragSession.begin(timeline, hit, interactionState, mx, my);
 	}
 
 	public static void applyDuringDrag(
@@ -45,7 +53,6 @@ public final class TimelineEventDragHandler {
 		TimelineViewState viewState,
 		TimelineLayout layout,
 		TimelineToolbarState toolbarState,
-		double duration,
 		float mx
 	) {
 		if (timeline == null || interactionState == null || viewState == null || layout == null) return;
@@ -64,7 +71,6 @@ public final class TimelineEventDragHandler {
 			interactionState.getActiveClipId(),
 			interactionState.getActiveEventId(),
 			t,
-			duration,
 			toolbarState,
 			viewState,
 			interactionState

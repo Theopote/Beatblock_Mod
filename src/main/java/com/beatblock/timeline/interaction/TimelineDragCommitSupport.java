@@ -3,6 +3,7 @@ package com.beatblock.timeline.interaction;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.editing.ClipDragStateSnapshot;
+import com.beatblock.timeline.editing.TimelineDocumentChangeNotifier;
 import com.beatblock.timeline.editing.TimelineEventEditActions;
 import com.beatblock.timeline.editor.InteractionState;
 
@@ -22,7 +23,7 @@ public final class TimelineDragCommitSupport {
 		if (editor == null) return;
 		TimelineEventRef ref = TimelineEventRefs.find(timeline, interactionState.getActiveEventId());
 		if (ref == null || ref.event() == null) return;
-		TimelineEventEditActions.commitEventMove(
+		boolean committed = TimelineEventEditActions.commitEventMove(
 			timeline,
 			editor.getCommandManager(),
 			interactionState.getActiveTrackId(),
@@ -31,6 +32,9 @@ public final class TimelineDragCommitSupport {
 			dragEventInitialTimeSeconds,
 			ref.event().getTimeSeconds()
 		);
+		if (committed) {
+			TimelineDocumentChangeNotifier.notifyDocumentEdited();
+		}
 	}
 
 	public static void revertEventDrag(
@@ -47,7 +51,11 @@ public final class TimelineDragCommitSupport {
 		if (before == null) return;
 		if (editor == null) return;
 		ClipDragStateSnapshot after = before.captureCurrent(timeline);
-		TimelineEventEditActions.commitClipDrag(timeline, editor.getCommandManager(), before, after);
+		boolean committed = TimelineEventEditActions.commitClipDrag(
+			timeline, editor.getCommandManager(), before, after);
+		if (committed) {
+			TimelineDocumentChangeNotifier.notifyDocumentEdited();
+		}
 	}
 
 	public static void revertClipDrag(Timeline timeline, ClipDragStateSnapshot before) {

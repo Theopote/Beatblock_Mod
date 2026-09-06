@@ -46,6 +46,22 @@ class DeleteSelectedTimelineEntriesCommandTest {
 	}
 
 	@Test
+	void deletingBoundClipRedoWorksAfterSelectionCleared() {
+		Fixture f = fixture();
+		f.selection().selectClip(f.clip().getId());
+
+		DeleteSelectedTimelineEntriesCommand cmd = new DeleteSelectedTimelineEntriesCommand(
+			f.timeline(), f.manager(), f.selection(), new TimelineTrackListState());
+		cmd.execute();
+		cmd.undo();
+		f.selection().clearAll();
+		cmd.execute();
+
+		assertNull(f.track().getClip(f.clip().getId()));
+		assertEquals(LayerVisibilityState.FREE_HIDDEN, f.layer().getState());
+	}
+
+	@Test
 	void deletingBindingEventRemovesEmptyClipAndUndoRestores() {
 		Fixture f = fixture();
 		f.selection().selectEvent(f.event().getId());
