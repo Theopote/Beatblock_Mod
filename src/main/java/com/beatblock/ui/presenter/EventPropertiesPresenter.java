@@ -23,6 +23,7 @@ import com.beatblock.timeline.command.UpdateAnimationEventCommand;
 import com.beatblock.timeline.editing.AnimationEventFormInput;
 import com.beatblock.timeline.editing.AnimationEventPropertiesEditor;
 import com.beatblock.timeline.editing.AnimationEventSnapshot;
+import com.beatblock.timeline.editing.AnimationTypeReplace;
 import com.beatblock.timeline.editing.CameraEventPropertiesEditor;
 import com.beatblock.timeline.editing.ClipTimingPropertiesEditor;
 import com.beatblock.timeline.editing.GlobalEventPropertiesEditor;
@@ -72,8 +73,36 @@ public final class EventPropertiesPresenter {
 		@Nullable TimelineAnimationActionMode actionMode,
 		@Nullable Double durationScale,
 		@Nullable Double fixedDurationSeconds,
-		@Nullable Map<String, Object> customParameters
-	) {}
+		@Nullable Map<String, Object> customParameters,
+		boolean replaceAnimationType
+	) {
+		/** Soft batch edit: merge fields without stripping animation-specific params. */
+		public BatchAnimationEditRequest(
+			@Nullable Float energy,
+			@Nullable String animationId,
+			@Nullable Double timeOffsetSeconds,
+			@Nullable TimelineAnimationActionMode actionMode,
+			@Nullable Double durationScale,
+			@Nullable Double fixedDurationSeconds,
+			@Nullable Map<String, Object> customParameters
+		) {
+			this(energy, animationId, timeOffsetSeconds, actionMode, durationScale, fixedDurationSeconds, customParameters, false);
+		}
+
+		/** Animation Library Apply: replace animation type and clear incompatible params. */
+		public static BatchAnimationEditRequest replaceAnimation(String animationId, double fixedDurationSeconds) {
+			return new BatchAnimationEditRequest(
+				null,
+				animationId,
+				null,
+				null,
+				null,
+				fixedDurationSeconds,
+				null,
+				true
+			);
+		}
+	}
 
 	public record BatchEditOutcome(int updatedCount, @Nullable String errorMessage) {
 		public boolean success() {
@@ -1196,6 +1225,18 @@ public final class EventPropertiesPresenter {
 	}
 
 	private static @NotNull AnimationEventParams getAnimationEventParams(BatchAnimationEditRequest request, AnimationEventParams parsed) {
+		if (request.replaceAnimationType()
+			&& request.animationId() != null
+			&& !request.animationId().isBlank()) {
+			double duration = request.fixedDurationSeconds() != null
+				? request.fixedDurationSeconds()
+				: parsed.durationSeconds();
+			if (request.durationScale() != null) {
+				duration = duration * request.durationScale();
+			}
+			return AnimationTypeReplace.apply(parsed, request.animationId(), duration);
+		}
+
 		float energy = request.energy() != null ? request.energy() : parsed.energy();
 		String animationType = request.animationId() != null && !request.animationId().isBlank()
 			? request.animationId()
@@ -1212,15 +1253,15 @@ public final class EventPropertiesPresenter {
 			duration = request.fixedDurationSeconds();
 		}
 
-        return new AnimationEventParams(
-            actionMode,
-            animationType,
-            parsed.targetObject(),
-            energy,
-            duration,
-            parsed.eventOrigin(),
-            parsed.extensions()
-        );
+		return new AnimationEventParams(
+			actionMode,
+			animationType,
+			parsed.targetObject(),
+			energy,
+			duration,
+			parsed.eventOrigin(),
+			parsed.extensions()
+		);
 	}
 
 	private static AnimationEventSnapshot withSingleEventTime(

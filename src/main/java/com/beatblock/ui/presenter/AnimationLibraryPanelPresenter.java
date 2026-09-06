@@ -68,14 +68,9 @@ public final class AnimationLibraryPanelPresenter {
 			tl,
 			selectionState,
 			commandManager,
-			new EventPropertiesPresenter.BatchAnimationEditRequest(
-				null,
+			EventPropertiesPresenter.BatchAnimationEditRequest.replaceAnimation(
 				preset.getId(),
-				null,
-				null,
-				null,
-				(double) preset.getDefaultDurationSeconds(),
-				null
+				preset.getDefaultDurationSeconds()
 			)
 		);
 		if (outcome.success()) {

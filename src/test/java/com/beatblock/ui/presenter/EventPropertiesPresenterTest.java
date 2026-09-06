@@ -457,6 +457,51 @@ class EventPropertiesPresenterTest {
 	}
 
 	@Test
+	void replaceAnimationTypeClearsTrajectoryParamsAndKeepsTargetEnergy() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 20.0);
+		var event = TimelineOperations.addEvent(
+			clip,
+			4.0,
+			EventType.ANIMATION,
+			Map.of(
+				"animationType", "RhythmDrop",
+				"targetObject", "building-a",
+				"energy", 0.55f,
+				"durationSeconds", 1.2,
+				"eventOrigin", "MANUAL",
+				"meteorHeight", 8.0,
+				"impactThreshold", 0.91,
+				"dispatchModel", "STEP",
+				"generatorId", "rhythm-drop"
+			)
+		);
+		SelectionState selection = editor.getSelectionState();
+		selection.selectEvent(event.getId());
+
+		var outcome = presenter.applyBatchAnimationEdit(
+			timeline,
+			selection,
+			commandManager,
+			EventPropertiesPresenter.BatchAnimationEditRequest.replaceAnimation("Pulse", 0.35)
+		);
+
+		assertTrue(outcome.success());
+		assertEquals(1, outcome.updatedCount());
+		assertEquals("Pulse", event.getParameters().get("animationType"));
+		assertEquals(0.35, ((Number) event.getParameters().get("durationSeconds")).doubleValue(), 1e-9);
+		assertEquals("building-a", event.getParameters().get("targetObject"));
+		assertEquals(0.55f, ((Number) event.getParameters().get("energy")).floatValue(), 1e-6f);
+		assertEquals("MANUAL", event.getParameters().get("eventOrigin"));
+		assertEquals("ANIMATE", event.getParameters().get("actionMode"));
+		assertEquals("rhythm-drop", event.getParameters().get("generatorId"));
+		assertFalse(event.getParameters().containsKey("meteorHeight"));
+		assertFalse(event.getParameters().containsKey("impactThreshold"));
+		assertFalse(event.getParameters().containsKey("dispatchModel"));
+		assertEquals(4.0, event.getTimeSeconds(), 1e-9);
+	}
+
+	@Test
 	void deleteCameraKeyframeUsesCommandAndSupportsUndo() {
 		Track camera = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
 		assertNotNull(camera);
