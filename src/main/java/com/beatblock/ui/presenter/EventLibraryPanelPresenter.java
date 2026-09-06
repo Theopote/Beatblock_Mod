@@ -1,5 +1,6 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.engine.AnimationLibrary;
 import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayerManager;
@@ -12,6 +13,9 @@ import com.beatblock.timeline.generation.AnimationMultiTargetDropPrompt;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.ui.eventlibrary.EventTemplate;
+import com.beatblock.ui.eventlibrary.EventTemplateHealth;
+import com.beatblock.ui.eventlibrary.EventTemplateItem;
+import com.beatblock.ui.eventlibrary.EventTemplateStatus;
 import com.beatblock.ui.eventlibrary.EventTemplateStore;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.notification.ToastNotificationSystem;
@@ -29,7 +33,7 @@ public final class EventLibraryPanelPresenter {
 		boolean libraryReady,
 		boolean hasSelection,
 		String selectedEventSummary,
-		List<EventTemplate> templates,
+		List<EventTemplateItem> templates,
 		String statusMessage,
 		String libraryErrorMessage
 	) {}
@@ -41,6 +45,7 @@ public final class EventLibraryPanelPresenter {
 	private final Supplier<TimelineEditor> timelineEditor;
 	private final Supplier<StageObjectSystem> stageObjectSystem;
 	private final Supplier<BuildLayerManager> layerManager;
+	private final Supplier<AnimationLibrary> animationLibrary;
 
 	private String statusMessage = "";
 
@@ -50,7 +55,7 @@ public final class EventLibraryPanelPresenter {
 		Supplier<TimelineEditor> timelineEditor,
 		Supplier<StageObjectSystem> stageObjectSystem
 	) {
-		this(eventPropertiesPresenter, timeline, timelineEditor, stageObjectSystem, () -> null);
+		this(eventPropertiesPresenter, timeline, timelineEditor, stageObjectSystem, () -> null, AnimationLibrary::new);
 	}
 
 	public EventLibraryPanelPresenter(
@@ -60,11 +65,23 @@ public final class EventLibraryPanelPresenter {
 		Supplier<StageObjectSystem> stageObjectSystem,
 		Supplier<BuildLayerManager> layerManager
 	) {
+		this(eventPropertiesPresenter, timeline, timelineEditor, stageObjectSystem, layerManager, AnimationLibrary::new);
+	}
+
+	public EventLibraryPanelPresenter(
+		EventPropertiesPresenter eventPropertiesPresenter,
+		Supplier<Timeline> timeline,
+		Supplier<TimelineEditor> timelineEditor,
+		Supplier<StageObjectSystem> stageObjectSystem,
+		Supplier<BuildLayerManager> layerManager,
+		Supplier<AnimationLibrary> animationLibrary
+	) {
 		this.eventPropertiesPresenter = eventPropertiesPresenter;
 		this.timeline = timeline;
 		this.timelineEditor = timelineEditor;
 		this.stageObjectSystem = stageObjectSystem;
 		this.layerManager = layerManager != null ? layerManager : () -> null;
+		this.animationLibrary = animationLibrary != null ? animationLibrary : AnimationLibrary::new;
 	}
 
 	public ViewState viewState() {
@@ -72,15 +89,25 @@ public final class EventLibraryPanelPresenter {
 		String libraryError = libraryReady
 			? ""
 			: BBTexts.get("beatblock.event_library.load_error");
+		List<EventTemplateItem> items = assessAll();
 		Timeline tl = timeline.get();
 		TimelineEditor editor = timelineEditor.get();
 		if (tl == null || editor == null) {
-			return new ViewState(false, libraryReady, false, "", EventTemplateStore.all(), statusMessage, libraryError);
+			return new ViewState(false, libraryReady, false, "", items, statusMessage, libraryError);
 		}
 		EventPropertiesRef ref = eventPropertiesPresenter.resolvePropertiesRef(tl, editor.getSelectionState());
 		boolean hasSelection = ref != null && ref.event() != null && ref.event().getType() == EventType.ANIMATION;
 		String summary = hasSelection ? summarize(ref) : "";
-		return new ViewState(true, libraryReady, hasSelection, summary, EventTemplateStore.all(), statusMessage, libraryError);
+		return new ViewState(true, libraryReady, hasSelection, summary, items, statusMessage, libraryError);
+	}
+
+	public List<EventTemplateItem> assessAll() {
+		AnimationLibrary library = libraryOrEmpty();
+		List<EventTemplateItem> items = new ArrayList<>();
+		for (EventTemplate template : EventTemplateStore.all()) {
+			items.add(EventTemplateHealth.assess(template, library));
+		}
+		return List.copyOf(items);
 	}
 
 	public ApplyOutcome saveFromSelection(String name) {
@@ -101,6 +128,13 @@ public final class EventLibraryPanelPresenter {
 			return fail(BBTexts.get("beatblock.event_library.no_selection"));
 		}
 		EventTemplate template = EventTemplate.fromAnimationEvent(animationEvent, name);
+		EventTemplateItem health = EventTemplateHealth.assess(template, libraryOrEmpty());
+		if (health.status() == EventTemplateStatus.MISSING_ANIMATION
+			|| health.status() == EventTemplateStatus.INVALID_PARAMETERS) {
+			return fail(health.warning().isBlank()
+				? BBTexts.get("beatblock.event_library.health.invalid_parameters")
+				: health.warning());
+		}
 		if (!EventTemplateStore.add(template)) {
 			return fail(BBTexts.get("beatblock.event_library.save_blocked"));
 		}
@@ -117,6 +151,12 @@ public final class EventLibraryPanelPresenter {
 		EventTemplate template = EventTemplateStore.find(templateId).orElse(null);
 		if (template == null) {
 			return fail(BBTexts.get("beatblock.event_library.template_missing"));
+		}
+		EventTemplateItem health = EventTemplateHealth.assess(template, libraryOrEmpty());
+		if (!health.canApply()) {
+			return fail(health.warning().isBlank()
+				? BBTexts.get("beatblock.event_library.apply_blocked")
+				: health.warning());
 		}
 		AnimationDropTargetResolver.Result targets = resolveDropTargets(editor.getSelectionState(), tl);
 		double timeSeconds = editor.getClock().getCurrentTimeSeconds();
@@ -197,6 +237,11 @@ public final class EventLibraryPanelPresenter {
 		}
 		statusMessage = BBTexts.get("beatblock.event_library.deleted");
 		return new ApplyOutcome(true, statusMessage);
+	}
+
+	private AnimationLibrary libraryOrEmpty() {
+		AnimationLibrary library = animationLibrary.get();
+		return library != null ? library : new AnimationLibrary();
 	}
 
 	private AnimationDropTargetResolver.Result resolveDropTargets(

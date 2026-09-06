@@ -2,6 +2,7 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockClientDriver;
+import com.beatblock.engine.AnimationLibrary;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.selection.BeatBlockSelectionManager;
@@ -311,7 +312,8 @@ public final class PresenterFactories {
 				var engine = context.blockAnimationEngine();
 				return engine != null ? engine.getStageObjectSystem() : null;
 			},
-			context::buildLayerManager
+			context::buildLayerManager,
+			AnimationLibrary::new
 		);
 	}
 

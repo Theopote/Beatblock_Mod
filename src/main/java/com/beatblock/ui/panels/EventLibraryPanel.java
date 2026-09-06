@@ -1,6 +1,7 @@
 package com.beatblock.ui.panels;
 
-import com.beatblock.ui.eventlibrary.EventTemplate;
+import com.beatblock.ui.eventlibrary.EventTemplateItem;
+import com.beatblock.ui.eventlibrary.EventTemplateStatus;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
@@ -12,6 +13,7 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
+import java.util.List;
 import java.util.Locale;
 
 /** 事件库：保存/复用动画事件配置模板。 */
@@ -93,41 +95,60 @@ public final class EventLibraryPanel {
 		if (!state.hasSelection()) ImGui.endDisabled();
 	}
 
-	private void renderTemplateList(java.util.List<EventTemplate> templates) {
+	private void renderTemplateList(List<EventTemplateItem> templates) {
 		ImGui.text(BBTexts.get("beatblock.event_library.list_section", templates.size()));
 		if (templates.isEmpty()) {
 			ImGui.textDisabled(BBTexts.get("beatblock.event_library.empty"));
 			return;
 		}
 		if (ImGui.beginChild("##eventLibList", 0, 0, true)) {
-			for (EventTemplate template : templates) {
-				renderTemplateRow(template);
+			for (EventTemplateItem item : templates) {
+				renderTemplateRow(item);
 			}
 		}
 		ImGui.endChild();
 	}
 
-	private void renderTemplateRow(EventTemplate template) {
-		String label = String.format(Locale.ROOT, "%s · %s (%.2fs, E=%.2f)##eventTpl_%s",
+	private void renderTemplateRow(EventTemplateItem item) {
+		var template = item.template();
+		String statusTag = statusTag(item.status());
+		String label = String.format(Locale.ROOT, "%s%s · %s (%.2fs, E=%.2f)##eventTpl_%s",
+			statusTag,
 			template.name(),
 			template.animationTypeId(),
 			template.durationSeconds(),
 			template.energy(),
 			template.id());
 		ImGui.text(label);
+		if (!item.warning().isBlank() && ImGui.isItemHovered()) {
+			ImGui.setTooltip(item.warning());
+		}
 		ImGui.sameLine();
+		boolean canApply = item.canApply();
+		if (!canApply) ImGui.beginDisabled();
 		if (ImGui.smallButton(BBTexts.get("beatblock.event_library.apply") + "##apply_" + template.id())) {
 			var outcome = presenter.applyTemplate(template.id());
 			notify(outcome);
 		}
+		if (!canApply) ImGui.endDisabled();
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(BBTexts.get("beatblock.event_library.apply.tooltip"));
+			ImGui.setTooltip(canApply
+				? BBTexts.get("beatblock.event_library.apply.tooltip")
+				: item.warning());
 		}
 		ImGui.sameLine();
 		if (ImGui.smallButton(BBTexts.get("beatblock.common.delete") + "##del_" + template.id())) {
 			var outcome = presenter.deleteTemplate(template.id());
 			notify(outcome);
 		}
+	}
+
+	private static String statusTag(EventTemplateStatus status) {
+		return switch (status) {
+			case VALID -> "";
+			case LEGACY -> "[!] ";
+			case MISSING_ANIMATION, INVALID_PARAMETERS -> "[x] ";
+		};
 	}
 
 	private static void notify(EventLibraryPanelPresenter.ApplyOutcome outcome) {

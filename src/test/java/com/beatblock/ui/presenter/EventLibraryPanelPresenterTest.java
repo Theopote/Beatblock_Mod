@@ -151,6 +151,26 @@ class EventLibraryPanelPresenterTest {
 	}
 
 	@Test
+	void applyBlocksWhenAnimationTypeMissingFromCatalog() {
+		EventTemplateStore.add(new EventTemplate(
+			"tpl-missing-anim",
+			"Ghost Wave",
+			"WaveV1",
+			0.4,
+			0.7f,
+			Map.of("actionMode", "ANIMATE", "animationType", "WaveV1", "eventOrigin", "MANUAL")
+		));
+
+		var outcome = presenter.applyTemplate("tpl-missing-anim");
+		assertFalse(outcome.success());
+		assertEquals(
+			BBTexts.get("beatblock.event_library.health.missing_animation", "WaveV1"),
+			outcome.message()
+		);
+		assertEquals(0, timeline.getBlockAnimationEvents().size());
+	}
+
+	@Test
 	void saveFromSelectionRequiresAnimationEvent() {
 		var outcome = presenter.saveFromSelection("Nope");
 		assertFalse(outcome.success());
