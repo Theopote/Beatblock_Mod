@@ -16,7 +16,12 @@ import imgui.type.ImString;
 import java.util.List;
 import java.util.Locale;
 
-/** 事件库：保存/复用动画事件配置模板。 */
+/**
+ * 事件库：保存/复用动画事件配置模板。
+ * <p>
+ * Broken templates (missing animation, etc.) stay visible with a warning;
+ * Insert is disabled, but Rename / Delete remain available.
+ */
 public final class EventLibraryPanel {
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
@@ -24,6 +29,8 @@ public final class EventLibraryPanel {
 
 	private final EventLibraryPanelPresenter presenter;
 	private final ImString saveNameBuffer = new ImString(NAME_CAPACITY);
+	private final ImString renameBuffer = new ImString(NAME_CAPACITY);
+	private String renamingTemplateId = "";
 
 	public EventLibraryPanel() {
 		this(PresenterFactories.eventLibraryPanelPresenter());
@@ -103,7 +110,10 @@ public final class EventLibraryPanel {
 		}
 		if (ImGui.beginChild("##eventLibList", 0, 0, true)) {
 			for (EventTemplateItem item : templates) {
+				ImGui.pushID(item.id());
 				renderTemplateRow(item);
+				ImGui.popID();
+				ImGui.separator();
 			}
 		}
 		ImGui.endChild();
@@ -111,44 +121,79 @@ public final class EventLibraryPanel {
 
 	private void renderTemplateRow(EventTemplateItem item) {
 		var template = item.template();
-		String statusTag = statusTag(item.status());
-		String label = String.format(Locale.ROOT, "%s%s · %s (%.2fs, E=%.2f)##eventTpl_%s",
-			statusTag,
-			template.name(),
-			template.animationTypeId(),
-			template.durationSeconds(),
-			template.energy(),
-			template.id());
-		ImGui.text(label);
-		if (!item.warning().isBlank() && ImGui.isItemHovered()) {
-			ImGui.setTooltip(item.warning());
-		}
-		ImGui.sameLine();
 		boolean canApply = item.canApply();
+		boolean unhealthy = item.status() != EventTemplateStatus.VALID;
+
+		if (unhealthy) {
+			ImGui.textWrapped("⚠ " + template.name());
+			if (!item.warning().isBlank()) {
+				ImGui.textWrapped(item.warning());
+			}
+			ImGui.textDisabled(String.format(Locale.ROOT, "%s · %.2fs · E=%.2f",
+				template.animationTypeId().isBlank() ? "—" : template.animationTypeId(),
+				template.durationSeconds(),
+				template.energy()));
+		} else {
+			ImGui.text(String.format(Locale.ROOT, "%s · %s (%.2fs, E=%.2f)",
+				template.name(),
+				template.animationTypeId(),
+				template.durationSeconds(),
+				template.energy()));
+		}
+
+		if (template.id().equals(renamingTemplateId)) {
+			renderRenameEditor(template.id());
+			return;
+		}
+
 		if (!canApply) ImGui.beginDisabled();
-		if (ImGui.smallButton(BBTexts.get("beatblock.event_library.apply") + "##apply_" + template.id())) {
-			var outcome = presenter.applyTemplate(template.id());
-			notify(outcome);
+		if (ImGui.smallButton(BBTexts.get("beatblock.event_library.apply"))) {
+			notify(presenter.applyTemplate(template.id()));
 		}
 		if (!canApply) ImGui.endDisabled();
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip(canApply
 				? BBTexts.get("beatblock.event_library.apply.tooltip")
-				: item.warning());
+				: (item.warning().isBlank()
+					? BBTexts.get("beatblock.event_library.apply_blocked")
+					: item.warning()));
 		}
+
 		ImGui.sameLine();
-		if (ImGui.smallButton(BBTexts.get("beatblock.common.delete") + "##del_" + template.id())) {
+		if (ImGui.smallButton(BBTexts.get("beatblock.event_library.rename"))) {
+			renamingTemplateId = template.id();
+			renameBuffer.set(template.name());
+		}
+
+		ImGui.sameLine();
+		if (ImGui.smallButton(BBTexts.get("beatblock.common.delete"))) {
 			var outcome = presenter.deleteTemplate(template.id());
 			notify(outcome);
+			if (outcome.success() && template.id().equals(renamingTemplateId)) {
+				cancelRename();
+			}
 		}
 	}
 
-	private static String statusTag(EventTemplateStatus status) {
-		return switch (status) {
-			case VALID -> "";
-			case LEGACY -> "[!] ";
-			case MISSING_ANIMATION, INVALID_PARAMETERS -> "[x] ";
-		};
+	private void renderRenameEditor(String templateId) {
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputTextWithHint("##eventLibRename", BBTexts.get("beatblock.event_library.name_hint"), renameBuffer);
+		if (ImGui.smallButton(BBTexts.get("beatblock.common.save") + "##renameSave")) {
+			var outcome = presenter.renameTemplate(templateId, renameBuffer.get());
+			notify(outcome);
+			if (outcome.success()) {
+				cancelRename();
+			}
+		}
+		ImGui.sameLine();
+		if (ImGui.smallButton(BBTexts.get("beatblock.common.cancel") + "##renameCancel")) {
+			cancelRename();
+		}
+	}
+
+	private void cancelRename() {
+		renamingTemplateId = "";
+		renameBuffer.set("");
 	}
 
 	private static void notify(EventLibraryPanelPresenter.ApplyOutcome outcome) {

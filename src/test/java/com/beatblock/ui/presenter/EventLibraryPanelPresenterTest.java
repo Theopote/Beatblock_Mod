@@ -168,6 +168,35 @@ class EventLibraryPanelPresenterTest {
 			outcome.message()
 		);
 		assertEquals(0, timeline.getBlockAnimationEvents().size());
+
+		assertTrue(presenter.assessAll().stream()
+			.anyMatch(item -> "tpl-missing-anim".equals(item.id())
+				&& item.status() == com.beatblock.ui.eventlibrary.EventTemplateStatus.MISSING_ANIMATION
+				&& !item.canApply()));
+	}
+
+	@Test
+	void renameKeepsBrokenTemplateInLibrary() {
+		EventTemplateStore.add(new EventTemplate(
+			"tpl-rename-broken",
+			"Old Wave Preset",
+			"WaveV1",
+			0.4,
+			0.7f,
+			Map.of("actionMode", "ANIMATE", "animationType", "WaveV1", "eventOrigin", "MANUAL")
+		));
+
+		var renamed = presenter.renameTemplate("tpl-rename-broken", "Keep Me Visible");
+		assertTrue(renamed.success());
+		assertEquals("Keep Me Visible", EventTemplateStore.find("tpl-rename-broken").orElseThrow().name());
+
+		var item = presenter.assessAll().stream()
+			.filter(i -> "tpl-rename-broken".equals(i.id()))
+			.findFirst()
+			.orElseThrow();
+		assertEquals(com.beatblock.ui.eventlibrary.EventTemplateStatus.MISSING_ANIMATION, item.status());
+		assertEquals("Keep Me Visible", item.template().name());
+		assertFalse(item.canApply());
 	}
 
 	@Test

@@ -47,6 +47,22 @@ class EventTemplateHealthTest {
 	}
 
 	@Test
+	void assessKeepsBrokenTemplatesVisibleInListSemantics() {
+		EventTemplate broken = new EventTemplate(
+			"keep-me", "Old Wave Preset", "WaveV1", 0.5, 0.7f,
+			Map.of("actionMode", "ANIMATE", "animationType", "WaveV1")
+		);
+		EventTemplateItem item = EventTemplateHealth.assess(broken, library);
+		assertEquals("Old Wave Preset", item.template().name());
+		assertEquals(EventTemplateStatus.MISSING_ANIMATION, item.status());
+		assertFalse(item.canApply());
+		assertEquals(
+			BBTexts.get("beatblock.event_library.health.missing_animation", "WaveV1"),
+			item.warning()
+		);
+	}
+
+	@Test
 	void invalidWhenTypeFieldAndParameterDisagree() {
 		EventTemplate template = new EventTemplate(
 			"t3", "Mismatch", "Pulse", 0.35, 0.8f,

@@ -93,6 +93,39 @@ public final class EventTemplateStore {
 		return save();
 	}
 
+	/**
+	 * Renames a template in place. Broken / missing-animation templates stay in the library.
+	 *
+	 * @return false when missing, blank name, not ready, or save blocked
+	 */
+	public static boolean rename(String id, String newName) {
+		if (id == null || id.isBlank()) {
+			return false;
+		}
+		String trimmed = newName != null ? newName.trim() : "";
+		if (trimmed.isEmpty()) {
+			return false;
+		}
+		ensureLoaded();
+		if (state != StoreState.READY) {
+			LOGGER.warn("Refusing to rename event template while store state is {}", state);
+			return false;
+		}
+		EventTemplate existing = templates.get(id);
+		if (existing == null) {
+			return false;
+		}
+		templates.put(id, new EventTemplate(
+			existing.id(),
+			trimmed,
+			existing.animationTypeId(),
+			existing.durationSeconds(),
+			existing.energy(),
+			existing.parameters()
+		));
+		return save();
+	}
+
 	private static void ensureLoaded() {
 		if (state != StoreState.NOT_LOADED) {
 			return;

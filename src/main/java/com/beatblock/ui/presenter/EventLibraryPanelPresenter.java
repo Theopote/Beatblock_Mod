@@ -239,6 +239,24 @@ public final class EventLibraryPanelPresenter {
 		return new ApplyOutcome(true, statusMessage);
 	}
 
+	public ApplyOutcome renameTemplate(String templateId, String newName) {
+		if (!EventTemplateStore.isReady()) {
+			return fail(BBTexts.get("beatblock.event_library.save_blocked"));
+		}
+		if (EventTemplateStore.find(templateId).isEmpty()) {
+			return fail(BBTexts.get("beatblock.event_library.template_missing"));
+		}
+		String trimmed = newName != null ? newName.trim() : "";
+		if (trimmed.isEmpty()) {
+			return fail(BBTexts.get("beatblock.event_library.rename_empty"));
+		}
+		if (!EventTemplateStore.rename(templateId, trimmed)) {
+			return fail(BBTexts.get("beatblock.event_library.save_blocked"));
+		}
+		statusMessage = BBTexts.get("beatblock.event_library.renamed", trimmed);
+		return new ApplyOutcome(true, statusMessage);
+	}
+
 	private AnimationLibrary libraryOrEmpty() {
 		AnimationLibrary library = animationLibrary.get();
 		return library != null ? library : new AnimationLibrary();
