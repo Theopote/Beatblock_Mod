@@ -1,37 +1,49 @@
 package com.beatblock.ui.eventlibrary;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.reflect.TypeToken;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-/** 事件模板持久化：config/beatblock/event_templates.json */
+/**
+ * Event template library: {@code config/beatblock/event_templates.json}.
+ * <p>
+ * On load failure the on-disk file is never overwritten — see {@link StoreState#LOAD_ERROR}.
+ */
 public final class EventTemplateStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(EventTemplateStore.class);
-	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-	private static final Type PARAM_MAP_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
+
+	public enum StoreState {
+		NOT_LOADED,
+		READY,
+		LOAD_ERROR
+	}
 
 	private static final LinkedHashMap<String, EventTemplate> templates = new LinkedHashMap<>();
-	private static boolean loaded;
+	private static StoreState state = StoreState.NOT_LOADED;
+	private static String loadErrorDetail = "";
 
 	private EventTemplateStore() {
+	}
+
+	public static StoreState state() {
+		ensureLoaded();
+		return state;
+	}
+
+	public static boolean isReady() {
+		return state() == StoreState.READY;
+	}
+
+	/** Non-empty when {@link #state()} is {@link StoreState#LOAD_ERROR}. */
+	public static String loadErrorDetail() {
+		ensureLoaded();
+		return loadErrorDetail;
 	}
 
 	public static List<EventTemplate> all() {
@@ -47,93 +59,93 @@ public final class EventTemplateStore {
 		return Optional.ofNullable(templates.get(id));
 	}
 
-	public static void add(EventTemplate template) {
+	/**
+	 * @return false when library is not {@link StoreState#READY} (including load error — file untouched)
+	 */
+	public static boolean add(EventTemplate template) {
 		if (template == null) {
-			return;
+			return false;
 		}
 		ensureLoaded();
+		if (state != StoreState.READY) {
+			LOGGER.warn("Refusing to add event template while store state is {}", state);
+			return false;
+		}
 		templates.put(template.id(), template);
-		save();
+		return save();
 	}
 
+	/**
+	 * @return false when missing, not ready, or save blocked
+	 */
 	public static boolean remove(String id) {
 		if (id == null || id.isBlank()) {
 			return false;
 		}
 		ensureLoaded();
+		if (state != StoreState.READY) {
+			LOGGER.warn("Refusing to remove event template while store state is {}", state);
+			return false;
+		}
 		if (templates.remove(id) == null) {
 			return false;
 		}
-		save();
-		return true;
+		return save();
 	}
 
 	private static void ensureLoaded() {
-		if (loaded) {
+		if (state != StoreState.NOT_LOADED) {
 			return;
 		}
-		loaded = true;
 		Path path = storePath();
-		if (!Files.isRegularFile(path)) {
-			return;
-		}
-		try {
-			String json = Files.readString(path, StandardCharsets.UTF_8);
-			JsonArray array = JsonParser.parseString(json).getAsJsonArray();
-			templates.clear();
-			for (JsonElement element : array) {
-				EventTemplate template = parseTemplate(element.getAsJsonObject());
-				if (template != null) {
-					templates.put(template.id(), template);
+		EventTemplatePersistence.LoadResult result = EventTemplatePersistence.read(path);
+		switch (result.status()) {
+			case MISSING -> {
+				templates.clear();
+				loadErrorDetail = "";
+				state = StoreState.READY;
+			}
+			case ERROR -> {
+				templates.clear();
+				loadErrorDetail = result.errorMessage() != null ? result.errorMessage() : "unknown";
+				state = StoreState.LOAD_ERROR;
+				LOGGER.warn("Failed to load event templates from {}: {}", path, loadErrorDetail);
+			}
+			case OK -> {
+				templates.clear();
+				for (EventTemplate template : result.templates()) {
+					if (template != null) {
+						templates.put(template.id(), template);
+					}
+				}
+				loadErrorDetail = "";
+				state = StoreState.READY;
+				if (result.needsRewrite()) {
+					if (!save()) {
+						LOGGER.warn("Loaded event templates from {} but failed to rewrite as schema v{}",
+							path, EventTemplatePersistence.SCHEMA_VERSION);
+					}
 				}
 			}
-		} catch (Exception e) {
-			LOGGER.warn("Failed to load event templates from {}", path, e);
 		}
 	}
 
-	private static EventTemplate parseTemplate(JsonObject obj) {
-		if (obj == null) {
-			return null;
+	private static boolean save() {
+		if (state != StoreState.READY) {
+			LOGGER.warn("Refusing to save event templates while store state is {}", state);
+			return false;
 		}
-		String id = stringOrEmpty(obj, "id");
-		String name = stringOrEmpty(obj, "name");
-		String animationTypeId = stringOrEmpty(obj, "animationTypeId");
-		double duration = obj.has("durationSeconds") ? obj.get("durationSeconds").getAsDouble() : 0.5;
-		float energy = obj.has("energy") ? obj.get("energy").getAsFloat() : 0.7f;
-		Map<String, Object> params = obj.has("parameters")
-			? GSON.fromJson(obj.get("parameters"), PARAM_MAP_TYPE)
-			: Map.of();
-		return new EventTemplate(id, name, animationTypeId, duration, energy, params);
-	}
-
-	private static String stringOrEmpty(JsonObject obj, String key) {
-		return obj.has(key) && obj.get(key).isJsonPrimitive() ? obj.get(key).getAsString() : "";
-	}
-
-	private static void save() {
 		Path path = storePath();
 		try {
-			JsonArray array = new JsonArray();
-			for (EventTemplate template : templates.values()) {
-				JsonObject obj = new JsonObject();
-				obj.addProperty("id", template.id());
-				obj.addProperty("name", template.name());
-				obj.addProperty("animationTypeId", template.animationTypeId());
-				obj.addProperty("durationSeconds", template.durationSeconds());
-				obj.addProperty("energy", template.energy());
-				obj.add("parameters", GSON.toJsonTree(template.parameters()));
-				array.add(obj);
-			}
-			Path parent = path.getParent();
-			if (parent != null) Files.createDirectories(parent);
-			Files.writeString(path, GSON.toJson(array), StandardCharsets.UTF_8);
+			EventTemplatePersistence.writeAtomically(path, List.copyOf(templates.values()));
+			return true;
 		} catch (Exception e) {
 			LOGGER.warn("Failed to save event templates to {}", path, e);
+			return false;
 		}
 	}
 
-	private static Path storePath() {
+	static Path storePath() {
 		String overrideDir = System.getProperty("beatblock.test.configDir");
 		if (overrideDir != null && !overrideDir.isBlank()) {
 			return Path.of(overrideDir).resolve("event_templates.json");
@@ -145,6 +157,7 @@ public final class EventTemplateStore {
 	/** Clears in-memory state so unit tests with a fresh configDir start clean. */
 	public static void resetForTests() {
 		templates.clear();
-		loaded = false;
+		state = StoreState.NOT_LOADED;
+		loadErrorDetail = "";
 	}
 }

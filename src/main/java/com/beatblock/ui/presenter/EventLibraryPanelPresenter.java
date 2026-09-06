@@ -26,10 +26,12 @@ public final class EventLibraryPanelPresenter {
 
 	public record ViewState(
 		boolean editorReady,
+		boolean libraryReady,
 		boolean hasSelection,
 		String selectedEventSummary,
 		List<EventTemplate> templates,
-		String statusMessage
+		String statusMessage,
+		String libraryErrorMessage
 	) {}
 
 	public record ApplyOutcome(boolean success, String message) {}
@@ -66,18 +68,25 @@ public final class EventLibraryPanelPresenter {
 	}
 
 	public ViewState viewState() {
+		boolean libraryReady = EventTemplateStore.isReady();
+		String libraryError = libraryReady
+			? ""
+			: BBTexts.get("beatblock.event_library.load_error");
 		Timeline tl = timeline.get();
 		TimelineEditor editor = timelineEditor.get();
 		if (tl == null || editor == null) {
-			return new ViewState(false, false, "", EventTemplateStore.all(), statusMessage);
+			return new ViewState(false, libraryReady, false, "", EventTemplateStore.all(), statusMessage, libraryError);
 		}
 		EventPropertiesRef ref = eventPropertiesPresenter.resolvePropertiesRef(tl, editor.getSelectionState());
 		boolean hasSelection = ref != null && ref.event() != null && ref.event().getType() == EventType.ANIMATION;
 		String summary = hasSelection ? summarize(ref) : "";
-		return new ViewState(true, hasSelection, summary, EventTemplateStore.all(), statusMessage);
+		return new ViewState(true, libraryReady, hasSelection, summary, EventTemplateStore.all(), statusMessage, libraryError);
 	}
 
 	public ApplyOutcome saveFromSelection(String name) {
+		if (!EventTemplateStore.isReady()) {
+			return fail(BBTexts.get("beatblock.event_library.save_blocked"));
+		}
 		Timeline tl = timeline.get();
 		TimelineEditor editor = timelineEditor.get();
 		if (tl == null || editor == null) {
@@ -92,7 +101,9 @@ public final class EventLibraryPanelPresenter {
 			return fail(BBTexts.get("beatblock.event_library.no_selection"));
 		}
 		EventTemplate template = EventTemplate.fromAnimationEvent(animationEvent, name);
-		EventTemplateStore.add(template);
+		if (!EventTemplateStore.add(template)) {
+			return fail(BBTexts.get("beatblock.event_library.save_blocked"));
+		}
 		statusMessage = BBTexts.get("beatblock.event_library.saved", template.name());
 		return new ApplyOutcome(true, statusMessage);
 	}
@@ -178,6 +189,9 @@ public final class EventLibraryPanelPresenter {
 	}
 
 	public ApplyOutcome deleteTemplate(String templateId) {
+		if (!EventTemplateStore.isReady()) {
+			return fail(BBTexts.get("beatblock.event_library.save_blocked"));
+		}
 		if (!EventTemplateStore.remove(templateId)) {
 			return fail(BBTexts.get("beatblock.event_library.template_missing"));
 		}

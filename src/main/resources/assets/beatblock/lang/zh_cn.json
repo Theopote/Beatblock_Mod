@@ -1321,6 +1321,8 @@
   "beatblock.event_library.deleted": "模板已删除",
   "beatblock.event_library.template_missing": "模板不存在",
   "beatblock.event_library.apply_failed": "插入失败",
+  "beatblock.event_library.load_error": "事件模板库无法加载。现有文件未被覆盖。",
+  "beatblock.event_library.save_blocked": "模板库加载失败，无法保存。",
   "beatblock.performance.title": "性能监控",
   "beatblock.performance.fps": "UI 帧率：%.1f FPS",
   "beatblock.performance.memory": "堆内存：%d / %d MB",

@@ -1321,6 +1321,8 @@
   "beatblock.event_library.deleted": "Template deleted",
   "beatblock.event_library.template_missing": "Template not found",
   "beatblock.event_library.apply_failed": "Insert failed",
+  "beatblock.event_library.load_error": "Event template library could not be loaded. Your existing file has not been overwritten.",
+  "beatblock.event_library.save_blocked": "Cannot save while the template library failed to load.",
   "beatblock.performance.title": "Performance Monitor",
   "beatblock.performance.fps": "UI frame rate: %.1f FPS",
   "beatblock.performance.memory": "Heap: %d / %d MB",

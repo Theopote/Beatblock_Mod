@@ -45,6 +45,16 @@ public final class EventLibraryPanel {
 			ImGui.separator();
 			ImGui.textWrapped(BBTexts.get("beatblock.event_library.hint"));
 
+			if (!state.libraryReady()) {
+				ImGui.spacing();
+				ImGui.textWrapped(state.libraryErrorMessage());
+				if (!state.statusMessage().isBlank()) {
+					ImGui.spacing();
+					ImGui.textWrapped(state.statusMessage());
+				}
+				return;
+			}
+
 			if (!state.editorReady()) {
 				ImGui.textDisabled(BBTexts.get("beatblock.common.timeline_not_initialized"));
 				return;
