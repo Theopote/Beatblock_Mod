@@ -47,7 +47,7 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 	}
 
 	public static String markerPanelWindow() {
-		return BBTexts.windowTitle("beatblock.panel.marker_debug", MARKER_PANEL_ID);
+		return BBTexts.windowTitle("beatblock.panel.marker", MARKER_PANEL_ID);
 	}
 
 	public static String timelinePropertiesWindow() {

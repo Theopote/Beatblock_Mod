@@ -47,6 +47,15 @@ class MusicTimeFormatterTest {
 	}
 
 	@Test
+	void formatMarkerPositionUsesBarBeatCue() {
+		assertEquals(
+			BBTexts.get("beatblock.marker.position_bar_beat", 12, 1),
+			MusicTimeFormatter.formatMarkerPosition(22.0, 120)
+		);
+		assertEquals("", MusicTimeFormatter.formatMarkerPosition(1.0, 0));
+	}
+
+	@Test
 	void barAndBeatNumbers() {
 		assertEquals(2, MusicTimeFormatter.barNumber(2.0, 120));
 		assertEquals(2, MusicTimeFormatter.beatNumber(2.5, 120));

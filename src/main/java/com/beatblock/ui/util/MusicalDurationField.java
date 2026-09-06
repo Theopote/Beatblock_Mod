@@ -11,6 +11,8 @@ import imgui.type.ImInt;
  */
 public final class MusicalDurationField {
 
+	private static final double DEFAULT_MIN_SECONDS = 0.05;
+
 	private final float[] amount = new float[]{0f};
 	private final ImInt unitIndex = new ImInt(0);
 	private double seconds;
@@ -41,21 +43,31 @@ public final class MusicalDurationField {
 	}
 
 	/**
-	 * Renders the control. Returns true when the user changed amount or unit.
+	 * Renders the control (minimum 0.05s — suitable for durations). Returns true when changed.
 	 */
 	public boolean render(String id, String label, double bpm) {
+		return render(id, label, bpm, DEFAULT_MIN_SECONDS);
+	}
+
+	/**
+	 * Renders the control. Returns true when the user changed amount or unit.
+	 *
+	 * @param minSeconds lower clamp for stored seconds (use {@code 0} for absolute timeline positions)
+	 */
+	public boolean render(String id, String label, double bpm, double minSeconds) {
 		boolean changed = false;
 		MusicalDurationUnit unit = unit();
+		double floor = Math.max(0.0, minSeconds);
 		float speed = switch (unit) {
 			case SECONDS -> 0.05f;
 			case BEATS, BARS -> 0.25f;
 		};
-		float min = unit == MusicalDurationUnit.SECONDS ? 0.05f : 0.0f;
+		float dragMin = unit == MusicalDurationUnit.SECONDS ? (float) floor : 0.0f;
 
 		ImGui.text(label);
 		ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.55f);
-		if (ImGui.dragFloat("##" + id + "Amt", amount, speed, min, 1.0e6f, "%.2f")) {
-			seconds = Math.max(0.05, unit.toSeconds(amount[0], bpm));
+		if (ImGui.dragFloat("##" + id + "Amt", amount, speed, dragMin, 1.0e6f, "%.2f")) {
+			seconds = Math.max(floor, unit.toSeconds(amount[0], bpm));
 			changed = true;
 		}
 		ImGui.sameLine();

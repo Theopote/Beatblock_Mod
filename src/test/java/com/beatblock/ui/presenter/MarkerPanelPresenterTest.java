@@ -63,6 +63,18 @@ class MarkerPanelPresenterTest {
 	}
 
 	@Test
+	void applyMarkerEditAcceptsResolvedSeconds() {
+		TimelineMarker marker = new TimelineMarker(1.0, "A", MarkerType.GENERIC);
+		timeline.addMarker(marker);
+
+		var outcome = presenter.applyMarkerEdit(
+			timeline, marker.getId(), "A", 4.0, MarkerType.GENERIC.ordinal(), false);
+		assertTrue(outcome.result().ok());
+		assertEquals(4.0, presenter.findMarker(timeline, marker.getId()).getTimeSeconds(), 1e-9);
+		assertEquals("4.000", outcome.formSnapshot().timeText());
+	}
+
+	@Test
 	void applyMarkerEditRejectsInvalidTime() {
 		TimelineMarker marker = new TimelineMarker(1.0, "A", MarkerType.GENERIC);
 		timeline.addMarker(marker);

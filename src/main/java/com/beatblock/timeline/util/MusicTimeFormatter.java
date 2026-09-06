@@ -51,6 +51,21 @@ public final class MusicTimeFormatter {
 	}
 
 	/**
+	 * Marker / cue 友好位置：{@code Position: Bar 12 · Beat 1}。
+	 * bpm ≤ 0 时返回空串。
+	 */
+	public static String formatMarkerPosition(double seconds, double bpm) {
+		if (bpm <= 0) {
+			return "";
+		}
+		return BBTexts.get(
+			"beatblock.marker.position_bar_beat",
+			barNumber(seconds, bpm),
+			beatNumber(seconds, bpm)
+		);
+	}
+
+	/**
 	 * 工具栏右侧完整位置显示。
 	 * 有 BPM → "1:03 / 3:42  |  Bar 4 Beat 2"
 	 * 无 BPM → "1:03 / 3:42"

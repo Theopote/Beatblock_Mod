@@ -5,12 +5,10 @@ import com.beatblock.automap.choreography.ChoreographyPlanEditor;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.choreography.SectionPlanSource;
 import com.beatblock.timeline.MarkerEditPolicy;
-import com.beatblock.timeline.MarkerType;
+import com.beatblock.timeline.MarkerSemanticService;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
 import org.jspecify.annotations.Nullable;
-
-import java.util.Locale;
 
 /**
  * SECTION Marker ↔ {@link ChoreographyPlan} 防漂移桥接（非重构，非双向 SoT）。
@@ -164,17 +162,6 @@ public final class SectionMarkerStructureBridge {
 	}
 
 	static String extractSectionLabel(@Nullable String markerName) {
-		if (markerName == null) {
-			return "";
-		}
-		String raw = markerName.trim();
-		if (raw.isBlank()) {
-			return "";
-		}
-		String upper = raw.toUpperCase(Locale.ROOT);
-		if (upper.startsWith("SECTION ")) {
-			raw = raw.substring("SECTION ".length()).trim();
-		}
-		return raw;
+		return MarkerSemanticService.extractSectionLabel(markerName);
 	}
 }

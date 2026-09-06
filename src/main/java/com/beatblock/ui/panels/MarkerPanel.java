@@ -1,17 +1,19 @@
 package com.beatblock.ui.panels;
 
-import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.MarkerEditState;
 import com.beatblock.timeline.MarkerOrigin;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.marker.MarkerFocusRequest;
+import com.beatblock.timeline.util.MusicTimeFormatter;
+import com.beatblock.timeline.util.MusicalDurationUnit;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.presenter.MarkerPanelPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.util.MusicalDurationField;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
@@ -20,8 +22,10 @@ import imgui.type.ImInt;
 import imgui.type.ImString;
 
 /**
- * 标记与调试面板：时间线 Marker 的列表、编辑、跳转、循环区设置；以及时间线动作执行状态调试信息。
- * 从 ToolPanel 拆分而来，独占左侧下方停靠槽。
+ * Marker Creator 面板：列表、编辑、跳转与循环区。不含运行时诊断（见 {@link PerformanceMonitorPanel}）。
+ * <p>
+ * 时间编辑支持 Seconds / Beats / Bars（与 Camera/VFX 一致），并以 Bar · Beat 显示位置；
+ * Timeline 仍只存储秒。
  */
 public class MarkerPanel {
 
@@ -31,8 +35,9 @@ public class MarkerPanel {
 
 	private final MarkerPanelPresenter presenter;
 	private String selectedMarkerId;
+	private String boundTimeMarkerId;
 	private final ImString markerNameBuffer = new ImString(128);
-	private final ImString markerTimeBuffer = new ImString(32);
+	private final MusicalDurationField timeField = new MusicalDurationField();
 	private final ImInt markerTypeIndex = new ImInt(0);
 	private int pendingTypeIndex = -1;
 	private boolean focusNameField;
@@ -56,7 +61,6 @@ public class MarkerPanel {
 			return;
 		}
 		try {
-			renderLastActionExecutionStatus();
 			renderMarkerManager();
 			renderStructuralConfirmPopups();
 		} finally {
@@ -64,36 +68,9 @@ public class MarkerPanel {
 		}
 	}
 
-	private void renderLastActionExecutionStatus() {
-		ImGui.text(BBTexts.get("beatblock.marker.timeline_actions"));
-		ImGui.separator();
-
-		BeatBlockClientDriver.TimelineActionExecutionReport report = presenter.lastActionExecutionReport();
-		if (report == null) {
-			ImGui.textDisabled(BBTexts.get("beatblock.marker.no_execution_record"));
-		} else {
-			long ageMs = Math.max(0L, System.currentTimeMillis() - report.timestampMs());
-			ImGui.textDisabled(BBTexts.get("beatblock.marker.execution_summary",
-				report.actionMode().name(),
-				report.status(),
-				report.mutationCount(),
-				ageMs));
-			if (report.detail() != null && !report.detail().isBlank()) {
-				ImGui.textWrapped(BBTexts.get("beatblock.marker.detail", report.detail()));
-			}
-			if (report.targetObjectId() != null && !report.targetObjectId().isBlank()) {
-				ImGui.textDisabled(BBTexts.get("beatblock.marker.target", report.targetObjectId()));
-			}
-			if (report.eventId() != null && !report.eventId().isBlank()) {
-				ImGui.textDisabled(BBTexts.get("beatblock.marker.event_id", report.eventId()));
-			}
-		}
-	}
-
 	private void renderMarkerManager() {
 		Timeline timeline = presenter.currentTimeline();
 
-		ImGui.spacing();
 		ImGui.text(BBTexts.get("beatblock.marker.timeline_markers"));
 		ImGui.separator();
 
@@ -107,12 +84,14 @@ public class MarkerPanel {
 
 		if (timeline.getMarkers().isEmpty()) {
 			selectedMarkerId = null;
+			boundTimeMarkerId = null;
 			ImGui.textDisabled(BBTexts.get("beatblock.marker.no_markers_hint"));
 			return;
 		}
 
 		if (selectedMarkerId != null && !presenter.markerExists(timeline, selectedMarkerId)) {
 			selectedMarkerId = null;
+			boundTimeMarkerId = null;
 		}
 
 		if (ImGui.beginChild("##MarkerList", 0, 110, true)) {
@@ -172,8 +151,8 @@ public class MarkerPanel {
 		}
 		ImGui.setNextItemWidth(-1);
 		ImGui.inputText(BBTexts.get("beatblock.marker.name") + "##markerName", markerNameBuffer);
-		ImGui.setNextItemWidth(-1);
-		ImGui.inputText(BBTexts.get("beatblock.marker.time_seconds") + "##markerTime", markerTimeBuffer);
+		syncTimeField(marker, timeline);
+		renderMarkerTime(timeline);
 		markerTypeIndex.set(MarkerPanelPresenter.clampTypeIndex(marker.getType().ordinal()));
 		if (ImGui.combo(BBTexts.get("beatblock.marker.type") + "##markerType", markerTypeIndex, MARKER_TYPE_LABELS)) {
 			if (presenter.requiresTypeChangeConfirm(marker, markerTypeIndex.get())) {
@@ -194,6 +173,7 @@ public class MarkerPanel {
 				ImGui.openPopup(POPUP_STRUCTURAL_DELETE);
 			} else if (presenter.deleteMarker(timeline, selectedMarkerId, false).ok()) {
 				selectedMarkerId = null;
+				boundTimeMarkerId = null;
 			}
 		}
 		if (locked) {
@@ -274,6 +254,7 @@ public class MarkerPanel {
 				if (timeline != null && selectedMarkerId != null
 					&& presenter.deleteMarker(timeline, selectedMarkerId, true).ok()) {
 					selectedMarkerId = null;
+					boundTimeMarkerId = null;
 				}
 				ImGui.closeCurrentPopup();
 			}
@@ -311,19 +292,58 @@ public class MarkerPanel {
 			timeline,
 			markerId,
 			markerNameBuffer.get(),
-			markerTimeBuffer.get(),
+			timeField.seconds(),
 			markerTypeIndex.get(),
 			structuralConfirmed
 		);
 		if (outcome.formSnapshot() != null) {
-			applyFormSnapshot(outcome.formSnapshot());
+			applyFormSnapshot(outcome.formSnapshot(), timeline);
 		}
 	}
 
 	private void applyFormSnapshot(MarkerPanelPresenter.MarkerFormSnapshot snapshot) {
+		applyFormSnapshot(snapshot, presenter.currentTimeline());
+	}
+
+	private void applyFormSnapshot(MarkerPanelPresenter.MarkerFormSnapshot snapshot, Timeline timeline) {
 		markerNameBuffer.set(snapshot.name());
-		markerTimeBuffer.set(snapshot.timeText());
 		markerTypeIndex.set(snapshot.typeIndex());
+		double bpm = MusicalDurationUnit.effectiveBpm(timeline != null ? timeline.getBpm() : 0.0);
+		double seconds;
+		try {
+			seconds = Double.parseDouble(snapshot.timeText());
+		} catch (NumberFormatException ex) {
+			seconds = 0.0;
+		}
+		timeField.setFromSeconds(seconds, timeField.unit(), bpm);
+		boundTimeMarkerId = selectedMarkerId;
+	}
+
+	private void syncTimeField(TimelineMarker marker, Timeline timeline) {
+		if (marker == null) {
+			return;
+		}
+		if (marker.getId().equals(boundTimeMarkerId)) {
+			return;
+		}
+		double bpm = MusicalDurationUnit.effectiveBpm(timeline != null ? timeline.getBpm() : 0.0);
+		timeField.setFromSeconds(marker.getTimeSeconds(), timeField.unit(), bpm);
+		boundTimeMarkerId = marker.getId();
+	}
+
+	private void renderMarkerTime(Timeline timeline) {
+		double timelineBpm = timeline != null ? timeline.getBpm() : 0.0;
+		double editBpm = MusicalDurationUnit.effectiveBpm(timelineBpm);
+		String position = MusicTimeFormatter.formatMarkerPosition(timeField.seconds(), timelineBpm);
+		if (!position.isBlank()) {
+			ImGui.textDisabled(position);
+		} else {
+			ImGui.textDisabled(BBTexts.get(
+				"beatblock.marker.position_seconds",
+				MarkerPanelPresenter.formatTime(timeField.seconds())
+			));
+		}
+		timeField.render("markerTime", BBTexts.get("beatblock.marker.time"), editBpm, 0.0);
 	}
 
 	private static String originLabel(MarkerOrigin origin) {

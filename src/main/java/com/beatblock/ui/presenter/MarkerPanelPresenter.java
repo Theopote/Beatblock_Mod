@@ -1,6 +1,5 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.timeline.MarkerEditPolicy;
 import com.beatblock.timeline.MarkerEditState;
 import com.beatblock.timeline.MarkerOrigin;
@@ -21,7 +20,7 @@ import java.util.Locale;
 import java.util.function.Supplier;
 
 /**
- * Marker 面板业务逻辑：列表、编辑、删除与相邻 Marker 查询。
+ * Marker Creator 面板业务逻辑：列表、编辑、删除与相邻 Marker 查询。
  */
 public final class MarkerPanelPresenter {
 
@@ -63,10 +62,6 @@ public final class MarkerPanelPresenter {
 
 	public TimelineEditorPresenter editorPresenter() {
 		return editorPresenter;
-	}
-
-	public BeatBlockClientDriver.TimelineActionExecutionReport lastActionExecutionReport() {
-		return BeatBlockClientDriver.getLastTimelineActionExecutionReport();
 	}
 
 	public List<MarkerListItem> listMarkers(Timeline timeline) {
@@ -130,14 +125,6 @@ public final class MarkerPanelPresenter {
 		if (marker == null) {
 			return new MarkerEditOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.marker_not_found")), null);
 		}
-		if (MarkerEditPolicy.isLocked(marker)) {
-			return new MarkerEditOutcome(
-				PresenterResult.failure(BBTexts.get("beatblock.message.marker_locked")),
-				formSnapshotFor(marker)
-			);
-		}
-
-		String name = rawName != null ? rawName.trim() : "";
 		double timeSeconds = marker.getTimeSeconds();
 		try {
 			if (rawTime != null && !rawTime.isBlank()) {
@@ -149,6 +136,37 @@ public final class MarkerPanelPresenter {
 				formSnapshotFor(marker)
 			);
 		}
+		return applyMarkerEdit(timeline, markerId, rawName, timeSeconds, typeIndex, structuralConfirmed);
+	}
+
+	/**
+	 * Apply marker edits with an already-resolved timeline time in seconds
+	 * (e.g. from {@link com.beatblock.ui.util.MusicalDurationField}).
+	 */
+	public MarkerEditOutcome applyMarkerEdit(
+		Timeline timeline,
+		String markerId,
+		String rawName,
+		double timeSeconds,
+		int typeIndex,
+		boolean structuralConfirmed
+	) {
+		if (timeline == null || markerId == null || markerId.isBlank()) {
+			return new MarkerEditOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.no_marker")), null);
+		}
+		TimelineMarker marker = findMarker(timeline, markerId);
+		if (marker == null) {
+			return new MarkerEditOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.marker_not_found")), null);
+		}
+		if (MarkerEditPolicy.isLocked(marker)) {
+			return new MarkerEditOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.marker_locked")),
+				formSnapshotFor(marker)
+			);
+		}
+
+		String name = rawName != null ? rawName.trim() : "";
+		double safeTime = Math.max(0.0, timeSeconds);
 
 		MarkerType type = MarkerType.values()[clampTypeIndex(typeIndex)];
 		if (type != marker.getType()
@@ -160,7 +178,7 @@ public final class MarkerPanelPresenter {
 			);
 		}
 
-		TimelineMarker after = marker.withFields(timeSeconds, name, type, true);
+		TimelineMarker after = marker.withFields(safeTime, name, type, true);
 		executeUpdate(timeline, marker, after);
 		TimelineMarker updated = findMarker(timeline, markerId);
 		return new MarkerEditOutcome(
