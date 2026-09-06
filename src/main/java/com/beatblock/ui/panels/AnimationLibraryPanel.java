@@ -220,7 +220,9 @@ public class AnimationLibraryPanel {
 		}
 		if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
 			ImGui.setDragDropPayload(ANIMATION_PRESET_PAYLOAD_TYPE, presetId);
-			ImGui.text(preset.getDisplayName() + " (" + String.format(Locale.ROOT, "%.2fs", preset.getDefaultDurationSeconds()) + ")");
+			ImGui.text(preset.getDisplayName());
+			ImGui.text(String.format(Locale.ROOT, "%.2fs", preset.getDefaultDurationSeconds()));
+			ImGui.textDisabled(BBTexts.get("beatblock.animation_library.drag_hint"));
 			ImGui.endDragDropSource();
 		}
 	}

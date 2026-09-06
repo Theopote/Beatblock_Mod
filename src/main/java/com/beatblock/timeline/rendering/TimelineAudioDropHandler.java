@@ -15,6 +15,7 @@ import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.editor.TimelineViewState;
 import com.beatblock.timeline.generation.AnimationDropTargetResolver;
 import com.beatblock.timeline.generation.AnimationMultiTargetDropPrompt;
+import com.beatblock.timeline.generation.AnimationPresetDropPreview;
 import com.beatblock.timeline.generation.AnimationPresetEventWriter;
 import com.beatblock.timeline.interaction.DragController;
 import com.beatblock.ui.i18n.BBTexts;
@@ -126,32 +127,81 @@ public final class TimelineAudioDropHandler {
 		if (!ImGui.beginDragDropTarget()) {
 			return;
 		}
-		byte[] audioPayload = ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID");
-		if (audioPayload != null) {
-			String assetId = new String(audioPayload, StandardCharsets.UTF_8).trim();
-			AudioAsset asset = AudioAssetManager.getInstance().findById(assetId);
-			if (asset == null) {
-				asset = AudioAssetManager.getInstance().getCurrentDragAsset();
+		try {
+			Object peekPreset = ImGui.acceptDragDropPayload(
+				ANIMATION_PRESET_PAYLOAD_TYPE,
+				imgui.flag.ImGuiDragDropFlags.AcceptBeforeDelivery
+					| imgui.flag.ImGuiDragDropFlags.AcceptNoPreviewTooltip
+			);
+			if (peekPreset != null) {
+				String peekId = decodeStringPayload(peekPreset);
+				if (!peekId.isBlank()) {
+					renderAnimationPresetDropPreview(
+						host,
+						timeline,
+						layout,
+						viewState,
+						toolbarState,
+						interactionState,
+						selectionState,
+						peekId
+					);
+					if (ImGui.isMouseReleased(0)) {
+						handleDroppedAnimationPreset(
+							host,
+							timeline,
+							dropTargetRowIndex,
+							layout,
+							viewState,
+							toolbarState,
+							interactionState,
+							selectionState,
+							peekId
+						);
+					}
+				}
+				return;
 			}
-			handleDroppedAudioAsset(host, timeline, asset, dropTargetRowIndex);
-		} else {
-			Object presetPayload = ImGui.acceptDragDropPayload(ANIMATION_PRESET_PAYLOAD_TYPE);
-			String presetId = decodeStringPayload(presetPayload);
-			if (!presetId.isBlank()) {
-				handleDroppedAnimationPreset(
-					host,
-					timeline,
-					dropTargetRowIndex,
-					layout,
-					viewState,
-					toolbarState,
-					interactionState,
-					selectionState,
-					presetId
-				);
+
+			byte[] audioPayload = ImGui.acceptDragDropPayload("BB_AUDIO_ASSET_ID");
+			if (audioPayload != null) {
+				String assetId = new String(audioPayload, StandardCharsets.UTF_8).trim();
+				AudioAsset asset = AudioAssetManager.getInstance().findById(assetId);
+				if (asset == null) {
+					asset = AudioAssetManager.getInstance().getCurrentDragAsset();
+				}
+				handleDroppedAudioAsset(host, timeline, asset, dropTargetRowIndex);
 			}
+		} finally {
+			ImGui.endDragDropTarget();
 		}
-		ImGui.endDragDropTarget();
+	}
+
+	private static void renderAnimationPresetDropPreview(
+		TimelineAudioDropHost host,
+		Timeline timeline,
+		TimelineLayout layout,
+		TimelineViewState viewState,
+		TimelineToolbarState toolbarState,
+		InteractionState interactionState,
+		SelectionState selectionState,
+		String presetId
+	) {
+		if (viewState == null || layout == null) return;
+		BlockInfluencePreset preset = BlockInfluencePresets.get(presetId);
+		String displayName = preset != null ? preset.getDisplayName() : presetId;
+		AnimationDropTargetResolver.Result targets = resolveDropTargets(selectionState, timeline, host);
+		float mouseX = ImGui.getMousePosX();
+		double rawTime = viewState.screenToTime(mouseX - layout.contentLeft);
+		double dropTime = DragController.snapTime(rawTime, null, timeline, toolbarState, viewState, interactionState);
+		dropTime = Math.max(0.0, dropTime);
+		var lines = AnimationPresetDropPreview.format(
+			displayName,
+			targets,
+			dropTime,
+			AnimationPresetDropPreview::resolveStageObjectName
+		);
+		AnimationPresetDropPreview.renderTooltip(lines);
 	}
 
 	private static void handleDroppedAnimationPreset(
