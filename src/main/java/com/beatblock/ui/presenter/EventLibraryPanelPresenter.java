@@ -146,7 +146,7 @@ public final class EventLibraryPanelPresenter {
 		return new ApplyOutcome(true, statusMessage);
 	}
 
-	private static int writeTemplateEvents(
+	static int writeTemplateEvents(
 		Timeline tl,
 		TimelineEditor editor,
 		EventTemplate template,

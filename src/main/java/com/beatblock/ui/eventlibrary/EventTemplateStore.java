@@ -134,7 +134,17 @@ public final class EventTemplateStore {
 	}
 
 	private static Path storePath() {
+		String overrideDir = System.getProperty("beatblock.test.configDir");
+		if (overrideDir != null && !overrideDir.isBlank()) {
+			return Path.of(overrideDir).resolve("event_templates.json");
+		}
 		return FabricLoader.getInstance().getGameDir()
 			.resolve("config").resolve("beatblock").resolve("event_templates.json");
+	}
+
+	/** Clears in-memory state so unit tests with a fresh configDir start clean. */
+	public static void resetForTests() {
+		templates.clear();
+		loaded = false;
 	}
 }
