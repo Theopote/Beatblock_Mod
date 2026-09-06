@@ -2,6 +2,7 @@ package com.beatblock.timeline.command;
 
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.timeline.marker.SectionMarkerStructureBridge;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -9,6 +10,7 @@ import java.util.Objects;
 
 /**
  * 移动时间轴标记：execute 写入 {@code after}，undo 恢复 {@code before}（含 editState）。
+ * SECTION 提交后通过 {@link SectionMarkerStructureBridge} 投影到 Music Structure，避免静默漂移。
  */
 public final class MoveMarkerCommand implements Command {
 
@@ -52,12 +54,20 @@ public final class MoveMarkerCommand implements Command {
 		if (!timeline.replaceMarker(after)) {
 			timeline.addMarker(after);
 		}
+		if (after.getType().isStructural()) {
+			SectionMarkerStructureBridge.projectMarkerOntoPlan(
+				timeline, before.getTimeSeconds(), after);
+		}
 	}
 
 	@Override
 	public void undo() {
 		if (!timeline.replaceMarker(before)) {
 			timeline.addMarker(before);
+		}
+		if (before.getType().isStructural()) {
+			SectionMarkerStructureBridge.projectMarkerOntoPlan(
+				timeline, after.getTimeSeconds(), before);
 		}
 	}
 

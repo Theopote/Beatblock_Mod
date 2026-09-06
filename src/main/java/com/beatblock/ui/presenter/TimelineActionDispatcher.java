@@ -64,6 +64,7 @@ public final class TimelineActionDispatcher {
 			case DELETE -> editor != null && editor.getEditSession().canDelete();
 			case DUPLICATE -> editor != null && editor.getEditSession().canDuplicate();
 			case SPLIT_AT_PLAYHEAD -> editor != null && editor.getEditSession().canSplitAtPlayhead();
+			case ADD_MARKER_AT_PLAYHEAD -> editor != null;
 			case RUN_BINDING_MAP, RUN_AUTO_MAP, BAKE_STEP, GENERATE_RHYTHM_DROP -> true;
 		};
 	}
@@ -80,11 +81,24 @@ public final class TimelineActionDispatcher {
 			case DELETE -> { editor.getEditSession().deleteSelection(); yield ActionResult.completed(true); }
 			case DUPLICATE -> ActionResult.completed(editor.getEditSession().duplicateSelection());
 			case SPLIT_AT_PLAYHEAD -> ActionResult.completed(editor.getEditSession().splitAtPlayhead());
+			case ADD_MARKER_AT_PLAYHEAD -> ActionResult.completed(addMarkerAtPlayhead(editor));
 			case RUN_BINDING_MAP -> fromOutcome(generatedActions.runBindingMap());
 			case RUN_AUTO_MAP -> fromOutcome(generatedActions.runAutoMap());
 			case BAKE_STEP -> fromOutcome(generatedActions.runBakeStepSequences());
 			case GENERATE_RHYTHM_DROP -> fromOutcome(generatedActions.runGenerateRhythmDrops());
 		};
+	}
+
+	private static boolean addMarkerAtPlayhead(TimelineEditor editor) {
+		if (editor == null) {
+			return false;
+		}
+		var result = com.beatblock.timeline.marker.MarkerInsertionService.insertGenericAtPlayhead(
+			editor.getTimeline(),
+			editor,
+			editor.getPlaybackSession().currentTimeSeconds()
+		);
+		return result.written();
 	}
 
 	private static ActionResult fromOutcome(TimelineToolbarActionsPresenter.ActionOutcome outcome) {

@@ -20,9 +20,15 @@ class MarkerTypeTest {
 	}
 
 	@Test
-	void displayNamesCoversAllValues() {
-		String[] names = MarkerType.displayNames();
-		assertEquals(MarkerType.values().length, names.length);
-		assertTrue(names[0].length() > 0);
+	void onlySectionIsStructuralOthersAreAnnotation() {
+		assertTrue(MarkerType.SECTION.isStructural());
+		assertTrue(!MarkerType.SECTION.isAnnotation());
+		for (MarkerType type : MarkerType.values()) {
+			if (type == MarkerType.SECTION) {
+				continue;
+			}
+			assertTrue(type.isAnnotation(), type.name());
+			assertTrue(!type.isStructural(), type.name());
+		}
 	}
 }

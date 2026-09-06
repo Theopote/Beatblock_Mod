@@ -2,8 +2,10 @@ package com.beatblock.timeline.interaction;
 
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
+import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
+import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.editor.HitResult;
 import com.beatblock.timeline.editor.InteractionMode;
@@ -118,6 +120,28 @@ class TimelineGestureLifecycleTest {
 		assertEquals(9.0, keyframe.getTimeSeconds(), 1e-9);
 		assertEquals(InteractionMode.NONE, interaction.getMode());
 		assertTrue(cleared.get());
+	}
+
+	@Test
+	void cancelMarkerDragRestoresSnapshotWithoutCommand() {
+		Timeline timeline = Timeline.createDefault();
+		TimelineMarker marker = new TimelineMarker("m1", 2.0, "Cue", MarkerType.GENERIC);
+		timeline.addMarker(marker);
+
+		InteractionState interaction = new InteractionState();
+		interaction.setMode(InteractionMode.MARKER_DRAG);
+		interaction.setActiveMarkerId(marker.getId());
+		interaction.setMarkerDragBefore(marker);
+		interaction.setMarkerDragStartTimeSeconds(2.0);
+		timeline.updateMarkerTimeLive(marker.getId(), 6.5);
+
+		TimelineGestureLifecycle.cancelLiveDocumentPreview(
+			timeline, interaction, null, null, null, null, null, null);
+
+		assertEquals(2.0, timeline.getMarkers().getFirst().getTimeSeconds(), 1e-9);
+		assertEquals(InteractionMode.NONE, interaction.getMode());
+		assertNull(interaction.getActiveMarkerId());
+		assertNull(interaction.getMarkerDragBefore());
 	}
 
 	@Test

@@ -12,6 +12,7 @@ public final class TimelineInteractionConstants {
 
 	public static final String POPUP_EVENT_CONTEXT = "##TimelineEventContextPopup";
 	public static final String POPUP_MARKER_CONTEXT = "##TimelineMarkerContextPopup";
+	public static final String POPUP_MARKER_CREATE = "##TimelineMarkerCreatePopup";
 	public static final String POPUP_DELETE_CONFIRM = "##TimelineDeleteConfirmPopup";
 
 	public static final int MARKER_NAME_BUFFER_SIZE = 128;

@@ -200,6 +200,53 @@ public final class ChoreographyPlanEditor {
 		);
 	}
 
+	/**
+	 * Set a section start time (index 0 or via boundary move). Marks adjacent sections USER_EDITED.
+	 * Used by SECTION Marker → Plan projection bridge.
+	 */
+	public static ChoreographyPlan setSectionStartSeconds(
+		ChoreographyPlan plan,
+		int sectionIndex,
+		double newStartSeconds
+	) {
+		if (plan == null || sectionIndex < 0 || sectionIndex >= plan.sections().size()) {
+			return plan;
+		}
+		if (sectionIndex >= 1) {
+			return moveSectionBoundary(plan, sectionIndex, newStartSeconds);
+		}
+		List<ChoreographyPlan.SectionPlan> sections = new ArrayList<>(plan.sections());
+		ChoreographyPlan.SectionPlan first = sections.getFirst();
+		if (first.source() == SectionPlanSource.LOCKED) {
+			return plan;
+		}
+		double maxStart = first.endSeconds() - MIN_SECTION_DURATION_SECONDS;
+		double clamped = Math.max(0.0, Math.min(maxStart, newStartSeconds));
+		if (Math.abs(clamped - first.startSeconds()) <= 1e-6) {
+			return plan;
+		}
+		sections.set(0, new ChoreographyPlan.SectionPlan(
+			clamped,
+			first.endSeconds(),
+			first.sectionType(),
+			first.label(),
+			first.confidence(),
+			SectionPlanSource.USER_EDITED
+		));
+		DensityCurve density = rebuildDensityCurve(sections);
+		return copyPlan(
+			plan,
+			sections,
+			plan.stageRoles(),
+			rebindMotionPhrases(plan.motionPhrases(), sections),
+			rebindCameraPhrases(plan.cameraPhrases(), sections),
+			rebindVfxPhrases(plan.vfxPhrases(), sections),
+			density,
+			plan.sectionEdits(),
+			rebindSpatialMotifPhrases(plan.spatialMotifPhrases(), sections)
+		);
+	}
+
 	public static final double MIN_SECTION_DURATION_SECONDS = 0.5;
 
 	/** 将段落内短语整体平移（同时更新 section 绑定）。 */

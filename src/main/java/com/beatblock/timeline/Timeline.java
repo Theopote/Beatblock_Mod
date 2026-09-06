@@ -112,11 +112,20 @@ public class Timeline {
 		return 0;
 	}
 
-	public void addMarker(@Nullable TimelineMarker marker) {
+	public boolean addMarker(@Nullable TimelineMarker marker) {
 		requireClientThread();
-		if (marker == null) return;
+		if (marker == null) return false;
+		MarkerSectionPolicy.Collision collision = MarkerSectionPolicy.resolveForWrite(this, marker);
+		if (collision.action() == MarkerSectionPolicy.CollisionAction.REJECT) {
+			return false;
+		}
+		if (collision.action() == MarkerSectionPolicy.CollisionAction.REPLACE_EXISTING
+			&& collision.existing() != null) {
+			removeMarker(collision.existing().getId());
+		}
 		markers.add(marker);
 		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
+		return true;
 	}
 
 	public void clearMarkers() {
@@ -128,8 +137,9 @@ public class Timeline {
 		requireClientThread();
 		markers.clear();
 		if (newMarkers != null) {
-			markers.addAll(newMarkers);
-			markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
+			for (TimelineMarker marker : newMarkers) {
+				addMarker(marker);
+			}
 		}
 	}
 
@@ -201,12 +211,22 @@ public class Timeline {
 		return true;
 	}
 
-	/** 按 id 整对象替换（Command undo/redo 用）；保留 id 排序。 */
+	/** 按 id 整对象替换（Command undo/redo 用）；保留 id 排序。SECTION 同时间冲突按 {@link MarkerSectionPolicy}。 */
 	public boolean replaceMarker(@Nullable TimelineMarker marker) {
 		requireClientThread();
 		if (marker == null) return false;
 		int index = findMarkerIndexById(marker.getId());
 		if (index < 0) return false;
+		MarkerSectionPolicy.Collision collision = MarkerSectionPolicy.resolveForWrite(this, marker);
+		if (collision.action() == MarkerSectionPolicy.CollisionAction.REJECT) {
+			return false;
+		}
+		if (collision.action() == MarkerSectionPolicy.CollisionAction.REPLACE_EXISTING
+			&& collision.existing() != null) {
+			removeMarker(collision.existing().getId());
+			index = findMarkerIndexById(marker.getId());
+			if (index < 0) return false;
+		}
 		markers.set(index, marker);
 		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
 		return true;

@@ -32,11 +32,10 @@ public final class CreateMarkerCommand implements Command {
 			return;
 		}
 		if (timeline.findMarkerIndexById(marker.getId()) >= 0) {
-			timeline.replaceMarker(marker);
+			done = timeline.replaceMarker(marker);
 		} else {
-			timeline.addMarker(marker);
+			done = timeline.addMarker(marker);
 		}
-		done = true;
 	}
 
 	@Override

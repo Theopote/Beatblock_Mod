@@ -6,10 +6,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.UUID;
 
 /**
- * 时间线标记点（Marker）：用于快速定位段落、镜头点、Drop、转场等关键时刻。
+ * 时间线标记点（Marker）：导航 / 创作 cue；不是 Event 执行单元。
  * <p>
- * {@link MarkerType#SECTION} 同时承载结构语义（Animation Binding / Section Filter）；
- * {@link MarkerOrigin} / {@link MarkerEditState} 区分导航注释与受保护的结构对象。
+ * 类型职责见 {@link MarkerType}：
+ * {@link MarkerType#SECTION} 可参与 section lookup / binding；
+ * GENERIC / DROP / CAMERA / FX 仅为 authoring / navigation，永不触发 runtime 行为。
+ * Camera / VFX / Animation 执行只走各自 Track。
+ * <p>
+ * {@link MarkerOrigin} / {@link MarkerEditState} 区分来源与受保护的结构编辑态。
  */
 public final class TimelineMarker {
 

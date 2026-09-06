@@ -31,6 +31,7 @@ import imgui.ImGui;
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_DELETE_CONFIRM;
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_EVENT_CONTEXT;
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_MARKER_CONTEXT;
+import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_MARKER_CREATE;
 
 /** 时间线 ImGui 右键菜单与删除/标记弹窗。 */
 public final class TimelineInteractionPopups {
@@ -43,6 +44,7 @@ public final class TimelineInteractionPopups {
 		TimelineInteractionPopupHost host
 	) {
 		renderMarkerContextPopup(timeline, clock, host);
+		renderMarkerCreatePopup(timeline, host);
 	}
 
 	public static void renderAll(
@@ -54,6 +56,7 @@ public final class TimelineInteractionPopups {
 	) {
 		renderContextMenu(timeline, selectionState, trackListState, host);
 		renderMarkerContextPopup(timeline, clock, host);
+		renderMarkerCreatePopup(timeline, host);
 		renderDeleteConfirmPopup(timeline, selectionState, trackListState, host);
 	}
 
@@ -395,6 +398,55 @@ public final class TimelineInteractionPopups {
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.common.close") + "##markerClose")) {
 			state.contextMarkerId = null;
+			ImGui.closeCurrentPopup();
+		}
+		ImGui.endPopup();
+	}
+
+	private static void renderMarkerCreatePopup(Timeline timeline, TimelineInteractionPopupHost host) {
+		if (!ImGui.beginPopup(POPUP_MARKER_CREATE)) {
+			return;
+		}
+		TimelineInteractionPopupState state = host.popupState();
+		ImGui.text(BBTexts.get("beatblock.timeline.interaction.add_marker_here"));
+		ImGui.textDisabled(UiNumberFormatter.format(state.contextTimeSeconds) + "s");
+		if (ImGui.button(BBTexts.get("beatblock.marker.add_generic") + "##markerCreateGeneric", 180f, 0f)) {
+			if (timeline != null) {
+				com.beatblock.timeline.marker.MarkerInsertionService.insertAtTime(
+					timeline, host.timelineEditor(), state.contextTimeSeconds);
+			}
+			ImGui.closeCurrentPopup();
+		}
+		if (ImGui.button(BBTexts.get("beatblock.marker.add_section") + "##markerCreateSection", 180f, 0f)) {
+			if (timeline != null) {
+				int next = timeline.getMarkers().size() + 1;
+				com.beatblock.timeline.marker.MarkerInsertionService.insertManual(
+					timeline,
+					host.timelineEditor(),
+					new com.beatblock.timeline.marker.MarkerInsertionService.CreationRequest(
+						state.contextTimeSeconds,
+						"SECTION " + next,
+						com.beatblock.timeline.MarkerType.SECTION
+					)
+				);
+			}
+			ImGui.closeCurrentPopup();
+		}
+		if (ImGui.button(BBTexts.get("beatblock.marker.add_drop") + "##markerCreateDrop", 180f, 0f)) {
+			if (timeline != null) {
+				com.beatblock.timeline.marker.MarkerInsertionService.insertManual(
+					timeline,
+					host.timelineEditor(),
+					new com.beatblock.timeline.marker.MarkerInsertionService.CreationRequest(
+						state.contextTimeSeconds,
+						"Drop",
+						com.beatblock.timeline.MarkerType.DROP
+					)
+				);
+			}
+			ImGui.closeCurrentPopup();
+		}
+		if (ImGui.button(BBTexts.get("beatblock.common.close") + "##markerCreateClose", 120f, 0f)) {
 			ImGui.closeCurrentPopup();
 		}
 		ImGui.endPopup();

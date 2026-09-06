@@ -6,6 +6,7 @@ import com.beatblock.timeline.MarkerOrigin;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.timeline.marker.MarkerFocusRequest;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
@@ -33,8 +34,8 @@ public class MarkerPanel {
 	private final ImString markerNameBuffer = new ImString(128);
 	private final ImString markerTimeBuffer = new ImString(32);
 	private final ImInt markerTypeIndex = new ImInt(0);
-	private final ImInt createTypeIndex = new ImInt(MarkerType.GENERIC.ordinal());
 	private int pendingTypeIndex = -1;
+	private boolean focusNameField;
 
 	private static final String[] MARKER_TYPE_LABELS = MarkerType.displayNames();
 
@@ -102,6 +103,7 @@ public class MarkerPanel {
 		}
 
 		renderCreateRow();
+		consumeFocusRequest(timeline);
 
 		if (timeline.getMarkers().isEmpty()) {
 			selectedMarkerId = null;
@@ -163,6 +165,10 @@ public class MarkerPanel {
 
 		if (locked) {
 			ImGui.beginDisabled();
+		}
+		if (focusNameField) {
+			ImGui.setKeyboardFocusHere();
+			focusNameField = false;
 		}
 		ImGui.setNextItemWidth(-1);
 		ImGui.inputText(BBTexts.get("beatblock.marker.name") + "##markerName", markerNameBuffer);
@@ -231,17 +237,31 @@ public class MarkerPanel {
 		}
 	}
 
+	private void consumeFocusRequest(Timeline timeline) {
+		String pendingId = MarkerFocusRequest.peekMarkerId();
+		if (pendingId == null || timeline == null || !presenter.markerExists(timeline, pendingId)) {
+			return;
+		}
+		selectedMarkerId = pendingId;
+		TimelineMarker marker = presenter.findMarker(timeline, pendingId);
+		if (marker != null) {
+			applyFormSnapshot(presenter.formSnapshotFor(marker));
+		}
+		if (MarkerFocusRequest.consumeFocusName()) {
+			focusNameField = true;
+		}
+		MarkerFocusRequest.clear();
+	}
+
 	private void renderCreateRow() {
-		ImGui.setNextItemWidth(140);
-		ImGui.combo(BBTexts.get("beatblock.marker.create_type") + "##markerCreateType", createTypeIndex, MARKER_TYPE_LABELS);
-		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.marker.insert_playhead") + "##markerInsertPlayhead")) {
-			MarkerType type = MarkerType.values()[MarkerPanelPresenter.clampTypeIndex(createTypeIndex.get())];
-			presenter.insertAtPlayhead(type, null);
+			presenter.insertAtPlayhead(MarkerType.GENERIC, null);
 		}
 		if (ImGui.isItemHovered()) {
 			ImGui.setTooltip(BBTexts.get("beatblock.marker.insert_playhead.tooltip"));
 		}
+		ImGui.sameLine();
+		ImGui.textDisabled(BBTexts.get("beatblock.marker.insert_playhead.hint"));
 	}
 
 	private void renderStructuralConfirmPopups() {

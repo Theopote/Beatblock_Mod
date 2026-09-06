@@ -53,6 +53,7 @@ public final class BeatBlockShortcutHandler {
 		if (isPressed(BeatBlockShortcutId.DUPLICATE)) actions.execute(TimelineActionId.DUPLICATE);
 		if (isPressed(BeatBlockShortcutId.SPLIT)) actions.execute(TimelineActionId.SPLIT_AT_PLAYHEAD);
 		if (isPressed(BeatBlockShortcutId.DELETE)) actions.execute(TimelineActionId.DELETE);
+		if (isPressed(BeatBlockShortcutId.ADD_MARKER)) actions.execute(TimelineActionId.ADD_MARKER_AT_PLAYHEAD);
 	}
 
 	public static boolean isPressed(BeatBlockShortcutId id) {
@@ -109,6 +110,7 @@ public final class BeatBlockShortcutHandler {
 				case "O" -> NATIVE_KEY_OFFSET + GLFW.GLFW_KEY_O;
 				case "D" -> NATIVE_KEY_OFFSET + GLFW.GLFW_KEY_D;
 				case "E" -> NATIVE_KEY_OFFSET + GLFW.GLFW_KEY_E;
+				case "M" -> NATIVE_KEY_OFFSET + GLFW.GLFW_KEY_M;
 				case "Z" -> ImGuiKey.Z;
 				case "Y" -> ImGuiKey.Y;
 				case "C" -> ImGuiKey.C;

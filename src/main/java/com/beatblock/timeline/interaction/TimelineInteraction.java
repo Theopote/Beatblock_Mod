@@ -6,7 +6,6 @@ import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyCompileOptions;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
 import com.beatblock.automap.choreography.ChoreographyPlanEditor;
-import com.beatblock.automap.choreography.ChoreographyPlanEditor;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.choreography.SectionPlanSource;
 import com.beatblock.timeline.camera.CameraPathMetadata;
@@ -18,6 +17,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.command.MoveMarkerCommand;
+import com.beatblock.timeline.marker.SectionMarkerStructureBridge;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import com.beatblock.timeline.editing.ClipDragStateSnapshot;
 import com.beatblock.timeline.editing.TimelineEditSession;
@@ -35,6 +35,7 @@ import static com.beatblock.timeline.interaction.TimelineInteractionConstants.CA
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_DELETE_CONFIRM;
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_EVENT_CONTEXT;
 import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_MARKER_CONTEXT;
+import static com.beatblock.timeline.interaction.TimelineInteractionConstants.POPUP_MARKER_CREATE;
 import static com.beatblock.timeline.interaction.TimelineInteractiveTrackSlots.InteractiveTrackSlot;
 import static com.beatblock.timeline.interaction.TimelineInteractiveTrackSlots.build;
 
@@ -304,6 +305,11 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				TimelineMarker marker = timeline.getMarkers().get(markerIndex);
 				popupState.markerNameBuffer.set(marker.getName());
 				ImGui.openPopup(POPUP_MARKER_CONTEXT);
+			} else {
+				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+				popupState.contextMarkerId = null;
+				popupState.contextTimeSeconds = t;
+				ImGui.openPopup(POPUP_MARKER_CREATE);
 			}
 		}
 
@@ -315,7 +321,6 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			if (!overLoopHandle && markerIndex < 0) {
 				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
 				TimelineRulerHitTest.addMarkerAtTime(timeline, timelineEditor, t);
-				com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 				if (clock != null) seekClockAndMusic(clock, t);
 				return;
 			}
@@ -662,6 +667,11 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 					timeline, viewState, layout, mx, my);
 				if (phraseSectionIndex >= 0) {
 					SectionEditPopupCoordinator.requestOpen(phraseSectionIndex);
+				} else {
+					double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
+					popupState.contextMarkerId = null;
+					popupState.contextTimeSeconds = t;
+					ImGui.openPopup(POPUP_MARKER_CREATE);
 				}
 			}
 		}
@@ -674,7 +684,6 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			if (!overLoopHandle && markerIndex < 0) {
 				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
 				TimelineRulerHitTest.addMarkerAtTime(timeline, timelineEditor, t);
-				com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 				if (clock != null) seekClockAndMusic(clock, t);
 				return;
 			}
@@ -788,6 +797,8 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			double originalTime = interactionState.getSectionBoundaryDragStartSeconds();
 			double finalTime = plan.sections().get(boundaryIndex).startSeconds();
 			if (Math.abs(finalTime - originalTime) > 1e-6) {
+				SectionMarkerStructureBridge.projectPlanBoundaryOntoMarkers(
+					timeline, originalTime, finalTime);
 				recompileChoreographyPlan(timeline, plan);
 			}
 			interactionState.setMode(InteractionMode.NONE);
@@ -813,6 +824,10 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		double duration,
 		float mx
 	) {
+		if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+			cancelLiveDocumentPreview(timeline, interactionState);
+			return;
+		}
 		String markerId = interactionState.getActiveMarkerId();
 		int markerIndex = timeline.findMarkerIndexById(markerId);
 		double rawT = viewState.screenToTime(mx - layout.contentLeft);

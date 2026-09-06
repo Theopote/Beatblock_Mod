@@ -13,7 +13,8 @@ public enum BeatBlockShortcutId {
 	IMPORT_MUSIC("import_music", "Ctrl+O"),
 	SAVE_PROJECT("save_project", "Ctrl+S"),
 	OPEN_PROJECT("open_project", "Ctrl+Shift+O"),
-	GENERATE_RHYTHM_DROP("generate_rhythm_drop", "Ctrl+Shift+D");
+	GENERATE_RHYTHM_DROP("generate_rhythm_drop", "Ctrl+Shift+D"),
+	ADD_MARKER("add_marker", "M");
 
 	private final String id;
 	private final String defaultChord;

@@ -2,6 +2,7 @@ package com.beatblock.timeline.command;
 
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.timeline.marker.SectionMarkerStructureBridge;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
@@ -38,6 +39,10 @@ public final class UpdateMarkerCommand implements Command {
 	@Override
 	public void execute() {
 		timeline.replaceMarker(after);
+		if (after.getType().isStructural()) {
+			SectionMarkerStructureBridge.projectMarkerOntoPlan(
+				timeline, before.getTimeSeconds(), after);
+		}
 		done = true;
 	}
 
@@ -47,6 +52,10 @@ public final class UpdateMarkerCommand implements Command {
 			return;
 		}
 		timeline.replaceMarker(before);
+		if (before.getType().isStructural()) {
+			SectionMarkerStructureBridge.projectMarkerOntoPlan(
+				timeline, after.getTimeSeconds(), before);
+		}
 		done = false;
 	}
 }

@@ -3,13 +3,47 @@ package com.beatblock.timeline;
 import com.beatblock.ui.i18n.BBTexts;
 
 /**
- * Marker 类型：决定语义和默认显示颜色。
+ * Marker 类型职责（架构契约，勿打破）。
+ *
+ * <pre>
+ * SECTION
+ *   = structural / navigation marker
+ *     may participate in section lookup / binding
+ *
+ * GENERIC / DROP / CAMERA / FX
+ *   = authoring / navigation markers only
+ *     never execute runtime behavior
+ * </pre>
+ *
+ * <p><b>反模式（禁止）：</b>
+ * {@code if (marker.getType() == CAMERA) triggerCamera(...)} —
+ * Camera / VFX / Animation 执行只走各自 Track，不经 Marker。
  */
 public enum MarkerType {
+	/** Authoring / navigation only. Never executes runtime behavior. */
 	GENERIC("普通", 0xEE_FF_D4_66),
+
+	/**
+	 * Structural / navigation marker (projection of Music Structure, not the sole SoT).
+	 * May participate in section lookup / Animation Binding section filter.
+	 * Edits should project onto {@code ChoreographyPlan} via SectionMarkerStructureBridge
+	 * to avoid silent drift; does not itself execute animations.
+	 */
 	SECTION("段落", 0xEE_66_DD_FF),
+
+	/** Authoring / navigation only. Never executes runtime behavior. */
 	DROP("Drop", 0xEE_66_FF_88),
+
+	/**
+	 * Authoring / navigation cue for camera beats.
+	 * Never triggers Camera Track / CameraShot execution.
+	 */
 	CAMERA("镜头", 0xEE_FF_99_66),
+
+	/**
+	 * Authoring / navigation cue for VFX beats.
+	 * Never triggers Global / VFX Track execution.
+	 */
 	FX("特效", 0xEE_D2_88_FF);
 
 	private final String displayName;
@@ -18,6 +52,22 @@ public enum MarkerType {
 	MarkerType(String displayName, int colorAbgr) {
 		this.displayName = displayName;
 		this.colorAbgr = colorAbgr;
+	}
+
+	/**
+	 * {@code true} only for {@link #SECTION}.
+	 * Structural markers may participate in section lookup / binding — still not runtime executors.
+	 */
+	public boolean isStructural() {
+		return this == SECTION;
+	}
+
+	/**
+	 * {@code true} for GENERIC / DROP / CAMERA / FX.
+	 * Authoring / navigation only; never execute runtime behavior.
+	 */
+	public boolean isAnnotation() {
+		return !isStructural();
 	}
 
 	public String getDisplayName() {

@@ -19,7 +19,8 @@ public final class TimelineGestureLifecycle {
 	public static boolean isLiveDocumentPreview(InteractionMode mode) {
 		return mode == InteractionMode.DRAG_EVENT
 			|| mode == InteractionMode.DRAG_CLIP
-			|| mode == InteractionMode.RESIZE_CLIP;
+			|| mode == InteractionMode.RESIZE_CLIP
+			|| mode == InteractionMode.MARKER_DRAG;
 	}
 
 	/**
@@ -68,6 +69,12 @@ public final class TimelineGestureLifecycle {
 			if (clearCameraSession != null) {
 				clearCameraSession.run();
 			}
+		} else if (mode == InteractionMode.MARKER_DRAG) {
+			var before = interactionState.getMarkerDragBefore();
+			if (timeline != null && before != null) {
+				timeline.replaceMarker(before);
+			}
+			interactionState.clearAlignmentGuideTimes();
 		}
 
 		interactionState.setMode(InteractionMode.NONE);

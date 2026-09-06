@@ -50,9 +50,12 @@ public final class MarkerInsertionService {
 				return InsertionResult.EMPTY;
 			}
 		} else {
-			timeline.addMarker(marker);
+			if (!timeline.addMarker(marker)) {
+				return InsertionResult.EMPTY;
+			}
 		}
 		TimelineDocumentChangeNotifier.notifyDocumentEdited();
+		MarkerFocusRequest.requestRename(marker.getId());
 		return new InsertionResult(marker.getId());
 	}
 
@@ -67,5 +70,14 @@ public final class MarkerInsertionService {
 			editor,
 			new CreationRequest(timeSeconds, "Marker " + nextIndex, MarkerType.GENERIC)
 		);
+	}
+
+	/** 播放头快速创建：始终 GENERIC。 */
+	public static InsertionResult insertGenericAtPlayhead(
+		@Nullable Timeline timeline,
+		@Nullable TimelineEditor editor,
+		double timeSeconds
+	) {
+		return insertAtTime(timeline, editor, timeSeconds);
 	}
 }
