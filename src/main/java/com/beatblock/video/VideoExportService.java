@@ -1,5 +1,6 @@
 package com.beatblock.video;
 
+import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
@@ -72,13 +73,24 @@ public final class VideoExportService {
 	}
 
 	public boolean startExport(VideoExportSettings settings) {
+		return startExport(settings, null);
+	}
+
+	/**
+	 * @param compiledProgram Preflight STRICT 编译快照；若 stale 或为空，Coordinator 会重新 compile。
+	 */
+	public boolean startExport(
+		VideoExportSettings settings,
+		@Nullable CompiledTimelineSnapshot compiledProgram
+	) {
 		if (settings == null || isExporting()) {
 			return false;
 		}
 		lastResult = null;
 		activeProgress = VideoExportProgress.starting(settings);
 		emitProgress();
-		clientExecutor.accept(() -> com.beatblock.client.export.VideoExportCoordinator.getInstance().start(settings, this));
+		clientExecutor.accept(() -> com.beatblock.client.export.VideoExportCoordinator.getInstance()
+			.start(settings, this, compiledProgram));
 		return true;
 	}
 

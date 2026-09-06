@@ -123,18 +123,27 @@ BeatBlock 不是 Premiere。当前固定：
 
 ## Export Preflight
 
-导出前检查清单（`VideoExportPreflight`）：
+导出前检查以 **`TimelineCompiler.compile(..., STRICT)`** 为 acceptance gate（不是仅 Validator）：
 
 | 检查项 | 阻塞？ |
 |--------|--------|
-| Timeline STRICT 编译 / Validator ERROR | 是 |
-| Camera / StageObject / BuildLayer / VFX（含导出抬升的 WARNING） | 是 |
+| STRICT TimelineCompiler | 是（与 Coordinator 同一套规则） |
+| Camera / StageObject / BuildLayer 抬升 WARNING | 是（Creator 成片质量） |
 | Include Audio 时音频源 | 是 |
 | FFmpeg | 是 |
 | 时间范围 / 分辨率（含 H.264 偶数约束） | 是 |
 | 输出目录可写 / 磁盘空间 | 是 |
 | 输出文件碰撞 | 否（需 Replace 确认） |
 | 体积估算 | 否（提示） |
+
+Ready 时 `Status.compiledSnapshot` 可交给 Export 复用；`sourceGeneration` stale 则重新 compile。
+
+### 真分辨率失败策略（E1.1）
+
+| 预设 | `ExportRenderTarget` 不可用时 |
+|------|------------------------------|
+| Native（0×0） | 允许回退 viewport capture/scale |
+| 显式 720/1080/1440/… | **中止导出**，不静默 upscale |
 
 UX：
 

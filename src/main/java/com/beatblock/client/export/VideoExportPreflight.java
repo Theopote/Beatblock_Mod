@@ -3,6 +3,10 @@ package com.beatblock.client.export;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.playback.CompilePolicy;
+import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
+import com.beatblock.timeline.playback.TimelineCompilationException;
+import com.beatblock.timeline.playback.TimelineCompiler;
 import com.beatblock.timeline.playback.TimelineDiagnostic;
 import com.beatblock.timeline.playback.TimelineDiagnosticSeverity;
 import com.beatblock.timeline.playback.TimelineValidationReport;
@@ -24,9 +28,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 导出 Preflight：时间线 STRICT 诊断 + Creator 导出环境检查。
- * <p>
- * 结果为 {@code Ready} 或 {@code Cannot Export} 及具体阻塞项（例如 Missing StageObject "tower"）。
+ * 导出 Preflight：以 {@link TimelineCompiler}{@code STRICT} 为 acceptance gate，
+ * 并附带 Creator 导出环境检查。Ready 等价于可启动导出（同一套 compile 规则）。
  */
 public final class VideoExportPreflight {
 
@@ -47,10 +50,11 @@ public final class VideoExportPreflight {
 
 	/**
 	 * @param canExport              无阻塞项时可导出（output collision 不算阻塞，需 Replace 确认）
-	 * @param readyForStrictExport   时间线无 STRICT ERROR（兼容旧调用）
+	 * @param readyForStrictExport   STRICT compile 成功（无 ERROR）
 	 * @param blockers               Cannot Export 明细
 	 * @param notices                非阻塞提示（collision、disk estimate 等）
 	 * @param estimatedSizeMb        磁盘体积估算；不可用时为 {@code null}
+	 * @param compiledSnapshot       Ready 时可交给 Export 复用的冻结快照；否则 {@code null}
 	 */
 	public record Status(
 		boolean canExport,
@@ -59,11 +63,15 @@ public final class VideoExportPreflight {
 		int warningCount,
 		List<Finding> blockers,
 		List<Finding> notices,
-		@Nullable Double estimatedSizeMb
+		@Nullable Double estimatedSizeMb,
+		@Nullable CompiledTimelineSnapshot compiledSnapshot
 	) {
 		public Status {
 			blockers = List.copyOf(blockers != null ? blockers : List.of());
 			notices = List.copyOf(notices != null ? notices : List.of());
+			if (!canExport) {
+				compiledSnapshot = null;
+			}
 		}
 
 		public String summary() {
@@ -128,16 +136,73 @@ public final class VideoExportPreflight {
 		));
 	}
 
+	/**
+	 * 仅从已有 validation report 构造状态（不跑 compile）。
+	 * 不要求 {@code compiledSnapshot}；不可用于 Export Ready gate。
+	 */
 	public static Status fromReport(TimelineValidationReport report) {
-		return evaluateTimelineOnly(report, true, null, 0, 1, 1920, 1080, 60, false, true);
+		return finishStatus(report, null, false, true, null, 0, 1, 1920, 1080, 60, false, true);
 	}
 
 	public static Status evaluate(Request request) {
 		Objects.requireNonNull(request, "request");
-		TimelineValidationReport report = TimelineValidator.validate(
-			request.timeline(), request.engine(), request.layers());
-		return evaluateTimelineOnly(
+		CompiledTimelineSnapshot snapshot = null;
+		TimelineValidationReport report;
+		try {
+			var result = TimelineCompiler.compile(
+				request.timeline(),
+				request.engine(),
+				request.layers(),
+				CompilePolicy.STRICT
+			);
+			snapshot = result.snapshot();
+			report = snapshot != null ? snapshot.validationReport() : null;
+			if (report == null) {
+				report = TimelineValidator.validate(request.timeline(), request.engine(), request.layers());
+			}
+		} catch (TimelineCompilationException ex) {
+			report = ex.report();
+			if (report == null) {
+				report = TimelineValidator.validate(request.timeline(), request.engine(), request.layers());
+			}
+			snapshot = null;
+		} catch (RuntimeException ex) {
+			report = TimelineValidator.validate(request.timeline(), request.engine(), request.layers());
+			snapshot = null;
+			Status partial = finishStatus(
+				report,
+				null,
+				true,
+				request.ffmpegAvailable(),
+				request.outputPath(),
+				request.startSeconds(),
+				request.endSeconds(),
+				request.width(),
+				request.height(),
+				request.fps(),
+				request.includeAudio(),
+				request.audioSourceAvailable()
+			);
+			List<Finding> blockers = new ArrayList<>(partial.blockers());
+			blockers.add(0, new Finding("strict_compile_failed", true,
+				localize("beatblock.export.preflight.issue.compile_failed",
+					"STRICT compile failed: %s",
+					ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName())));
+			return new Status(
+				false,
+				false,
+				partial.errorCount(),
+				partial.warningCount(),
+				dedupe(blockers),
+				partial.notices(),
+				partial.estimatedSizeMb(),
+				null
+			);
+		}
+		return finishStatus(
 			report,
+			snapshot,
+			true,
 			request.ffmpegAvailable(),
 			request.outputPath(),
 			request.startSeconds(),
@@ -150,8 +215,23 @@ public final class VideoExportPreflight {
 		);
 	}
 
-	private static Status evaluateTimelineOnly(
+	/**
+	 * Preflight 快照是否仍对应当前 Timeline（以 stageEventsGeneration 为 stale 判据）。
+	 */
+	public static boolean isSnapshotCurrent(
+		@Nullable CompiledTimelineSnapshot snapshot,
+		@Nullable Timeline timeline
+	) {
+		if (snapshot == null || timeline == null) {
+			return false;
+		}
+		return snapshot.sourceGeneration() == timeline.getStageEventsGeneration();
+	}
+
+	private static Status finishStatus(
 		TimelineValidationReport report,
+		@Nullable CompiledTimelineSnapshot compiledSnapshot,
+		boolean requireCompiledSnapshot,
 		boolean ffmpegAvailable,
 		@Nullable String outputPath,
 		double startSeconds,
@@ -166,7 +246,7 @@ public final class VideoExportPreflight {
 		List<Finding> notices = new ArrayList<>();
 		int errors = report != null ? report.errorCount() : 1;
 		int warnings = report != null ? report.warningCount() : 0;
-		boolean readyStrict = report != null && !report.hasErrors();
+		boolean readyStrict = compiledSnapshot != null && report != null && !report.hasErrors();
 
 		if (report != null) {
 			for (TimelineDiagnostic diagnostic : report.problems()) {
@@ -188,6 +268,21 @@ public final class VideoExportPreflight {
 			blockers.add(new Finding("null_report", true,
 				localize("beatblock.export.preflight.issue.timeline_unavailable",
 					"Timeline validation unavailable")));
+		}
+
+		if (requireCompiledSnapshot) {
+			if (compiledSnapshot == null && report != null && report.hasErrors()) {
+				// STRICT compile 已失败；若报告未转化为 blocker（极端空报告），补一条
+				if (blockers.isEmpty()) {
+					blockers.add(new Finding("strict_compile_failed", true,
+						localize("beatblock.export.preflight.issue.compile_blocked",
+							"STRICT compile failed with %d error(s)", report.errorCount())));
+				}
+			} else if (compiledSnapshot == null && (report == null || !report.hasErrors())) {
+				blockers.add(new Finding("strict_compile_failed", true,
+					localize("beatblock.export.preflight.issue.compile_unavailable",
+						"STRICT compile did not produce an export snapshot")));
+			}
 		}
 
 		if (!ffmpegAvailable) {
@@ -290,11 +385,20 @@ public final class VideoExportPreflight {
 			}
 		}
 
-		// 去重同 id+message
 		blockers = dedupe(blockers);
 		notices = dedupe(notices);
-		boolean canExport = blockers.isEmpty();
-		return new Status(canExport, readyStrict, errors, warnings, blockers, notices, estimateMb);
+		boolean canExport = blockers.isEmpty()
+			&& (!requireCompiledSnapshot || (readyStrict && compiledSnapshot != null));
+		return new Status(
+			canExport,
+			readyStrict,
+			errors,
+			warnings,
+			blockers,
+			notices,
+			estimateMb,
+			(canExport && requireCompiledSnapshot) ? compiledSnapshot : null
+		);
 	}
 
 	private static List<Finding> dedupe(List<Finding> findings) {

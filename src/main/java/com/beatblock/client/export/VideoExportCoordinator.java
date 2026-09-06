@@ -15,6 +15,7 @@ import com.beatblock.video.VideoExportService;
 import com.beatblock.video.VideoExportSettings;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +68,14 @@ public final class VideoExportCoordinator {
 	}
 
 	public void start(VideoExportSettings exportSettings, VideoExportService exportService) {
+		start(exportSettings, exportService, null);
+	}
+
+	public void start(
+		VideoExportSettings exportSettings,
+		VideoExportService exportService,
+		@Nullable CompiledTimelineSnapshot preflightProgram
+	) {
 		if (exportSettings == null || exportService == null || phase != Phase.IDLE) {
 			return;
 		}
@@ -100,9 +109,16 @@ public final class VideoExportCoordinator {
 		);
 		this.captureWidth = target[0];
 		this.captureHeight = target[1];
+		boolean explicitResolution = exportSettings.width() > 0 && exportSettings.height() > 0;
 		this.exportRenderTarget = ExportRenderTarget.activate(captureWidth, captureHeight);
 		if (this.exportRenderTarget == null) {
-			LOGGER.warn("ExportRenderTarget unavailable; falling back to viewport capture/scale");
+			if (explicitResolution) {
+				failImmediately(exportSettings, exportService,
+					BBTexts.get("beatblock.export.error.render_target_unavailable"));
+				cleanup();
+				return;
+			}
+			LOGGER.warn("ExportRenderTarget unavailable; native export falls back to viewport capture/scale");
 		}
 
 		updateProgress(VideoExportProgress.State.STARTING, BBTexts.get("beatblock.export.progress.preparing"), 0);
@@ -127,8 +143,7 @@ public final class VideoExportCoordinator {
 			);
 			BeatBlockClientDriver.stopPlayback();
 			var context = BeatBlock.getContext();
-			this.exportProgram = TimelineCompiler.compile(
-				context.timeline(), context.blockAnimationEngine(), context.buildLayerManager());
+			this.exportProgram = resolveExportProgram(preflightProgram, context);
 			scheduleNextFrame();
 		} catch (IOException e) {
 			closeEncoder();
@@ -140,6 +155,21 @@ public final class VideoExportCoordinator {
 			failImmediately(exportSettings, exportService,
 				BBTexts.get("beatblock.export.error.timeline_compile", e.getMessage()));
 		}
+	}
+
+	private static CompiledTimelineSnapshot resolveExportProgram(
+		@Nullable CompiledTimelineSnapshot preflightProgram,
+		com.beatblock.runtime.BeatBlockContext context
+	) {
+		var timeline = context != null ? context.timeline() : null;
+		if (preflightProgram != null && VideoExportPreflight.isSnapshotCurrent(preflightProgram, timeline)) {
+			return preflightProgram;
+		}
+		return TimelineCompiler.compile(
+			timeline,
+			context != null ? context.blockAnimationEngine() : null,
+			context != null ? context.buildLayerManager() : null
+		);
 	}
 
 	public void cancel() {

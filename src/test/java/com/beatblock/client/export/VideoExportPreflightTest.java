@@ -15,6 +15,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VideoExportPreflightTest {
@@ -30,6 +31,8 @@ class VideoExportPreflightTest {
 		assertTrue(status.readyForStrictExport());
 		assertTrue(status.canExport());
 		assertEquals(0, status.errorCount());
+		assertTrue(status.compiledSnapshot() != null);
+		assertTrue(VideoExportPreflight.isSnapshotCurrent(status.compiledSnapshot(), timeline));
 	}
 
 	@Test
@@ -43,6 +46,7 @@ class VideoExportPreflightTest {
 		assertFalse(status.readyForStrictExport());
 		assertFalse(status.canExport());
 		assertTrue(status.errorCount() >= 1);
+		assertTrue(status.compiledSnapshot() == null);
 		assertTrue(TimelineValidator.validate(timeline, engine).hasErrors());
 	}
 
@@ -61,7 +65,23 @@ class VideoExportPreflightTest {
 			false, true
 		));
 		assertFalse(status.canExport());
+		assertTrue(status.compiledSnapshot() == null);
 		assertTrue(status.blockerMessages().stream().anyMatch(m -> m.contains("tower")));
+	}
+
+	@Test
+	void readyStatusUsesStrictCompileGateNotValidatorOnly() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.setDurationSeconds(10);
+		Path out = tempDir.resolve("ok.mp4");
+		var status = VideoExportPreflight.evaluate(new VideoExportPreflight.Request(
+			timeline, null, null,
+			true, out.toString(), 0, 5, 1920, 1080, 60,
+			false, true
+		));
+		assertTrue(status.canExport());
+		assertNotNull(status.compiledSnapshot());
+		assertEquals(timeline.getStageEventsGeneration(), status.compiledSnapshot().sourceGeneration());
 	}
 
 	@Test

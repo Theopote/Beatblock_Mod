@@ -7,7 +7,9 @@ import com.beatblock.client.export.VideoExportPreflight;
 import com.beatblock.client.export.VideoExportSummary;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
 import com.beatblock.timeline.playback.PerformanceCheckController;
+import com.beatblock.timeline.playback.TimelineCompiler;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.video.VideoExportAudioSource;
 import com.beatblock.video.VideoExportPreferences;
@@ -332,7 +334,22 @@ public final class VideoExportPanelPresenter {
 		if (service.isExporting()) {
 			return PresenterResult.failure(BBTexts.get("beatblock.export.error.already_running"));
 		}
-		if (!service.startExport(settings)) {
+		BeatBlockContext ctx = contextSource.get();
+		CompiledTimelineSnapshot program = preflight.compiledSnapshot();
+		if (program == null || !VideoExportPreflight.isSnapshotCurrent(program, ctx != null ? ctx.timeline() : null)) {
+			try {
+				program = TimelineCompiler.compile(
+					ctx != null ? ctx.timeline() : null,
+					ctx != null ? ctx.blockAnimationEngine() : null,
+					ctx != null ? ctx.buildLayerManager() : null
+				);
+			} catch (RuntimeException ex) {
+				return PresenterResult.failure(BBTexts.get(
+					"beatblock.export.error.timeline_compile",
+					ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()));
+			}
+		}
+		if (!service.startExport(settings, program)) {
 			return PresenterResult.failure(BBTexts.get("beatblock.export.error.start_failed"));
 		}
 		return PresenterResult.success(BBTexts.get("beatblock.export.started"));
