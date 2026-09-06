@@ -95,7 +95,7 @@ public final class AnimationBindingEngine {
 					? Timeline.blockAnimationFeatureTrackId(rule.sourceFeatureKey())
 					: Timeline.TRACK_ID_ANIMATION_AUTO;
 				if (toBlockTrack) ensureFeatureTrack(timeline, rule.sourceFeatureKey());
-				TimelineDraftWriter.writeEvent(timeline, trackId, generated, TimelineEventOrigin.GENERATED);
+				TimelineDraftWriter.insertGeneratedEvent(timeline, trackId, generated);
 				lastAcceptedByRule.put(rule.id(), event.getTimeSeconds());
 				added++;
 			}

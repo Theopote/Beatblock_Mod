@@ -9,7 +9,6 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEvent;
-import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.editing.TimelineDocumentChangeNotifier;
 import com.beatblock.timeline.editor.InteractionState;
@@ -105,16 +104,15 @@ class TimelineDocumentChangeNotifierTest {
 	}
 
 	@Test
-	void writeUserEventsRefreshesCompiledPlaybackWhileDriving() {
+	void insertManualEventsRefreshesCompiledPlaybackWhileDriving() {
 		BeatBlockClientDriver.startDriving();
 		assertEquals(0, BeatBlockClientDriver.compiledPlaybackForTests().compiledStageEvents().size());
 
-		int written = TimelineDraftWriter.writeUserEvents(
+		int written = TimelineDraftWriter.insertManualEvents(
 			timeline,
 			Timeline.TRACK_ID_ANIMATION_BLOCK,
 			List.of(new TimelineAnimationEvent(
-				"ev1", 20.0, 0.35, "BlockTap", "stage", 1f, Map.of())),
-			TimelineEventOrigin.MANUAL
+				"ev1", 20.0, 0.35, "BlockTap", "stage", 1f, Map.of()))
 		);
 
 		assertEquals(1, written);
@@ -122,16 +120,15 @@ class TimelineDocumentChangeNotifierTest {
 	}
 
 	@Test
-	void writeGeneratedEventsDoesNotRefreshCompiledPlaybackByItself() {
+	void insertGeneratedEventsDoesNotRefreshCompiledPlaybackByItself() {
 		BeatBlockClientDriver.startDriving();
 		assertEquals(0, BeatBlockClientDriver.compiledPlaybackForTests().compiledStageEvents().size());
 
-		int written = TimelineDraftWriter.writeGeneratedEvents(
+		int written = TimelineDraftWriter.insertGeneratedEvents(
 			timeline,
 			Timeline.TRACK_ID_ANIMATION_AUTO,
 			List.of(new TimelineAnimationEvent(
-				"gen1", 5.0, 1.0, "build", "stage", 1f, Map.of())),
-			TimelineEventOrigin.GENERATED
+				"gen1", 5.0, 1.0, "build", "stage", 1f, Map.of()))
 		);
 
 		assertEquals(1, written);

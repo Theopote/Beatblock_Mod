@@ -53,11 +53,10 @@ class TimelineClipOriginTest {
 			new TimelineAnimationEvent("e1", 1.0, 0.5, "RhythmDrop", "anchor", 1f, Map.of()),
 			session.forBatch()
 		);
-		TimelineDraftWriter.writeEvents(
+		TimelineDraftWriter.insertGeneratedEvents(
 			timeline,
 			Timeline.TRACK_ID_ANIMATION_BLOCK,
-			List.of(event),
-			TimelineEventOrigin.GENERATED
+			List.of(event)
 		);
 
 		var clips = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK).getClips();

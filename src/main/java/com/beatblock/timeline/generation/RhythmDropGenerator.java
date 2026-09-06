@@ -5,7 +5,6 @@ import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
-import com.beatblock.timeline.TimelineEventOrigin;
 import net.minecraft.util.math.BlockPos;
 
 import org.jspecify.annotations.Nullable;
@@ -131,11 +130,10 @@ public final class RhythmDropGenerator {
 			return failure(targetId, "未生成任何事件");
 		}
 
-		int count = TimelineDraftWriter.writeEvents(
+		int count = TimelineDraftWriter.insertGeneratedEvents(
 			timeline,
 			Timeline.TRACK_ID_ANIMATION_BLOCK,
-			tagged,
-			TimelineEventOrigin.GENERATED
+			tagged
 		);
 		if (count <= 0) {
 			return failure(targetId, "写入时间线失败");

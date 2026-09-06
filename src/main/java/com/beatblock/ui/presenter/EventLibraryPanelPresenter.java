@@ -7,7 +7,6 @@ import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEditor;
-import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.generation.AnimationDropTargetResolver;
 import com.beatblock.timeline.generation.AnimationMultiTargetDropPrompt;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
@@ -158,11 +157,10 @@ public final class EventLibraryPanelPresenter {
 		for (String targetObjectId : targetObjectIds) {
 			events.add(template.toTimelineEvent(timeSeconds, targetObjectId));
 		}
-		int written = TimelineDraftWriter.writeUserEvents(
+		int written = TimelineDraftWriter.insertManualEvents(
 			tl,
 			Timeline.TRACK_ID_ANIMATION_BLOCK,
-			events,
-			TimelineEventOrigin.MANUAL
+			events
 		);
 		if (written > 0) {
 			editor.syncClockDuration();

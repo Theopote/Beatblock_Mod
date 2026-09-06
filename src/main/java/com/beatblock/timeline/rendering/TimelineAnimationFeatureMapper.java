@@ -8,7 +8,6 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEvent;
-import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.TrackType;
 import com.beatblock.timeline.binding.AnimationBindingEngine;
@@ -355,7 +354,7 @@ public final class TimelineAnimationFeatureMapper {
 			? Timeline.blockAnimationFeatureTrackId(sourceFeature)
 			: Timeline.TRACK_ID_ANIMATION_AUTO;
 		if (toBlockTrack) ensureBlockAnimationFeatureTrack(timeline, sourceFeature);
-		TimelineDraftWriter.writeEvent(timeline, trackId, ev, TimelineEventOrigin.GENERATED);
+		TimelineDraftWriter.insertGeneratedEvent(timeline, trackId, ev);
 		return 1;
 	}
 
@@ -439,7 +438,7 @@ public final class TimelineAnimationFeatureMapper {
 			? Timeline.blockAnimationFeatureTrackId(sourceFeature)
 			: Timeline.TRACK_ID_ANIMATION_AUTO;
 		if (toBlockTrack) ensureBlockAnimationFeatureTrack(timeline, sourceFeature);
-		TimelineDraftWriter.writeEvent(timeline, trackId, ev, TimelineEventOrigin.GENERATED);
+		TimelineDraftWriter.insertGeneratedEvent(timeline, trackId, ev);
 		lastAcceptedTimeByFeature.put(sourceFeature, timeSeconds);
 		return 1;
 	}

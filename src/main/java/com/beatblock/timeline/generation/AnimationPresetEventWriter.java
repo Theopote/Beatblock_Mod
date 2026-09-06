@@ -17,7 +17,7 @@ import java.util.Map;
 
 /**
  * Writes animation StageEvents from a preset + target list (shared by drop + event library).
- * Committed inserts go through {@link TimelineDraftWriter#writeUserEvents}.
+ * Committed inserts go through {@link TimelineDraftWriter#insertManualEvents}.
  */
 public final class AnimationPresetEventWriter {
 
@@ -70,12 +70,7 @@ public final class AnimationPresetEventWriter {
 				params.toParameterMap()
 			));
 		}
-		int written = TimelineDraftWriter.writeUserEvents(
-			timeline,
-			trackId,
-			events,
-			TimelineEventOrigin.MANUAL
-		);
+		int written = TimelineDraftWriter.insertManualEvents(timeline, trackId, events);
 		return new WriteResult(written, anyUnbound && written > 0);
 	}
 

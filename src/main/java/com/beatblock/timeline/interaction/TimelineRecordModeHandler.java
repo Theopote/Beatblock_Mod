@@ -5,7 +5,6 @@ import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEditor;
-import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.util.SnapSystem;
@@ -82,11 +81,10 @@ public final class TimelineRecordModeHandler {
 			DEFAULT_ENERGY,
 			params
 		);
-		boolean written = TimelineDraftWriter.writeUserEvent(
+		boolean written = TimelineDraftWriter.insertManualEvent(
 			timeline,
 			com.beatblock.timeline.Timeline.TRACK_ID_ANIMATION_BLOCK,
-			event,
-			TimelineEventOrigin.MANUAL
+			event
 		);
 		if (!written) {
 			return new RecordOutcome(false, "write-failed");
