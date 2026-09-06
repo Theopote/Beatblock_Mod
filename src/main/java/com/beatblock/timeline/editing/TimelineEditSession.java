@@ -16,6 +16,8 @@ import com.beatblock.timeline.interaction.TimelineInteractionDeleteSupport;
 import com.beatblock.timeline.interaction.TimelineInteractiveTrackSlots;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.function.DoubleSupplier;
 
 /**
@@ -168,7 +170,7 @@ public final class TimelineEditSession {
 		return true;
 	}
 
-	private ClipRef findSplittableClip(double timeSeconds) {
+	private @Nullable ClipRef findSplittableClip(double timeSeconds) {
 		for (String clipId : selection.getSelectedClips()) {
 			ClipRef ref = findClipRef(clipId);
 			if (ref != null
@@ -201,7 +203,7 @@ public final class TimelineEditSession {
 		return null;
 	}
 
-	private ClipRef findClipRef(String clipId) {
+	private @Nullable ClipRef findClipRef(String clipId) {
 		if (clipId == null || clipId.isBlank()) return null;
 		for (Track track : timeline.getTracks()) {
 			Clip clip = track.getClip(clipId);

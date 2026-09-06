@@ -43,7 +43,7 @@ public final class SplitClipCommand implements Command {
 	private boolean applied;
 	private boolean snapshotCaptured;
 	private double originalEndSeconds;
-	private String rightClipId;
+	private @Nullable String rightClipId;
 	private boolean rebindLayerToRight;
 	private @Nullable String reboundLayerId;
 
@@ -85,7 +85,7 @@ public final class SplitClipCommand implements Command {
 		Track track = timeline.getTrack(trackId);
 		if (track == null) return;
 		Clip left = track.getClip(clipId);
-		if (!canSplit(left, splitTimeSeconds)) return;
+		if (left == null || !canSplit(left, splitTimeSeconds)) return;
 
 		if (!snapshotCaptured) {
 			originalEndSeconds = left.getEndTimeSeconds();
@@ -104,6 +104,9 @@ public final class SplitClipCommand implements Command {
 			snapshotCaptured = true;
 		}
 
+		String rightId = rightClipId;
+		if (rightId == null || rightId.isBlank()) return;
+
 		List<TimelineEvent> toMove = new ArrayList<>();
 		for (TimelineEvent event : left.getEvents()) {
 			if (event.getTimeSeconds() > splitTimeSeconds) {
@@ -111,9 +114,9 @@ public final class SplitClipCommand implements Command {
 			}
 		}
 
-		Clip right = track.getClip(rightClipId);
+		Clip right = track.getClip(rightId);
 		if (right == null) {
-			right = new Clip(rightClipId, splitTimeSeconds, originalEndSeconds);
+			right = new Clip(rightId, splitTimeSeconds, originalEndSeconds);
 			track.addClip(right);
 		} else {
 			right.setStartTimeSeconds(splitTimeSeconds);
@@ -132,7 +135,7 @@ public final class SplitClipCommand implements Command {
 			BuildLayer layer = layerManager.get(reboundLayerId);
 			if (layer != null) {
 				// Already BOUND_TO_TRACK: bindToClip() no-ops (requires FREE_HIDDEN).
-				layer.setBoundClipId(rightClipId);
+				layer.setBoundClipId(rightId);
 			}
 		}
 		timeline.markAnimationEventsDirty(trackId);
@@ -140,7 +143,7 @@ public final class SplitClipCommand implements Command {
 		if (selectionState != null) {
 			selectionState.clearClips();
 			selectionState.selectClip(clipId);
-			selectionState.selectClip(rightClipId);
+			selectionState.selectClip(rightId);
 		}
 		applied = true;
 	}

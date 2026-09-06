@@ -3,6 +3,7 @@ package com.beatblock.timeline.command;
 import com.beatblock.BeatBlock;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerBindingSupport;
+import com.beatblock.engine.layer.BuildLayerBindingSupport.BindingSnapshot;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
@@ -38,7 +39,7 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 	private record RemovedClip(
 		@NonNull String trackId,
 		@NonNull Clip snapshot,
-		BuildLayerBindingSupport.@Nullable BindingSnapshot binding,
+		@Nullable BindingSnapshot binding,
 		Map<String, Object> clipAudioMetadata
 	) {
 		private RemovedClip {
@@ -50,7 +51,7 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 		@NonNull String trackId,
 		@NonNull String clipId,
 		@NonNull TimelineEvent snapshot,
-		BuildLayerBindingSupport.@Nullable BindingSnapshot binding,
+		@Nullable BindingSnapshot binding,
 		boolean removedEmptyClip,
 		@Nullable Clip emptyClipSnapshot
 	) {}
@@ -122,7 +123,7 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 					Clip clip = track.getClip(clipId);
 					if (clip == null) continue;
 					Clip snapshot = copyClip(clip);
-					BuildLayerBindingSupport.BindingSnapshot binding = captureBindingForClip(clipId);
+					@Nullable BindingSnapshot binding = captureBindingForClip(clipId);
 					Map<String, Object> clipMeta =
 						TimelineInteractionDeleteSupport.captureAndClearClipAudioMetadata(timeline, clipId);
 					if (!removeClipNow(track, clipId, snapshot, binding)) {
@@ -211,19 +212,22 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 		for (RemovedClip removed : removedClips) {
 			Track track = timeline.getTrack(removed.trackId());
 			if (track == null) continue;
-			Clip clip = track.getClip(removed.snapshot().getId());
+			Clip snapshot = removed.snapshot();
+			String clipId = snapshot.getId();
+			if (clipId == null || clipId.isBlank()) continue;
+			Clip clip = track.getClip(clipId);
 			if (clip == null) continue;
-			TimelineInteractionDeleteSupport.captureAndClearClipAudioMetadata(
-				timeline, removed.snapshot().getId());
-			removeClipNow(track, removed.snapshot().getId(), removed.snapshot(), removed.binding());
+			TimelineInteractionDeleteSupport.captureAndClearClipAudioMetadata(timeline, clipId);
+			removeClipNow(track, clipId, snapshot, removed.binding());
 		}
 		for (RemovedEvent removed : removedEvents) {
 			Track track = timeline.getTrack(removed.trackId());
 			if (track == null) continue;
 			Clip clip = track.getClip(removed.clipId());
 			if (clip == null) {
-				if (removed.removedEmptyClip() && removed.emptyClipSnapshot() != null) {
-					clip = copyClip(removed.emptyClipSnapshot());
+				Clip emptySnap = removed.emptyClipSnapshot();
+				if (removed.removedEmptyClip() && emptySnap != null) {
+					clip = copyClip(emptySnap);
 					track.addClip(clip);
 				} else {
 					continue;
@@ -242,7 +246,7 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 		Track track,
 		String clipId,
 		Clip snapshot,
-		BuildLayerBindingSupport.@Nullable BindingSnapshot binding
+		@Nullable BindingSnapshot binding
 	) {
 		if (!track.removeClip(clipId)) return false;
 		if (binding != null && layerManager != null) {
@@ -281,7 +285,7 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 
 	private @Nullable RemovedEvent removeEventNow(Track track, Clip clip, TimelineEvent event) {
 		TimelineEvent eventSnapshot = copyEvent(event);
-		BuildLayerBindingSupport.BindingSnapshot binding =
+		@Nullable BindingSnapshot binding =
 			BuildLayerBindingSupport.unbindIfBindingEvent(layerManager, clip.getId(), event);
 		if (!clip.removeEvent(event.getId())) {
 			if (binding != null) {
@@ -316,7 +320,7 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 		);
 	}
 
-	private BuildLayerBindingSupport.@Nullable BindingSnapshot captureBindingForClip(String clipId) {
+	private @Nullable BindingSnapshot captureBindingForClip(String clipId) {
 		if (layerManager == null) return null;
 		BuildLayer layer = layerManager.getByClipId(clipId);
 		if (layer == null) return null;
