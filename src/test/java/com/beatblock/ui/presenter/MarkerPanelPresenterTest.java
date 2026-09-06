@@ -1,5 +1,7 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.timeline.MarkerEditState;
+import com.beatblock.timeline.MarkerOrigin;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
@@ -40,7 +42,7 @@ class MarkerPanelPresenterTest {
 	}
 
 	@Test
-	void applyMarkerEditUpdatesTimeline() {
+	void applyMarkerEditUpdatesTimelineViaUndoableCommand() {
 		TimelineMarker marker = new TimelineMarker(2.0, "Old", MarkerType.GENERIC);
 		timeline.addMarker(marker);
 
@@ -54,6 +56,10 @@ class MarkerPanelPresenterTest {
 		assertEquals("New", updated.getName());
 		assertEquals(3.5, updated.getTimeSeconds(), 1e-9);
 		assertEquals(MarkerType.DROP, updated.getType());
+
+		assertTrue(editor.getCommandManager().canUndo());
+		editor.getCommandManager().undo();
+		assertEquals("Old", presenter.findMarker(timeline, marker.getId()).getName());
 	}
 
 	@Test
@@ -67,11 +73,70 @@ class MarkerPanelPresenterTest {
 	}
 
 	@Test
+	void generatedSectionTypeChangeRequiresConfirm() {
+		TimelineMarker marker = TimelineMarker.audioAnalysisSection(1.0, "SECTION A");
+		timeline.addMarker(marker);
+
+		assertTrue(presenter.requiresTypeChangeConfirm(marker, MarkerType.FX.ordinal()));
+		var blocked = presenter.applyMarkerEdit(
+			timeline, marker.getId(), marker.getName(), "1.000", MarkerType.FX.ordinal(), false);
+		assertFalse(blocked.result().ok());
+		assertEquals(MarkerType.SECTION, presenter.findMarker(timeline, marker.getId()).getType());
+
+		var allowed = presenter.applyMarkerEdit(
+			timeline, marker.getId(), marker.getName(), "1.000", MarkerType.FX.ordinal(), true);
+		assertTrue(allowed.result().ok());
+		assertEquals(MarkerType.FX, presenter.findMarker(timeline, marker.getId()).getType());
+		assertEquals(MarkerEditState.USER_EDITED, presenter.findMarker(timeline, marker.getId()).getEditState());
+	}
+
+	@Test
+	void lockedMarkerRejectsDeleteAndEdit() {
+		TimelineMarker marker = new TimelineMarker(
+			"lock", 1.0, "SECTION A", MarkerType.SECTION,
+			MarkerOrigin.AUDIO_ANALYSIS, MarkerEditState.LOCKED);
+		timeline.addMarker(marker);
+
+		assertFalse(presenter.deleteMarker(timeline, marker.getId(), true).ok());
+		assertFalse(presenter.applyMarkerEdit(
+			timeline, marker.getId(), "B", "2.0", MarkerType.SECTION.ordinal(), true).result().ok());
+		assertNotNull(presenter.findMarker(timeline, marker.getId()));
+	}
+
+	@Test
+	void lockAndUnlockAreUndoableAndUnlockBecomesUserEdited() {
+		TimelineMarker marker = TimelineMarker.audioAnalysisSection(1.0, "SECTION A");
+		timeline.addMarker(marker);
+
+		assertTrue(presenter.setMarkerLocked(timeline, marker.getId(), true).ok());
+		assertEquals(MarkerEditState.LOCKED, presenter.findMarker(timeline, marker.getId()).getEditState());
+
+		assertTrue(presenter.setMarkerLocked(timeline, marker.getId(), false).ok());
+		assertEquals(MarkerEditState.USER_EDITED, presenter.findMarker(timeline, marker.getId()).getEditState());
+
+		assertTrue(editor.getCommandManager().canUndo());
+		editor.getCommandManager().undo();
+		assertEquals(MarkerEditState.LOCKED, presenter.findMarker(timeline, marker.getId()).getEditState());
+	}
+
+	@Test
 	void deleteMarkerRemovesEntry() {
 		TimelineMarker marker = new TimelineMarker(1.0, "A", MarkerType.GENERIC);
 		timeline.addMarker(marker);
 		assertTrue(presenter.deleteMarker(timeline, marker.getId()).ok());
 		assertNull(presenter.findMarker(timeline, marker.getId()));
+		assertTrue(editor.getCommandManager().canUndo());
+	}
+
+	@Test
+	void insertAtPlayheadCreatesManualMarker() {
+		editor.getPlaybackSession().seek(7.5);
+		assertTrue(presenter.insertAtPlayhead(MarkerType.CAMERA, "Cam").ok());
+		assertEquals(1, timeline.getMarkers().size());
+		TimelineMarker created = timeline.getMarkers().getFirst();
+		assertEquals(7.5, created.getTimeSeconds(), 1e-9);
+		assertEquals(MarkerType.CAMERA, created.getType());
+		assertEquals(MarkerOrigin.MANUAL, created.getOrigin());
 	}
 
 	@Test

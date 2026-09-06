@@ -1,5 +1,8 @@
 package com.beatblock.timeline.editor;
 
+import com.beatblock.timeline.TimelineMarker;
+import org.jspecify.annotations.Nullable;
+
 /**
  * 交互状态：当前模式、按下时的鼠标位置、正在操作的对象 ID。
  */
@@ -12,6 +15,8 @@ public class InteractionState {
 	private String activeClipId;
 	private String activeTrackId;
 	private String activeMarkerId;
+	/** MARKER_DRAG 按下时标记快照（松开时提交 Undo）。 */
+	private @Nullable TimelineMarker markerDragBefore;
 	/** MARKER_DRAG 按下时标记的原始时间（松开时提交 Undo）。 */
 	private double markerDragStartTimeSeconds;
 	private String markerDragName = "";
@@ -58,6 +63,14 @@ public class InteractionState {
 	public String getActiveMarkerId() { return activeMarkerId; }
 	public void setActiveMarkerId(String id) { activeMarkerId = id; }
 
+	public @Nullable TimelineMarker getMarkerDragBefore() {
+		return markerDragBefore;
+	}
+
+	public void setMarkerDragBefore(@Nullable TimelineMarker marker) {
+		markerDragBefore = marker;
+	}
+
 	public double getMarkerDragStartTimeSeconds() { return markerDragStartTimeSeconds; }
 	public void setMarkerDragStartTimeSeconds(double t) { markerDragStartTimeSeconds = t; }
 
@@ -81,6 +94,7 @@ public class InteractionState {
 		activeClipId = null;
 		activeTrackId = null;
 		activeMarkerId = null;
+		markerDragBefore = null;
 		markerDragStartTimeSeconds = 0;
 		markerDragName = "";
 		sectionBoundaryIndex = -1;

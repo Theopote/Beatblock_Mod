@@ -158,7 +158,7 @@ public class Timeline {
 		requireClientThread();
 		if (index < 0 || index >= markers.size()) return false;
 		TimelineMarker prev = markers.get(index);
-		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, prev.getType()));
+		markers.set(index, prev.withFields(timeSeconds, name, prev.getType(), true));
 		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
 		return true;
 	}
@@ -167,7 +167,7 @@ public class Timeline {
 		requireClientThread();
 		if (index < 0 || index >= markers.size()) return false;
 		TimelineMarker prev = markers.get(index);
-		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, type));
+		markers.set(index, prev.withFields(timeSeconds, name, type, true));
 		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
 		return true;
 	}
@@ -176,7 +176,7 @@ public class Timeline {
 		int index = findMarkerIndexById(markerId);
 		if (index < 0) return false;
 		TimelineMarker prev = markers.get(index);
-		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, prev.getType()));
+		markers.set(index, prev.withFields(timeSeconds, name, prev.getType(), true));
 		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
 		return true;
 	}
@@ -185,7 +185,29 @@ public class Timeline {
 		int index = findMarkerIndexById(markerId);
 		if (index < 0) return false;
 		TimelineMarker prev = markers.get(index);
-		markers.set(index, new TimelineMarker(prev.getId(), timeSeconds, name, type));
+		markers.set(index, prev.withFields(timeSeconds, name, type, true));
+		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
+		return true;
+	}
+
+	/** 拖动预览：只改时间，不提升 {@link MarkerEditState}。 */
+	public boolean updateMarkerTimeLive(String markerId, double timeSeconds) {
+		requireClientThread();
+		int index = findMarkerIndexById(markerId);
+		if (index < 0) return false;
+		TimelineMarker prev = markers.get(index);
+		markers.set(index, prev.withTimeSeconds(timeSeconds, false));
+		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
+		return true;
+	}
+
+	/** 按 id 整对象替换（Command undo/redo 用）；保留 id 排序。 */
+	public boolean replaceMarker(@Nullable TimelineMarker marker) {
+		requireClientThread();
+		if (marker == null) return false;
+		int index = findMarkerIndexById(marker.getId());
+		if (index < 0) return false;
+		markers.set(index, marker);
 		markers.sort(Comparator.comparingDouble(TimelineMarker::getTimeSeconds));
 		return true;
 	}

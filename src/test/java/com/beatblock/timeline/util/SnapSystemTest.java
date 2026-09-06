@@ -73,6 +73,22 @@ class SnapSystemTest {
 	}
 
 	@Test
+	void excludesMarkerIdFromMagnetTargets() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addMarker(new TimelineMarker("m1", 2.0, "Self", MarkerType.GENERIC));
+		timeline.addMarker(new TimelineMarker("m2", 4.0, "Other", MarkerType.GENERIC));
+
+		double withoutExclude = SnapSystem.snap(2.05, timeline, false, 0, false, 0, true, null, null);
+		assertEquals(2.0, withoutExclude, 1e-9);
+
+		double withExclude = SnapSystem.snap(2.05, timeline, false, 0, false, 0, true, null, "m1");
+		assertEquals(2.05, withExclude, 1e-9);
+
+		double snapsToOther = SnapSystem.snap(4.03, timeline, false, 0, false, 0, true, null, "m1");
+		assertEquals(4.0, snapsToOther, 1e-9);
+	}
+
+	@Test
 	void returnsOriginalTimeWhenNothingWithinThreshold() {
 		SnapSystem.SnapResult result = SnapSystem.snapWithGuides(
 			9.99, Timeline.createDefault(), false, 0, false, 0, true, null);

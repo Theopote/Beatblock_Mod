@@ -5,6 +5,7 @@ import com.beatblock.audio.beatmap.BeatEvent;
 import com.beatblock.audio.beatmap.MusicSection;
 import com.beatblock.automap.choreography.ChoreographyPlanSeeder;
 import com.beatblock.timeline.*;
+import com.beatblock.timeline.marker.MarkerAnalysisMerger;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -205,15 +206,13 @@ public final class AudioAnalysisEngine {
 			timeline.addFeatureEvent(key, localizedFeatureLabel(key), new FeatureEvent(timeSec, energy));
 		}
 
-		List<TimelineMarker> preserved = timeline.getMarkers().stream()
-			.filter(m -> m.getType() != MarkerType.SECTION)
-			.toList();
-		timeline.setMarkers(preserved);
+		List<MarkerAnalysisMerger.AnalyzedSection> analyzedSections = new ArrayList<>();
 		for (MusicSection section : beatmap.sections) {
 			double sectionStartSec = Math.max(0.0, section.startMs() / 1000.0);
 			String name = "SECTION " + section.label().name();
-			timeline.addMarker(new TimelineMarker(sectionStartSec, name, MarkerType.SECTION));
+			analyzedSections.add(new MarkerAnalysisMerger.AnalyzedSection(sectionStartSec, name));
 		}
+		timeline.setMarkers(MarkerAnalysisMerger.merge(timeline.getMarkers(), analyzedSections));
 
 		timeline.setMetadata("bpm", beatmap.meta.bpm());
 		timeline.setMetadata("beatCount", beatmap.beats.size());

@@ -45,6 +45,18 @@ public final class SnapSystem {
 			boolean snapToGrid, double gridStepSeconds,
 			boolean snapToBeat, double bpm,
 			boolean magnetSnap, String excludeEventId) {
+		return snapWithGuides(timeSeconds, timeline, snapToGrid, gridStepSeconds,
+			snapToBeat, bpm, magnetSnap, excludeEventId, null);
+	}
+
+	/**
+	 * 同 {@link #snapWithGuides(double, Timeline, boolean, double, boolean, double, boolean, String)}，
+	 * 额外排除正在拖动的 Marker，避免磁吸到自身。
+	 */
+	public static SnapResult snapWithGuides(double timeSeconds, Timeline timeline,
+			boolean snapToGrid, double gridStepSeconds,
+			boolean snapToBeat, double bpm,
+			boolean magnetSnap, String excludeEventId, String excludeMarkerId) {
 		if (timeline == null) return SnapResult.unchanged(timeSeconds);
 
 		MutableSnapState state = new MutableSnapState(timeSeconds, SNAP_THRESHOLD_SECONDS);
@@ -70,9 +82,9 @@ public final class SnapSystem {
 				}
 			}
 			for (TimelineMarker marker : timeline.getMarkers()) {
-				if (marker != null) {
-					state.consider(timeSeconds, marker.getTimeSeconds());
-				}
+				if (marker == null) continue;
+				if (excludeMarkerId != null && excludeMarkerId.equals(marker.getId())) continue;
+				state.consider(timeSeconds, marker.getTimeSeconds());
 			}
 			for (FeatureTrack ft : timeline.getFeatureTracks().values()) {
 				if (ft == null) continue;
@@ -100,14 +112,22 @@ public final class SnapSystem {
 			boolean snapToGrid, double gridStepSeconds,
 			boolean snapToBeat, double bpm,
 			boolean magnetSnap, String excludeEventId) {
+		return snap(timeSeconds, timeline, snapToGrid, gridStepSeconds,
+			snapToBeat, bpm, magnetSnap, excludeEventId, null);
+	}
+
+	public static double snap(double timeSeconds, Timeline timeline,
+			boolean snapToGrid, double gridStepSeconds,
+			boolean snapToBeat, double bpm,
+			boolean magnetSnap, String excludeEventId, String excludeMarkerId) {
 		return snapWithGuides(timeSeconds, timeline, snapToGrid, gridStepSeconds,
-			snapToBeat, bpm, magnetSnap, excludeEventId).timeSeconds();
+			snapToBeat, bpm, magnetSnap, excludeEventId, excludeMarkerId).timeSeconds();
 	}
 
 	public static double snap(double timeSeconds, Timeline timeline,
 			boolean snapToGrid, double gridStepSeconds,
 			boolean snapToBeat, double bpm) {
-		return snap(timeSeconds, timeline, snapToGrid, gridStepSeconds, snapToBeat, bpm, false, null);
+		return snap(timeSeconds, timeline, snapToGrid, gridStepSeconds, snapToBeat, bpm, false, null, null);
 	}
 
 	private static final class MutableSnapState {

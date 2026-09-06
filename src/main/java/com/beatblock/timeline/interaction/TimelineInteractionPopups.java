@@ -342,15 +342,55 @@ public final class TimelineInteractionPopups {
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.timeline.interaction.rename") + "##markerApply")) {
 			String newName = state.markerNameBuffer.get() == null ? "" : state.markerNameBuffer.get().trim();
-			timeline.updateMarker(state.contextMarkerId, marker.getTimeSeconds(), newName);
-			state.contextMarkerId = null;
-			ImGui.closeCurrentPopup();
+			if (com.beatblock.timeline.MarkerEditPolicy.isLocked(marker)) {
+				ImGui.closeCurrentPopup();
+			} else {
+				TimelineMarker after = marker.withFields(marker.getTimeSeconds(), newName, marker.getType(), true);
+				TimelineEditor editor = host.timelineEditor();
+				if (editor != null) {
+					editor.getCommandManager().execute(
+						new com.beatblock.timeline.command.UpdateMarkerCommand(timeline, marker, after));
+					com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
+				} else {
+					timeline.replaceMarker(after);
+				}
+				state.contextMarkerId = null;
+				ImGui.closeCurrentPopup();
+			}
 		}
 		ImGui.sameLine();
-		if (ImGui.button(BBTexts.get("beatblock.common.delete") + "##markerDelete")) {
-			timeline.removeMarker(state.contextMarkerId);
-			state.contextMarkerId = null;
-			ImGui.closeCurrentPopup();
+		boolean structuralDelete = com.beatblock.timeline.MarkerEditPolicy.requiresStructuralConfirm(
+			marker, com.beatblock.timeline.MarkerEditPolicy.StructuralAction.DELETE, null);
+		boolean locked = com.beatblock.timeline.MarkerEditPolicy.isLocked(marker);
+		if (locked) {
+			ImGui.beginDisabled();
+		}
+		if (ImGui.button((structuralDelete
+			? BBTexts.get("beatblock.common.confirm_delete")
+			: BBTexts.get("beatblock.common.delete")) + "##markerDelete")) {
+			if (!locked && com.beatblock.timeline.MarkerEditPolicy.allowsMutation(
+				marker,
+				com.beatblock.timeline.MarkerEditPolicy.StructuralAction.DELETE,
+				null,
+				structuralDelete
+			)) {
+				var delete = com.beatblock.timeline.command.DeleteMarkerCommand.of(timeline, state.contextMarkerId);
+				TimelineEditor editor = host.timelineEditor();
+				if (delete != null && editor != null) {
+					editor.getCommandManager().execute(delete);
+					com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
+				} else if (delete != null) {
+					delete.execute();
+				}
+				state.contextMarkerId = null;
+				ImGui.closeCurrentPopup();
+			}
+		}
+		if (locked) {
+			ImGui.endDisabled();
+		}
+		if (structuralDelete && ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.marker.structural_delete_body"));
 		}
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.common.close") + "##markerClose")) {

@@ -1,6 +1,8 @@
 package com.beatblock.timeline.project;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.timeline.MarkerEditState;
+import com.beatblock.timeline.MarkerOrigin;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.engine.layer.BuildLayerBindingSupport;
 import com.beatblock.engine.layer.BuildLayerManager;
@@ -71,6 +73,8 @@ public final class OscProjectStore {
 			markerObj.addProperty("timeSeconds", marker.getTimeSeconds());
 			markerObj.addProperty("name", marker.getName());
 			markerObj.addProperty("type", marker.getType().name());
+			markerObj.addProperty("origin", marker.getOrigin().name());
+			markerObj.addProperty("editState", marker.getEditState().name());
 			markers.add(markerObj);
 		}
 		root.add("markers", markers);
@@ -211,7 +215,17 @@ public final class OscProjectStore {
 				double timeSeconds = obj.has("timeSeconds") ? obj.get("timeSeconds").getAsDouble() : 0;
 				String name = getString(obj, "name", "");
 				MarkerType type = MarkerType.fromName(getString(obj, "type", "GENERIC"));
-				markers.add(new TimelineMarker(id, timeSeconds, name, type));
+				MarkerOrigin origin = MarkerOrigin.fromValue(getString(obj, "origin", ""));
+				MarkerEditState editState = obj.has("editState")
+					? MarkerEditState.fromValue(getString(obj, "editState", ""))
+					: (origin.isSystemProduced() ? MarkerEditState.GENERATED : MarkerEditState.USER_EDITED);
+				// Legacy projects: no origin → MANUAL + USER_EDITED; SECTION from analysis will be
+				// re-tagged on next analysis run.
+				if (!obj.has("origin") || getString(obj, "origin", "").isBlank()) {
+					origin = MarkerOrigin.MANUAL;
+					editState = MarkerEditState.USER_EDITED;
+				}
+				markers.add(new TimelineMarker(id, timeSeconds, name, type, origin, editState));
 			}
 		} catch (RuntimeException e) {
 			BeatBlock.LOGGER.warn("Failed to parse markers from .osc project, skipping malformed entries", e);

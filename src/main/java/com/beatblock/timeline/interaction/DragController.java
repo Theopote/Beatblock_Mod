@@ -142,21 +142,73 @@ public final class DragController {
 	/** 供片段边缘拖拽等复用：与 {@link #dragEvent} 相同的吸附规则。 */
 	public static double snapTime(double timeSeconds, String excludeEventId, Timeline timeline,
 			TimelineToolbarState toolbarState, TimelineViewState viewState) {
-		return snapTime(timeSeconds, excludeEventId, timeline, toolbarState, viewState, null);
+		return snapTime(timeSeconds, excludeEventId, null, timeline, toolbarState, viewState, null);
 	}
 
 	public static double snapTime(double timeSeconds, String excludeEventId, Timeline timeline,
 			TimelineToolbarState toolbarState, TimelineViewState viewState,
 			InteractionState interactionState) {
-		SnapSystem.SnapResult result = applySnapWithGuides(timeSeconds, excludeEventId, timeline, toolbarState, viewState);
+		return snapTime(timeSeconds, excludeEventId, null, timeline, toolbarState, viewState, interactionState);
+	}
+
+	public static double snapTime(
+		double timeSeconds,
+		String excludeEventId,
+		String excludeMarkerId,
+		Timeline timeline,
+		TimelineToolbarState toolbarState,
+		TimelineViewState viewState,
+		InteractionState interactionState
+	) {
+		SnapSystem.SnapResult result = applySnapWithGuides(
+			timeSeconds, excludeEventId, excludeMarkerId, timeline, toolbarState, viewState);
 		if (interactionState != null) {
 			interactionState.setAlignmentGuideTimes(result.guideTimes());
 		}
 		return result.timeSeconds();
 	}
 
+	/**
+	 * Marker 拖动：按工具栏 Snap 设置吸附，夹到 {@code [0, duration]}，并写入对齐参考线。
+	 */
+	public static double computeMarkerDragTime(
+		double newTimeSeconds,
+		String markerId,
+		double duration,
+		Timeline timeline,
+		TimelineToolbarState toolbarState,
+		TimelineViewState viewState,
+		InteractionState interactionState
+	) {
+		if (timeline == null) {
+			return Double.NaN;
+		}
+		double hi = duration > 0 ? duration : Double.MAX_VALUE;
+		double snapped = snapTime(
+			newTimeSeconds,
+			null,
+			markerId,
+			timeline,
+			toolbarState,
+			viewState,
+			interactionState
+		);
+		return Math.max(0.0, Math.min(snapped, hi));
+	}
+
 	private static SnapSystem.SnapResult applySnapWithGuides(double timeSeconds, String excludeEventId, Timeline timeline,
 			TimelineToolbarState toolbarState, TimelineViewState viewState) {
+		return applySnapWithGuides(timeSeconds, excludeEventId, null, timeline, toolbarState, viewState);
+	}
+
+	private static SnapSystem.SnapResult applySnapWithGuides(
+		double timeSeconds,
+		String excludeEventId,
+		String excludeMarkerId,
+		Timeline timeline,
+		TimelineToolbarState toolbarState,
+		TimelineViewState viewState
+	) {
 		if (toolbarState == null) return SnapSystem.SnapResult.unchanged(timeSeconds);
 		boolean grid = toolbarState.isSnapToGrid();
 		boolean beat = toolbarState.isSnapToBeat();
@@ -170,6 +222,7 @@ public final class DragController {
 				viewState.getViewEndTimeSeconds(),
 				viewState.getZoom());
 		}
-		return SnapSystem.snapWithGuides(timeSeconds, timeline, grid, gridStep, beat, timeline.getBpm(), magnet, excludeEventId);
+		return SnapSystem.snapWithGuides(
+			timeSeconds, timeline, grid, gridStep, beat, timeline.getBpm(), magnet, excludeEventId, excludeMarkerId);
 	}
 }

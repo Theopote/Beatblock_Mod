@@ -1,20 +1,33 @@
 package com.beatblock.timeline.command;
 
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineMarker;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+
 /**
- * 移动时间轴标记：execute 设为 newTime，undo 恢复 oldTime。
+ * 移动时间轴标记：execute 写入 {@code after}，undo 恢复 {@code before}（含 editState）。
  */
 public final class MoveMarkerCommand implements Command {
 
 	private final Timeline timeline;
-	private final String markerId;
-	private final double oldTimeSeconds;
-	private final double newTimeSeconds;
-	private final String name;
+	private final TimelineMarker before;
+	private final TimelineMarker after;
 
+	public MoveMarkerCommand(
+		@NonNull Timeline timeline,
+		@NonNull TimelineMarker before,
+		double newTimeSeconds
+	) {
+		this.timeline = Objects.requireNonNull(timeline, "timeline");
+		this.before = Objects.requireNonNull(before, "before");
+		this.after = before.withTimeSeconds(newTimeSeconds, true);
+	}
+
+	/** @deprecated 使用 {@link #MoveMarkerCommand(Timeline, TimelineMarker, double)} 以保留 provenance。 */
+	@Deprecated
 	public MoveMarkerCommand(
 		@NonNull Timeline timeline,
 		@NonNull String markerId,
@@ -22,32 +35,49 @@ public final class MoveMarkerCommand implements Command {
 		double newTimeSeconds,
 		@Nullable String name
 	) {
-		this.timeline = timeline;
-		this.markerId = markerId;
-		this.oldTimeSeconds = oldTimeSeconds;
-		this.newTimeSeconds = newTimeSeconds;
-		this.name = name != null ? name : "";
+		this.timeline = Objects.requireNonNull(timeline, "timeline");
+		int index = timeline.findMarkerIndexById(markerId);
+		TimelineMarker current = index >= 0 ? timeline.getMarkers().get(index) : null;
+		if (current != null) {
+			this.before = current.withTimeSeconds(oldTimeSeconds, false);
+			this.after = current.withFields(newTimeSeconds, name != null ? name : current.getName(), current.getType(), true);
+		} else {
+			this.before = new TimelineMarker(markerId, oldTimeSeconds, name);
+			this.after = before.withTimeSeconds(newTimeSeconds, true);
+		}
 	}
 
 	@Override
 	public void execute() {
-		timeline.updateMarker(markerId, newTimeSeconds, name);
+		if (!timeline.replaceMarker(after)) {
+			timeline.addMarker(after);
+		}
 	}
 
 	@Override
 	public void undo() {
-		timeline.updateMarker(markerId, oldTimeSeconds, name);
+		if (!timeline.replaceMarker(before)) {
+			timeline.addMarker(before);
+		}
 	}
 
 	public String markerId() {
-		return markerId;
+		return before.getId();
 	}
 
 	public double oldTimeSeconds() {
-		return oldTimeSeconds;
+		return before.getTimeSeconds();
 	}
 
 	public double newTimeSeconds() {
-		return newTimeSeconds;
+		return after.getTimeSeconds();
+	}
+
+	public TimelineMarker before() {
+		return before;
+	}
+
+	public TimelineMarker after() {
+		return after;
 	}
 }

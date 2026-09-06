@@ -293,9 +293,7 @@ public final class TimelineTransportPresenter {
 			return false;
 		}
 		double time = editor.getPlaybackSession().currentTimeSeconds();
-		int markerIndex = currentTimeline.getMarkers().size() + 1;
-		currentTimeline.addMarker(new TimelineMarker(time, "Marker " + markerIndex));
-		com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
+		com.beatblock.timeline.marker.MarkerInsertionService.insertAtTime(currentTimeline, editor, time);
 		return true;
 	}
 

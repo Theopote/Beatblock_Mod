@@ -91,6 +91,56 @@ class OscProjectStoreTest {
 		assertEquals("mk1", loaded.getMarkers().getFirst().getId());
 		assertEquals(12.5, loaded.getMarkers().getFirst().getTimeSeconds(), 1e-6);
 		assertEquals(MarkerType.DROP, loaded.getMarkers().getFirst().getType());
+		assertEquals(com.beatblock.timeline.MarkerOrigin.MANUAL, loaded.getMarkers().getFirst().getOrigin());
+		assertEquals(com.beatblock.timeline.MarkerEditState.USER_EDITED, loaded.getMarkers().getFirst().getEditState());
+	}
+
+	@Test
+	void roundTripsMarkerOriginAndEditState() throws Exception {
+		Path file = tempDir.resolve("marker-provenance.osc");
+		Timeline timeline = Timeline.createDefault();
+		timeline.addMarker(new TimelineMarker(
+			"sec1",
+			4.0,
+			"SECTION INTRO",
+			MarkerType.SECTION,
+			com.beatblock.timeline.MarkerOrigin.AUDIO_ANALYSIS,
+			com.beatblock.timeline.MarkerEditState.GENERATED
+		));
+		OscProjectStore.save(file, timeline);
+
+		JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+		JsonObject markerJson = root.getAsJsonArray("markers").get(0).getAsJsonObject();
+		assertEquals("AUDIO_ANALYSIS", markerJson.get("origin").getAsString());
+		assertEquals("GENERATED", markerJson.get("editState").getAsString());
+
+		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file);
+		assertEquals(com.beatblock.timeline.MarkerOrigin.AUDIO_ANALYSIS, loaded.getMarkers().getFirst().getOrigin());
+		assertEquals(com.beatblock.timeline.MarkerEditState.GENERATED, loaded.getMarkers().getFirst().getEditState());
+	}
+
+	@Test
+	void legacyMarkersWithoutOriginDefaultToManualUserEdited() throws Exception {
+		Path file = tempDir.resolve("legacy-marker.osc");
+		Files.writeString(file, """
+			{
+			  "format": "beatblock.osc",
+			  "schemaVersion": 3,
+			  "projectId": "legacy",
+			  "timelineName": "Legacy",
+			  "audioPath": "",
+			  "durationSeconds": 10,
+			  "bpm": 120,
+			  "markers": [
+			    { "id": "old", "timeSeconds": 1.0, "name": "SECTION A", "type": "SECTION" }
+			  ]
+			}
+			""", StandardCharsets.UTF_8);
+
+		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file);
+		assertEquals(1, loaded.getMarkers().size());
+		assertEquals(com.beatblock.timeline.MarkerOrigin.MANUAL, loaded.getMarkers().getFirst().getOrigin());
+		assertEquals(com.beatblock.timeline.MarkerEditState.USER_EDITED, loaded.getMarkers().getFirst().getEditState());
 	}
 
 	@Test

@@ -156,7 +156,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		}
 
 		if (interactionState.getMode() == InteractionMode.MARKER_DRAG) {
-			handleMarkerDrag(timeline, viewState, interactionState, clock, layout, duration, mx);
+			handleMarkerDrag(timeline, viewState, interactionState, toolbarState, clock, layout, duration, mx);
 			return;
 		}
 		if (toolbarState != null && interactionState.getMode() == InteractionMode.LOOP_OUT_DRAG) {
@@ -314,7 +314,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			int markerIndex = TimelineRulerHitTest.findMarkerIndexAtMouse(timeline, viewState, layout, mx, my);
 			if (!overLoopHandle && markerIndex < 0) {
 				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
-				TimelineRulerHitTest.addMarkerAtTime(timeline, t);
+				TimelineRulerHitTest.addMarkerAtTime(timeline, timelineEditor, t);
 				com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 				if (clock != null) seekClockAndMusic(clock, t);
 				return;
@@ -576,7 +576,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		}
 
 		if (interactionState.getMode() == InteractionMode.MARKER_DRAG) {
-			handleMarkerDrag(timeline, viewState, interactionState, clock, layout, duration, mx);
+			handleMarkerDrag(timeline, viewState, interactionState, toolbarState, clock, layout, duration, mx);
 			return;
 		}
 
@@ -673,7 +673,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 			int markerIndex = TimelineRulerHitTest.findMarkerIndexAtMouse(timeline, viewState, layout, mx, my);
 			if (!overLoopHandle && markerIndex < 0) {
 				double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
-				TimelineRulerHitTest.addMarkerAtTime(timeline, t);
+				TimelineRulerHitTest.addMarkerAtTime(timeline, timelineEditor, t);
 				com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
 				if (clock != null) seekClockAndMusic(clock, t);
 				return;
@@ -742,9 +742,13 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 
 	private static void beginMarkerDrag(InteractionState interactionState, TimelineMarker marker, float mx, float my) {
 		if (interactionState == null || marker == null) return;
+		if (com.beatblock.timeline.MarkerEditPolicy.isLocked(marker)) {
+			return;
+		}
 		interactionState.setMode(InteractionMode.MARKER_DRAG);
 		interactionState.setMouseStart(mx, my);
 		interactionState.setActiveMarkerId(marker.getId());
+		interactionState.setMarkerDragBefore(marker);
 		interactionState.setMarkerDragStartTimeSeconds(marker.getTimeSeconds());
 		interactionState.setMarkerDragName(marker.getName());
 	}
@@ -803,6 +807,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		Timeline timeline,
 		TimelineViewState viewState,
 		InteractionState interactionState,
+		TimelineToolbarState toolbarState,
 		TimelineClock clock,
 		TimelineLayout layout,
 		double duration,
@@ -810,21 +815,32 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 	) {
 		String markerId = interactionState.getActiveMarkerId();
 		int markerIndex = timeline.findMarkerIndexById(markerId);
-		double t = Math.max(0, Math.min(viewState.screenToTime(mx - layout.contentLeft), duration));
-		String name = interactionState.getMarkerDragName();
+		double rawT = viewState.screenToTime(mx - layout.contentLeft);
+		double t = DragController.computeMarkerDragTime(
+			rawT,
+			markerId,
+			duration,
+			timeline,
+			toolbarState,
+			viewState,
+			interactionState
+		);
+		if (Double.isNaN(t)) {
+			t = Math.max(0, Math.min(rawT, duration));
+		}
+		TimelineMarker before = interactionState.getMarkerDragBefore();
 		if (markerIndex >= 0) {
-			TimelineMarker marker = timeline.getMarkers().get(markerIndex);
-			name = marker.getName();
-			timeline.updateMarker(markerId, t, name);
+			timeline.updateMarkerTimeLive(markerId, t);
 			if (clock != null) seekClockAndMusic(clock, t);
 		}
 		if (ImGui.isMouseReleased(0)) {
 			double oldT = interactionState.getMarkerDragStartTimeSeconds();
-			if (markerId != null && Math.abs(t - oldT) > 1e-6 && timelineEditor != null) {
-				// 拖动中已写回 newTime；此处只登记 Undo（再 execute 一次为幂等）
+			if (markerId != null && Math.abs(t - oldT) > 1e-6 && timelineEditor != null && before != null) {
 				timelineEditor.getCommandManager().execute(
-					new MoveMarkerCommand(timeline, markerId, oldT, t, name));
+					new MoveMarkerCommand(timeline, before, t));
 				com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
+			} else if (before != null && markerIndex >= 0) {
+				timeline.replaceMarker(before);
 			}
 			interactionState.setMode(InteractionMode.NONE);
 			interactionState.clearActive();

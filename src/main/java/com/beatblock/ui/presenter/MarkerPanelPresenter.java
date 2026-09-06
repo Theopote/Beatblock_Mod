@@ -1,9 +1,18 @@
 package com.beatblock.ui.presenter;
 
 import com.beatblock.client.BeatBlockClientDriver;
+import com.beatblock.timeline.MarkerEditPolicy;
+import com.beatblock.timeline.MarkerEditState;
+import com.beatblock.timeline.MarkerOrigin;
 import com.beatblock.timeline.MarkerType;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineMarker;
+import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.timeline.command.DeleteMarkerCommand;
+import com.beatblock.timeline.command.UpdateMarkerCommand;
+import com.beatblock.timeline.editing.TimelineDocumentChangeNotifier;
+import com.beatblock.timeline.marker.MarkerInsertionService;
 import com.beatblock.ui.i18n.BBTexts;
 
 import java.util.ArrayList;
@@ -22,10 +31,19 @@ public final class MarkerPanelPresenter {
 		int colorAbgr,
 		String name,
 		double timeSeconds,
-		MarkerType type
+		MarkerType type,
+		MarkerOrigin origin,
+		MarkerEditState editState
 	) {}
 
-	public record MarkerFormSnapshot(String name, String timeText, int typeIndex) {}
+	public record MarkerFormSnapshot(
+		String name,
+		String timeText,
+		int typeIndex,
+		MarkerOrigin origin,
+		MarkerEditState editState,
+		boolean locked
+	) {}
 
 	public record MarkerNeighbors(TimelineMarker previous, TimelineMarker next) {}
 
@@ -82,21 +100,28 @@ public final class MarkerPanelPresenter {
 
 	public MarkerFormSnapshot formSnapshotFor(TimelineMarker marker) {
 		if (marker == null) {
-			return new MarkerFormSnapshot("", "0.000", 0);
+			return new MarkerFormSnapshot("", "0.000", 0, MarkerOrigin.MANUAL, MarkerEditState.USER_EDITED, false);
 		}
 		return new MarkerFormSnapshot(
 			marker.getName(),
 			formatTime(marker.getTimeSeconds()),
-			clampTypeIndex(marker.getType().ordinal())
+			clampTypeIndex(marker.getType().ordinal()),
+			marker.getOrigin(),
+			marker.getEditState(),
+			MarkerEditPolicy.isLocked(marker)
 		);
 	}
 
+	/**
+	 * @param structuralConfirmed 对 SECTION/GENERATED 的类型切换已二次确认
+	 */
 	public MarkerEditOutcome applyMarkerEdit(
 		Timeline timeline,
 		String markerId,
 		String rawName,
 		String rawTime,
-		int typeIndex
+		int typeIndex,
+		boolean structuralConfirmed
 	) {
 		if (timeline == null || markerId == null || markerId.isBlank()) {
 			return new MarkerEditOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.no_marker")), null);
@@ -104,6 +129,12 @@ public final class MarkerPanelPresenter {
 		TimelineMarker marker = findMarker(timeline, markerId);
 		if (marker == null) {
 			return new MarkerEditOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.marker_not_found")), null);
+		}
+		if (MarkerEditPolicy.isLocked(marker)) {
+			return new MarkerEditOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.marker_locked")),
+				formSnapshotFor(marker)
+			);
 		}
 
 		String name = rawName != null ? rawName.trim() : "";
@@ -120,22 +151,124 @@ public final class MarkerPanelPresenter {
 		}
 
 		MarkerType type = MarkerType.values()[clampTypeIndex(typeIndex)];
-		timeline.updateMarker(markerId, timeSeconds, name, type);
+		if (type != marker.getType()
+			&& !MarkerEditPolicy.allowsMutation(
+				marker, MarkerEditPolicy.StructuralAction.CHANGE_TYPE, type, structuralConfirmed)) {
+			return new MarkerEditOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.marker_structural_confirm_required")),
+				formSnapshotFor(marker)
+			);
+		}
+
+		TimelineMarker after = marker.withFields(timeSeconds, name, type, true);
+		executeUpdate(timeline, marker, after);
 		TimelineMarker updated = findMarker(timeline, markerId);
 		return new MarkerEditOutcome(
 			PresenterResult.success(""),
-			formSnapshotFor(updated != null ? updated : marker)
+			formSnapshotFor(updated != null ? updated : after)
 		);
 	}
 
-	public PresenterResult deleteMarker(Timeline timeline, String markerId) {
+	/** 兼容旧调用：无结构确认。 */
+	public MarkerEditOutcome applyMarkerEdit(
+		Timeline timeline,
+		String markerId,
+		String rawName,
+		String rawTime,
+		int typeIndex
+	) {
+		return applyMarkerEdit(timeline, markerId, rawName, rawTime, typeIndex, false);
+	}
+
+	public boolean requiresTypeChangeConfirm(TimelineMarker marker, int typeIndex) {
+		if (marker == null) {
+			return false;
+		}
+		MarkerType type = MarkerType.values()[clampTypeIndex(typeIndex)];
+		return MarkerEditPolicy.requiresStructuralConfirm(
+			marker, MarkerEditPolicy.StructuralAction.CHANGE_TYPE, type);
+	}
+
+	public boolean requiresDeleteConfirm(TimelineMarker marker) {
+		return MarkerEditPolicy.requiresStructuralConfirm(
+			marker, MarkerEditPolicy.StructuralAction.DELETE, null);
+	}
+
+	public PresenterResult deleteMarker(Timeline timeline, String markerId, boolean structuralConfirmed) {
 		if (timeline == null || markerId == null || markerId.isBlank()) {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.no_marker"));
 		}
-		if (!timeline.removeMarker(markerId)) {
+		TimelineMarker marker = findMarker(timeline, markerId);
+		if (marker == null) {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.marker_not_found"));
 		}
+		if (MarkerEditPolicy.isLocked(marker)) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.marker_locked"));
+		}
+		if (!MarkerEditPolicy.allowsMutation(
+			marker, MarkerEditPolicy.StructuralAction.DELETE, null, structuralConfirmed)) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.marker_structural_confirm_required"));
+		}
+		DeleteMarkerCommand command = new DeleteMarkerCommand(timeline, marker);
+		CommandManager commands = commandManager();
+		if (commands != null) {
+			commands.execute(command);
+		} else {
+			command.execute();
+		}
+		if (!command.wasApplied()) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.marker_not_found"));
+		}
+		TimelineDocumentChangeNotifier.notifyDocumentEdited();
 		return PresenterResult.success("");
+	}
+
+	public PresenterResult deleteMarker(Timeline timeline, String markerId) {
+		return deleteMarker(timeline, markerId, false);
+	}
+
+	/**
+	 * Lock / Unlock。Unlock 固定回到 {@link MarkerEditState#USER_EDITED}，
+	 * 避免解锁后再次被 re-analysis 静默覆盖。
+	 */
+	public PresenterResult setMarkerLocked(Timeline timeline, String markerId, boolean locked) {
+		if (timeline == null || markerId == null || markerId.isBlank()) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.no_marker"));
+		}
+		TimelineMarker marker = findMarker(timeline, markerId);
+		if (marker == null) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.marker_not_found"));
+		}
+		boolean currentlyLocked = MarkerEditPolicy.isLocked(marker);
+		if (currentlyLocked == locked) {
+			return PresenterResult.success("");
+		}
+		MarkerEditState nextState = locked ? MarkerEditState.LOCKED : MarkerEditState.USER_EDITED;
+		TimelineMarker after = marker.withEditState(nextState);
+		executeUpdate(timeline, marker, after);
+		return PresenterResult.success("");
+	}
+
+	public PresenterResult insertAtPlayhead(MarkerType type, String name) {
+		Timeline timeline = currentTimeline();
+		TimelineEditor editor = editorPresenter != null ? editorPresenter.editorOrNull() : null;
+		if (timeline == null) {
+			return PresenterResult.failure(BBTexts.get("beatblock.marker.no_timeline"));
+		}
+		double time = editor != null
+			? editor.getPlaybackSession().currentTimeSeconds()
+			: 0.0;
+		String markerName = name != null && !name.isBlank()
+			? name.trim()
+			: defaultNameForType(type, timeline);
+		var result = MarkerInsertionService.insertManual(
+			timeline,
+			editor,
+			new MarkerInsertionService.CreationRequest(time, markerName, type != null ? type : MarkerType.GENERIC)
+		);
+		return result.written()
+			? PresenterResult.success("")
+			: PresenterResult.failure(BBTexts.get("beatblock.message.no_marker"));
 	}
 
 	public MarkerNeighbors neighborsOf(Timeline timeline, String markerId) {
@@ -187,12 +320,42 @@ public final class MarkerPanelPresenter {
 		return Math.max(0, Math.min(typeIndex, MarkerType.values().length - 1));
 	}
 
+	private void executeUpdate(Timeline timeline, TimelineMarker before, TimelineMarker after) {
+		UpdateMarkerCommand command = new UpdateMarkerCommand(timeline, before, after);
+		CommandManager commands = commandManager();
+		if (commands != null) {
+			commands.execute(command);
+		} else {
+			command.execute();
+		}
+		TimelineDocumentChangeNotifier.notifyDocumentEdited();
+	}
+
+	private CommandManager commandManager() {
+		TimelineEditor editor = editorPresenter != null ? editorPresenter.editorOrNull() : null;
+		return editor != null ? editor.getCommandManager() : null;
+	}
+
+	private static String defaultNameForType(MarkerType type, Timeline timeline) {
+		if (type == MarkerType.SECTION) {
+			return "SECTION";
+		}
+		int markerIndex = timeline.getMarkers().size() + 1;
+		return "Marker " + markerIndex;
+	}
+
 	private static MarkerListItem toListItem(TimelineMarker marker) {
 		String displayName = marker.getName() == null || marker.getName().isBlank()
 			? "(unnamed)"
 			: marker.getName();
-		String listLabel = String.format(Locale.ROOT, "[%s] %.2fs  %s",
+		String stateTag = switch (marker.getEditState()) {
+			case GENERATED -> "*";
+			case LOCKED -> "[L]";
+			case USER_EDITED -> "";
+		};
+		String listLabel = String.format(Locale.ROOT, "[%s]%s %.2fs  %s",
 			marker.getType().getDisplayName(),
+			stateTag.isEmpty() ? "" : " " + stateTag,
 			marker.getTimeSeconds(),
 			displayName);
 		return new MarkerListItem(
@@ -201,7 +364,9 @@ public final class MarkerPanelPresenter {
 			marker.getType().getColorAbgr(),
 			marker.getName(),
 			marker.getTimeSeconds(),
-			marker.getType()
+			marker.getType(),
+			marker.getOrigin(),
+			marker.getEditState()
 		);
 	}
 }

@@ -1,11 +1,14 @@
 package com.beatblock.timeline.interaction;
 
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.editor.TimelineClock;
+import com.beatblock.timeline.marker.MarkerInsertionService;
 import com.beatblock.timeline.rendering.TimelineLayout;
 import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.editor.TimelineViewState;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -61,9 +64,15 @@ public final class TimelineRulerHitTest {
 	}
 
 	public static void addMarkerAtTime(Timeline timeline, double timeSeconds) {
-		if (timeline == null) return;
-		int markerIndex = timeline.getMarkers().size() + 1;
-		timeline.addMarker(new TimelineMarker(timeSeconds, "Marker " + markerIndex));
+		addMarkerAtTime(timeline, null, timeSeconds);
+	}
+
+	public static void addMarkerAtTime(
+		Timeline timeline,
+		@Nullable TimelineEditor editor,
+		double timeSeconds
+	) {
+		MarkerInsertionService.insertAtTime(timeline, editor, timeSeconds);
 	}
 
 	public static boolean isMouseOverPlayhead(

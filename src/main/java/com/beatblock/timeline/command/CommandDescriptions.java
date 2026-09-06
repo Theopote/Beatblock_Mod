@@ -27,6 +27,15 @@ public final class CommandDescriptions {
 		if (command instanceof MoveMarkerCommand) {
 			return BBTexts.get("beatblock.undo.move_marker");
 		}
+		if (command instanceof CreateMarkerCommand) {
+			return BBTexts.get("beatblock.undo.create_marker");
+		}
+		if (command instanceof UpdateMarkerCommand) {
+			return BBTexts.get("beatblock.undo.update_marker");
+		}
+		if (command instanceof DeleteMarkerCommand) {
+			return BBTexts.get("beatblock.undo.delete_marker");
+		}
 		if (command instanceof DeleteEventCommand
 			|| command instanceof DeleteSelectedTimelineEntriesCommand) {
 			return BBTexts.get("beatblock.undo.delete_event");
