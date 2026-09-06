@@ -126,6 +126,36 @@ public final class EventTemplateStore {
 		return save();
 	}
 
+	/**
+	 * Replaces animation configuration for an existing template.
+	 * Keeps the same {@code id} and the user's existing {@code name}.
+	 *
+	 * @return false when missing, not ready, or save blocked
+	 */
+	public static boolean replaceContent(String id, EventTemplate content) {
+		if (id == null || id.isBlank() || content == null) {
+			return false;
+		}
+		ensureLoaded();
+		if (state != StoreState.READY) {
+			LOGGER.warn("Refusing to replace event template while store state is {}", state);
+			return false;
+		}
+		EventTemplate existing = templates.get(id);
+		if (existing == null) {
+			return false;
+		}
+		templates.put(id, new EventTemplate(
+			existing.id(),
+			existing.name(),
+			content.animationTypeId(),
+			content.durationSeconds(),
+			content.energy(),
+			content.parameters()
+		));
+		return save();
+	}
+
 	private static void ensureLoaded() {
 		if (state != StoreState.NOT_LOADED) {
 			return;

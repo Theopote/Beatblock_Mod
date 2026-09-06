@@ -8,7 +8,9 @@ import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.presenter.EventLibraryPanelPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.util.UiNumberFormatter;
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
@@ -19,18 +21,21 @@ import java.util.Locale;
 /**
  * 事件库：保存/复用动画事件配置模板。
  * <p>
- * Broken templates (missing animation, etc.) stay visible with a warning;
- * Insert is disabled, but Rename / Delete remain available.
+ * Broken templates stay visible with a warning; Insert is disabled, but Update / Rename / Delete remain.
  */
 public final class EventLibraryPanel {
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private static final int NAME_CAPACITY = 128;
+	private static final String DELETE_CONFIRM_POPUP = "##EventLibraryDeleteConfirm";
 
 	private final EventLibraryPanelPresenter presenter;
 	private final ImString saveNameBuffer = new ImString(NAME_CAPACITY);
 	private final ImString renameBuffer = new ImString(NAME_CAPACITY);
 	private String renamingTemplateId = "";
+	private String pendingDeleteTemplateId = "";
+	private String pendingDeleteTemplateName = "";
+	private boolean requestDeleteConfirmPopup;
 
 	public EventLibraryPanel() {
 		this(PresenterFactories.eventLibraryPanelPresenter());
@@ -71,7 +76,8 @@ public final class EventLibraryPanel {
 
 			renderSaveSection(state);
 			ImGui.separator();
-			renderTemplateList(state.templates());
+			renderTemplateList(state);
+			renderDeleteConfirmPopup();
 			if (!state.statusMessage().isBlank()) {
 				ImGui.spacing();
 				ImGui.textWrapped(state.statusMessage());
@@ -88,7 +94,7 @@ public final class EventLibraryPanel {
 		} else {
 			ImGui.textDisabled(BBTexts.get("beatblock.event_library.no_selection"));
 		}
-		ImGui.setNextItemWidth(-120f);
+		ImGui.setNextItemWidth(-140f);
 		ImGui.inputTextWithHint("##eventLibName", BBTexts.get("beatblock.event_library.name_hint"), saveNameBuffer);
 		ImGui.sameLine();
 		if (!state.hasSelection()) ImGui.beginDisabled();
@@ -102,7 +108,8 @@ public final class EventLibraryPanel {
 		if (!state.hasSelection()) ImGui.endDisabled();
 	}
 
-	private void renderTemplateList(List<EventTemplateItem> templates) {
+	private void renderTemplateList(EventLibraryPanelPresenter.ViewState state) {
+		List<EventTemplateItem> templates = state.templates();
 		ImGui.text(BBTexts.get("beatblock.event_library.list_section", templates.size()));
 		if (templates.isEmpty()) {
 			ImGui.textDisabled(BBTexts.get("beatblock.event_library.empty"));
@@ -111,7 +118,7 @@ public final class EventLibraryPanel {
 		if (ImGui.beginChild("##eventLibList", 0, 0, true)) {
 			for (EventTemplateItem item : templates) {
 				ImGui.pushID(item.id());
-				renderTemplateRow(item);
+				renderTemplateRow(item, state);
 				ImGui.popID();
 				ImGui.separator();
 			}
@@ -119,10 +126,11 @@ public final class EventLibraryPanel {
 		ImGui.endChild();
 	}
 
-	private void renderTemplateRow(EventTemplateItem item) {
+	private void renderTemplateRow(EventTemplateItem item, EventLibraryPanelPresenter.ViewState state) {
 		var template = item.template();
-		boolean canApply = item.canApply();
+		boolean canInsert = item.canApply();
 		boolean unhealthy = item.status() != EventTemplateStatus.VALID;
+		String playheadLabel = UiNumberFormatter.format(state.playheadSeconds());
 
 		if (unhealthy) {
 			ImGui.textWrapped("⚠ " + template.name());
@@ -146,17 +154,29 @@ public final class EventLibraryPanel {
 			return;
 		}
 
-		if (!canApply) ImGui.beginDisabled();
-		if (ImGui.smallButton(BBTexts.get("beatblock.event_library.apply"))) {
+		if (!canInsert) ImGui.beginDisabled();
+		if (ImGui.smallButton(BBTexts.get("beatblock.event_library.insert_at", playheadLabel))) {
 			notify(presenter.applyTemplate(template.id()));
 		}
-		if (!canApply) ImGui.endDisabled();
+		if (!canInsert) ImGui.endDisabled();
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(canApply
-				? BBTexts.get("beatblock.event_library.apply.tooltip")
+			ImGui.setTooltip(canInsert
+				? BBTexts.get("beatblock.event_library.apply.tooltip", playheadLabel)
 				: (item.warning().isBlank()
 					? BBTexts.get("beatblock.event_library.apply_blocked")
 					: item.warning()));
+		}
+
+		ImGui.sameLine();
+		if (!state.hasSelection()) ImGui.beginDisabled();
+		if (ImGui.smallButton(BBTexts.get("beatblock.event_library.update"))) {
+			notify(presenter.updateFromSelection(template.id()));
+		}
+		if (!state.hasSelection()) ImGui.endDisabled();
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(state.hasSelection()
+				? BBTexts.get("beatblock.event_library.update.tooltip")
+				: BBTexts.get("beatblock.event_library.no_selection"));
 		}
 
 		ImGui.sameLine();
@@ -167,11 +187,9 @@ public final class EventLibraryPanel {
 
 		ImGui.sameLine();
 		if (ImGui.smallButton(BBTexts.get("beatblock.common.delete"))) {
-			var outcome = presenter.deleteTemplate(template.id());
-			notify(outcome);
-			if (outcome.success() && template.id().equals(renamingTemplateId)) {
-				cancelRename();
-			}
+			pendingDeleteTemplateId = template.id();
+			pendingDeleteTemplateName = template.name();
+			requestDeleteConfirmPopup = true;
 		}
 	}
 
@@ -189,6 +207,45 @@ public final class EventLibraryPanel {
 		if (ImGui.smallButton(BBTexts.get("beatblock.common.cancel") + "##renameCancel")) {
 			cancelRename();
 		}
+	}
+
+	private void renderDeleteConfirmPopup() {
+		if (requestDeleteConfirmPopup && !pendingDeleteTemplateId.isBlank()) {
+			ImGui.openPopup(DELETE_CONFIRM_POPUP);
+			requestDeleteConfirmPopup = false;
+		}
+		if (pendingDeleteTemplateId.isBlank()) {
+			return;
+		}
+
+		ImGui.setNextWindowSize(400f, 0f, ImGuiCond.Appearing);
+		if (!ImGui.beginPopupModal(DELETE_CONFIRM_POPUP)) {
+			return;
+		}
+
+		ImGui.textWrapped(BBTexts.get("beatblock.event_library.delete_confirm", pendingDeleteTemplateName));
+		ImGui.spacing();
+		if (ImGui.button(BBTexts.get("beatblock.event_library.confirm_delete") + "##eventLibDeleteOk", 120f, 0f)) {
+			var outcome = presenter.deleteTemplate(pendingDeleteTemplateId);
+			notify(outcome);
+			if (outcome.success() && pendingDeleteTemplateId.equals(renamingTemplateId)) {
+				cancelRename();
+			}
+			clearPendingDelete();
+			ImGui.closeCurrentPopup();
+		}
+		ImGui.sameLine();
+		if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##eventLibDeleteCancel", 120f, 0f)) {
+			clearPendingDelete();
+			ImGui.closeCurrentPopup();
+		}
+		ImGui.endPopup();
+	}
+
+	private void clearPendingDelete() {
+		pendingDeleteTemplateId = "";
+		pendingDeleteTemplateName = "";
+		requestDeleteConfirmPopup = false;
 	}
 
 	private void cancelRename() {

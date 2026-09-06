@@ -25,6 +25,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -197,6 +198,41 @@ class EventLibraryPanelPresenterTest {
 		assertEquals(com.beatblock.ui.eventlibrary.EventTemplateStatus.MISSING_ANIMATION, item.status());
 		assertEquals("Keep Me Visible", item.template().name());
 		assertFalse(item.canApply());
+	}
+
+	@Test
+	void viewStateExposesPlayheadSeconds() {
+		editor.getClock().setCurrentTimeSeconds(12.5);
+		assertEquals(12.5, presenter.viewState().playheadSeconds(), 1e-6);
+	}
+
+	@Test
+	void updateFromSelectionKeepsIdAndName() {
+		Track track = timeline.getTrack(Timeline.TRACK_ID_ANIMATION_BLOCK);
+		var clip = TimelineOperations.addClip(track, 0.0, 10.0);
+		var event = TimelineOperations.addEvent(
+			clip, 1.0, EventType.ANIMATION,
+			Map.of(
+				"animationType", "BlockTap",
+				"targetObject", "stage",
+				"durationSeconds", 0.55,
+				"energy", 0.4f,
+				"actionMode", "ANIMATE",
+				"eventOrigin", "MANUAL"
+			)
+		);
+		editor.getSelectionState().selectEvent(event.getId());
+
+		var updated = presenter.updateFromSelection(templateId);
+		assertTrue(updated.success());
+
+		EventTemplate after = EventTemplateStore.find(templateId).orElseThrow();
+		assertEquals(templateId, after.id());
+		assertEquals("Pulse Snapshot", after.name());
+		assertEquals("BlockTap", after.animationTypeId());
+		assertEquals(0.55, after.durationSeconds(), 1e-6);
+		assertEquals(0.4f, after.energy(), 1e-6);
+		assertNull(after.parameters().get("targetObject"));
 	}
 
 	@Test

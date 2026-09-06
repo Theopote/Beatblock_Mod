@@ -35,7 +35,8 @@ public final class EventLibraryPanelPresenter {
 		String selectedEventSummary,
 		List<EventTemplateItem> templates,
 		String statusMessage,
-		String libraryErrorMessage
+		String libraryErrorMessage,
+		double playheadSeconds
 	) {}
 
 	public record ApplyOutcome(boolean success, String message) {}
@@ -93,12 +94,13 @@ public final class EventLibraryPanelPresenter {
 		Timeline tl = timeline.get();
 		TimelineEditor editor = timelineEditor.get();
 		if (tl == null || editor == null) {
-			return new ViewState(false, libraryReady, false, "", items, statusMessage, libraryError);
+			return new ViewState(false, libraryReady, false, "", items, statusMessage, libraryError, 0.0);
 		}
+		double playheadSeconds = editor.getClock().getCurrentTimeSeconds();
 		EventPropertiesRef ref = eventPropertiesPresenter.resolvePropertiesRef(tl, editor.getSelectionState());
 		boolean hasSelection = ref != null && ref.event() != null && ref.event().getType() == EventType.ANIMATION;
 		String summary = hasSelection ? summarize(ref) : "";
-		return new ViewState(true, libraryReady, hasSelection, summary, items, statusMessage, libraryError);
+		return new ViewState(true, libraryReady, hasSelection, summary, items, statusMessage, libraryError, playheadSeconds);
 	}
 
 	public List<EventTemplateItem> assessAll() {
@@ -254,6 +256,46 @@ public final class EventLibraryPanelPresenter {
 			return fail(BBTexts.get("beatblock.event_library.save_blocked"));
 		}
 		statusMessage = BBTexts.get("beatblock.event_library.renamed", trimmed);
+		return new ApplyOutcome(true, statusMessage);
+	}
+
+	/**
+	 * Updates an existing template's animation configuration from the selected timeline event.
+	 * Keeps the same template id and display name.
+	 */
+	public ApplyOutcome updateFromSelection(String templateId) {
+		if (!EventTemplateStore.isReady()) {
+			return fail(BBTexts.get("beatblock.event_library.save_blocked"));
+		}
+		EventTemplate existing = EventTemplateStore.find(templateId).orElse(null);
+		if (existing == null) {
+			return fail(BBTexts.get("beatblock.event_library.template_missing"));
+		}
+		Timeline tl = timeline.get();
+		TimelineEditor editor = timelineEditor.get();
+		if (tl == null || editor == null) {
+			return fail(BBTexts.get("beatblock.common.timeline_not_initialized"));
+		}
+		EventPropertiesRef ref = eventPropertiesPresenter.resolvePropertiesRef(tl, editor.getSelectionState());
+		if (ref == null || ref.event() == null || ref.event().getType() != EventType.ANIMATION) {
+			return fail(BBTexts.get("beatblock.event_library.no_selection"));
+		}
+		TimelineAnimationEvent animationEvent = findAnimationEvent(tl, ref.event().getId());
+		if (animationEvent == null) {
+			return fail(BBTexts.get("beatblock.event_library.no_selection"));
+		}
+		EventTemplate content = EventTemplate.fromAnimationEvent(animationEvent, existing.name());
+		EventTemplateItem health = EventTemplateHealth.assess(content, libraryOrEmpty());
+		if (health.status() == EventTemplateStatus.MISSING_ANIMATION
+			|| health.status() == EventTemplateStatus.INVALID_PARAMETERS) {
+			return fail(health.warning().isBlank()
+				? BBTexts.get("beatblock.event_library.health.invalid_parameters")
+				: health.warning());
+		}
+		if (!EventTemplateStore.replaceContent(templateId, content)) {
+			return fail(BBTexts.get("beatblock.event_library.save_blocked"));
+		}
+		statusMessage = BBTexts.get("beatblock.event_library.updated", existing.name());
 		return new ApplyOutcome(true, statusMessage);
 	}
 
