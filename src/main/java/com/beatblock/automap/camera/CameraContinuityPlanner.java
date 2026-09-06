@@ -102,12 +102,13 @@ public final class CameraContinuityPlanner {
 
 	static EstimatedPose estimatePose(CameraShot shot) {
 		Vec3d lookAt = approximateLookAt(shot.effectiveLookAt());
-		CameraFramingSolution framing = CameraFramingEngine.fallback(shot.framing(), lookAt);
+		CameraFramingSolution framing = CameraFramingEngine.fallback(shot.framing(), lookAt)
+			.withAngle(shot.angle());
 		Vec3d eye = eyeForMovement(shot.movement(), framing);
 		Vec3d toSubject = lookAt.subtract(eye);
 		double horizontal = Math.sqrt(toSubject.x * toSubject.x + toSubject.z * toSubject.z);
 		float yaw = horizontal < 1e-6
-			? 0f
+			? (float) framing.facingYawDeg()
 			: (float) Math.toDegrees(Math.atan2(-toSubject.x, toSubject.z));
 		float pitch = (float) framing.pitchDeg();
 		Vec3d screen = new Vec3d(eye.x - lookAt.x, 0.0, eye.z - lookAt.z);
@@ -121,20 +122,28 @@ public final class CameraContinuityPlanner {
 
 	private static Vec3d eyeForMovement(CameraShotMovement movement, CameraFramingSolution framing) {
 		return switch (movement != null ? movement : CameraShotMovement.HOLD) {
-			case ORBIT -> framing.eyePositionSouth(); // 与 writer 起始角 0°（+Z）一致
-			case PULL_OUT -> eyePositionNorth(framing, 0.5, 1.0); // 与默认南向眼点相对，便于检测对穿
-			case SHAKE -> framing.eyePositionSouth(0.7, 1.0);
-			case PUSH_IN, PAN, HOLD -> framing.eyePositionSouth();
+			case ORBIT -> framing.eyePosition();
+			case PULL_OUT -> eyeAtAzimuth(framing, framing.yawDeg() + 180.0, 0.5, 1.0);
+			case SHAKE -> framing.eyePosition(0.7, 1.0);
+			case PUSH_IN, PAN, HOLD -> framing.eyePosition();
 		};
 	}
 
-	private static Vec3d eyePositionNorth(CameraFramingSolution framing, double distanceScale, double heightScale) {
-		Vec3d lookAt = framing.lookAt();
-		return new Vec3d(
-			lookAt.x,
-			lookAt.y + framing.eyeHeightAboveLookAt() * heightScale,
-			lookAt.z - framing.horizontalDistance() * distanceScale
-		);
+	private static Vec3d eyeAtAzimuth(
+		CameraFramingSolution framing,
+		double azimuthDeg,
+		double distanceScale,
+		double heightScale
+	) {
+		return new CameraFramingSolution(
+			framing.lookAt(),
+			framing.horizontalDistance(),
+			framing.eyeHeightAboveLookAt(),
+			azimuthDeg,
+			framing.pitchDeg(),
+			framing.fovDeg(),
+			framing.dollyReachBlocks()
+		).eyePosition(distanceScale, heightScale);
 	}
 
 	private static Vec3d approximateLookAt(CameraSubject subject) {
@@ -176,6 +185,7 @@ public final class CameraContinuityPlanner {
 			shot.subject(),
 			shot.framing(),
 			shot.movement(),
+			shot.angle(),
 			shot.lookAt(),
 			transition,
 			shot.easing(),

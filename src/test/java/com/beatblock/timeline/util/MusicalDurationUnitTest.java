@@ -29,4 +29,13 @@ class MusicalDurationUnitTest {
 		assertEquals(3.5, MusicalDurationUnit.SECONDS.toSeconds(3.5, 90.0), 1e-9);
 		assertEquals(3.5, MusicalDurationUnit.SECONDS.fromSeconds(3.5, 90.0), 1e-9);
 	}
+
+	@Test
+	void musicalDurationRecordResolvesToTimelineSeconds() {
+		assertEquals(2.0, MusicalDuration.beats(4).toSeconds(120.0), 1e-9);
+		assertEquals(2.0, MusicalDuration.bars(1).toSeconds(120.0), 1e-9);
+		MusicalDuration fromSeconds = MusicalDuration.fromSeconds(2.0, MusicalDurationUnit.BEATS, 120.0);
+		assertEquals(4.0, fromSeconds.amount(), 1e-9);
+		assertEquals(MusicalDurationUnit.BEATS, fromSeconds.unit());
+	}
 }

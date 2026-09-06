@@ -48,7 +48,7 @@ class CameraViewCaptureServiceTest {
 	void withoutSelectionCreatesPathClipWithOneUndoAndSelectsKeyframe() {
 		CapturedCameraPose pose = new CapturedCameraPose(11, 70, -2, 45, -8);
 
-		var result = CameraViewCaptureService.captureCurrentView(timeline, editor, pose);
+		var result = CameraViewCaptureService.createPathFromCurrentView(timeline, editor, pose);
 
 		assertTrue(result.success(), result.message());
 		assertEquals(1, commands.undoCount());
@@ -79,6 +79,21 @@ class CameraViewCaptureServiceTest {
 	}
 
 	@Test
+	void createPathIgnoresSelectedClipAndAlwaysCreatesNew() {
+		CameraTrackFactory.addPathSegment(timeline, 0.0, 0, 64, 0, 0, 0);
+		var existing = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().getFirst();
+		editor.getSelectionState().selectClip(existing.getId());
+		commands.clear();
+
+		var result = CameraViewCaptureService.createPathFromCurrentView(
+			timeline, editor, new CapturedCameraPose(9, 70, 1, 20, -4));
+
+		assertTrue(result.success(), result.message());
+		assertEquals(2, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+		assertEquals(BBTexts.get("beatblock.camera_creator.captured_path"), result.message());
+	}
+
+	@Test
 	void withSelectedPathClipAddsKeyframeAsOneUndo() {
 		CameraTrackFactory.addPathSegment(timeline, 0.0, 0, 64, 0, 0, 0);
 		var clip = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().getFirst();
@@ -89,7 +104,7 @@ class CameraViewCaptureServiceTest {
 		int keyframesBefore = (int) clip.getEvents().stream()
 			.filter(e -> e.getType() == EventType.CAMERA_KEYFRAME).count();
 
-		var result = CameraViewCaptureService.captureCurrentView(
+		var result = CameraViewCaptureService.addKeyframeAtPlayhead(
 			timeline, editor, new CapturedCameraPose(3, 65, 4, 90, 0));
 
 		assertTrue(result.success(), result.message());
@@ -114,7 +129,7 @@ class CameraViewCaptureServiceTest {
 		editor.getSelectionState().selectClip(clip.getId());
 		commands.clear();
 
-		var result = CameraViewCaptureService.captureCurrentView(
+		var result = CameraViewCaptureService.addKeyframeAtPlayhead(
 			timeline, editor, new CapturedCameraPose(0, 64, 0, 0, 0));
 
 		assertFalse(result.success());

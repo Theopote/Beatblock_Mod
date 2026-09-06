@@ -105,69 +105,72 @@ public final class CameraShotTimelineWriter {
 		CameraShot shot,
 		TimelineGenerationMetadata metadata
 	) {
-		CameraFramingSolution framing = resolveFraming(shot);
+		CameraFramingSolution framing = resolveFraming(shot).withAngle(shot.angle());
 		Vec3d target = framing.lookAt();
 		double start = shot.startSeconds();
 		double duration = shot.durationSeconds();
 		String ease = shot.easing().name();
 		Map<String, Object> semantics = CameraSegmentSemantics.fromShot(shot);
+		double facingYaw = framing.facingYawDeg();
+		double azimuth = framing.yawDeg();
 
 		return switch (shot.movement()) {
 			case ORBIT -> {
 				CameraTrackFactory.addOrbitSegment(
 					timeline, start, duration,
 					target.x, target.y, target.z,
-					framing.orbitRadiusBlocks(), framing.orbitHeightBlocks(), 0.0, 120.0,
+					framing.orbitRadiusBlocks(), framing.orbitHeightBlocks(),
+					azimuth, azimuth + 120.0,
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case PUSH_IN -> {
-				Vec3d eye = framing.eyePositionSouth();
+				Vec3d eye = framing.eyePosition();
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, framing.dollyReachBlocks(),
+					eye.x, eye.y, eye.z, azimuth, framing.dollyReachBlocks(),
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case PULL_OUT -> {
-				Vec3d eye = framing.eyePositionSouth(0.5, 1.0);
+				Vec3d eye = framing.eyePosition(0.5, 1.0);
 				CameraTrackFactory.addDollySegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 180.0, framing.dollyReachBlocks(),
+					eye.x, eye.y, eye.z, azimuth + 180.0, framing.dollyReachBlocks(),
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case PAN -> {
-				Vec3d eye = framing.eyePositionSouth();
+				Vec3d eye = framing.eyePosition();
 				CameraTrackFactory.addCraneSegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, framing.pitchDeg(), 2.5,
+					eye.x, eye.y, eye.z, facingYaw, framing.pitchDeg(), 2.5,
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case SHAKE -> {
-				Vec3d eye = framing.eyePositionSouth(0.7, 1.0);
+				Vec3d eye = framing.eyePosition(0.7, 1.0);
 				CameraTrackFactory.addShakeSegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, framing.pitchDeg(),
+					eye.x, eye.y, eye.z, facingYaw, framing.pitchDeg(),
 					metadata,
 					semantics
 				);
 				yield true;
 			}
 			case HOLD -> {
-				Vec3d eye = framing.eyePositionSouth();
+				Vec3d eye = framing.eyePosition();
 				CameraTrackFactory.addPathSegment(
 					timeline, start, duration,
-					eye.x, eye.y, eye.z, 0.0, framing.pitchDeg(), ease,
+					eye.x, eye.y, eye.z, facingYaw, framing.pitchDeg(), ease,
 					metadata,
 					semantics
 				);

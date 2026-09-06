@@ -20,6 +20,18 @@ public final class MusicalDurationField {
 		syncAmountFromSeconds(bpm);
 	}
 
+	/** Sets display unit and refreshes the amount from stored seconds. */
+	public void setUnit(MusicalDurationUnit unit, double bpm) {
+		MusicalDurationUnit resolved = unit != null ? unit : MusicalDurationUnit.SECONDS;
+		unitIndex.set(resolved.ordinal());
+		syncAmountFromSeconds(bpm);
+	}
+
+	public void setFromSeconds(double seconds, MusicalDurationUnit unit, double bpm) {
+		this.seconds = Math.max(0.0, seconds);
+		setUnit(unit, bpm);
+	}
+
 	public double seconds() {
 		return seconds;
 	}

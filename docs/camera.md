@@ -53,7 +53,11 @@ Camera Creator 的主路径是：
 
 - **Subject** — 拍谁（StageObject / All）
 - **Framing** — 怎么构图（Wide / Medium / Close / Overview）
+- **Angle** — 从哪看（Front / Front 3/4 / Side / …）
 - **Movement** — 怎么运动（Orbit / Push In / …）
+- **Duration** — 音乐单位（Seconds / Beats / Bars）；Timeline 仍存 seconds
+
+顶部持续显示即将创建的摘要（Subject / Shot / Framing / Angle / Playhead / Duration）。
 
 顶部 **Visualization** 工具栏（创作可视化，不是单 clip 属性）：
 
@@ -61,13 +65,16 @@ Camera Creator 的主路径是：
 - Show Frustum — 播放头机位视锥
 - Show Subject Bounds — 当前 Creator Subject 包围盒
 
-`CameraFramingEngine` 根据主体 `StageBounds` 计算 distance / look-at / pitch；**不要**把手工填 x/y/z 当作主工作流。
+`CameraFramingEngine` 根据主体 `StageBounds` 计算 distance / look-at / pitch；Angle 再施加方位角与俯仰偏置。**不要**把手工填 x/y/z 当作主工作流。
 
 创建成功后：自动选中新 Camera Clip + segment → 打开 Timeline Properties（与 Event Library 自动选中原则一致）。
 
-`Capture Current View` 是姿态优先旁路（PATH 关键帧）；坐标精调只在 Properties。
+姿态旁路拆成两个明确动作（共用 pose 采样）：
 
-视角角（Front / 3/4）与节拍时长（N beats）为后续增强，当前时长仍为秒。
+- **Capture Current View** — 始终新建 PATH clip（从世界视角抓镜头）
+- **Add Keyframe at Playhead** — 在已选 PATH clip 上插入关键帧
+
+坐标精调只在 Properties。
 
 
 ## 相关代码

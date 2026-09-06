@@ -1,6 +1,7 @@
 package com.beatblock.ui.presenter;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.automap.camera.CameraShotAngle;
 import com.beatblock.automap.camera.CameraShotFraming;
 import com.beatblock.automap.camera.CameraShotMovement;
 import com.beatblock.automap.camera.CameraSubject;
@@ -15,6 +16,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.generation.TimelineGenerationMetadataSupport;
+import com.beatblock.timeline.util.MusicalDurationUnit;
 import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeEach;
@@ -131,6 +133,14 @@ class CameraCreatorPanelPresenterTest {
 		assertTrue(state.showCameraPath());
 		assertFalse(state.showFrustum());
 		assertFalse(state.showSubjectBounds());
+		assertFalse(state.summaryLine().isBlank());
+		assertTrue(
+			state.summaryLine().contains(CameraCreatorPanelPresenter.angleLabel(CameraShotAngle.FRONT_THREE_QUARTER))
+				|| state.summaryLine().contains("beatblock.camera_creator.angle"),
+			() -> "summary=" + state.summaryLine()
+		);
+		assertEquals(MusicalDurationUnit.BEATS, state.durationUnit());
+		assertEquals(CameraShotAngle.FRONT_THREE_QUARTER, state.angle());
 	}
 
 	@Test
@@ -148,27 +158,33 @@ class CameraCreatorPanelPresenterTest {
 	}
 
 	@Test
-	void captureCurrentViewCreatesPathWhenNothingSelected() {
+	void captureCurrentViewAlwaysCreatesNewPathClip() {
+		CameraTrackFactory.addPathSegment(timeline, 0.0, 0, 64, 0, 0, 0);
+		var existing = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().getFirst();
+		editor.getSelectionState().selectClip(existing.getId());
+		editor.getCommandManager().clear();
 		editor.getClock().setCurrentTimeSeconds(3.0);
+
 		var outcome = presenter.captureCurrentView();
 
 		assertTrue(outcome.success(), outcome.message());
-		assertEquals(1, editor.getCommandManager().undoCount());
-		var clip = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().getFirst();
-		assertTrue(editor.getSelectionState().isClipSelected(clip.getId()));
-		assertFalse(editor.getSelectionState().getSelectedEvents().isEmpty());
+		assertEquals(2, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
 		assertEquals(BBTexts.get("beatblock.camera_creator.captured_path"), outcome.message());
 	}
 
 	@Test
-	void captureCurrentViewAddsKeyframeWhenPathSelected() {
+	void addKeyframeAtPlayheadRequiresSelectedPath() {
+		editor.getClock().setCurrentTimeSeconds(1.0);
+		var missing = presenter.addKeyframeAtPlayhead();
+		assertFalse(missing.success());
+
 		CameraTrackFactory.addPathSegment(timeline, 0.0, 0, 64, 0, 0, 0);
 		var clip = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().getFirst();
 		editor.getSelectionState().selectClip(clip.getId());
 		editor.getCommandManager().clear();
 		editor.getClock().setCurrentTimeSeconds(1.25);
 
-		var outcome = presenter.captureCurrentView();
+		var outcome = presenter.addKeyframeAtPlayhead();
 
 		assertTrue(outcome.success(), outcome.message());
 		assertEquals(1, editor.getCommandManager().undoCount());
@@ -179,5 +195,21 @@ class CameraCreatorPanelPresenterTest {
 		assertEquals(2, clip.getEvents().stream()
 			.filter(e -> e.getType() == EventType.CAMERA_KEYFRAME).count());
 		assertEquals(BBTexts.get("beatblock.camera_creator.captured_keyframe"), outcome.message());
+		assertTrue(presenter.viewState().canAddKeyframe());
+	}
+
+	@Test
+	void musicalDurationBeatsConvertToSecondsOnCreate() {
+		timeline.setMetadata("bpm", 120.0);
+		presenter.setDurationUnit(MusicalDurationUnit.BEATS);
+		presenter.setDurationSeconds(MusicalDurationUnit.BEATS.toSeconds(4.0, 120.0));
+		presenter.setSelectedSubjectId("solo-stage");
+		presenter.setMovement(CameraShotMovement.HOLD);
+		editor.getClock().setCurrentTimeSeconds(1.0);
+
+		var outcome = presenter.createShot();
+		assertTrue(outcome.success(), outcome.message());
+		var clip = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().getFirst();
+		assertEquals(2.0, clip.getDurationSeconds(), 1e-6);
 	}
 }

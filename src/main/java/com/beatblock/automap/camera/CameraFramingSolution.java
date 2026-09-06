@@ -25,20 +25,53 @@ public record CameraFramingSolution(
 		return eyeHeightAboveLookAt;
 	}
 
-	/** 默认朝南（+Z）偏移的眼点，与历史 {@code offsetSouth} 一致。 */
-	public Vec3d eyePositionSouth() {
-		return new Vec3d(
-			lookAt.x,
-			lookAt.y + eyeHeightAboveLookAt,
-			lookAt.z + horizontalDistance
+	/** Apply {@link CameraShotAngle} azimuth / pitch / height (Creator Angle intent). */
+	public CameraFramingSolution withAngle(CameraShotAngle angle) {
+		CameraShotAngle resolved = angle != null ? angle : CameraShotAngle.FRONT;
+		return new CameraFramingSolution(
+			lookAt,
+			horizontalDistance * resolved.distanceScale(),
+			eyeHeightAboveLookAt * resolved.heightScale(),
+			resolved.azimuthDeg(),
+			resolved.resolvePitchDeg(pitchDeg),
+			fovDeg,
+			dollyReachBlocks
 		);
 	}
 
-	public Vec3d eyePositionSouth(double distanceScale, double heightScale) {
+	/** Eye offset using {@link #yawDeg()} as azimuth from +Z (legacy south = 0°). */
+	public Vec3d eyePosition() {
+		return eyePosition(1.0, 1.0);
+	}
+
+	public Vec3d eyePosition(double distanceScale, double heightScale) {
+		double dist = horizontalDistance * distanceScale;
+		double height = eyeHeightAboveLookAt * heightScale;
+		double rad = Math.toRadians(yawDeg);
 		return new Vec3d(
-			lookAt.x,
-			lookAt.y + eyeHeightAboveLookAt * heightScale,
-			lookAt.z + horizontalDistance * distanceScale
+			lookAt.x + dist * Math.sin(rad),
+			lookAt.y + height,
+			lookAt.z + dist * Math.cos(rad)
 		);
+	}
+
+	/** Yaw facing look-at from {@link #eyePosition()}. */
+	public double facingYawDeg() {
+		double rad = Math.toRadians(yawDeg);
+		double dx = -Math.sin(rad);
+		double dz = -Math.cos(rad);
+		return Math.toDegrees(Math.atan2(-dx, dz));
+	}
+
+	/** @deprecated use {@link #eyePosition()} */
+	@Deprecated
+	public Vec3d eyePositionSouth() {
+		return eyePosition();
+	}
+
+	/** @deprecated use {@link #eyePosition(double, double)} */
+	@Deprecated
+	public Vec3d eyePositionSouth(double distanceScale, double heightScale) {
+		return eyePosition(distanceScale, heightScale);
 	}
 }

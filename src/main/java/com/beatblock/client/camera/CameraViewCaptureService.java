@@ -26,9 +26,12 @@ import java.util.Optional;
 /**
  * Capture-current-view gateway: Command + one Undo + select keyframe + open Properties.
  * <p>
- * Selected PATH camera clip → {@link AddCameraKeyframeCommand} at playhead.<br>
- * No camera clip selected → create PATH clip + initial keyframe (one Undo via
- * {@link CreateCameraClipCommand}).
+ * Two explicit Creator actions share pose sampling:
+ * <ul>
+ *   <li>{@link #createPathFromCurrentView} — always create a new PATH clip (new shot)</li>
+ *   <li>{@link #addKeyframeAtPlayhead} — insert a keyframe on the selected PATH clip</li>
+ * </ul>
+ * Track-header / context-menu uses {@link #addKeyframeAtTime}.
  */
 public final class CameraViewCaptureService {
 
@@ -53,9 +56,9 @@ public final class CameraViewCaptureService {
 	}
 
 	/**
-	 * Creator / Capture Current View entry: selection decides add-vs-create.
+	 * Capture Current View: always create a new PATH clip from the live pose (ignores selection).
 	 */
-	public static CaptureResult captureCurrentView(
+	public static CaptureResult createPathFromCurrentView(
 		@Nullable Timeline timeline,
 		@Nullable TimelineEditor editor,
 		@Nullable CapturedCameraPose pose
@@ -70,13 +73,54 @@ public final class CameraViewCaptureService {
 		if (commands == null) {
 			return CaptureResult.fail(BBTexts.get("beatblock.common.timeline_editor_not_initialized"));
 		}
-
 		double playhead = editor.getClock().getCurrentTimeSeconds();
+		return createPathClipWithKeyframe(timeline, editor, playhead, pose);
+	}
+
+	/**
+	 * Add Keyframe at Playhead: requires a selected PATH camera clip.
+	 */
+	public static CaptureResult addKeyframeAtPlayhead(
+		@Nullable Timeline timeline,
+		@Nullable TimelineEditor editor,
+		@Nullable CapturedCameraPose pose
+	) {
+		if (timeline == null || editor == null) {
+			return CaptureResult.fail(BBTexts.get("beatblock.common.timeline_not_initialized"));
+		}
+		if (pose == null) {
+			return CaptureResult.fail(BBTexts.get("beatblock.camera.no_camera"));
+		}
+		CommandManager commands = editor.getCommandManager();
+		if (commands == null) {
+			return CaptureResult.fail(BBTexts.get("beatblock.common.timeline_editor_not_initialized"));
+		}
+		Clip selected = resolveSelectedCameraClip(timeline, editor.getSelectionState());
+		if (selected == null) {
+			return CaptureResult.fail(BBTexts.get("beatblock.camera_creator.capture_need_path"));
+		}
+		double playhead = editor.getClock().getCurrentTimeSeconds();
+		return addKeyframeToPathClip(timeline, editor, selected, playhead, pose);
+	}
+
+	/**
+	 * @deprecated Prefer {@link #createPathFromCurrentView} or {@link #addKeyframeAtPlayhead}.
+	 * Kept for older call sites: selected PATH → keyframe; else create clip.
+	 */
+	@Deprecated
+	public static CaptureResult captureCurrentView(
+		@Nullable Timeline timeline,
+		@Nullable TimelineEditor editor,
+		@Nullable CapturedCameraPose pose
+	) {
+		if (timeline == null || editor == null) {
+			return CaptureResult.fail(BBTexts.get("beatblock.common.timeline_not_initialized"));
+		}
 		Clip selected = resolveSelectedCameraClip(timeline, editor.getSelectionState());
 		if (selected != null) {
-			return addKeyframeToPathClip(timeline, editor, selected, playhead, pose);
+			return addKeyframeAtPlayhead(timeline, editor, pose);
 		}
-		return createPathClipWithKeyframe(timeline, editor, playhead, pose);
+		return createPathFromCurrentView(timeline, editor, pose);
 	}
 
 	/**

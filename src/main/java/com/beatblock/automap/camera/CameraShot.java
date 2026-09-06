@@ -12,6 +12,7 @@ public record CameraShot(
 	CameraSubject subject,
 	CameraShotFraming framing,
 	CameraShotMovement movement,
+	CameraShotAngle angle,
 	@Nullable CameraSubject lookAt,
 	CameraShotTransition transition,
 	CameraShotEasing easing,
@@ -26,11 +27,32 @@ public record CameraShot(
 		subject = subject != null ? subject : CameraSubject.allStageObjects();
 		framing = framing != null ? framing : CameraShotFraming.MEDIUM;
 		movement = movement != null ? movement : CameraShotMovement.HOLD;
+		angle = angle != null ? angle : CameraShotAngle.FRONT;
 		transition = transition != null ? transition : CameraShotTransition.CUT;
 		easing = easing != null ? easing : CameraShotEasing.SMOOTH;
 		collisionPolicy = collisionPolicy != null ? collisionPolicy : CameraCollisionPolicy.AVOID_BLOCKS;
 		beatAlignment = beatAlignment != null ? beatAlignment : CameraShotBeatAlignment.none();
 		sectionIndex = Math.max(-1, sectionIndex);
+	}
+
+	/** Legacy constructor without angle (defaults to {@link CameraShotAngle#FRONT}). */
+	public CameraShot(
+		double startSeconds,
+		double durationSeconds,
+		CameraSubject subject,
+		CameraShotFraming framing,
+		CameraShotMovement movement,
+		@Nullable CameraSubject lookAt,
+		CameraShotTransition transition,
+		CameraShotEasing easing,
+		CameraCollisionPolicy collisionPolicy,
+		CameraShotBeatAlignment beatAlignment,
+		int sectionIndex
+	) {
+		this(
+			startSeconds, durationSeconds, subject, framing, movement, CameraShotAngle.FRONT,
+			lookAt, transition, easing, collisionPolicy, beatAlignment, sectionIndex
+		);
 	}
 
 	public double endSeconds() {

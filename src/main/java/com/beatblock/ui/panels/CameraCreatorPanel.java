@@ -1,5 +1,6 @@
 package com.beatblock.ui.panels;
 
+import com.beatblock.automap.camera.CameraShotAngle;
 import com.beatblock.automap.camera.CameraShotFraming;
 import com.beatblock.automap.camera.CameraShotMovement;
 import com.beatblock.ui.i18n.BBTexts;
@@ -8,25 +9,33 @@ import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.presenter.CameraCreatorPanelPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
-import com.beatblock.ui.util.UiNumberFormatter;
+import com.beatblock.ui.util.MusicalDurationField;
 import imgui.ImGui;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
-import imgui.type.ImDouble;
 import imgui.type.ImInt;
 
 import java.util.List;
 
 /**
- * Camera Creator: StageObject Subject + Framing + Movement (geometry from framing engine).
- * Capture Current View is the pose-first path; Create Shot is the semantic path.
- * Coordinate fine-tune stays in Timeline Properties.
+ * Camera Creator: Subject + Framing + Angle + Movement + musical duration.
+ * Capture Current View creates a new PATH shot; Add Keyframe targets the selected PATH clip.
  */
 public final class CameraCreatorPanel {
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private static final CameraShotFraming[] FRAMINGS = {
 		CameraShotFraming.WIDE, CameraShotFraming.MEDIUM, CameraShotFraming.CLOSE, CameraShotFraming.OVERVIEW
+	};
+	private static final CameraShotAngle[] ANGLES = {
+		CameraShotAngle.FRONT,
+		CameraShotAngle.FRONT_THREE_QUARTER,
+		CameraShotAngle.SIDE,
+		CameraShotAngle.REAR_THREE_QUARTER,
+		CameraShotAngle.TOP,
+		CameraShotAngle.LOW,
+		CameraShotAngle.HIGH
 	};
 	private static final CameraShotMovement[] MOVEMENTS = {
 		CameraShotMovement.HOLD,
@@ -39,7 +48,7 @@ public final class CameraCreatorPanel {
 
 	private final CameraCreatorPanelPresenter presenter;
 	private final ImInt subjectIndex = new ImInt(0);
-	private final ImDouble durationBuffer = new ImDouble(3.0);
+	private final MusicalDurationField durationField = new MusicalDurationField();
 
 	public CameraCreatorPanel() {
 		this(PresenterFactories.cameraCreatorPanelPresenter());
@@ -63,6 +72,8 @@ public final class CameraCreatorPanel {
 			ImGui.separator();
 			renderVisualizationToolbar(state);
 			ImGui.separator();
+			ImGui.textWrapped(state.summaryLine());
+			ImGui.separator();
 			ImGui.textWrapped(BBTexts.get("beatblock.camera_creator.hint"));
 
 			if (!state.editorReady()) {
@@ -75,6 +86,8 @@ public final class CameraCreatorPanel {
 			ImGui.spacing();
 			renderFraming(state);
 			ImGui.spacing();
+			renderAngle(state);
+			ImGui.spacing();
 			renderMovement(state);
 			ImGui.spacing();
 			renderTiming(state);
@@ -85,9 +98,21 @@ public final class CameraCreatorPanel {
 				notify(presenter.captureCurrentView());
 			}
 			ImGui.sameLine();
+			if (!state.canAddKeyframe()) {
+				ImGui.beginDisabled();
+			}
+			if (ImGui.button(BBTexts.get("beatblock.camera_creator.add_keyframe") + "##cameraCreatorAddKf")) {
+				notify(presenter.addKeyframeAtPlayhead());
+			}
+			if (!state.canAddKeyframe()) {
+				ImGui.endDisabled();
+				if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) {
+					ImGui.setTooltip(BBTexts.get("beatblock.camera_creator.capture_need_path"));
+				}
+			}
+			ImGui.sameLine();
 			if (ImGui.button(BBTexts.get("beatblock.camera_creator.create") + "##cameraCreatorCreate")) {
-				var outcome = presenter.createShot();
-				notify(outcome);
+				notify(presenter.createShot());
 			}
 			if (!state.statusMessage().isBlank()) {
 				ImGui.spacing();
@@ -141,10 +166,29 @@ public final class CameraCreatorPanel {
 		ImGui.text(BBTexts.get("beatblock.camera_creator.framing"));
 		for (int i = 0; i < FRAMINGS.length; i++) {
 			CameraShotFraming framing = FRAMINGS[i];
-			if (ImGui.radioButton(framingLabel(framing) + "##framing_" + framing.name(), state.framing() == framing)) {
+			if (ImGui.radioButton(
+				CameraCreatorPanelPresenter.framingLabel(framing) + "##framing_" + framing.name(),
+				state.framing() == framing
+			)) {
 				presenter.setFraming(framing);
 			}
 			if (i < FRAMINGS.length - 1) {
+				ImGui.sameLine();
+			}
+		}
+	}
+
+	private void renderAngle(CameraCreatorPanelPresenter.ViewState state) {
+		ImGui.text(BBTexts.get("beatblock.camera_creator.angle"));
+		for (int i = 0; i < ANGLES.length; i++) {
+			CameraShotAngle angle = ANGLES[i];
+			if (ImGui.radioButton(
+				CameraCreatorPanelPresenter.angleLabel(angle) + "##angle_" + angle.name(),
+				state.angle() == angle
+			)) {
+				presenter.setAngle(angle);
+			}
+			if (i < ANGLES.length - 1 && (i + 1) % 4 != 0) {
 				ImGui.sameLine();
 			}
 		}
@@ -154,7 +198,10 @@ public final class CameraCreatorPanel {
 		ImGui.text(BBTexts.get("beatblock.camera_creator.movement"));
 		for (int i = 0; i < MOVEMENTS.length; i++) {
 			CameraShotMovement movement = MOVEMENTS[i];
-			if (ImGui.radioButton(movementLabel(movement) + "##move_" + movement.name(), state.movement() == movement)) {
+			if (ImGui.radioButton(
+				CameraCreatorPanelPresenter.movementLabel(movement) + "##move_" + movement.name(),
+				state.movement() == movement
+			)) {
 				presenter.setMovement(movement);
 			}
 			if (i < MOVEMENTS.length - 1 && (i + 1) % 3 != 0) {
@@ -167,34 +214,13 @@ public final class CameraCreatorPanel {
 		ImGui.text(BBTexts.get("beatblock.camera_creator.timing"));
 		ImGui.textDisabled(BBTexts.get(
 			"beatblock.camera_creator.playhead",
-			UiNumberFormatter.format(state.playheadSeconds())
+			String.format(java.util.Locale.ROOT, "%.2f", state.playheadSeconds())
 		));
-		durationBuffer.set(state.durationSeconds());
-		ImGui.setNextItemWidth(120f);
-		ImGui.inputDouble(BBTexts.get("beatblock.camera_creator.duration") + "##cameraCreatorDuration", durationBuffer);
-		if (durationBuffer.get() != state.durationSeconds()) {
-			presenter.setDurationSeconds(durationBuffer.get());
+		durationField.setFromSeconds(state.durationSeconds(), state.durationUnit(), state.bpm());
+		if (durationField.render("cameraCreatorDuration", BBTexts.get("beatblock.camera_creator.duration"), state.bpm())) {
+			presenter.setDurationSeconds(durationField.seconds());
+			presenter.setDurationUnit(durationField.unit());
 		}
-	}
-
-	private static String framingLabel(CameraShotFraming framing) {
-		return switch (framing) {
-			case WIDE -> BBTexts.get("beatblock.camera_creator.framing.wide");
-			case MEDIUM -> BBTexts.get("beatblock.camera_creator.framing.medium");
-			case CLOSE -> BBTexts.get("beatblock.camera_creator.framing.close");
-			case OVERVIEW -> BBTexts.get("beatblock.camera_creator.framing.overview");
-		};
-	}
-
-	private static String movementLabel(CameraShotMovement movement) {
-		return switch (movement) {
-			case HOLD -> BBTexts.get("beatblock.camera_creator.movement.hold");
-			case PUSH_IN -> BBTexts.get("beatblock.camera_creator.movement.push_in");
-			case PULL_OUT -> BBTexts.get("beatblock.camera_creator.movement.pull_out");
-			case ORBIT -> BBTexts.get("beatblock.camera_creator.movement.orbit");
-			case PAN -> BBTexts.get("beatblock.camera_creator.movement.rise");
-			case SHAKE -> BBTexts.get("beatblock.camera_creator.movement.shake");
-		};
 	}
 
 	private static void notify(CameraCreatorPanelPresenter.CreateOutcome outcome) {
