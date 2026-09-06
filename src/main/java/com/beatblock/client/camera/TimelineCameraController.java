@@ -64,7 +64,19 @@ public final class TimelineCameraController {
 		LOGGER.debug("[TimelineCameraController] UI 关闭，释放摄像机控制权");
 	}
 
-	/** 视频导出：在指定时间采样镜头并应用到 CameraRuntime（优先编译快照，隔离 live 编辑）。 */
+	/**
+	 * 视频导出：应用 {@link com.beatblock.client.export.VideoExportFrameSampler} 已采样的镜头。
+	 * 生产链不应再独立 evaluate，以免与 FrameSampler 漂移。
+	 */
+	public void applyExportSample(TimelineCameraEvaluator.CameraSample sample) {
+		CameraRuntime runtime = CameraRuntime.getInstance();
+		runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+		if (sample != null) {
+			runtime.applyTimelineSample(sample);
+		}
+	}
+
+	/** 在指定时间采样镜头并应用到 CameraRuntime（非导出权威路径；导出请用 {@link #applyExportSample}）。 */
 	public void sampleAtExportTime(double timeSeconds) {
 		Timeline timeline = ctx().timeline();
 		if (timeline == null) {
@@ -88,7 +100,6 @@ public final class TimelineCameraController {
 			);
 		}
 		if (sample == null) {
-			// Export without active drive: compile a one-shot snapshot for isolation
 			var snapshot = com.beatblock.timeline.playback.TimelineCompiler.compile(
 				timeline,
 				ctx().blockAnimationEngine(),
@@ -103,11 +114,7 @@ public final class TimelineCameraController {
 				fallbackPitch
 			);
 		}
-		CameraRuntime runtime = CameraRuntime.getInstance();
-		runtime.setOwner(CameraRuntime.Owner.TIMELINE);
-		if (sample != null) {
-			runtime.applyTimelineSample(sample);
-		}
+		applyExportSample(sample);
 	}
 
 	public synchronized void tick() {

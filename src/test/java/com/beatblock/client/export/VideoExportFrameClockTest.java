@@ -9,6 +9,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VideoExportFrameClockTest {
 
@@ -32,6 +33,17 @@ class VideoExportFrameClockTest {
 		assertEquals(10.0, VideoExportFrameClock.timelineTimeSeconds(settings, 300), 1e-9);
 		assertEquals(10.0, VideoExportFrameClock.audioSourceTimeSeconds(settings, 300), 1e-9);
 		assertEquals(5.0, VideoExportFrameClock.audioSourceTimeSeconds(settings, 0), 1e-9);
+	}
+
+	@Test
+	void halfOpenRangeLastFrameIsBeforeEnd() {
+		VideoExportSettings settings = settings(0.0, 1.0, 60);
+		assertEquals(60, settings.totalFrames());
+		assertEquals(1.0, settings.encodedDurationSeconds(), 1e-9);
+		int last = settings.totalFrames() - 1;
+		double lastTime = VideoExportFrameClock.timelineTimeSeconds(settings, last);
+		assertEquals(59.0 / 60.0, lastTime, 1e-9);
+		assertTrue(lastTime < settings.endTimeSeconds());
 	}
 
 	private static VideoExportSettings settings(double start, double end, int fps) {

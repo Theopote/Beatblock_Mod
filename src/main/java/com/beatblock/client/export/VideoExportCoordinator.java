@@ -14,11 +14,11 @@ import com.beatblock.video.VideoExportProgress;
 import com.beatblock.video.VideoExportService;
 import com.beatblock.video.VideoExportSettings;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -41,13 +41,15 @@ public final class VideoExportCoordinator {
 	private VideoExportService service;
 	private FfmpegVideoEncoder encoder;
 	private Path outputPath;
+	private Path tempOutputPath;
 	private int nextFrameIndex;
 	private int captureWidth;
 	private int captureHeight;
 	private boolean cancelRequested;
 	private int pendingWarmupFrames;
-	private double pendingFrameTimeSeconds;
+	private VideoExportFrameState pendingFrameState;
 	private CompiledTimelineSnapshot exportProgram;
+	private ExportRenderTarget exportRenderTarget;
 
 	private VideoExportCoordinator() {}
 
@@ -81,6 +83,7 @@ public final class VideoExportCoordinator {
 
 		this.settings = exportSettings;
 		this.outputPath = exportSettings.outputPath();
+		this.tempOutputPath = null;
 		this.service = exportService;
 		this.nextFrameIndex = 0;
 		this.cancelRequested = false;
@@ -97,19 +100,29 @@ public final class VideoExportCoordinator {
 		);
 		this.captureWidth = target[0];
 		this.captureHeight = target[1];
+		this.exportRenderTarget = ExportRenderTarget.activate(captureWidth, captureHeight);
+		if (this.exportRenderTarget == null) {
+			LOGGER.warn("ExportRenderTarget unavailable; falling back to viewport capture/scale");
+		}
 
 		updateProgress(VideoExportProgress.State.STARTING, BBTexts.get("beatblock.export.progress.preparing"), 0);
 		try {
 			Path audioPath = resolveAudioPath(exportSettings);
+			if (exportSettings.includeAudio() && audioPath == null) {
+				failImmediately(exportSettings, exportService, BBTexts.get("beatblock.export.error.audio_unavailable"));
+				cleanup();
+				return;
+			}
+			this.tempOutputPath = VideoExportAtomicOutput.createTempOutput(exportSettings.outputPath());
 			this.encoder = new FfmpegVideoEncoder(
 				ffmpeg,
-				exportSettings.outputPath(),
+				this.tempOutputPath,
 				captureWidth,
 				captureHeight,
 				exportSettings.fps(),
 				exportSettings.totalFrames(),
-				exportSettings.includeAudio() ? audioPath : null,
-				exportSettings.includeAudio() ? exportSettings.startTimeSeconds() : 0.0,
+				audioPath,
+				audioPath != null ? exportSettings.startTimeSeconds() : 0.0,
 				(message, percent) -> updateProgress(VideoExportProgress.State.RUNNING, message, percent)
 			);
 			BeatBlockClientDriver.stopPlayback();
@@ -150,10 +163,17 @@ public final class VideoExportCoordinator {
 			return;
 		}
 		try {
-			byte[] rgba = VideoFrameCapturer.captureRgbaTopDown(captureWidth, captureHeight);
-			if (exportProgram != null) {
-				GlobalVisualEffectFrameCompositor.composite(rgba, captureWidth, captureHeight,
-					exportProgram.globalEvents(), pendingFrameTimeSeconds);
+			byte[] rgba = exportRenderTarget != null
+				? exportRenderTarget.readRgbaTopDown()
+				: VideoFrameCapturer.captureRgbaTopDown(captureWidth, captureHeight);
+			if (pendingFrameState != null) {
+				GlobalVisualEffectFrameCompositor.composite(
+					rgba,
+					captureWidth,
+					captureHeight,
+					pendingFrameState.vfxState(),
+					pendingFrameState.timelineTimeSeconds()
+				);
 			}
 			encoder.writeFrame(rgba);
 			nextFrameIndex++;
@@ -173,10 +193,23 @@ public final class VideoExportCoordinator {
 	}
 
 	private void scheduleNextFrame() {
-		double frameTime = VideoExportFrameClock.timelineTimeSeconds(settings, nextFrameIndex);
-		pendingFrameTimeSeconds = frameTime;
-		BeatBlockClientDriver.prepareExportFrameFromSnapshot(exportProgram, frameTime);
-		TimelineCameraController.getInstance().sampleAtExportTime(frameTime);
+		MinecraftClient client = MinecraftClient.getInstance();
+		Vec3d anchor = client != null && client.player != null ? client.player.getEyePos() : Vec3d.ZERO;
+		float fallbackYaw = client != null && client.player != null ? client.player.getYaw() : 0f;
+		float fallbackPitch = client != null && client.player != null ? client.player.getPitch() : 0f;
+		VideoExportFrameState frameState = VideoExportFrameSampler.sample(
+			exportProgram,
+			settings,
+			nextFrameIndex,
+			anchor,
+			fallbackYaw,
+			fallbackPitch,
+			VideoExportFrameSampler.DEFAULT_AUDIO_SAMPLE_RATE
+		);
+		pendingFrameState = frameState;
+		// Stage world apply: Driver seek uses sampler time; logical digest remains frameState.stageState().
+		BeatBlockClientDriver.prepareExportFrameFromSnapshot(exportProgram, frameState.timelineTimeSeconds());
+		TimelineCameraController.getInstance().applyExportSample(frameState.camera());
 		phase = Phase.WAITING_FRAME;
 		pendingWarmupFrames = nextFrameIndex == 0 ? 2 : 1;
 	}
@@ -188,7 +221,13 @@ public final class VideoExportCoordinator {
 			FfmpegTranscodeOutcome outcome = encoder.finishAndAwait();
 			MinecraftClient.getInstance().execute(() -> {
 				if (outcome instanceof FfmpegTranscodeOutcome.Success) {
-					completeSuccess(outputPath);
+					try {
+						VideoExportAtomicOutput.promote(tempOutputPath, outputPath);
+						tempOutputPath = null;
+						completeSuccess(outputPath);
+					} catch (IOException e) {
+						abort(BBTexts.get("beatblock.export.error.promote_output", e.getMessage()));
+					}
 				} else if (outcome instanceof FfmpegTranscodeOutcome.Failure(String message)) {
 					abort(message);
 				} else {
@@ -253,12 +292,20 @@ public final class VideoExportCoordinator {
 	}
 
 	private void cleanup() {
+		if (exportRenderTarget != null) {
+			exportRenderTarget.close();
+			exportRenderTarget = null;
+		}
+		closeEncoder();
+		VideoExportAtomicOutput.deleteQuietly(tempOutputPath);
+		tempOutputPath = null;
 		phase = Phase.IDLE;
 		settings = null;
 		service = null;
 		encoder = null;
 		exportProgram = null;
-		pendingFrameTimeSeconds = 0;
+		pendingFrameState = null;
+		outputPath = null;
 		nextFrameIndex = 0;
 		cancelRequested = false;
 	}
@@ -284,28 +331,7 @@ public final class VideoExportCoordinator {
 		if (!exportSettings.includeAudio()) {
 			return null;
 		}
-		var ctx = BeatBlock.getContext();
-		var musicPlayer = ctx.musicPlayer();
-		if (musicPlayer != null) {
-			String loaded = musicPlayer.getLoadedAudioPath();
-			if (loaded != null && !loaded.isBlank()) {
-				Path path = Path.of(loaded);
-				if (Files.isRegularFile(path)) {
-					return path;
-				}
-			}
-		}
-		var timeline = ctx.timeline();
-		if (timeline != null) {
-			Object audioPath = timeline.getMetadata("audioPath");
-			if (audioPath != null) {
-				Path path = Path.of(String.valueOf(audioPath));
-				if (Files.isRegularFile(path)) {
-					return path;
-				}
-			}
-		}
-		return null;
+		return com.beatblock.video.VideoExportAudioSource.resolve(BeatBlock.getContext());
 	}
 
 }

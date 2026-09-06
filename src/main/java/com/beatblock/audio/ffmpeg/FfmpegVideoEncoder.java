@@ -16,6 +16,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 通过 ffmpeg 将 raw RGBA 帧流编码为 MP4，可选混入音频轨。
+ * <p>
+ * <b>MVP 编码器合同（冻结）：</b>H.264 / CRF 18 / AAC 192k / yuv420p。
+ * 不向 Creator UI 暴露 codec / bitrate / GOP / B-frame / profile / level / threads 等 Premiere 级参数。
  */
 public final class FfmpegVideoEncoder implements AutoCloseable {
 
@@ -59,7 +62,8 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 			height,
 			fps,
 			audioFile,
-			audioStartSeconds
+			audioStartSeconds,
+			totalFrames / (double) Math.max(1, fps)
 		);
 		LOGGER.info("Starting ffmpeg video encode: {}", command);
 		this.process = new ProcessBuilder(command).redirectErrorStream(true).start();
@@ -75,7 +79,8 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 		int height,
 		int fps,
 		Path audioFile,
-		double audioStartSeconds
+		double audioStartSeconds,
+		double audioDurationSeconds
 	) {
 		List<String> cmd = new ArrayList<>();
 		cmd.add(ffmpegExecutable);
@@ -95,6 +100,9 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 				cmd.add("-ss");
 				cmd.add(formatFfmpegSeconds(audioStartSeconds));
 			}
+			double safeDuration = Math.max(0.01, audioDurationSeconds);
+			cmd.add("-t");
+			cmd.add(formatFfmpegSeconds(safeDuration));
 			cmd.add("-i");
 			cmd.add(audioFile.toAbsolutePath().toString());
 		}
@@ -111,6 +119,7 @@ public final class FfmpegVideoEncoder implements AutoCloseable {
 			cmd.add("aac");
 			cmd.add("-b:a");
 			cmd.add("192k");
+			// Belt-and-suspenders if either stream ends early (e.g. truncated source).
 			cmd.add("-shortest");
 		}
 		cmd.add(outputFile.toAbsolutePath().toString());

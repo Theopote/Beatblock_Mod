@@ -1,6 +1,5 @@
 package com.beatblock.client.export;
 
-import com.beatblock.automap.vfx.ActiveGlobalEffectState;
 import com.beatblock.automap.vfx.GlobalScreenEffectAppearance;
 import com.beatblock.timeline.playback.CompiledGlobalEvent;
 import com.beatblock.timeline.playback.GlobalEventPayload;
@@ -10,8 +9,9 @@ import java.util.List;
 
 /**
  * Deterministically composites screen-space timeline effects into an exported RGBA frame.
- * Consumes typed {@link GlobalEventPayload} only (via {@link ActiveGlobalEffectState} +
- * {@link GlobalScreenEffectAppearance}) — same path as runtime overlay.
+ * Prefer {@link #composite(byte[], int, int, ExportVfxState, double)} from export (FrameSampler authority);
+ * the events overload resolves {@link ExportVfxState} then delegates. Appearance via
+ * {@link GlobalScreenEffectAppearance} — same path as runtime overlay.
  */
 public final class GlobalVisualEffectFrameCompositor {
 	private GlobalVisualEffectFrameCompositor() {}
@@ -23,6 +23,20 @@ public final class GlobalVisualEffectFrameCompositor {
 		List<CompiledGlobalEvent> events,
 		double timelineTimeSeconds
 	) {
+		return composite(rgba, width, height, ExportVfxState.resolve(events, timelineTimeSeconds), timelineTimeSeconds);
+	}
+
+	/**
+	 * 消费 {@link VideoExportFrameSampler} 已解析的 VFX 状态（导出语义权威路径）。
+	 * flash 衰减仍依赖 {@code timelineTimeSeconds}。
+	 */
+	public static byte[] composite(
+		byte[] rgba,
+		int width,
+		int height,
+		ExportVfxState vfxState,
+		double timelineTimeSeconds
+	) {
 		if (rgba == null) throw new IllegalArgumentException("rgba");
 		if (width <= 0 || height <= 0 || rgba.length != width * height * 4) {
 			throw new IllegalArgumentException("RGBA frame dimensions do not match buffer length");
@@ -30,10 +44,9 @@ public final class GlobalVisualEffectFrameCompositor {
 		if (!Double.isFinite(timelineTimeSeconds)) {
 			throw new IllegalArgumentException("timelineTimeSeconds must be finite");
 		}
-
-		ActiveGlobalEffectState active = ActiveGlobalEffectState.resolve(events, timelineTimeSeconds);
-		applyTint(rgba, active.screenTint());
-		applyFlash(rgba, active.screenFlash(), timelineTimeSeconds);
+		ExportVfxState vfx = vfxState != null ? vfxState : new ExportVfxState(null, null);
+		applyTint(rgba, vfx.activeTint());
+		applyFlash(rgba, vfx.activeFlash(), timelineTimeSeconds);
 		return rgba;
 	}
 

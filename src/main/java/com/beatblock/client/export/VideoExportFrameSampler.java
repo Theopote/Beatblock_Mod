@@ -7,7 +7,10 @@ import com.beatblock.video.VideoExportSettings;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * 从编译快照采样某一导出帧的逻辑状态，供视频导出与作品级同步回归共用。
+ * 导出帧语义权威：从冻结编译快照采样某一帧的 Camera / Stage / VFX / Audio。
+ * <p>
+ * 生产链（{@link VideoExportCoordinator}）与同步回归测试应共用本采样结果并应用之，
+ * 而不是各自独立 evaluate。舞台世界写入仍由 Driver seek 完成；逻辑 digest 以本类为准。
  */
 public final class VideoExportFrameSampler {
 

@@ -40,6 +40,18 @@ class GlobalVisualEffectFrameCompositorTest {
     }
 
     @Test
+    void exportVfxStateOverloadMatchesEventsResolve() {
+        var event = new CompiledGlobalEvent("tint", 0,
+            new GlobalEventPayload.ScreenTint("", 1, 1, 0, 0, 0));
+        byte[] fromEvents = opaqueBlackFrame(1, 1);
+        byte[] fromState = opaqueBlackFrame(1, 1);
+        GlobalVisualEffectFrameCompositor.composite(fromEvents, 1, 1, List.of(event), 5);
+        GlobalVisualEffectFrameCompositor.composite(
+            fromState, 1, 1, ExportVfxState.resolve(List.of(event), 5), 5);
+        assertArrayEquals(fromEvents, fromState);
+    }
+
+    @Test
     void environmentLightingIsNotMisrepresentedAsScreenOverlay() {
         byte[] frame = opaqueBlackFrame(2, 3);
         byte[] original = frame.clone();

@@ -6,7 +6,10 @@ import org.lwjgl.system.MemoryUtil;
 
 import java.nio.ByteBuffer;
 
-/** 从当前 OpenGL framebuffer 读取 RGBA 像素（顶部为原点）。 */
+/**
+ * Fallback viewport capture when {@link ExportRenderTarget} is unavailable.
+ * Prefer {@link ExportRenderTarget#readRgbaTopDown()} for true export resolution.
+ */
 public final class VideoFrameCapturer {
 
 	private VideoFrameCapturer() {}

@@ -5,8 +5,10 @@ import com.beatblock.video.VideoExportSettings;
 /**
  * 视频导出帧时钟：统一计算某一导出帧对应的时间线时刻与音频源位置。
  * <p>
- * 帧 {@code i} 的时间线时刻为 {@code startTimeSeconds + i / fps}，与
- * {@link VideoExportCoordinator} 的 seek / VFX 合成 / ffmpeg 音频起点对齐。
+ * <b>半开区间：</b>导出范围为 {@code [startTimeSeconds, endTimeSeconds)}。
+ * 帧 {@code i}（{@code 0 ≤ i < totalFrames}）的时间线时刻为
+ * {@code startTimeSeconds + i / fps}；最后一帧严格小于 {@code endTimeSeconds}。
+ * 与 {@link VideoExportCoordinator} 的 seek / VFX 合成 / ffmpeg 音频起点对齐。
  */
 public final class VideoExportFrameClock {
 

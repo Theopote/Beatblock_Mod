@@ -35,6 +35,7 @@ class VideoExportPresetsTest {
 		assertEquals(15.0, settings.endTimeSeconds(), 1e-6);
 		assertEquals(5.0, settings.durationSeconds(), 1e-6);
 		assertEquals(300, settings.totalFrames());
+		assertEquals(5.0, settings.encodedDurationSeconds(), 1e-6);
 	}
 
 	@Test

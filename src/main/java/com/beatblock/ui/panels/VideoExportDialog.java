@@ -1,5 +1,6 @@
 package com.beatblock.ui.panels;
 
+import com.beatblock.client.export.VideoExportSummary;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.VideoExportPanelPresenter;
@@ -20,6 +21,7 @@ import imgui.type.ImString;
 public final class VideoExportDialog {
 
 	private static final int PATH_CAPACITY = 512;
+	private static final String POPUP_REPLACE = "beatblock.export.replace##confirm";
 
 	private final VideoExportPanelPresenter presenter;
 	private final ImString outputPath = new ImString(PATH_CAPACITY);
@@ -47,6 +49,7 @@ public final class VideoExportDialog {
 		if (service != null) {
 			service.clearLastResult();
 		}
+		presenter.refreshPreflight();
 		var state = presenter.dialogState();
 		outputPath.set(state.defaultOutputPath());
 		startSeconds.set(state.defaultStartSeconds());
@@ -67,12 +70,19 @@ public final class VideoExportDialog {
 			return;
 		}
 
-		var state = presenter.dialogState();
+		var state = presenter.dialogState(
+			outputPath.get(),
+			startSeconds.get(),
+			endSeconds.get(),
+			platformPresetIndex.get(),
+			resolutionIndex.get(),
+			fpsIndex.get(),
+			includeAudio.get()
+		);
 		var service = presenter.activeService();
 		boolean exporting = service != null && service.isExporting();
 
-		renderFfmpegStatus(state.ffmpegStatus());
-		renderBlockedReason(state, exporting);
+		renderExportSummary(state.summary());
 		ImGui.separator();
 
 		if (exporting) {
@@ -82,6 +92,11 @@ public final class VideoExportDialog {
 		if (exporting) {
 			ImGui.endDisabled();
 		}
+
+		ImGui.separator();
+		renderFfmpegStatus(state.ffmpegStatus());
+		renderPreflight(state);
+		renderBlockedReason(state, exporting);
 
 		renderExportProgress(service, exporting);
 		renderLastResult(service, exporting);
@@ -93,8 +108,44 @@ public final class VideoExportDialog {
 
 		ImGui.separator();
 		renderActionButtons(service, exporting, state.canExport());
+		renderReplaceConfirmPopup();
 
 		ImGui.end();
+	}
+
+	private void renderExportSummary(VideoExportSummary.Snapshot summary) {
+		ImGui.text(BBTexts.get("beatblock.export.summary.section"));
+		ImGui.spacing();
+
+		ImGui.textDisabled(BBTexts.get("beatblock.export.summary.range"));
+		ImGui.text(summary.rangeSpanLabel());
+		ImGui.text(summary.durationHumanLabel());
+		ImGui.spacing();
+
+		ImGui.textDisabled(BBTexts.get("beatblock.export.summary.video"));
+		ImGui.text(summary.resolutionLabel());
+		ImGui.text(summary.fpsLabel());
+		ImGui.text(summary.framesLabel());
+		ImGui.spacing();
+
+		ImGui.textDisabled(BBTexts.get("beatblock.export.summary.camera"));
+		ImGui.text(summary.cameraLabel());
+		ImGui.spacing();
+
+		ImGui.textDisabled(BBTexts.get("beatblock.export.summary.audio"));
+		ImGui.text(summary.audioFileLabel());
+		ImGui.text(summary.audioStatusLabel());
+		ImGui.spacing();
+
+		ImGui.textDisabled(BBTexts.get("beatblock.export.summary.vfx"));
+		ImGui.text(summary.vfxLabel());
+		ImGui.spacing();
+
+		ImGui.textDisabled(BBTexts.get("beatblock.export.summary.output"));
+		ImGui.textWrapped(summary.outputLabel());
+		if (summary.estimatedSizeMb() != null) {
+			ImGui.textDisabled(BBTexts.get("beatblock.export.estimate_size", summary.estimatedSizeMb()));
+		}
 	}
 
 	private void renderExportSettings(VideoExportPanelPresenter.ExportDialogState state) {
@@ -118,6 +169,9 @@ public final class VideoExportDialog {
 			if (ImGui.combo("##exportResolution", resolutionIndex, resolutionLabels())) {
 				VideoExportPreferences.setResolutionPresetIndex(resolutionIndex.get());
 			}
+			if (resolutionIndex.get() > 0) {
+				ImGui.textDisabled(BBTexts.get("beatblock.export.resolution.rescale_hint"));
+			}
 
 			ImGui.text(BBTexts.get("beatblock.export.fps"));
 			ImGui.setNextItemWidth(-1);
@@ -131,18 +185,11 @@ public final class VideoExportDialog {
 				selected.getHeight(),
 				selected.getFps()
 			));
-		}
-
-		double exportDuration = Math.max(0.0, endSeconds.get() - startSeconds.get());
-		int width = custom ? resolutionWidth() : selected.getWidth();
-		int height = custom ? resolutionHeight() : selected.getHeight();
-		int fps = custom ? fpsValue() : selected.getFps();
-		if (exportDuration > 0.0 && width > 0 && height > 0 && fps > 0) {
-			double estimateMb = VideoExportPresets.estimateFileSize(width, height, fps, exportDuration);
-			ImGui.textDisabled(BBTexts.get("beatblock.export.estimate_size", estimateMb));
+			ImGui.textDisabled(BBTexts.get("beatblock.export.resolution.rescale_hint"));
 		}
 
 		ImGui.text(BBTexts.get("beatblock.export.time_range"));
+		// P2: Entire Timeline / Current Loop / Between Markers / Custom — see docs/video-export.md
 		ImGui.setNextItemWidth(120);
 		ImGui.inputDouble(BBTexts.get("beatblock.export.start_time") + "##start", startSeconds, 0.1, 1.0, "%.2f s");
 		ImGui.sameLine();
@@ -152,29 +199,53 @@ public final class VideoExportDialog {
 		ImGui.textDisabled(BBTexts.get("beatblock.export.duration_hint", state.timelineDurationSeconds()));
 
 		ImGui.spacing();
-		ImGui.textWrapped(BBTexts.get("beatblock.export.scene_only_hint"));
+		ImGui.textDisabled(BBTexts.get("beatblock.export.scene_only_hint"));
 
 		if (ImGui.checkbox(BBTexts.get("beatblock.export.include_audio"), includeAudio)) {
 			VideoExportPreferences.setIncludeAudio(includeAudio.get());
 		}
+		if (includeAudio.get()) {
+			if (state.audioSourceAvailable()) {
+				ImGui.textDisabled(BBTexts.get(
+					"beatblock.export.audio_source",
+					state.audioSourcePath() != null ? state.audioSourcePath() : ""
+				));
+			} else {
+				ImGui.textColored(0.95f, 0.55f, 0.25f, 1f, BBTexts.get("beatblock.export.audio_unavailable"));
+			}
+		}
 	}
 
-	private int resolutionWidth() {
-		int[][] presets = VideoExportPanelPresenter.resolutionPresets();
-		int idx = Math.max(0, Math.min(resolutionIndex.get(), presets.length - 1));
-		return presets[idx][0];
-	}
-
-	private int resolutionHeight() {
-		int[][] presets = VideoExportPanelPresenter.resolutionPresets();
-		int idx = Math.max(0, Math.min(resolutionIndex.get(), presets.length - 1));
-		return presets[idx][1];
-	}
-
-	private int fpsValue() {
-		int[] presets = VideoExportPanelPresenter.fpsPresets();
-		int idx = Math.max(0, Math.min(fpsIndex.get(), presets.length - 1));
-		return presets[idx];
+	private void renderPreflight(VideoExportPanelPresenter.ExportDialogState state) {
+		ImGui.spacing();
+		ImGui.text(BBTexts.get("beatblock.export.preflight.section"));
+		var preflight = state.preflight();
+		if (preflight.canExport()) {
+			ImGui.textColored(0.2f, 0.85f, 0.35f, 1f, preflight.summary());
+		} else {
+			ImGui.textColored(0.95f, 0.35f, 0.35f, 1f, preflight.summary());
+			for (var finding : preflight.blockers()) {
+				ImGui.textColored(0.95f, 0.45f, 0.35f, 1f, "- " + finding.message());
+			}
+		}
+		for (var notice : preflight.notices()) {
+			ImGui.textDisabled("- " + notice.message());
+		}
+		if (ImGui.button(BBTexts.get("beatblock.export.preflight.view_problems") + "##exportPreflight")) {
+			presenter.openPreflightProblems();
+		}
+		ImGui.sameLine();
+		if (ImGui.button(BBTexts.get("beatblock.export.preflight.refresh") + "##exportPreflightRefresh")) {
+			presenter.refreshPreflight(presenter.buildRequest(
+				outputPath.get(),
+				startSeconds.get(),
+				endSeconds.get(),
+				platformPresetIndex.get(),
+				resolutionIndex.get(),
+				fpsIndex.get(),
+				includeAudio.get()
+			));
+		}
 	}
 
 	private void renderFfmpegStatus(VideoExportPanelPresenter.FfmpegStatus status) {
@@ -259,16 +330,12 @@ public final class VideoExportDialog {
 			ImGui.beginDisabled();
 		}
 		if (ImGui.button(BBTexts.get("beatblock.export.start_button"), 120, 0)) {
-			var result = presenter.startExport(
-				outputPath.get(),
-				platformPresetIndex.get(),
-				resolutionIndex.get(),
-				fpsIndex.get(),
-				startSeconds.get(),
-				endSeconds.get(),
-				includeAudio.get()
-			);
-			statusMessage = result.ok() ? "" : result.messageOrEmpty();
+			if (presenter.requiresReplaceConfirm(outputPath.get())) {
+				statusMessage = "";
+				ImGui.openPopup(POPUP_REPLACE);
+			} else {
+				submitStartExport(false);
+			}
 		}
 		if (!canExport) {
 			ImGui.endDisabled();
@@ -277,6 +344,37 @@ public final class VideoExportDialog {
 		if (ImGui.button(BBTexts.get("beatblock.export.close") + "##exportVideo")) {
 			open = false;
 		}
+	}
+
+	private void renderReplaceConfirmPopup() {
+		if (!ImGui.beginPopupModal(POPUP_REPLACE)) {
+			return;
+		}
+		ImGui.textWrapped(BBTexts.get("beatblock.export.replace_confirm_body", outputPath.get()));
+		ImGui.spacing();
+		if (ImGui.button(BBTexts.get("beatblock.export.replace_confirm") + "##exportReplaceOk", 140, 0)) {
+			submitStartExport(true);
+			ImGui.closeCurrentPopup();
+		}
+		ImGui.sameLine();
+		if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##exportReplaceCancel", 120, 0)) {
+			ImGui.closeCurrentPopup();
+		}
+		ImGui.endPopup();
+	}
+
+	private void submitStartExport(boolean replaceConfirmed) {
+		var result = presenter.startExport(
+			outputPath.get(),
+			platformPresetIndex.get(),
+			resolutionIndex.get(),
+			fpsIndex.get(),
+			startSeconds.get(),
+			endSeconds.get(),
+			includeAudio.get(),
+			replaceConfirmed
+		);
+		statusMessage = result.ok() ? "" : result.messageOrEmpty();
 	}
 
 	private static String[] platformPresetLabels() {

@@ -70,21 +70,21 @@ class VideoExportSyncRegressionTest {
 		VideoExportFrameState frame = VideoExportFrameSampler.sample(program, settings, FRAME_INDEX);
 
 		byte[] rgba = opaqueFrame(4, 4);
-		byte[] composited = GlobalVisualEffectFrameCompositor.composite(
+		byte[] fromState = GlobalVisualEffectFrameCompositor.composite(
 			rgba.clone(),
 			4,
 			4,
-			program.globalEvents(),
+			frame.vfxState(),
 			frame.timelineTimeSeconds()
 		);
-		byte[] expected = GlobalVisualEffectFrameCompositor.composite(
+		byte[] fromEvents = GlobalVisualEffectFrameCompositor.composite(
 			rgba.clone(),
 			4,
 			4,
 			program.globalEvents(),
 			TIMELINE_TIME
 		);
-		assertEquals(bytesToHex(expected), bytesToHex(composited));
+		assertEquals(bytesToHex(fromEvents), bytesToHex(fromState));
 	}
 
 	private static VideoExportSettings exportSettings(double start, double end) {
