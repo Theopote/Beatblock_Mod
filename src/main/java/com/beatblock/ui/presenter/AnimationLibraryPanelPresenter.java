@@ -1,19 +1,29 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.engine.influence.BlockInfluencePreset;
-import com.beatblock.engine.influence.BlockInfluencePresets;
+import com.beatblock.engine.AnimationDefinition;
+import com.beatblock.engine.AnimationLibrary;
+import com.beatblock.engine.influence.InfluenceDimension;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.timeline.editor.SelectionState;
+import com.beatblock.ui.animation.AnimationLibraryItem;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.preferences.AnimationLibraryFavorites;
 
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * 动画库面板业务逻辑：把 {@link BlockInfluencePreset} 应用到已选动画事件或时间线。
+ * Animation Library panel logic over {@link AnimationLibraryItem} / {@link AnimationDefinition}.
  */
 public final class AnimationLibraryPanelPresenter {
 
@@ -29,6 +39,7 @@ public final class AnimationLibraryPanelPresenter {
 	private final EventPropertiesPresenter eventPropertiesPresenter;
 	private final Supplier<Timeline> timeline;
 	private final Supplier<TimelineEditor> timelineEditor;
+	private final Supplier<AnimationLibrary> animationLibrary;
 
 	private String statusMessage = "";
 
@@ -37,9 +48,19 @@ public final class AnimationLibraryPanelPresenter {
 		Supplier<Timeline> timeline,
 		Supplier<TimelineEditor> timelineEditor
 	) {
+		this(eventPropertiesPresenter, timeline, timelineEditor, AnimationLibraryPanelPresenter::defaultLibrary);
+	}
+
+	public AnimationLibraryPanelPresenter(
+		EventPropertiesPresenter eventPropertiesPresenter,
+		Supplier<Timeline> timeline,
+		Supplier<TimelineEditor> timelineEditor,
+		Supplier<AnimationLibrary> animationLibrary
+	) {
 		this.eventPropertiesPresenter = eventPropertiesPresenter;
 		this.timeline = timeline;
 		this.timelineEditor = timelineEditor;
+		this.animationLibrary = animationLibrary != null ? animationLibrary : AnimationLibraryPanelPresenter::defaultLibrary;
 	}
 
 	public ViewState viewState() {
@@ -52,9 +73,65 @@ public final class AnimationLibraryPanelPresenter {
 		return new ViewState(true, count > 0, count, statusMessage);
 	}
 
+	/** Catalog size for the panel hint line. */
+	public int catalogSize() {
+		AnimationLibrary library = libraryOrEmpty();
+		return library.getAll().size();
+	}
+
+	/**
+	 * Filtered, display-name-sorted catalog items for the current search query.
+	 */
+	public List<AnimationLibraryItem> filteredItems(@Nullable String query) {
+		String trimmed = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
+		List<AnimationLibraryItem> out = new ArrayList<>();
+		for (AnimationDefinition definition : libraryOrEmpty().getAll().values()) {
+			if (definition == null) continue;
+			if (trimmed.isEmpty()
+				|| definition.getId().toLowerCase(Locale.ROOT).contains(trimmed)
+				|| definition.getName().toLowerCase(Locale.ROOT).contains(trimmed)) {
+				out.add(new AnimationLibraryItem(definition));
+			}
+		}
+		out.sort(Comparator.comparing(AnimationLibraryItem::displayName, String.CASE_INSENSITIVE_ORDER));
+		return out;
+	}
+
+	/** Favorite items that also appear in {@code items}, preserving favorites order. */
+	public List<AnimationLibraryItem> favoriteItems(Collection<AnimationLibraryItem> items) {
+		if (items == null || items.isEmpty()) return List.of();
+		Map<String, AnimationLibraryItem> byId = new LinkedHashMap<>();
+		for (AnimationLibraryItem item : items) {
+			if (item != null) byId.put(item.id(), item);
+		}
+		List<AnimationLibraryItem> out = new ArrayList<>();
+		for (String id : AnimationLibraryFavorites.all()) {
+			AnimationLibraryItem item = byId.get(id);
+			if (item != null) out.add(item);
+		}
+		return out;
+	}
+
+	public Map<InfluenceDimension, List<AnimationLibraryItem>> groupByPrimaryDimension(
+		List<AnimationLibraryItem> items
+	) {
+		Map<InfluenceDimension, List<AnimationLibraryItem>> groups = new LinkedHashMap<>();
+		for (InfluenceDimension dim : InfluenceDimension.values()) {
+			groups.put(dim, new ArrayList<>());
+		}
+		if (items != null) {
+			for (AnimationLibraryItem item : items) {
+				if (item == null) continue;
+				groups.get(item.primaryDimension()).add(item);
+			}
+		}
+		groups.values().removeIf(List::isEmpty);
+		return groups;
+	}
+
 	public ApplyOutcome applyPresetToSelection(String presetId) {
-		BlockInfluencePreset preset = BlockInfluencePresets.get(presetId);
-		if (preset == null) {
+		AnimationDefinition definition = libraryOrEmpty().get(presetId);
+		if (definition == null) {
 			return fail(BBTexts.get("beatblock.animation_library.preset_missing"));
 		}
 		Timeline tl = timeline.get();
@@ -69,14 +146,14 @@ public final class AnimationLibraryPanelPresenter {
 			selectionState,
 			commandManager,
 			EventPropertiesPresenter.BatchAnimationEditRequest.replaceAnimation(
-				preset.getId(),
-				preset.getDefaultDurationSeconds()
+				definition.getId(),
+				definition.getDurationSeconds()
 			)
 		);
 		if (outcome.success()) {
 			statusMessage = BBTexts.get(
 				"beatblock.animation_library.applied",
-				preset.getDisplayName(),
+				definition.getName(),
 				outcome.updatedCount()
 			);
 			return new ApplyOutcome(true, statusMessage);
@@ -88,5 +165,14 @@ public final class AnimationLibraryPanelPresenter {
 	private ApplyOutcome fail(String message) {
 		statusMessage = message;
 		return new ApplyOutcome(false, message);
+	}
+
+	private AnimationLibrary libraryOrEmpty() {
+		AnimationLibrary library = animationLibrary.get();
+		return library != null ? library : new AnimationLibrary();
+	}
+
+	private static AnimationLibrary defaultLibrary() {
+		return new AnimationLibrary();
 	}
 }

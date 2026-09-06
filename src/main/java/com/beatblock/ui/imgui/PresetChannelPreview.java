@@ -1,17 +1,31 @@
 package com.beatblock.ui.imgui;
 
+import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.influence.BlockInfluencePreset;
 import com.beatblock.engine.influence.ChannelSpec;
+import com.beatblock.ui.animation.AnimationLibraryItem;
 import imgui.ImGui;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Locale;
 
 /**
  * 方块影响预设的 ImGui 通道预览（事件属性表单与动画库共用）。
+ * <p>
+ * Prefer {@link AnimationLibraryItem} / {@link AnimationDefinition} overloads from
+ * Animation Library UI; property editors may still pass {@link BlockInfluencePreset}.
  */
 public final class PresetChannelPreview {
 
 	private PresetChannelPreview() {}
+
+	public static void renderCollapsible(String treeLabelId, @Nullable AnimationLibraryItem item) {
+		renderCollapsible(treeLabelId, item != null ? item.definition() : null);
+	}
+
+	public static void renderCollapsible(String treeLabelId, @Nullable AnimationDefinition definition) {
+		renderCollapsible(treeLabelId, definition != null ? definition.getPreset() : null);
+	}
 
 	/**
 	 * 可折叠树节点：展示预设摘要行与各启用通道。
@@ -32,6 +46,14 @@ public final class PresetChannelPreview {
 		} finally {
 			ImGui.treePop();
 		}
+	}
+
+	public static void renderCollapsibleChannelsOnly(String treeLabelId, @Nullable AnimationLibraryItem item) {
+		renderCollapsibleChannelsOnly(treeLabelId, item != null ? item.definition() : null);
+	}
+
+	public static void renderCollapsibleChannelsOnly(String treeLabelId, @Nullable AnimationDefinition definition) {
+		renderCollapsibleChannelsOnly(treeLabelId, definition != null ? definition.getPreset() : null);
 	}
 
 	/**

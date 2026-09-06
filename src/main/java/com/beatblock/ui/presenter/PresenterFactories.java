@@ -323,7 +323,11 @@ public final class PresenterFactories {
 		return new AnimationLibraryPanelPresenter(
 			eventPropertiesPresenter(context),
 			context::timeline,
-			context::timelineEditor
+			context::timelineEditor,
+			() -> {
+				var engine = context.blockAnimationEngine();
+				return engine != null ? engine.getAnimationLibrary() : new com.beatblock.engine.AnimationLibrary();
+			}
 		);
 	}
 

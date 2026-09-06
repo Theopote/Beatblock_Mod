@@ -1,5 +1,6 @@
 package com.beatblock.engine;
 
+import com.beatblock.ui.animation.AnimationLibraryItem;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,6 +24,15 @@ class AnimationLibraryTest {
 		var preset = com.beatblock.engine.influence.BlockInfluencePresets.get("Pulse");
 		library.register(new AnimationDefinition(preset));
 		assertEquals("Pulse", library.get("Pulse").getId());
+	}
+
+	@Test
+	void primaryDimensionUsesFirstEnabledChannel() {
+		AnimationLibrary library = new AnimationLibrary();
+		AnimationDefinition pulse = library.get("Pulse");
+		assertNotNull(pulse);
+		assertNotNull(pulse.getPrimaryDimension());
+		assertEquals(pulse.getPrimaryDimension(), new AnimationLibraryItem(pulse).primaryDimension());
 	}
 
 	@Test

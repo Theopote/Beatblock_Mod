@@ -1,5 +1,7 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.engine.AnimationLibrary;
+import com.beatblock.engine.influence.InfluenceDimension;
 import com.beatblock.test.WithBeatBlockContext;
 import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
@@ -7,7 +9,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.command.CommandManager;
-import com.beatblock.timeline.editor.SelectionState;
+import com.beatblock.ui.animation.AnimationLibraryItem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Animation Library Apply-to-selection uses Replace Animation semantics.
+ * Animation Library catalog + Replace Apply over {@link AnimationLibraryItem}.
  */
 @WithBeatBlockContext
 class AnimationLibraryPanelPresenterTest {
@@ -29,12 +31,14 @@ class AnimationLibraryPanelPresenterTest {
 	private CommandManager commandManager;
 	private EventPropertiesPresenter eventPropertiesPresenter;
 	private AnimationLibraryPanelPresenter presenter;
+	private AnimationLibrary library;
 
 	@BeforeEach
 	void setUp() {
 		timeline = Timeline.createDefault();
 		editor = new TimelineEditor(timeline);
 		commandManager = editor.getCommandManager();
+		library = new AnimationLibrary();
 		eventPropertiesPresenter = new EventPropertiesPresenter(
 			id -> true,
 			blockId -> blockId != null && blockId.startsWith("minecraft:"),
@@ -45,8 +49,36 @@ class AnimationLibraryPanelPresenterTest {
 		presenter = new AnimationLibraryPanelPresenter(
 			eventPropertiesPresenter,
 			() -> timeline,
-			() -> editor
+			() -> editor,
+			() -> library
 		);
+	}
+
+	@Test
+	void filteredItemsSearchesIdAndDisplayName() {
+		List<AnimationLibraryItem> pulse = presenter.filteredItems("pulse");
+		assertFalse(pulse.isEmpty());
+		assertTrue(pulse.stream().anyMatch(i -> "Pulse".equals(i.id())));
+
+		List<AnimationLibraryItem> none = presenter.filteredItems("zzz-not-a-preset");
+		assertTrue(none.isEmpty());
+	}
+
+	@Test
+	void groupByPrimaryDimensionCoversCatalog() {
+		List<AnimationLibraryItem> all = presenter.filteredItems("");
+		Map<InfluenceDimension, List<AnimationLibraryItem>> groups = presenter.groupByPrimaryDimension(all);
+		assertFalse(groups.isEmpty());
+		int grouped = groups.values().stream().mapToInt(List::size).sum();
+		assertEquals(all.size(), grouped);
+	}
+
+	@Test
+	void favoriteItemsOnlyReturnsItemsPresentInFilteredCatalog() {
+		List<AnimationLibraryItem> filtered = presenter.filteredItems("");
+		List<AnimationLibraryItem> favorites = presenter.favoriteItems(filtered);
+		assertTrue(favorites.stream().allMatch(fav ->
+			filtered.stream().anyMatch(item -> item.id().equals(fav.id()))));
 	}
 
 	@Test
@@ -85,15 +117,14 @@ class AnimationLibraryPanelPresenterTest {
 				"dispatchModel", "STEP"
 			)
 		);
-		SelectionState selection = editor.getSelectionState();
-		selection.selectEvent(event.getId());
+		editor.getSelectionState().selectEvent(event.getId());
 
 		var outcome = presenter.applyPresetToSelection("Pulse");
 
 		assertTrue(outcome.success());
 		assertEquals("Pulse", event.getParameters().get("animationType"));
 		assertEquals(
-			com.beatblock.engine.influence.BlockInfluencePresets.get("Pulse").getDefaultDurationSeconds(),
+			library.get("Pulse").getDurationSeconds(),
 			((Number) event.getParameters().get("durationSeconds")).doubleValue(),
 			1e-6
 		);
