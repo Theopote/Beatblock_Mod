@@ -82,7 +82,7 @@ public final class TimelineRecordModeHandler {
 			DEFAULT_ENERGY,
 			params
 		);
-		boolean written = TimelineDraftWriter.writeEvent(
+		boolean written = TimelineDraftWriter.writeUserEvent(
 			timeline,
 			com.beatblock.timeline.Timeline.TRACK_ID_ANIMATION_BLOCK,
 			event,
@@ -91,7 +91,6 @@ public final class TimelineRecordModeHandler {
 		if (!written) {
 			return new RecordOutcome(false, "write-failed");
 		}
-		timeline.sortAll();
 		editor.syncClockDuration();
 		return new RecordOutcome(true, "ok");
 	}

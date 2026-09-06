@@ -154,20 +154,17 @@ public final class EventLibraryPanelPresenter {
 		double timeSeconds,
 		List<String> targetObjectIds
 	) {
-		int written = 0;
+		ArrayList<TimelineAnimationEvent> events = new ArrayList<>(targetObjectIds.size());
 		for (String targetObjectId : targetObjectIds) {
-			TimelineAnimationEvent event = template.toTimelineEvent(timeSeconds, targetObjectId);
-			if (TimelineDraftWriter.writeEvent(
-				tl,
-				Timeline.TRACK_ID_ANIMATION_BLOCK,
-				event,
-				TimelineEventOrigin.MANUAL
-			)) {
-				written++;
-			}
+			events.add(template.toTimelineEvent(timeSeconds, targetObjectId));
 		}
+		int written = TimelineDraftWriter.writeUserEvents(
+			tl,
+			Timeline.TRACK_ID_ANIMATION_BLOCK,
+			events,
+			TimelineEventOrigin.MANUAL
+		);
 		if (written > 0) {
-			tl.sortAll();
 			editor.syncClockDuration();
 		}
 		return written;

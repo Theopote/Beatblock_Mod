@@ -9,6 +9,7 @@ import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.command.AddTimelineAnimationEventCommand;
 import com.beatblock.timeline.command.ClearAnimationTrackCommand;
 import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.timeline.editing.TimelineDocumentChangeNotifier;
 
 import org.jspecify.annotations.Nullable;
 
@@ -16,7 +17,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 草稿生成器统一写入路径：自动/批量事件经 {@link com.beatblock.timeline.command.CommandManager} 写入 Timeline。
+ * Timeline animation-event write paths via {@link CommandManager}.
+ * <p>
+ * Use {@link #writeUserEvents} for UI-triggered committed inserts (Animation Library,
+ * Event Library, record mode) — those notify {@link TimelineDocumentChangeNotifier}.
+ * Use {@link #writeGeneratedEvents} for draft / auto-generation internal writes that
+ * must not fire document-change side effects by themselves.
  */
 public final class TimelineDraftWriter {
 
@@ -31,7 +37,7 @@ public final class TimelineDraftWriter {
 		if (replaceExisting) {
 			clearTrack(timeline, Timeline.TRACK_ID_ANIMATION_AUTO);
 		}
-		return writeEvents(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, events, TimelineEventOrigin.GENERATED);
+		return writeGeneratedEvents(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, events, TimelineEventOrigin.GENERATED);
 	}
 
 	public static void clearTrack(Timeline timeline, String trackId) {
@@ -44,6 +50,51 @@ public final class TimelineDraftWriter {
 		}
 	}
 
+	/**
+	 * UI-triggered committed insertion. Notifies document change when at least one event is written.
+	 */
+	public static boolean writeUserEvent(
+		Timeline timeline,
+		String trackId,
+		TimelineAnimationEvent event,
+		TimelineEventOrigin origin
+	) {
+		if (event == null) return false;
+		return writeUserEvents(timeline, trackId, List.of(event), origin) > 0;
+	}
+
+	/**
+	 * UI-triggered committed insertion. Notifies document change once when {@code written > 0}.
+	 */
+	public static int writeUserEvents(
+		Timeline timeline,
+		String trackId,
+		List<TimelineAnimationEvent> events,
+		TimelineEventOrigin origin
+	) {
+		int written = writeEvents(timeline, trackId, events, origin != null ? origin : TimelineEventOrigin.MANUAL);
+		if (written > 0) {
+			TimelineDocumentChangeNotifier.notifyDocumentEdited();
+		}
+		return written;
+	}
+
+	/**
+	 * Draft / auto-generation internal write. Does not notify document change.
+	 */
+	public static int writeGeneratedEvents(
+		Timeline timeline,
+		String trackId,
+		List<TimelineAnimationEvent> events,
+		TimelineEventOrigin origin
+	) {
+		return writeEvents(timeline, trackId, events, origin != null ? origin : TimelineEventOrigin.GENERATED);
+	}
+
+	/**
+	 * Low-level single-event write (no document-change notify). Prefer
+	 * {@link #writeUserEvent} or {@link #writeGeneratedEvents}.
+	 */
 	public static boolean writeEvent(
 		Timeline timeline,
 		String trackId,
@@ -66,6 +117,10 @@ public final class TimelineDraftWriter {
 		return true;
 	}
 
+	/**
+	 * Low-level batch write (no document-change notify). Prefer
+	 * {@link #writeUserEvents} or {@link #writeGeneratedEvents}.
+	 */
 	public static int writeEvents(
 		Timeline timeline,
 		String trackId,

@@ -11,11 +11,13 @@ import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Writes animation StageEvents from a preset + target list (shared by drop + event library).
+ * Committed inserts go through {@link TimelineDraftWriter#writeUserEvents}.
  */
 public final class AnimationPresetEventWriter {
 
@@ -42,7 +44,7 @@ public final class AnimationPresetEventWriter {
 			: List.of("");
 		double duration = preset.getDefaultDurationSeconds();
 		double t = Math.max(0.0, timeSeconds);
-		int written = 0;
+		List<TimelineAnimationEvent> events = new ArrayList<>(targets.size());
 		boolean anyUnbound = false;
 		for (String targetObjectId : targets) {
 			String target = targetObjectId != null ? targetObjectId : "";
@@ -58,7 +60,7 @@ public final class AnimationPresetEventWriter {
 				TimelineEventOrigin.MANUAL,
 				Map.of()
 			);
-			TimelineAnimationEvent event = new TimelineAnimationEvent(
+			events.add(new TimelineAnimationEvent(
 				"",
 				t,
 				duration,
@@ -66,14 +68,14 @@ public final class AnimationPresetEventWriter {
 				target,
 				1.0f,
 				params.toParameterMap()
-			);
-			if (TimelineDraftWriter.writeEvent(timeline, trackId, event, TimelineEventOrigin.MANUAL)) {
-				written++;
-			}
+			));
 		}
-		if (written > 0) {
-			timeline.sortAll();
-		}
+		int written = TimelineDraftWriter.writeUserEvents(
+			timeline,
+			trackId,
+			events,
+			TimelineEventOrigin.MANUAL
+		);
 		return new WriteResult(written, anyUnbound && written > 0);
 	}
 

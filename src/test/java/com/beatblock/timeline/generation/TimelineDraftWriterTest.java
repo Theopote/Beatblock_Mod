@@ -70,6 +70,21 @@ class TimelineDraftWriterTest {
 	}
 
 	@Test
+	void writeGeneratedEventsWritesWithoutCommandManager() {
+		Timeline timeline = Timeline.createDefault();
+		int written = TimelineDraftWriter.writeGeneratedEvents(
+			timeline,
+			Timeline.TRACK_ID_ANIMATION_AUTO,
+			List.of(new TimelineAnimationEvent("gen1", 5.0, 1.0, "build", "stage", 1f, Map.of())),
+			TimelineEventOrigin.GENERATED
+		);
+
+		assertEquals(1, written);
+		assertEquals(1, timeline.getAutoAnimationEvents().size());
+		assertEquals("GENERATED", timeline.getAutoAnimationEvents().getFirst().getParameters().get("eventOrigin"));
+	}
+
+	@Test
 	void commandManagerOrNullReadsFromInjectedContext() {
 		Timeline timeline = Timeline.createDefault();
 		MusicPlayer musicPlayer = new MusicPlayer();
