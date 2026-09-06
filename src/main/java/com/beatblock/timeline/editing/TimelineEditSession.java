@@ -72,7 +72,7 @@ public final class TimelineEditSession {
 	}
 
 	public boolean canDuplicate() {
-		return DuplicateTimelineEventsCommand.canDuplicate(timeline, selection);
+		return DuplicateTimelineEventsCommand.canDuplicate(timeline, selection, trackListState);
 	}
 
 	public boolean canSplitAtPlayhead() {

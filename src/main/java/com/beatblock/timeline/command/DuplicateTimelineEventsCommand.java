@@ -29,7 +29,8 @@ public final class DuplicateTimelineEventsCommand implements Command {
 		@Nullable TimelineTrackListState trackListState
 	) {
 		List<TimelineInteractionClipboard.ClipboardEvent> buffer = new ArrayList<>();
-		TimelineInteractionClipboard.copy(buffer, timeline, selectionState);
+		// Match Cut: locked-track content is not duplicated.
+		TimelineInteractionClipboard.copy(buffer, timeline, selectionState, trackListState, true);
 		double anchor = computeAnchor(buffer);
 		this.pasteCommand = new PasteTimelineEventsCommand(new PasteRequest(
 			timeline,
@@ -44,10 +45,11 @@ public final class DuplicateTimelineEventsCommand implements Command {
 
 	public static boolean canDuplicate(
 		@NonNull Timeline timeline,
-		@NonNull SelectionState selectionState
+		@NonNull SelectionState selectionState,
+		@Nullable TimelineTrackListState trackListState
 	) {
 		List<TimelineInteractionClipboard.ClipboardEvent> buffer = new ArrayList<>();
-		TimelineInteractionClipboard.copy(buffer, timeline, selectionState);
+		TimelineInteractionClipboard.copy(buffer, timeline, selectionState, trackListState, true);
 		return !buffer.isEmpty();
 	}
 

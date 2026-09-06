@@ -284,11 +284,22 @@ public final class TimelineInteractionDeleteSupport {
 		timeline.setMetadata("audioRootClipId", snapshot.previousRootClipId());
 	}
 
-	/** Per-clip audio metadata keys cleared when an audio clip is deleted. */
+	/**
+	 * Per-clip timeline metadata cleared when a clip is deleted (audio labels / camera path).
+	 */
 	public static Map<String, Object> captureAndClearClipAudioMetadata(Timeline timeline, String clipId) {
+		return captureAndClearPerClipMetadata(timeline, clipId);
+	}
+
+	public static Map<String, Object> captureAndClearPerClipMetadata(Timeline timeline, String clipId) {
 		if (timeline == null || clipId == null || clipId.isBlank()) return Map.of();
 		Map<String, Object> captured = new LinkedHashMap<>();
-		for (String prefix : List.of("clipLabel_", "clipAudioPath_", "clipAudioKey_")) {
+		for (String prefix : List.of(
+			"clipLabel_",
+			"clipAudioPath_",
+			"clipAudioKey_",
+			"cameraPathVisible_"
+		)) {
 			String key = prefix + clipId;
 			Object value = timeline.getMetadata(key);
 			if (value != null) {
@@ -300,6 +311,10 @@ public final class TimelineInteractionDeleteSupport {
 	}
 
 	public static void restoreClipAudioMetadata(Timeline timeline, @Nullable Map<String, Object> metadata) {
+		restorePerClipMetadata(timeline, metadata);
+	}
+
+	public static void restorePerClipMetadata(Timeline timeline, @Nullable Map<String, Object> metadata) {
 		if (timeline == null || metadata == null || metadata.isEmpty()) return;
 		for (Map.Entry<String, Object> entry : metadata.entrySet()) {
 			timeline.setMetadata(entry.getKey(), entry.getValue());

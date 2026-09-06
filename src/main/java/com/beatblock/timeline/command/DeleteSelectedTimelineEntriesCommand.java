@@ -123,9 +123,8 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 					if (clip == null) continue;
 					Clip snapshot = copyClip(clip);
 					BuildLayerBindingSupport.BindingSnapshot binding = captureBindingForClip(clipId);
-					Map<String, Object> clipMeta = Timeline.TRACK_ID_AUDIO.equals(track.getId())
-						? TimelineInteractionDeleteSupport.captureAndClearClipAudioMetadata(timeline, clipId)
-						: Map.of();
+					Map<String, Object> clipMeta =
+						TimelineInteractionDeleteSupport.captureAndClearClipAudioMetadata(timeline, clipId);
 					if (!removeClipNow(track, clipId, snapshot, binding)) {
 						TimelineInteractionDeleteSupport.restoreClipAudioMetadata(timeline, clipMeta);
 						continue;
@@ -214,10 +213,8 @@ public final class DeleteSelectedTimelineEntriesCommand implements Command {
 			if (track == null) continue;
 			Clip clip = track.getClip(removed.snapshot().getId());
 			if (clip == null) continue;
-			if (Timeline.TRACK_ID_AUDIO.equals(track.getId())) {
-				TimelineInteractionDeleteSupport.captureAndClearClipAudioMetadata(
-					timeline, removed.snapshot().getId());
-			}
+			TimelineInteractionDeleteSupport.captureAndClearClipAudioMetadata(
+				timeline, removed.snapshot().getId());
 			removeClipNow(track, removed.snapshot().getId(), removed.snapshot(), removed.binding());
 		}
 		for (RemovedEvent removed : removedEvents) {

@@ -81,6 +81,9 @@ public final class PasteTimelineEventsCommand implements Command {
 			clip.setEndTimeSeconds(modified.newEndSeconds());
 			dirtyTracks.add(track.getId());
 		}
+		if (request.selectionState() != null && !result.pastedEvents().isEmpty()) {
+			request.selectionState().clearEvents();
+		}
 		for (PastedEventRef pasted : result.pastedEvents()) {
 			Track track = timeline.getTrack(pasted.trackId());
 			if (track == null) {

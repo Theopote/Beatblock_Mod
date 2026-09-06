@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -417,5 +418,117 @@ class TimelineEditCommandsRegressionTest {
 		assertEquals(1, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
 		assertEquals(1, timeline.getTrack(Timeline.TRACK_ID_ANIMATION_AUTO).getClips().getFirst().getEvents().size());
 		assertEquals(1, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().getFirst().getEvents().size());
+	}
+
+	@Test
+	void duplicateSkipsLockedTrackContent() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 0, 4);
+		TimelineEvent event = TimelineOperations.addEvent(clip, 1.0, EventType.ANIMATION, Map.of());
+		SelectionState selection = new SelectionState();
+		selection.selectEvent(event.getId());
+
+		TimelineTrackListState trackList = new TimelineTrackListState();
+		trackList.setLocked(com.beatblock.timeline.rendering.TimelineTrackMeta.ROW_ANIM_AUTO, true);
+
+		assertTrue(!DuplicateTimelineEventsCommand.canDuplicate(timeline, selection, trackList));
+		DuplicateTimelineEventsCommand command = new DuplicateTimelineEventsCommand(
+			timeline, selection, trackList);
+		command.execute();
+		assertTrue(!command.wasApplied());
+		assertEquals(1, clip.getEvents().size());
+	}
+
+	@Test
+	void pasteRemintsGeneratedOriginToManual() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 0.0, 10.0);
+		var clipboard = new ArrayList<TimelineInteractionClipboard.ClipboardEvent>();
+		clipboard.add(new TimelineInteractionClipboard.ClipboardEvent(
+			Timeline.TRACK_ID_ANIMATION_AUTO,
+			clip.getId(),
+			1.0,
+			EventType.ANIMATION,
+			Map.of(
+				"eventOrigin", "GENERATED",
+				"generatorId", "smart-automap",
+				"generationId", "gen-1"
+			)));
+
+		SelectionState selection = new SelectionState();
+		PasteTimelineEventsCommand command = new PasteTimelineEventsCommand(
+			new TimelineInteractionClipboard.PasteRequest(
+				timeline, selection, clipboard, 3.0,
+				Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(),
+				new TimelineTrackListState()));
+		command.execute();
+
+		TimelineEvent pasted = clip.getEvents().getFirst();
+		assertEquals("MANUAL", String.valueOf(pasted.getParameter("eventOrigin")));
+		assertNull(pasted.getParameter("generatorId"));
+		assertNull(pasted.getParameter("generationId"));
+	}
+
+	@Test
+	void pasteRedoClearsPriorEventSelection() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 0.0, 10.0);
+		var clipboard = new ArrayList<TimelineInteractionClipboard.ClipboardEvent>();
+		clipboard.add(new TimelineInteractionClipboard.ClipboardEvent(
+			Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(), 1.0, EventType.ANIMATION, Map.of("k", 1)));
+
+		SelectionState selection = new SelectionState();
+		selection.selectEvent("stale-event-id");
+		PasteTimelineEventsCommand command = new PasteTimelineEventsCommand(
+			new TimelineInteractionClipboard.PasteRequest(
+				timeline, selection, clipboard, 2.0,
+				Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(),
+				new TimelineTrackListState()));
+		command.execute();
+		String pastedId = clip.getEvents().getFirst().getId();
+		assertEquals(Set.of(pastedId), selection.getSelectedEvents());
+
+		command.undo();
+		selection.selectEvent("stale-after-undo");
+		command.execute();
+		assertEquals(Set.of(pastedId), selection.getSelectedEvents());
+	}
+
+	@Test
+	void deleteClearsCameraPathVisibilityMetadata() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_CAMERA, 0.0, 4.0);
+		com.beatblock.timeline.camera.CameraPathMetadata.setPathVisible(timeline, clip.getId(), false);
+		SelectionState selection = new SelectionState();
+		selection.selectClip(clip.getId());
+
+		DeleteSelectedTimelineEntriesCommand command = new DeleteSelectedTimelineEntriesCommand(
+			timeline, null, selection, new TimelineTrackListState());
+		command.execute();
+		assertNull(timeline.getMetadata(
+			com.beatblock.timeline.camera.CameraPathMetadata.metadataKey(clip.getId())));
+
+		command.undo();
+		assertEquals("0", String.valueOf(timeline.getMetadata(
+			com.beatblock.timeline.camera.CameraPathMetadata.metadataKey(clip.getId()))));
+	}
+
+	@Test
+	void splitCopiesCameraPathVisibilityToRightClip() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_CAMERA, 0.0, 10.0);
+		com.beatblock.timeline.camera.CameraPathMetadata.setPathVisible(timeline, clip.getId(), false);
+
+		SplitClipCommand command = new SplitClipCommand(
+			timeline, Timeline.TRACK_ID_CAMERA, clip.getId(), 5.0, new SelectionState());
+		command.execute();
+		String rightId = command.rightClipId();
+		assertNotNull(rightId);
+		assertEquals("0", String.valueOf(timeline.getMetadata(
+			com.beatblock.timeline.camera.CameraPathMetadata.metadataKey(rightId))));
+
+		command.undo();
+		assertNull(timeline.getMetadata(
+			com.beatblock.timeline.camera.CameraPathMetadata.metadataKey(rightId)));
 	}
 }

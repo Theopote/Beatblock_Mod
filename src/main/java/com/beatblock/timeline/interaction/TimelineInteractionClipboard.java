@@ -8,6 +8,8 @@ import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.TrackType;
 import com.beatblock.timeline.editor.SelectionState;
+import com.beatblock.timeline.generation.TimelineGenerationMetadata;
+import com.beatblock.timeline.generation.TimelineGenerationMetadataSupport;
 import com.beatblock.timeline.rendering.TimelineTrackListState;
 
 import org.jspecify.annotations.Nullable;
@@ -63,8 +65,8 @@ public final class TimelineInteractionClipboard {
 
 	/**
 	 * Copy selection into {@code target}.
-	 * When {@code skipLocked} is true, locked-track content is omitted (used by Cut so
-	 * clipboard matches what Delete will remove).
+	 * When {@code skipLocked} is true, locked-track content is omitted (used by Cut/Duplicate so
+	 * clipboard matches what Delete will remove / what Paste can accept).
 	 */
 	public static void copy(
 		List<ClipboardEvent> target,
@@ -222,6 +224,7 @@ public final class TimelineInteractionClipboard {
 	/**
 	 * Paste/Duplicate must not create a second live BuildLayer binding claim.
 	 * Strips {@code layerBound}/{@code layerId} while keeping stageObjectId for a usable BUILD copy.
+	 * Remints GENERATED/IMPORTED origins to MANUAL so content-replace pipelines do not wipe user paste.
 	 */
 	static Map<String, Object> parametersForPaste(@Nullable Map<String, Object> source) {
 		Map<String, Object> copy = source == null ? new HashMap<>() : new HashMap<>(source);
@@ -229,6 +232,10 @@ public final class TimelineInteractionClipboard {
 		if (bound != null && "true".equalsIgnoreCase(String.valueOf(bound).trim())) {
 			copy.remove("layerBound");
 			copy.remove("layerId");
+		}
+		var meta = TimelineGenerationMetadata.fromParameters(copy);
+		if (meta.origin().isGenerated() || meta.origin().isImported()) {
+			return TimelineGenerationMetadataSupport.apply(copy, TimelineGenerationMetadata.manual());
 		}
 		return copy;
 	}

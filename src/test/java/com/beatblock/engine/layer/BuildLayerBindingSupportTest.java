@@ -3,10 +3,12 @@ package com.beatblock.engine.layer;
 import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.testutil.MinecraftTestBootstrap;
+import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.command.CutTimelineEventsCommand;
 import com.beatblock.timeline.command.DeleteEventCommand;
+import com.beatblock.timeline.command.SplitClipCommand;
 import com.beatblock.timeline.command.layer.BindLayerToTrackCommand;
 import com.beatblock.timeline.editor.SelectionState;
 import com.beatblock.timeline.interaction.TimelineInteractionClipboard;
@@ -149,6 +151,41 @@ class BuildLayerBindingSupportTest {
 		assertEquals(0, adjusted);
 		assertEquals(LayerVisibilityState.BOUND_TO_TRACK, layer.getState());
 		assertEquals(clipId, layer.getBoundClipId());
+	}
+
+	@Test
+	void splitRebindsLayerWhenBindingEventMovesRight() {
+		RuntimeStageObject stage = StageObjectSystem.fromBlocks("s-split", "S", List.of(new BlockPos(5, 64, 0)));
+		Track track = BuildLayerTrackSupport.ensureDefaultTrack(timeline);
+		assertNotNull(track);
+		Clip clip = new Clip("clip-split", 0.0, 10.0);
+		track.addClip(clip);
+		BuildLayer layer = new BuildLayer(
+			"layer-split", "S", stage, LayerVisibilityState.BOUND_TO_TRACK, Map.of(), clip.getId());
+		layerManager.registerRestored(layer);
+
+		var early = new com.beatblock.timeline.TimelineEvent(
+			"early", 2.0, com.beatblock.timeline.EventType.ANIMATION, Map.of("k", 1));
+		var binding = new com.beatblock.timeline.TimelineEvent(
+			"bind", 7.0, com.beatblock.timeline.EventType.ANIMATION,
+			Map.of("layerId", layer.getId(), "layerBound", "true", "animationType", "build"));
+		clip.addEvent(early);
+		clip.addEvent(binding);
+
+		SplitClipCommand split = new SplitClipCommand(
+			timeline, layerManager, track.getId(), clip.getId(), 5.0, new SelectionState());
+		split.execute();
+		assertTrue(split.wasApplied());
+		String rightId = split.rightClipId();
+		assertNotNull(rightId);
+		assertEquals(rightId, layer.getBoundClipId());
+		assertNull(clip.getEvent("bind"));
+		assertNotNull(track.getClip(rightId).getEvent("bind"));
+
+		split.undo();
+		assertEquals(clip.getId(), layer.getBoundClipId());
+		assertNotNull(clip.getEvent("bind"));
+		assertNull(track.getClip(rightId));
 	}
 
 	private Track findClipTrack(String clipId) {
