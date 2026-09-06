@@ -235,7 +235,8 @@ public final class TimelineInteractionClipboard {
 		}
 		var meta = TimelineGenerationMetadata.fromParameters(copy);
 		if (meta.origin().isGenerated() || meta.origin().isImported()) {
-			return TimelineGenerationMetadataSupport.apply(copy, TimelineGenerationMetadata.manual());
+			// Same provenance policy as EventTemplate.save — remint GENERATED/IMPORTED → MANUAL.
+			return TimelineGenerationMetadataSupport.remintAsManualCopy(copy);
 		}
 		return copy;
 	}

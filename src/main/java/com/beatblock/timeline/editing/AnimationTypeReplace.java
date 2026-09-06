@@ -19,22 +19,11 @@ public final class AnimationTypeReplace {
 
 	/**
 	 * Provenance / metadata keys retained across animation-type replacement.
-	 * Everything else in extensions is treated as animation-specific and cleared.
+	 * Sourced from {@link TimelineGenerationMetadataSupport#GENERATION_IDENTITY_KEYS}
+	 * so Replace / Paste / Template share one key catalog (Replace keeps; remint strips).
 	 */
-	public static final Set<String> PRESERVED_EXTENSION_KEYS = Set.of(
-		TimelineGenerationMetadataSupport.PARAM_GENERATOR_ID,
-		TimelineGenerationMetadataSupport.PARAM_GENERATION_ID,
-		TimelineGenerationMetadataSupport.PARAM_SECTION_INDEX,
-		TimelineGenerationMetadataSupport.PARAM_PHRASE_INDEX,
-		TimelineGenerationMetadataSupport.PARAM_SOURCE_PLAN_ID,
-		"generatedBy",
-		"bindingRuleId",
-		"bindingRuleName",
-		"sourceFeature",
-		"mappingProfile",
-		"sourceStem",
-		"bakedFromStepEventId"
-	);
+	public static final Set<String> PRESERVED_EXTENSION_KEYS =
+		TimelineGenerationMetadataSupport.GENERATION_IDENTITY_KEYS;
 
 	private AnimationTypeReplace() {}
 

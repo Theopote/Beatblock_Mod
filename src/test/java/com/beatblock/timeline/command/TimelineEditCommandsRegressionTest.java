@@ -452,7 +452,9 @@ class TimelineEditCommandsRegressionTest {
 			Map.of(
 				"eventOrigin", "GENERATED",
 				"generatorId", "smart-automap",
-				"generationId", "gen-1"
+				"generationId", "gen-1",
+				"generatedBy", "AutoMap",
+				"sourceFeature", "onset"
 			)));
 
 		SelectionState selection = new SelectionState();
@@ -467,6 +469,8 @@ class TimelineEditCommandsRegressionTest {
 		assertEquals("MANUAL", String.valueOf(pasted.getParameter("eventOrigin")));
 		assertNull(pasted.getParameter("generatorId"));
 		assertNull(pasted.getParameter("generationId"));
+		assertNull(pasted.getParameter("generatedBy"));
+		assertNull(pasted.getParameter("sourceFeature"));
 	}
 
 	@Test
