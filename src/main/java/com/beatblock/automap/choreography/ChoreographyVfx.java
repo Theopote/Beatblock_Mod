@@ -96,20 +96,20 @@ public sealed interface ChoreographyVfx permits
 		float r,
 		float g,
 		float b,
-		double durationSeconds,
+		double transitionSeconds,
 		int sectionIndex
 	) implements ChoreographyVfx {
 		public EnvironmentLighting {
 			name = name != null ? name : "";
 			intensity = Math.max(0.0, intensity);
-			durationSeconds = Math.max(0.0, durationSeconds);
+			transitionSeconds = Math.max(0.0, transitionSeconds);
 			sectionIndex = Math.max(-1, sectionIndex);
 		}
 
 		@Override
 		public ChoreographyVfx withTiming(double newTimeSeconds, int newSectionIndex) {
 			return new EnvironmentLighting(
-				newTimeSeconds, name, intensity, r, g, b, durationSeconds, newSectionIndex);
+				newTimeSeconds, name, intensity, r, g, b, transitionSeconds, newSectionIndex);
 		}
 	}
 

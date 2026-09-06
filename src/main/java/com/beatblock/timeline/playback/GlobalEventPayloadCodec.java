@@ -22,7 +22,9 @@ public final class GlobalEventPayloadCodec {
 				(float) number(params, "r", 1.0),
 				(float) number(params, "g", 1.0),
 				(float) number(params, "b", 1.0),
-				nonNegative(params, "durationSeconds", 0.0));
+				lightingTransitionSeconds(params));
+			case "ENVIRONMENT_RESET", "RESET_ENVIRONMENT" -> new GlobalEventPayload.EnvironmentReset(
+				string(params, "name", "Environment Reset"));
 			case "SCREEN_TINT", "OVERLAY_TINT" -> new GlobalEventPayload.ScreenTint(
 				string(params, "name", ""),
 				number(params, "intensity", 1.0),
@@ -72,7 +74,11 @@ public final class GlobalEventPayloadCodec {
 				params.put("r", value.r());
 				params.put("g", value.g());
 				params.put("b", value.b());
-				params.put("durationSeconds", value.durationSeconds());
+				params.put("transitionSeconds", value.transitionSeconds());
+			}
+			case GlobalEventPayload.EnvironmentReset value -> {
+				params.put("type", "ENVIRONMENT_RESET");
+				params.put("name", value.name());
 			}
 			case GlobalEventPayload.ScreenTint value -> {
 				params.put("type", "SCREEN_TINT");
@@ -179,6 +185,14 @@ public final class GlobalEventPayloadCodec {
 			throw new IllegalArgumentException("Invalid positive integer global parameter " + key + ": " + value);
 		}
 		return (int) value;
+	}
+
+	private static double lightingTransitionSeconds(Map<String, Object> params) {
+		if (params.containsKey("transitionSeconds")) {
+			return nonNegative(params, "transitionSeconds", 0.0);
+		}
+		// Legacy timelines stored sticky lighting fade as durationSeconds.
+		return nonNegative(params, "durationSeconds", 0.0);
 	}
 
 	private static @Nullable CameraSubjectKind parseFollowSubjectKind(Map<String, Object> params) {

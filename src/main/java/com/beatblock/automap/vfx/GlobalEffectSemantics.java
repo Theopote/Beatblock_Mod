@@ -36,6 +36,7 @@ public enum GlobalEffectSemantics {
 			case GlobalEventPayload.Lighting ignored -> CONTINUOUS_STATE;
 			case GlobalEventPayload.LocalVisualWeather ignored -> CONTINUOUS_STATE;
 			case GlobalEventPayload.AudioMix ignored -> CONTINUOUS_STATE;
+			case GlobalEventPayload.EnvironmentReset ignored -> CONTINUOUS_STATE;
 			case GlobalEventPayload.ScreenTint ignored -> FINITE_ENVELOPE;
 			case GlobalEventPayload.ScreenFlash ignored -> FINITE_ENVELOPE;
 			case GlobalEventPayload.ParticleBurst ignored -> IMPULSE;

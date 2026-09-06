@@ -135,6 +135,8 @@ public final class GlobalPropertyEditor {
 		switch (payloadTemplate) {
 			case GlobalEventPayload.EnvironmentLighting ignored -> renderEnvironmentLighting(bpm);
 			case GlobalEventPayload.Lighting ignored -> renderEnvironmentLighting(bpm);
+			case GlobalEventPayload.EnvironmentReset ignored -> ImGui.textWrapped(
+				BBTexts.get("beatblock.vfx_creator.payload.environment_reset_hint"));
 			case GlobalEventPayload.ScreenTint ignored -> renderScreenTint(bpm);
 			case GlobalEventPayload.LocalVisualWeather ignored -> renderWeather(bpm);
 			case GlobalEventPayload.ParticleBurst ignored -> renderParticleBurst();
@@ -151,7 +153,7 @@ public final class GlobalPropertyEditor {
 		ImGui.text(BBTexts.get("beatblock.vfx_creator.color"));
 		ImGui.setNextItemWidth(-1f);
 		ImGui.colorEdit3("##globalEnvColor", color);
-		durationField.render("globalEnvDuration", BBTexts.get("beatblock.vfx_creator.duration"), bpm);
+		transitionField.render("globalEnvTransition", BBTexts.get("beatblock.vfx_creator.transition"), bpm);
 	}
 
 	private void renderScreenTint(double bpm) {
@@ -303,7 +305,7 @@ public final class GlobalPropertyEditor {
 				nameBuffer.set(v.name());
 				intensity[0] = (float) v.intensity();
 				color[0] = v.r(); color[1] = v.g(); color[2] = v.b();
-				durationField.setFromSeconds(v.durationSeconds(), MusicalDurationUnit.SECONDS, bpm);
+				transitionField.setFromSeconds(v.transitionSeconds(), MusicalDurationUnit.SECONDS, bpm);
 			}
 			case GlobalEventPayload.ScreenTint v -> {
 				nameBuffer.set(v.name());
@@ -315,8 +317,9 @@ public final class GlobalPropertyEditor {
 				nameBuffer.set(v.name());
 				intensity[0] = (float) v.intensity();
 				color[0] = v.r(); color[1] = v.g(); color[2] = v.b();
-				durationField.setFromSeconds(v.durationSeconds(), MusicalDurationUnit.SECONDS, bpm);
+				transitionField.setFromSeconds(v.durationSeconds(), MusicalDurationUnit.SECONDS, bpm);
 			}
+			case GlobalEventPayload.EnvironmentReset v -> nameBuffer.set(v.name());
 			case GlobalEventPayload.LocalVisualWeather v -> {
 				nameBuffer.set(v.name());
 				weatherType.set(v.weatherType());
@@ -351,10 +354,12 @@ public final class GlobalPropertyEditor {
 		return switch (payloadTemplate) {
 			case GlobalEventPayload.EnvironmentLighting ignored ->
 				new GlobalEventPayload.EnvironmentLighting(
-					name, intensity[0], color[0], color[1], color[2], durationField.seconds());
+					name, intensity[0], color[0], color[1], color[2], transitionField.seconds());
 			case GlobalEventPayload.Lighting ignored ->
 				new GlobalEventPayload.EnvironmentLighting(
-					name, intensity[0], color[0], color[1], color[2], durationField.seconds());
+					name, intensity[0], color[0], color[1], color[2], transitionField.seconds());
+			case GlobalEventPayload.EnvironmentReset ignored ->
+				new GlobalEventPayload.EnvironmentReset(name);
 			case GlobalEventPayload.ScreenTint ignored ->
 				new GlobalEventPayload.ScreenTint(
 					name, intensity[0], color[0], color[1], color[2], durationField.seconds());

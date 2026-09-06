@@ -244,6 +244,7 @@ public final class EventPropertiesPresenter {
 			case com.beatblock.timeline.playback.GlobalEventPayload.EnvironmentLighting v -> v.name();
 			case com.beatblock.timeline.playback.GlobalEventPayload.ScreenTint v -> v.name();
 			case com.beatblock.timeline.playback.GlobalEventPayload.Lighting v -> v.name();
+			case com.beatblock.timeline.playback.GlobalEventPayload.EnvironmentReset v -> v.name();
 			case com.beatblock.timeline.playback.GlobalEventPayload.LocalVisualWeather v -> v.name();
 			case com.beatblock.timeline.playback.GlobalEventPayload.ParticleBurst v -> v.name();
 			case com.beatblock.timeline.playback.GlobalEventPayload.ScreenFlash v -> v.name();

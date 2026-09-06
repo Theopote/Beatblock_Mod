@@ -77,7 +77,7 @@ public final class ChoreographyVfxPersistence {
 				obj.addProperty("r", lighting.r());
 				obj.addProperty("g", lighting.g());
 				obj.addProperty("b", lighting.b());
-				obj.addProperty("durationSeconds", lighting.durationSeconds());
+				obj.addProperty("transitionSeconds", lighting.transitionSeconds());
 				yield obj;
 			}
 			case ChoreographyVfx.AudioAccent accent -> {
@@ -139,7 +139,9 @@ public final class ChoreographyVfxPersistence {
 				(float) getDouble(obj, "r", 1.0),
 				(float) getDouble(obj, "g", 1.0),
 				(float) getDouble(obj, "b", 1.0),
-				getDouble(obj, "durationSeconds", 0.0),
+				obj.has("transitionSeconds")
+					? getDouble(obj, "transitionSeconds", 0.0)
+					: getDouble(obj, "durationSeconds", 0.0),
 				sectionIndex
 			);
 			case "AUDIO_ACCENT" -> new ChoreographyVfx.AudioAccent(

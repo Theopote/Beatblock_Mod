@@ -8,9 +8,27 @@ import java.util.Map;
 
 /** Strongly typed payload representing a compiled global / VFX track event. */
 public sealed interface GlobalEventPayload {
-	/** World/environment lighting intent. Execution requires a world-capable backend. */
-	record EnvironmentLighting(String name, double intensity, float r, float g, float b, double durationSeconds)
-		implements GlobalEventPayload { public EnvironmentLighting { name = name != null ? name : ""; } }
+	/**
+	 * Client-only environment lighting presentation (sticky state switch).
+	 * {@code transitionSeconds} is fade/transition intent — not an active lifetime.
+	 */
+	record EnvironmentLighting(String name, double intensity, float r, float g, float b, double transitionSeconds)
+		implements GlobalEventPayload {
+		public static final EnvironmentLighting NEUTRAL =
+			new EnvironmentLighting("Default Lighting", 1.0, 1f, 1f, 1f, 0.0);
+
+		public EnvironmentLighting {
+			name = name != null ? name : "";
+			transitionSeconds = Math.max(0.0, transitionSeconds);
+		}
+
+		public boolean isNeutral() {
+			return Math.abs(intensity - 1.0) < 1e-6
+				&& Math.abs(r - 1f) < 1e-6
+				&& Math.abs(g - 1f) < 1e-6
+				&& Math.abs(b - 1f) < 1e-6;
+		}
+	}
 	/** Editor/screen overlay tint; does not modify Minecraft world lighting. */
 	record ScreenTint(String name, double intensity, float r, float g, float b, double durationSeconds)
 		implements GlobalEventPayload { public ScreenTint { name = name != null ? name : ""; } }
@@ -21,6 +39,15 @@ public sealed interface GlobalEventPayload {
 	/** Client-only presentation weather; does not change authoritative or saved world weather. */
 	record LocalVisualWeather(String name, String weatherType, double transitionSeconds)
 		implements GlobalEventPayload { public LocalVisualWeather { name = name != null ? name : ""; } }
+	/**
+	 * Sticky clear of environment presentation: lighting → neutral, weather → clear,
+	 * screen tint cleared, audio mix → master 1.0. Does not re-fire particles.
+	 */
+	record EnvironmentReset(String name) implements GlobalEventPayload {
+		public EnvironmentReset {
+			name = name != null && !name.isBlank() ? name : "Environment Reset";
+		}
+	}
 	record ParticleBurst(
 		String name,
 		String particleType,

@@ -36,6 +36,7 @@ public record CompiledGlobalEvent(
 			return g.typeName();
 		}
 		if (payload instanceof GlobalEventPayload.EnvironmentLighting) return "ENVIRONMENT_LIGHTING";
+		if (payload instanceof GlobalEventPayload.EnvironmentReset) return "ENVIRONMENT_RESET";
 		if (payload instanceof GlobalEventPayload.ScreenTint) return "SCREEN_TINT";
 		if (payload instanceof GlobalEventPayload.Lighting) return "LIGHTING";
 		if (payload instanceof GlobalEventPayload.LocalVisualWeather) return "LOCAL_VISUAL_WEATHER";
@@ -48,6 +49,7 @@ public record CompiledGlobalEvent(
 	public String name() {
 		if (payload instanceof GlobalEventPayload.Generic g) return g.name();
 		if (payload instanceof GlobalEventPayload.EnvironmentLighting p) return p.name();
+		if (payload instanceof GlobalEventPayload.EnvironmentReset p) return p.name();
 		if (payload instanceof GlobalEventPayload.ScreenTint p) return p.name();
 		if (payload instanceof GlobalEventPayload.Lighting p) return p.name();
 		if (payload instanceof GlobalEventPayload.LocalVisualWeather p) return p.name();

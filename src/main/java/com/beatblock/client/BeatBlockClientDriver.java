@@ -2,6 +2,7 @@ package com.beatblock.client;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.automap.vfx.ActiveGlobalEffectState;
+import com.beatblock.automap.vfx.EnvironmentLightingRuntime;
 import com.beatblock.client.vfx.VfxEmitter;
 import com.beatblock.client.render.GlobalVisualEffectOverlay;
 import com.beatblock.engine.BlockControlExecutor;
@@ -286,23 +287,38 @@ public final class BeatBlockClientDriver {
 		lastStageEventTime = time;
 	}
 
-	/** Clear screen overlays before reconstruct so seek does not leave stale flash/tint. */
+	/** Clear screen overlays + environment lighting before reconstruct. */
 	private void clearGlobalVfxPresentation() {
 		GlobalVisualEffectOverlay.clear();
+		EnvironmentLightingRuntime.clear();
 	}
 
 	/**
-	 * Sample-at-time sync for continuous/envelope screen VFX (seek + forward expiry).
-	 * Particle impulses are never reconstructed here.
+	 * Sample-at-time sync for continuous/envelope screen VFX and sticky environment lighting
+	 * (seek + forward expiry). Particle impulses are never reconstructed here.
 	 */
 	private void syncStatefulGlobalVfxAt(double timeSeconds) {
 		if (compiledPlayback == null) {
 			GlobalVisualEffectOverlay.clearScreenTint();
 			GlobalVisualEffectOverlay.clearScreenFlash();
+			EnvironmentLightingRuntime.clear();
 			return;
 		}
 		ActiveGlobalEffectState active = ActiveGlobalEffectState.resolve(
 			compiledPlayback.globalEvents(), timeSeconds);
+		CompiledGlobalEvent lightingEvent = active.environmentLighting();
+		if (lightingEvent != null && lightingEvent.payload() instanceof GlobalEventPayload.EnvironmentLighting lighting) {
+			EnvironmentLightingRuntime.sync(lighting);
+			GlobalVisualEffectOverlay.syncEnvironmentLighting(lighting);
+		} else if (lightingEvent != null && lightingEvent.payload() instanceof GlobalEventPayload.Lighting legacy) {
+			var lighting = new GlobalEventPayload.EnvironmentLighting(
+				legacy.name(), legacy.intensity(), legacy.r(), legacy.g(), legacy.b(), 0);
+			EnvironmentLightingRuntime.sync(lighting);
+			GlobalVisualEffectOverlay.syncEnvironmentLighting(lighting);
+		} else {
+			EnvironmentLightingRuntime.clear();
+			GlobalVisualEffectOverlay.syncEnvironmentLighting(null);
+		}
 		CompiledGlobalEvent tintEvent = active.screenTint();
 		if (tintEvent != null && tintEvent.payload() instanceof GlobalEventPayload.ScreenTint tint) {
 			GlobalVisualEffectOverlay.syncScreenTint(tint);
@@ -345,6 +361,7 @@ public final class BeatBlockClientDriver {
 		resetTimelineAnimationScheduling();
 		playbackEngine.reset();
 		compiledPlayback = null;
+		clearGlobalVfxPresentation();
 	}
 
 	public static boolean isDriving() {
@@ -536,12 +553,19 @@ public final class BeatBlockClientDriver {
 
 	private GlobalEventExecutor createGlobalEventExecutor() {
 		return new GlobalEventExecutor(new GlobalEventExecutor.Backend() {
-			@Override public boolean applyEnvironmentLighting(GlobalEventPayload.@NotNull EnvironmentLighting payload) { return false; }
+			@Override public boolean applyEnvironmentLighting(GlobalEventPayload.@NotNull EnvironmentLighting payload) {
+				boolean ok = EnvironmentLightingRuntime.apply(payload);
+				GlobalVisualEffectOverlay.syncEnvironmentLighting(payload);
+				return ok;
+			}
 			@Override public boolean applyScreenTint(GlobalEventPayload.@NotNull ScreenTint payload) { return GlobalVisualEffectOverlay.applyScreenTint(payload); }
 			@Override public boolean applyLocalVisualWeather(GlobalEventPayload.@NotNull LocalVisualWeather payload) { return applyClientVisualWeather(payload); }
 			@Override public boolean emitParticleBurst(GlobalEventPayload.@NotNull ParticleBurst payload) { return emitGlobalParticles(payload); }
 			@Override public boolean applyScreenFlash(GlobalEventPayload.@NotNull ScreenFlash payload) { return GlobalVisualEffectOverlay.applyScreenFlash(payload); }
 			@Override public boolean applyAudioMix(GlobalEventPayload.@NotNull AudioMix payload) { return applyGlobalAudioMix(payload); }
+			@Override public boolean applyEnvironmentReset(GlobalEventPayload.@NotNull EnvironmentReset payload) {
+				return applyEnvironmentResetPresentation(payload);
+			}
 		});
 	}
 
@@ -566,6 +590,19 @@ public final class BeatBlockClientDriver {
 		boolean thunder = "thunder".equals(weather) || "storm".equals(weather);
 		client.world.setRainGradient(rain ? 1.0f : 0.0f);
 		client.world.setThunderGradient(thunder ? 1.0f : 0.0f);
+		return true;
+	}
+
+	private boolean applyEnvironmentResetPresentation(GlobalEventPayload.EnvironmentReset payload) {
+		EnvironmentLightingRuntime.clear();
+		GlobalVisualEffectOverlay.syncEnvironmentLighting(null);
+		GlobalVisualEffectOverlay.clearScreenTint();
+		applyClientVisualWeather(new GlobalEventPayload.LocalVisualWeather(
+			payload != null ? payload.name() : "Clear", "clear", 0));
+		var mixer = ctx().stemMixer();
+		if (mixer != null) {
+			mixer.setStemVolume("master", 1f);
+		}
 		return true;
 	}
 

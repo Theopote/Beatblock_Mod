@@ -16,6 +16,7 @@ public final class GlobalEventExecutor {
 		boolean emitParticleBurst(GlobalEventPayload.ParticleBurst payload);
 		boolean applyScreenFlash(GlobalEventPayload.ScreenFlash payload);
 		boolean applyAudioMix(GlobalEventPayload.AudioMix payload);
+		default boolean applyEnvironmentReset(GlobalEventPayload.EnvironmentReset payload) { return false; }
 		default void unsupported(GlobalEventPayload.Generic payload) {}
 	}
 
@@ -45,6 +46,8 @@ public final class GlobalEventExecutor {
 			executed = backend.applyScreenFlash(value);
 		} else if (payload instanceof GlobalEventPayload.AudioMix value) {
 			executed = backend.applyAudioMix(value);
+		} else if (payload instanceof GlobalEventPayload.EnvironmentReset value) {
+			executed = backend.applyEnvironmentReset(value);
 		} else if (payload instanceof GlobalEventPayload.Generic value) {
 			BeatBlock.LOGGER.warn("Unsupported global event type {} ({})", value.typeName(), event.id());
 			backend.unsupported(value);

@@ -18,7 +18,7 @@ public enum GlobalEffectKind {
 		String resolved = name != null && !name.isBlank() ? name.trim() : defaultName();
 		return switch (this) {
 			case ENVIRONMENT_LIGHTING -> new GlobalEventPayload.EnvironmentLighting(
-				resolved, 1.0, 1f, 1f, 1f, 2.0);
+				resolved, 1.0, 1f, 1f, 1f, 1.0);
 			case SCREEN_TINT -> new GlobalEventPayload.ScreenTint(
 				resolved, 0.65, 1f, 1f, 1f, 2.0);
 			case WEATHER -> new GlobalEventPayload.LocalVisualWeather(resolved, "clear", 1.0);
@@ -50,6 +50,7 @@ public enum GlobalEffectKind {
 			case GlobalEventPayload.EnvironmentLighting ignored -> ENVIRONMENT_LIGHTING;
 			case GlobalEventPayload.ScreenTint ignored -> SCREEN_TINT;
 			case GlobalEventPayload.Lighting ignored -> ENVIRONMENT_LIGHTING;
+			case GlobalEventPayload.EnvironmentReset ignored -> ENVIRONMENT_LIGHTING;
 			case GlobalEventPayload.LocalVisualWeather ignored -> WEATHER;
 			case GlobalEventPayload.ParticleBurst ignored -> PARTICLE_BURST;
 			case GlobalEventPayload.ScreenFlash ignored -> SCREEN_FLASH;
@@ -63,7 +64,7 @@ public enum GlobalEffectKind {
 			return SCREEN_TINT;
 		}
 		return switch (typeName.trim().toUpperCase().replace('-', '_').replace(' ', '_')) {
-			case "ENVIRONMENT_LIGHTING", "LIGHTING" -> ENVIRONMENT_LIGHTING;
+			case "ENVIRONMENT_LIGHTING", "LIGHTING", "ENVIRONMENT_RESET", "RESET_ENVIRONMENT" -> ENVIRONMENT_LIGHTING;
 			case "SCREEN_TINT", "OVERLAY_TINT" -> SCREEN_TINT;
 			case "WEATHER", "LOCAL_VISUAL_WEATHER" -> WEATHER;
 			case "PARTICLE", "PARTICLE_BURST" -> PARTICLE_BURST;

@@ -172,6 +172,25 @@ class TimelineDocumentChangeNotifierTest {
 	}
 
 	@Test
+	void lightingInsertHotReloadKeepsCompiledCueAtPlayhead() {
+		BeatBlockClientDriver.startDriving();
+		var result = com.beatblock.automap.vfx.GlobalEventInsertionService.insertManual(
+			timeline,
+			editor,
+			new com.beatblock.automap.vfx.GlobalEventCreationRequest(
+				10.0,
+				new com.beatblock.timeline.playback.GlobalEventPayload.EnvironmentLighting(
+					"Warm", 0.7, 1f, 0.5f, 0.2f, 1.0)
+			)
+		);
+		assertTrue(result.written());
+		assertEquals(1, BeatBlockClientDriver.compiledPlaybackForTests().globalEvents().size());
+		assertEquals(10.0,
+			BeatBlockClientDriver.compiledPlaybackForTests().globalEvents().getFirst().timeSeconds(),
+			1e-9);
+	}
+
+	@Test
 	void insertGeneratedEventsDoesNotRefreshCompiledPlaybackByItself() {
 		BeatBlockClientDriver.startDriving();
 		assertEquals(0, BeatBlockClientDriver.compiledPlaybackForTests().compiledStageEvents().size());

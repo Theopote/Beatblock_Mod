@@ -47,7 +47,7 @@ class GlobalEventPayloadCodecTest {
 		GlobalEventPayload.EnvironmentLighting payload = assertInstanceOf(
 			GlobalEventPayload.EnvironmentLighting.class, event.payload());
 		assertEquals(0.75, payload.intensity(), 1e-9);
-		assertEquals(2.0, payload.durationSeconds(), 1e-9);
+		assertEquals(2.0, payload.transitionSeconds(), 1e-9);
 		assertEquals("Key light", event.name());
 	}
 

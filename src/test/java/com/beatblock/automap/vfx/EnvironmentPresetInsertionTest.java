@@ -101,6 +101,7 @@ class EnvironmentPresetInsertionTest {
 		assertTrue(EnvironmentPreset.find("night_performance").isPresent());
 		assertTrue(EnvironmentPreset.find("warm_sunset").isPresent());
 		assertTrue(EnvironmentPreset.find("concert_flash").isPresent());
+		assertTrue(EnvironmentPreset.find("environment_reset").isPresent());
 		assertTrue(EnvironmentPreset.find("missing").isEmpty());
 	}
 }

@@ -47,6 +47,12 @@ public record ActiveGlobalEffectState(
 				case GlobalEventPayload.Lighting ignored -> lighting = event;
 				case GlobalEventPayload.LocalVisualWeather ignored -> weather = event;
 				case GlobalEventPayload.AudioMix ignored -> audio = event;
+				case GlobalEventPayload.EnvironmentReset ignored -> {
+					lighting = null;
+					weather = null;
+					tint = null;
+					audio = null;
+				}
 				case GlobalEventPayload.ScreenTint tintPayload ->
 					tint = GlobalEffectActiveWindow.inDurationWindow(
 						event.timeSeconds(), tintPayload.durationSeconds(), timelineTimeSeconds)

@@ -19,6 +19,8 @@ public final class GlobalEffectPayloadUi {
 				BBTexts.get("beatblock.vfx_creator.scope.environment");
 			case GlobalEventPayload.Lighting ignored ->
 				BBTexts.get("beatblock.vfx_creator.scope.environment");
+			case GlobalEventPayload.EnvironmentReset ignored ->
+				BBTexts.get("beatblock.vfx_creator.scope.environment");
 			case GlobalEventPayload.ScreenTint ignored ->
 				BBTexts.get("beatblock.vfx_creator.scope.screen");
 			case GlobalEventPayload.ScreenFlash ignored ->
@@ -57,6 +59,8 @@ public final class GlobalEffectPayloadUi {
 				BBTexts.get("beatblock.vfx_creator.payload.screen_tint");
 			case GlobalEventPayload.Lighting ignored ->
 				BBTexts.get("beatblock.vfx_creator.payload.environment_lighting");
+			case GlobalEventPayload.EnvironmentReset ignored ->
+				BBTexts.get("beatblock.vfx_creator.payload.environment_reset");
 			case GlobalEventPayload.LocalVisualWeather ignored ->
 				BBTexts.get("beatblock.vfx_creator.payload.weather");
 			case GlobalEventPayload.ParticleBurst ignored ->

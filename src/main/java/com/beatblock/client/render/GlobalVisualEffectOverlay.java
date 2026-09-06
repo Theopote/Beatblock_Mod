@@ -7,10 +7,26 @@ import org.jspecify.annotations.Nullable;
 
 /** Full-screen editor overlay — appearance from typed payload via {@link GlobalScreenEffectAppearance}. */
 public final class GlobalVisualEffectOverlay {
+	private static volatile ColorEffect environmentLighting;
 	private static volatile ColorEffect screenTint;
 	private static volatile ColorEffect flash;
 
 	private GlobalVisualEffectOverlay() {}
+
+	/**
+	 * Soft ambient wash for sticky environment lighting (not ScreenTint).
+	 * Neutral lighting clears the wash.
+	 */
+	public static void syncEnvironmentLighting(GlobalEventPayload.@Nullable EnvironmentLighting payload) {
+		if (payload == null || payload.isNeutral()) {
+			environmentLighting = null;
+			return;
+		}
+		double alpha = ambientAlpha(payload);
+		environmentLighting = alpha > 0
+			? ColorEffect.solid(payload.r(), payload.g(), payload.b(), alpha)
+			: null;
+	}
 
 	public static boolean applyScreenTint(GlobalEventPayload.ScreenTint payload) {
 		var color = GlobalScreenEffectAppearance.screenTint(payload);
@@ -62,6 +78,7 @@ public final class GlobalVisualEffectOverlay {
 	}
 
 	public static void clear() {
+		environmentLighting = null;
 		screenTint = null;
 		flash = null;
 	}
@@ -80,6 +97,7 @@ public final class GlobalVisualEffectOverlay {
 		float height = io.getDisplaySizeY();
 		if (width <= 0 || height <= 0) return;
 		long now = System.nanoTime();
+		draw(environmentLighting, now, width, height);
 		draw(screenTint, now, width, height);
 		ColorEffect currentFlash = flash;
 		if (currentFlash != null && currentFlash.wallClockFade() && now >= currentFlash.endNanos()) {
@@ -87,6 +105,19 @@ public final class GlobalVisualEffectOverlay {
 		} else {
 			draw(currentFlash, now, width, height);
 		}
+	}
+
+	/** Ambient strength from sticky lighting — independent of ScreenTint scale. */
+	static double ambientAlpha(GlobalEventPayload.EnvironmentLighting payload) {
+		if (payload == null || payload.isNeutral()) {
+			return 0;
+		}
+		double intensityTerm = Math.min(1.0, Math.abs(payload.intensity() - 1.0) * 0.35);
+		double colorTerm = Math.min(1.0, (
+			Math.abs(payload.r() - 1f) + Math.abs(payload.g() - 1f) + Math.abs(payload.b() - 1f)
+		) / 3.0 * 0.4);
+		double base = Math.max(0.12, intensityTerm + colorTerm);
+		return Math.min(0.4, base * Math.max(0.25, Math.min(1.5, payload.intensity())));
 	}
 
 	private static void draw(ColorEffect effect, long now, float width, float height) {

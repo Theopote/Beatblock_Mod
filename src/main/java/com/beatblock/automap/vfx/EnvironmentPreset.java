@@ -44,7 +44,7 @@ public record EnvironmentPreset(
 			"beatblock.vfx_creator.preset.night_performance",
 			List.of(
 				new GlobalEventPayload.EnvironmentLighting(
-					"Night Performance Lighting", 0.4, 0.35f, 0.4f, 0.75f, 0),
+					"Night Performance Lighting", 0.4, 0.35f, 0.4f, 0.75f, 1.0),
 				new GlobalEventPayload.ScreenTint(
 					"Night Performance Tint", 0.45, 0.1f, 0.15f, 0.45f, 0)
 			)
@@ -57,7 +57,7 @@ public record EnvironmentPreset(
 			"beatblock.vfx_creator.preset.storm",
 			List.of(
 				new GlobalEventPayload.EnvironmentLighting(
-					"Storm Lighting", 0.45, 0.55f, 0.6f, 0.7f, 0),
+					"Storm Lighting", 0.45, 0.55f, 0.6f, 0.7f, 1.5),
 				new GlobalEventPayload.LocalVisualWeather(
 					"Storm Weather", "rain", 1.5),
 				new GlobalEventPayload.ScreenTint(
@@ -72,7 +72,7 @@ public record EnvironmentPreset(
 			"beatblock.vfx_creator.preset.warm_sunset",
 			List.of(
 				new GlobalEventPayload.EnvironmentLighting(
-					"Warm Sunset Lighting", 0.85, 1f, 0.55f, 0.25f, 0),
+					"Warm Sunset Lighting", 0.85, 1f, 0.55f, 0.25f, 2.0),
 				new GlobalEventPayload.ScreenTint(
 					"Warm Sunset Tint", 0.4, 1f, 0.45f, 0.2f, 0)
 			)
@@ -94,8 +94,18 @@ public record EnvironmentPreset(
 		);
 	}
 
+	/** Sticky clear: lighting/weather/tint/audio → neutral (one cue). */
+	public static EnvironmentPreset environmentReset() {
+		return new EnvironmentPreset(
+			"environment_reset",
+			"beatblock.vfx_creator.preset.environment_reset",
+			List.of(new GlobalEventPayload.EnvironmentReset("Environment Reset"))
+		);
+	}
+
 	public static List<EnvironmentPreset> all() {
-		return List.of(nightPerformance(), storm(), warmSunset(), concertFlash());
+		return List.of(
+			nightPerformance(), storm(), warmSunset(), concertFlash(), environmentReset());
 	}
 
 	public static Optional<EnvironmentPreset> find(@Nullable String id) {

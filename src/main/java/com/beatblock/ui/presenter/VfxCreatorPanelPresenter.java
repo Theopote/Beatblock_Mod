@@ -325,7 +325,7 @@ public final class VfxCreatorPanelPresenter {
 		String resolved = resolvedName();
 		return switch (kind) {
 			case ENVIRONMENT_LIGHTING -> new GlobalEventPayload.EnvironmentLighting(
-				resolved, intensity, r, g, b, durationSeconds);
+				resolved, intensity, r, g, b, transitionSeconds);
 			case SCREEN_TINT -> new GlobalEventPayload.ScreenTint(
 				resolved, intensity, r, g, b, durationSeconds);
 			case WEATHER -> new GlobalEventPayload.LocalVisualWeather(

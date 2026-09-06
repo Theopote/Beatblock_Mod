@@ -6,7 +6,7 @@ Global track cues compile to typed {@link com.beatblock.timeline.playback.Global
 
 | Creator kind | Payload | Runtime |
 |---|---|---|
-| Lighting | `EnvironmentLighting` | Not yet applied to world lighting |
+| Lighting | `EnvironmentLighting` | Client presentation via `EnvironmentLightingRuntime` (sticky; `transitionSeconds` fade intent) |
 | Screen Tint | `ScreenTint` | Screen overlay |
 | Weather | `LocalVisualWeather` | Client-only weather presentation |
 | Particles | `ParticleBurst` | Particle emit |
@@ -69,9 +69,23 @@ Properties edits use {@link com.beatblock.timeline.playback.GlobalEventPayloadCo
 
 | Kind | Examples | Seek behavior |
 |---|---|---|
-| **CONTINUOUS_STATE** | EnvironmentLighting, Weather, AudioMix | Sticky last-writer; reconstruct |
+| **CONTINUOUS_STATE** | EnvironmentLighting, Weather, AudioMix, EnvironmentReset | Sticky last-writer; reconstruct |
 | **FINITE_ENVELOPE** | ScreenTint, ScreenFlash | Active in `[start, start+duration)`; reconstruct mid-envelope |
 | **IMPULSE** | ParticleBurst | Never re-fire historical cues |
+
+`EnvironmentLighting.transitionSeconds` is fade/transition intent (like Weather), **not** an active lifetime.
+
+## Environment lighting runtime
+
+```
+GlobalEventPayload.EnvironmentLighting
+        ↓
+EnvironmentLightingRuntime (client presentation state)
+        ↓
+soft ambient overlay (does not mutate skylight / block light)
+```
+
+Stop / seek-with-no-active-lighting → neutral. Preset **Environment Reset** inserts `EnvironmentReset` (one Undo) and clears lighting / weather / tint / audio mix sticky state.
 
 `PlaybackEngine.seek(RECONSTRUCT_STATE)` advances past all globals ≤ t but only dispatches cues that are still active (`GlobalEffectActiveWindow`). Sample-at-time resolve: `ActiveGlobalEffectState.resolve(events, t)` (tint + flash for export/scrub). Driver clears overlays before reconstruct and syncs tint/flash envelopes on each formal tick.
 

@@ -166,7 +166,11 @@ public final class VfxCreatorPanel {
 		if (ImGui.colorEdit3("##vfxColor", color)) {
 			presenter.setColor(color[0], color[1], color[2]);
 		}
-		renderDurationField(state, "vfxDuration");
+		transitionField.setFromSeconds(state.transitionSeconds(), state.transitionUnit(), state.bpm());
+		if (transitionField.render("vfxEnvTransition", BBTexts.get("beatblock.vfx_creator.transition"), state.bpm())) {
+			presenter.setTransitionSeconds(transitionField.seconds());
+			presenter.setTransitionUnit(transitionField.unit());
+		}
 	}
 
 	private void renderScreenTintFields(VfxCreatorPanelPresenter.ViewState state) {
@@ -289,7 +293,13 @@ public final class VfxCreatorPanel {
 		presenter.setName(nameBuffer.get());
 		presenter.setKind(state.kind());
 		switch (state.kind()) {
-			case ENVIRONMENT_LIGHTING, SCREEN_TINT -> {
+			case ENVIRONMENT_LIGHTING -> {
+				presenter.setIntensity(intensity[0]);
+				presenter.setColor(color[0], color[1], color[2]);
+				presenter.setTransitionSeconds(transitionField.seconds());
+				presenter.setTransitionUnit(transitionField.unit());
+			}
+			case SCREEN_TINT -> {
 				presenter.setIntensity(intensity[0]);
 				presenter.setColor(color[0], color[1], color[2]);
 				presenter.setDurationSeconds(durationField.seconds());

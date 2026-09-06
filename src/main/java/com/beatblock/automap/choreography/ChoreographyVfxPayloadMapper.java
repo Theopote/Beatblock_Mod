@@ -38,7 +38,7 @@ public final class ChoreographyVfxPayloadMapper {
 				lighting.r(),
 				lighting.g(),
 				lighting.b(),
-				lighting.durationSeconds());
+				lighting.transitionSeconds());
 			case ChoreographyVfx.AudioAccent accent -> new GlobalEventPayload.AudioMix(
 				accent.name(), accent.channel(), accent.volume(), accent.fadeSeconds());
 		};
