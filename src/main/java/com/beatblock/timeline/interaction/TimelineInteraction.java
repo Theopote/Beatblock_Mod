@@ -851,9 +851,13 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 		if (ImGui.isMouseReleased(0)) {
 			double oldT = interactionState.getMarkerDragStartTimeSeconds();
 			if (markerId != null && Math.abs(t - oldT) > 1e-6 && timelineEditor != null && before != null) {
-				timelineEditor.getCommandManager().execute(
-					new MoveMarkerCommand(timeline, before, t));
-				com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
+				MoveMarkerCommand command = new MoveMarkerCommand(timeline, before, t);
+				timelineEditor.getCommandManager().execute(command);
+				if (command.wasApplied()) {
+					com.beatblock.timeline.editing.TimelineDocumentChangeNotifier.notifyDocumentEdited();
+				} else {
+					timeline.replaceMarker(before);
+				}
 			} else if (before != null && markerIndex >= 0) {
 				timeline.replaceMarker(before);
 			}

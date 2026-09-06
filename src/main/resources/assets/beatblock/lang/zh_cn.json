@@ -1056,6 +1056,7 @@
   "beatblock.message.import_music_first": "请先导入音乐以进行分析",
   "beatblock.message.marker_not_found": "Marker 不存在。",
   "beatblock.message.marker_locked": "Marker 已锁定。",
+  "beatblock.message.marker_section_collision": "无法将 SECTION Marker 放到已锁定 SECTION 的时间点。",
   "beatblock.message.marker_structural_confirm_required": "结构型 Marker 变更需要确认。",
   "beatblock.message.no_marker": "无可用 Marker。",
   "beatblock.message.invalid_time_format": "时间格式不正确。",

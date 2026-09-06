@@ -7,7 +7,7 @@ import org.jspecify.annotations.NonNull;
 import java.util.Objects;
 
 /** Undoable marker insert. */
-public final class CreateMarkerCommand implements Command {
+public final class CreateMarkerCommand implements AppliedCommand {
 
 	private final Timeline timeline;
 	private final TimelineMarker marker;

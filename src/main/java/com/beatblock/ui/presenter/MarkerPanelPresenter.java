@@ -179,7 +179,12 @@ public final class MarkerPanelPresenter {
 		}
 
 		TimelineMarker after = marker.withFields(safeTime, name, type, true);
-		executeUpdate(timeline, marker, after);
+		if (!executeUpdate(timeline, marker, after)) {
+			return new MarkerEditOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.marker_section_collision")),
+				formSnapshotFor(marker)
+			);
+		}
 		TimelineMarker updated = findMarker(timeline, markerId);
 		return new MarkerEditOutcome(
 			PresenterResult.success(""),
@@ -263,7 +268,9 @@ public final class MarkerPanelPresenter {
 		}
 		MarkerEditState nextState = locked ? MarkerEditState.LOCKED : MarkerEditState.USER_EDITED;
 		TimelineMarker after = marker.withEditState(nextState);
-		executeUpdate(timeline, marker, after);
+		if (!executeUpdate(timeline, marker, after)) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.marker_section_collision"));
+		}
 		return PresenterResult.success("");
 	}
 
@@ -338,7 +345,7 @@ public final class MarkerPanelPresenter {
 		return Math.max(0, Math.min(typeIndex, MarkerType.values().length - 1));
 	}
 
-	private void executeUpdate(Timeline timeline, TimelineMarker before, TimelineMarker after) {
+	private boolean executeUpdate(Timeline timeline, TimelineMarker before, TimelineMarker after) {
 		UpdateMarkerCommand command = new UpdateMarkerCommand(timeline, before, after);
 		CommandManager commands = commandManager();
 		if (commands != null) {
@@ -346,7 +353,11 @@ public final class MarkerPanelPresenter {
 		} else {
 			command.execute();
 		}
+		if (!command.wasApplied()) {
+			return false;
+		}
 		TimelineDocumentChangeNotifier.notifyDocumentEdited();
+		return true;
 	}
 
 	private CommandManager commandManager() {

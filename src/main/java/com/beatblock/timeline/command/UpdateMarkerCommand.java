@@ -8,7 +8,7 @@ import org.jspecify.annotations.NonNull;
 import java.util.Objects;
 
 /** Undoable marker field replace (name / time / type / editState). */
-public final class UpdateMarkerCommand implements Command {
+public final class UpdateMarkerCommand implements AppliedCommand {
 
 	private final Timeline timeline;
 	private final TimelineMarker before;
@@ -37,8 +37,20 @@ public final class UpdateMarkerCommand implements Command {
 	}
 
 	@Override
+	public boolean wasApplied() {
+		return done;
+	}
+
+	@Override
 	public void execute() {
-		timeline.replaceMarker(after);
+		if (done) {
+			return;
+		}
+		boolean applied = timeline.replaceMarker(after);
+		if (!applied) {
+			done = false;
+			return;
+		}
 		if (after.getType().isStructural()) {
 			SectionMarkerStructureBridge.projectMarkerOntoPlan(
 				timeline, before.getTimeSeconds(), after);
@@ -51,8 +63,8 @@ public final class UpdateMarkerCommand implements Command {
 		if (!done) {
 			return;
 		}
-		timeline.replaceMarker(before);
-		if (before.getType().isStructural()) {
+		boolean restored = timeline.replaceMarker(before);
+		if (restored && before.getType().isStructural()) {
 			SectionMarkerStructureBridge.projectMarkerOntoPlan(
 				timeline, after.getTimeSeconds(), before);
 		}

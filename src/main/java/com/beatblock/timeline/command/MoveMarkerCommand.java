@@ -11,12 +11,15 @@ import java.util.Objects;
 /**
  * 移动时间轴标记：execute 写入 {@code after}，undo 恢复 {@code before}（含 editState）。
  * SECTION 提交后通过 {@link SectionMarkerStructureBridge} 投影到 Music Structure，避免静默漂移。
+ * <p>
+ * Mutation must succeed before structure projection; failed collision leaves document untouched.
  */
-public final class MoveMarkerCommand implements Command {
+public final class MoveMarkerCommand implements AppliedCommand {
 
 	private final Timeline timeline;
 	private final TimelineMarker before;
 	private final TimelineMarker after;
+	private boolean done;
 
 	public MoveMarkerCommand(
 		@NonNull Timeline timeline,
@@ -50,25 +53,44 @@ public final class MoveMarkerCommand implements Command {
 	}
 
 	@Override
+	public boolean wasApplied() {
+		return done;
+	}
+
+	@Override
 	public void execute() {
-		if (!timeline.replaceMarker(after)) {
-			timeline.addMarker(after);
+		if (done) {
+			return;
+		}
+		boolean applied = timeline.replaceMarker(after);
+		if (!applied && timeline.findMarkerIndexById(after.getId()) < 0) {
+			applied = timeline.addMarker(after);
+		}
+		if (!applied) {
+			done = false;
+			return;
 		}
 		if (after.getType().isStructural()) {
 			SectionMarkerStructureBridge.projectMarkerOntoPlan(
 				timeline, before.getTimeSeconds(), after);
 		}
+		done = true;
 	}
 
 	@Override
 	public void undo() {
-		if (!timeline.replaceMarker(before)) {
-			timeline.addMarker(before);
+		if (!done) {
+			return;
 		}
-		if (before.getType().isStructural()) {
+		boolean restored = timeline.replaceMarker(before);
+		if (!restored && timeline.findMarkerIndexById(before.getId()) < 0) {
+			restored = timeline.addMarker(before);
+		}
+		if (restored && before.getType().isStructural()) {
 			SectionMarkerStructureBridge.projectMarkerOntoPlan(
 				timeline, after.getTimeSeconds(), before);
 		}
+		done = false;
 	}
 
 	public String markerId() {

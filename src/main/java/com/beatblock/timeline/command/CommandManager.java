@@ -29,6 +29,9 @@ public final class CommandManager {
 			}
 		}
 		toExecute.execute();
+		if (toExecute instanceof AppliedCommand applied && !applied.wasApplied()) {
+			return;
+		}
 		undoStack.push(toExecute);
 		if (undoStack.size() > MAX_UNDO) undoStack.removeLast();
 		redoStack.clear();

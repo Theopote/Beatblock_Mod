@@ -8,7 +8,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.Objects;
 
 /** Undoable marker delete. */
-public final class DeleteMarkerCommand implements Command {
+public final class DeleteMarkerCommand implements AppliedCommand {
 
 	private final Timeline timeline;
 	private final TimelineMarker removed;

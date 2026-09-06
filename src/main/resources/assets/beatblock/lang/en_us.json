@@ -1056,6 +1056,7 @@
   "beatblock.message.import_music_first": "Import music first to analyze",
   "beatblock.message.marker_not_found": "Marker not found.",
   "beatblock.message.marker_locked": "Marker is locked.",
+  "beatblock.message.marker_section_collision": "Cannot place a SECTION marker on a locked SECTION time.",
   "beatblock.message.marker_structural_confirm_required": "Confirm required for structural marker change.",
   "beatblock.message.no_marker": "No marker available.",
   "beatblock.message.invalid_time_format": "Invalid time format.",
