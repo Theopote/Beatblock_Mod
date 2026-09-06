@@ -85,6 +85,68 @@ class TimelineDraftWriterTest {
 	}
 
 	@Test
+	void writeEventsBatchesAsOneUndoEntry() {
+		Timeline timeline = Timeline.createDefault();
+		MusicPlayer musicPlayer = new MusicPlayer();
+		TimelineEditor editor = new TimelineEditor(timeline, musicPlayer);
+		BeatBlockContext context = BeatBlockContext.builder()
+			.timeline(timeline)
+			.timelineEditor(editor)
+			.musicPlayer(musicPlayer)
+			.build();
+		com.beatblock.BeatBlock.installContext(context);
+
+		var events = List.of(
+			new TimelineAnimationEvent("ev1", 2.0, 0.5, "Pulse", "a", 1f, Map.of()),
+			new TimelineAnimationEvent("ev2", 2.0, 0.5, "Pulse", "b", 1f, Map.of()),
+			new TimelineAnimationEvent("ev3", 2.0, 0.5, "Pulse", "c", 1f, Map.of())
+		);
+
+		int written = TimelineDraftWriter.writeUserEvents(
+			timeline,
+			Timeline.TRACK_ID_ANIMATION_BLOCK,
+			events,
+			TimelineEventOrigin.MANUAL
+		);
+
+		assertEquals(3, written);
+		assertEquals(3, timeline.getBlockAnimationEvents().size());
+		assertEquals(1, editor.getCommandManager().undoCount());
+
+		editor.getCommandManager().undo();
+		assertEquals(0, timeline.getBlockAnimationEvents().size());
+		assertEquals(0, editor.getCommandManager().undoCount());
+	}
+
+	@Test
+	void multiTargetPresetDropIsOneUndo() {
+		Timeline timeline = Timeline.createDefault();
+		MusicPlayer musicPlayer = new MusicPlayer();
+		TimelineEditor editor = new TimelineEditor(timeline, musicPlayer);
+		BeatBlockContext context = BeatBlockContext.builder()
+			.timeline(timeline)
+			.timelineEditor(editor)
+			.musicPlayer(musicPlayer)
+			.build();
+		com.beatblock.BeatBlock.installContext(context);
+
+		var result = AnimationPresetEventWriter.writePresetEvents(
+			timeline,
+			Timeline.TRACK_ID_ANIMATION_BLOCK,
+			"Pulse",
+			10.0,
+			List.of("t1", "t2", "t3", "t4", "t5")
+		);
+
+		assertEquals(5, result.written());
+		assertEquals(5, timeline.getBlockAnimationEvents().size());
+		assertEquals(1, editor.getCommandManager().undoCount());
+
+		editor.getCommandManager().undo();
+		assertEquals(0, timeline.getBlockAnimationEvents().size());
+	}
+
+	@Test
 	void commandManagerOrNullReadsFromInjectedContext() {
 		Timeline timeline = Timeline.createDefault();
 		MusicPlayer musicPlayer = new MusicPlayer();

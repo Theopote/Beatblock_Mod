@@ -8,11 +8,14 @@ import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.command.AddTimelineAnimationEventCommand;
 import com.beatblock.timeline.command.ClearAnimationTrackCommand;
+import com.beatblock.timeline.command.Command;
 import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.timeline.command.CompositeCommand;
 import com.beatblock.timeline.editing.TimelineDocumentChangeNotifier;
 
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -101,25 +104,17 @@ public final class TimelineDraftWriter {
 		TimelineAnimationEvent event,
 		TimelineEventOrigin origin
 	) {
-		if (timeline == null || trackId == null || event == null) return false;
-		TimelineAnimationEvent tagged = event;
-		TimelineGenerationMetadata existing = TimelineGenerationMetadata.fromParameters(event.getParameters());
-		if (existing.generatorId().isBlank() && existing.generationId().isBlank()) {
-			tagged = withOrigin(event, origin != null ? origin : TimelineEventOrigin.GENERATED);
-		}
-		if (tagged == null) return false;
-		CommandManager commands = commandManagerOrNull();
-		if (commands != null) {
-			commands.execute(new AddTimelineAnimationEventCommand(timeline, trackId, tagged));
-		} else {
-			timeline.addAnimationEvent(trackId, tagged);
-		}
-		return true;
+		return writeEvents(
+			timeline,
+			trackId,
+			event != null ? List.of(event) : List.of(),
+			origin
+		) > 0;
 	}
 
 	/**
-	 * Low-level batch write (no document-change notify). Prefer
-	 * {@link #writeUserEvents} or {@link #writeGeneratedEvents}.
+	 * Low-level batch write as one {@link CompositeCommand} (no document-change notify).
+	 * Prefer {@link #writeUserEvents} or {@link #writeGeneratedEvents}.
 	 */
 	public static int writeEvents(
 		Timeline timeline,
@@ -128,12 +123,36 @@ public final class TimelineDraftWriter {
 		TimelineEventOrigin origin
 	) {
 		if (timeline == null || trackId == null || events == null || events.isEmpty()) return 0;
-		int count = 0;
+		TimelineEventOrigin resolved = origin != null ? origin : TimelineEventOrigin.GENERATED;
+		List<Command> parts = new ArrayList<>(events.size());
 		for (TimelineAnimationEvent event : events) {
-			if (writeEvent(timeline, trackId, event, origin)) count++;
+			if (event == null) continue;
+			TimelineAnimationEvent tagged = tagForWrite(event, resolved);
+			if (tagged == null) continue;
+			parts.add(new AddTimelineAnimationEventCommand(timeline, trackId, tagged));
 		}
-		if (count > 0) timeline.sortAll();
-		return count;
+		if (parts.isEmpty()) return 0;
+
+		CompositeCommand composite = new CompositeCommand(parts);
+		CommandManager commands = commandManagerOrNull();
+		if (commands != null) {
+			commands.execute(composite);
+		} else {
+			composite.execute();
+		}
+		timeline.sortAll();
+		return parts.size();
+	}
+
+	private static @Nullable TimelineAnimationEvent tagForWrite(
+		TimelineAnimationEvent event,
+		TimelineEventOrigin origin
+	) {
+		TimelineGenerationMetadata existing = TimelineGenerationMetadata.fromParameters(event.getParameters());
+		if (existing.generatorId().isBlank() && existing.generationId().isBlank()) {
+			return withOrigin(event, origin);
+		}
+		return event;
 	}
 
 	public static @Nullable TimelineAnimationEvent withOrigin(
