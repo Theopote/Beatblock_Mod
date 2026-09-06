@@ -149,7 +149,9 @@ public final class PlaybackEngine {
 
 	/**
 	 * Repositions playback independently from forward advancement.
-	 * RECONSTRUCT_STATE replays only state-bearing stage events; global cues are transient.
+	 * {@link SeekMode#RECONSTRUCT_STATE} replays state-bearing stage events and only
+	 * still-active global VFX ({@code CONTINUOUS_STATE} / mid-{@code FINITE_ENVELOPE});
+	 * never re-fires {@code IMPULSE} particles.
 	 */
 	public void seek(
 		double targetTime,
@@ -195,12 +197,12 @@ public final class PlaybackEngine {
 				continue;
 			}
 			if (event.timeSeconds() > target + EVENT_EPSILON) break;
+			scheduledGlobalIds.add(globalKey(event));
 			boolean replay = effectiveMode == SeekMode.REPLAY_ALL
 				|| (effectiveMode == SeekMode.RECONSTRUCT_STATE
-					&& event.semantics() != PlaybackSemantics.TRANSIENT);
-			if (replay) {
-				scheduledGlobalIds.add(globalKey(event));
-				if (globalHandler != null) globalHandler.onGlobalEvent(event);
+					&& com.beatblock.automap.vfx.GlobalEffectActiveWindow.isActiveAt(event, target));
+			if (replay && globalHandler != null) {
+				globalHandler.onGlobalEvent(event);
 			}
 			globalCursor++;
 		}

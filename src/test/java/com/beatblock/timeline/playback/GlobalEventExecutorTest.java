@@ -36,19 +36,20 @@ class GlobalEventExecutorTest {
 
 	@Test
 	void globalSemanticsMatchSeekBehavior() {
+		assertEquals(com.beatblock.automap.vfx.GlobalEffectSemantics.CONTINUOUS_STATE,
+			event("light", new GlobalEventPayload.EnvironmentLighting("", 1, 1, 1, 1, 0)).effectSemantics());
+		assertEquals(com.beatblock.automap.vfx.GlobalEffectSemantics.FINITE_ENVELOPE,
+			event("tint", new GlobalEventPayload.ScreenTint("", 0.5, 1, 1, 1, 0)).effectSemantics());
+		assertEquals(com.beatblock.automap.vfx.GlobalEffectSemantics.FINITE_ENVELOPE,
+			event("flash", new GlobalEventPayload.ScreenFlash("", 1, 1, 1, 0.1)).effectSemantics());
+		assertEquals(com.beatblock.automap.vfx.GlobalEffectSemantics.IMPULSE,
+			event("particle",
+				new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1, 0.5, 0.04)).effectSemantics());
 		assertEquals(PlaybackSemantics.STATEFUL,
-			event("light", new GlobalEventPayload.EnvironmentLighting("", 1, 1, 1, 1, 0)).semantics());
-		assertEquals(PlaybackSemantics.STATEFUL,
-			event("tint", new GlobalEventPayload.ScreenTint("", 0.5, 1, 1, 1, 0)).semantics());
-		assertEquals(PlaybackSemantics.STATEFUL,
-			event("weather", new GlobalEventPayload.LocalVisualWeather("", "rain", 0)).semantics());
-		assertEquals(PlaybackSemantics.STATEFUL,
-			event("audio", new GlobalEventPayload.AudioMix("", "master", 1, 0)).semantics());
+			event("flash", new GlobalEventPayload.ScreenFlash("", 1, 1, 1, 0.1)).semantics());
 		assertEquals(PlaybackSemantics.TRANSIENT,
 			event("particle",
 				new GlobalEventPayload.ParticleBurst("", "poof", 0, 0, 0, 1, 0.5, 0.04)).semantics());
-		assertEquals(PlaybackSemantics.TRANSIENT,
-			event("flash", new GlobalEventPayload.ScreenFlash("", 1, 1, 1, 0.1)).semantics());
 	}
 
 	private static CompiledGlobalEvent event(String id, GlobalEventPayload payload) {

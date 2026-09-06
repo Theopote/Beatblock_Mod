@@ -20,6 +20,7 @@ public final class BeatBlockPanelVisibility {
 	public final ImBoolean undoHistory = new ImBoolean(false);
 	public final ImBoolean eventLibrary = new ImBoolean(false);
 	public final ImBoolean cameraCreator = new ImBoolean(false);
+	public final ImBoolean vfxCreator = new ImBoolean(false);
 	public final ImBoolean performanceMonitor = new ImBoolean(false);
 	public final ImBoolean preferences = new ImBoolean(false);
 
@@ -36,6 +37,7 @@ public final class BeatBlockPanelVisibility {
 		undoHistory.set(false);
 		eventLibrary.set(false);
 		cameraCreator.set(false);
+		vfxCreator.set(false);
 		performanceMonitor.set(false);
 		preferences.set(false);
 	}
@@ -53,6 +55,7 @@ public final class BeatBlockPanelVisibility {
 		undoHistory.set(true);
 		eventLibrary.set(true);
 		cameraCreator.set(true);
+		vfxCreator.set(true);
 		performanceMonitor.set(true);
 		preferences.set(true);
 	}

@@ -1,5 +1,9 @@
 package com.beatblock.timeline.playback;
 
+import com.beatblock.automap.camera.CameraSubject;
+import com.beatblock.automap.camera.CameraSubjectKind;
+import org.jspecify.annotations.Nullable;
+
 import java.util.Map;
 
 /** Strongly typed payload representing a compiled global / VFX track event. */
@@ -25,10 +29,25 @@ public sealed interface GlobalEventPayload {
 		double z,
 		int count,
 		double spread,
-		double speed
+		double speed,
+		@Nullable CameraSubjectKind followSubjectKind,
+		String followSubjectRef
 	) implements GlobalEventPayload {
 		public static final double DEFAULT_SPREAD = 0.5;
 		public static final double DEFAULT_SPEED = 0.04;
+
+		public ParticleBurst(
+			String name,
+			String particleType,
+			double x,
+			double y,
+			double z,
+			int count,
+			double spread,
+			double speed
+		) {
+			this(name, particleType, x, y, z, count, spread, speed, null, null);
+		}
 
 		public ParticleBurst {
 			name = name != null ? name : "";
@@ -36,6 +55,21 @@ public sealed interface GlobalEventPayload {
 			count = Math.max(1, count);
 			spread = Math.max(0.0, spread);
 			speed = Math.max(0.0, speed);
+			followSubjectRef = followSubjectRef != null ? followSubjectRef : "";
+		}
+
+		public @Nullable CameraSubject followSubject() {
+			if (followSubjectKind == null) {
+				return null;
+			}
+			return switch (followSubjectKind) {
+				case STAGE_OBJECT -> CameraSubject.stageObject(followSubjectRef);
+				case STAGE_GROUP -> CameraSubject.stageGroup(followSubjectRef);
+				case BUILD_LAYER -> CameraSubject.buildLayer(followSubjectRef);
+				case ANIMATED_TARGET -> CameraSubject.animatedTarget(followSubjectRef);
+				case WORLD_POSITION -> CameraSubject.worldPosition(x, y, z);
+				case ALL_STAGE_OBJECTS -> CameraSubject.allStageObjects();
+			};
 		}
 	}
 	record ScreenFlash(String name, float r, float g, float b, double durationSeconds)

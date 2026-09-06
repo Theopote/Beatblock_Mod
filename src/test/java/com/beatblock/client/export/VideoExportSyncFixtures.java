@@ -7,6 +7,8 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineOperations;
 import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
+import com.beatblock.timeline.playback.GlobalEventPayload;
+import com.beatblock.timeline.playback.GlobalEventPayloadCodec;
 import com.beatblock.timeline.playback.TimelineCompiler;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -58,12 +60,13 @@ final class VideoExportSyncFixtures {
 
 		var globalTrack = timeline.getTrack(Timeline.TRACK_ID_GLOBAL);
 		var globalClip = TimelineOperations.addClip(globalTrack, 0.0, 20.0);
-		TimelineOperations.addEvent(globalClip, 8.0, EventType.GLOBAL, Map.of(
-			"type", "screen_tint", "name", "Chorus Tint", "intensity", 0.4,
-			"r", 0.1, "g", 0.2, "b", 1.0, "durationSeconds", 5.0));
-		TimelineOperations.addEvent(globalClip, 9.5, EventType.GLOBAL, Map.of(
-			"type", "screen-flash", "name", "Pre-Drop Flash", "durationSeconds", 1.0,
-			"r", 1.0, "g", 1.0, "b", 1.0, "intensity", 0.9));
+		// Typed payload encode → compile → export/runtime both consume GlobalEventPayload
+		TimelineOperations.addEvent(globalClip, 8.0, EventType.GLOBAL,
+			GlobalEventPayloadCodec.encode(
+				new GlobalEventPayload.ScreenTint("Chorus Tint", 0.4, 0.1f, 0.2f, 1.0f, 5.0)));
+		TimelineOperations.addEvent(globalClip, 9.5, EventType.GLOBAL,
+			GlobalEventPayloadCodec.encode(
+				new GlobalEventPayload.ScreenFlash("Pre-Drop Flash", 1.0f, 1.0f, 1.0f, 1.0)));
 
 		BlockAnimationEngine engine = new BlockAnimationEngine();
 		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(

@@ -9,6 +9,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -138,6 +139,11 @@ public final class BuildLayerManager {
 	public Set<String> getSelectedLayerIds() {
 		pruneMissingSelection();
 		return Set.copyOf(selectedLayerIds);
+	}
+
+	public @Nullable String getSelectionAnchorLayerId() {
+		pruneMissingSelection();
+		return selectionAnchorLayerId;
 	}
 
 	public boolean isLayerSelected(String layerId) {

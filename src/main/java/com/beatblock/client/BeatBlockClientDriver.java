@@ -1,6 +1,7 @@
 package com.beatblock.client;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.automap.vfx.ActiveGlobalEffectState;
 import com.beatblock.client.vfx.VfxEmitter;
 import com.beatblock.client.render.GlobalVisualEffectOverlay;
 import com.beatblock.engine.BlockControlExecutor;
@@ -266,19 +267,54 @@ public final class BeatBlockClientDriver {
 		}
 		if (compiledPlayback == null) {
 			lastStageEventTime = Math.max(0, currentTime);
+			clearGlobalVfxPresentation();
 			return;
 		}
+		double time = Math.max(0, currentTime);
+		clearGlobalVfxPresentation();
 		double[] referenceBeats = compiledPlayback.referenceBeatTimesSeconds();
 		double bpm = compiledPlayback.bpm();
 		PlaybackEngine.StageEventHandler stageHandler =
 			(compiled, event) -> applyTimelineActionEvent(event, compiled, false, referenceBeats, bpm);
 		playbackEngine.seek(
-			Math.max(0, currentTime),
+			time,
 			SeekMode.RECONSTRUCT_STATE,
 			stageHandler,
 			this::onCompiledGlobalEvent
 		);
-		lastStageEventTime = Math.max(0, currentTime);
+		syncStatefulGlobalVfxAt(time);
+		lastStageEventTime = time;
+	}
+
+	/** Clear screen overlays before reconstruct so seek does not leave stale flash/tint. */
+	private void clearGlobalVfxPresentation() {
+		GlobalVisualEffectOverlay.clear();
+	}
+
+	/**
+	 * Sample-at-time sync for continuous/envelope screen VFX (seek + forward expiry).
+	 * Particle impulses are never reconstructed here.
+	 */
+	private void syncStatefulGlobalVfxAt(double timeSeconds) {
+		if (compiledPlayback == null) {
+			GlobalVisualEffectOverlay.clearScreenTint();
+			GlobalVisualEffectOverlay.clearScreenFlash();
+			return;
+		}
+		ActiveGlobalEffectState active = ActiveGlobalEffectState.resolve(
+			compiledPlayback.globalEvents(), timeSeconds);
+		CompiledGlobalEvent tintEvent = active.screenTint();
+		if (tintEvent != null && tintEvent.payload() instanceof GlobalEventPayload.ScreenTint tint) {
+			GlobalVisualEffectOverlay.syncScreenTint(tint);
+		} else {
+			GlobalVisualEffectOverlay.clearScreenTint();
+		}
+		CompiledGlobalEvent flashEvent = active.screenFlash();
+		if (flashEvent != null && flashEvent.payload() instanceof GlobalEventPayload.ScreenFlash flash) {
+			GlobalVisualEffectOverlay.syncScreenFlash(flash, flashEvent.timeSeconds(), timeSeconds);
+		} else {
+			GlobalVisualEffectOverlay.clearScreenFlash();
+		}
 	}
 
 	private void startDrivingInternal() {
@@ -433,13 +469,13 @@ public final class BeatBlockClientDriver {
 		// Formal play — PlaybackEngine only
 		boolean rewinding = currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime;
 		if (rewinding) {
-			// Rewind: engine clears its own cursors on advance; still restore world mutations
 			restoreTimelineMutationSnapshot();
 			engine.clear();
 			var buildSequencer = engine.getBuildSequencer();
 			if (buildSequencer != null) {
 				buildSequencer.setMutationBudgetPerTick(PLAYBACK_MUTATION_BUDGET_PER_TICK);
 			}
+			clearGlobalVfxPresentation();
 		}
 		CompiledTimelineSnapshot playback = compiledPlayback;
 		if (playback == null) {
@@ -461,6 +497,7 @@ public final class BeatBlockClientDriver {
 		} else {
 			playbackEngine.advance(currentTime, stageHandler, this::onCompiledGlobalEvent);
 		}
+		syncStatefulGlobalVfxAt(currentTime);
 		lastStageEventTime = currentTime;
 	}
 
@@ -535,6 +572,7 @@ public final class BeatBlockClientDriver {
 	private boolean emitGlobalParticles(GlobalEventPayload.ParticleBurst payload) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client == null || client.world == null) return false;
+		net.minecraft.util.math.Vec3d origin = com.beatblock.automap.vfx.VfxParticleSubjectSupport.emissionOrigin(payload);
 		ParticleEffect particle = switch (payload.particleType().toLowerCase(Locale.ROOT)) {
 			case "flame", "minecraft:flame" -> ParticleTypes.FLAME;
 			case "crit", "minecraft:crit" -> ParticleTypes.CRIT;
@@ -545,9 +583,9 @@ public final class BeatBlockClientDriver {
 		for (int i = 0; i < payload.count(); i++) {
 			double angle = i * 2.399963229728653;
 			double radius = payload.spread() * (0.5 + (i % 4) * 0.125);
-			double px = payload.x() + Math.cos(angle) * radius;
-			double py = payload.y() + payload.spread() * 0.05 * (i % 3);
-			double pz = payload.z() + Math.sin(angle) * radius;
+			double px = origin.x + Math.cos(angle) * radius;
+			double py = origin.y + payload.spread() * 0.05 * (i % 3);
+			double pz = origin.z + Math.sin(angle) * radius;
 			double vx = Math.cos(angle) * payload.speed();
 			double vy = payload.speed() * (0.4 + (i % 5) * 0.12);
 			double vz = Math.sin(angle) * payload.speed();

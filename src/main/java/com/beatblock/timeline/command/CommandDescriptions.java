@@ -107,6 +107,12 @@ public final class CommandDescriptions {
 		if (command instanceof AddCameraKeyframeCommand) {
 			return BBTexts.get("beatblock.undo.add_camera_keyframe");
 		}
+		if (command instanceof CreateGlobalEventCommand) {
+			return BBTexts.get("beatblock.undo.create_global_event");
+		}
+		if (command instanceof ApplyEnvironmentPresetCommand preset) {
+			return BBTexts.get("beatblock.undo.apply_environment_preset", preset.presetDisplayName());
+		}
 		return command.getClass().getSimpleName();
 	}
 }

@@ -177,6 +177,7 @@ public class MenuBarPanel {
 					panelToggleItem(BBTexts.get("beatblock.panel.undo_history"), panels.undoHistory);
 					panelToggleItem(BBTexts.get("beatblock.panel.event_library"), panels.eventLibrary);
 					panelToggleItem(BBTexts.get("beatblock.panel.camera_creator"), panels.cameraCreator);
+					panelToggleItem(BBTexts.get("beatblock.panel.vfx_creator"), panels.vfxCreator);
 					panelToggleItem(BBTexts.get("beatblock.panel.performance_monitor"), panels.performanceMonitor);
 					panelToggleItem(BBTexts.get("beatblock.panel.preferences"), panels.preferences);
 					ImGui.endMenu();

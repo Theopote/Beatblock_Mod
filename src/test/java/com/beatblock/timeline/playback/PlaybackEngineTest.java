@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -297,6 +298,56 @@ class PlaybackEngineTest {
 		dispatched.clear();
 		engine.advance(60.0, (c, e) -> dispatched.add(e.getEventId()), null);
 		assertEquals(List.of("state-40", "fx-50"), dispatched);
+	}
+
+	@Test
+	void reconstructSeekReplaysActiveTintAndFlashButNotParticlesOrExpiredEnvelopes() {
+		List<CompiledGlobalEvent> globals = List.of(
+			new CompiledGlobalEvent("tint-expired", 1.0,
+				new GlobalEventPayload.ScreenTint("Old", 0.5, 1, 0, 0, 2.0)),
+			new CompiledGlobalEvent("tint-10", 10.0,
+				new GlobalEventPayload.ScreenTint("Warm", 0.7, 1, 1, 1, 10.0)),
+			new CompiledGlobalEvent("burst-12", 12.0,
+				new GlobalEventPayload.ParticleBurst("Poof", "poof", 0, 64, 0, 8, 0.5, 0.04)),
+			new CompiledGlobalEvent("flash-14", 14.0,
+				new GlobalEventPayload.ScreenFlash("Flash", 1, 1, 1, 2.0))
+		);
+		CompiledTimelineSnapshot program = new CompiledTimelineSnapshot(
+			List.of(), List.of(), new CompiledCameraTrack(List.of()), List.of(), List.of(), globals,
+			CompiledAudioReference.empty(), new double[0], 120.0, 60.0, true, 0, null);
+		PlaybackEngine engine = new PlaybackEngine();
+		engine.load(program);
+		List<String> dispatched = new ArrayList<>();
+
+		engine.seek(15.0, SeekMode.RECONSTRUCT_STATE, null, e -> dispatched.add(e.id()));
+
+		assertEquals(List.of("tint-10", "flash-14"), dispatched);
+		assertEquals(4, engine.scheduledGlobalCount());
+	}
+
+	@Test
+	void reconstructSeekReplaysStickyWeatherAndSkipsPastParticleImpulse() {
+		List<CompiledGlobalEvent> globals = List.of(
+			new CompiledGlobalEvent("clear-1", 1.0,
+				new GlobalEventPayload.LocalVisualWeather("Clear", "clear", 0.5)),
+			new CompiledGlobalEvent("rain-8", 8.0,
+				new GlobalEventPayload.LocalVisualWeather("Rain", "rain", 1.0)),
+			new CompiledGlobalEvent("burst-10", 10.0,
+				new GlobalEventPayload.ParticleBurst("Poof", "poof", 0, 64, 0, 4, 0.5, 0.04))
+		);
+		CompiledTimelineSnapshot program = new CompiledTimelineSnapshot(
+			List.of(), List.of(), new CompiledCameraTrack(List.of()), List.of(), List.of(), globals,
+			CompiledAudioReference.empty(), new double[0], 120.0, 60.0, true, 0, null);
+		PlaybackEngine engine = new PlaybackEngine();
+		engine.load(program);
+		List<String> dispatched = new ArrayList<>();
+
+		engine.seek(12.0, SeekMode.RECONSTRUCT_STATE, null, e -> dispatched.add(e.id()));
+
+		// Continuous weather: both past cues are still "active" for reconstruct (LWW applied by handlers).
+		assertEquals(List.of("clear-1", "rain-8"), dispatched);
+		assertFalse(dispatched.contains("burst-10"));
+		assertEquals(3, engine.scheduledGlobalCount());
 	}
 
 	@Test

@@ -1,13 +1,16 @@
 package com.beatblock.timeline.editing;
 
-import com.beatblock.timeline.GlobalEventType;
+import com.beatblock.automap.vfx.GlobalEffectKind;
+import com.beatblock.timeline.playback.GlobalEventPayload;
+import com.beatblock.timeline.playback.GlobalEventPayloadCodec;
 import com.beatblock.ui.i18n.BBTexts;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** 全局事件属性编辑（无 ImGui 依赖）。 */
+/** Global / VFX event property editing (no ImGui). Preserves typed payload fields via {@link GlobalEventPayloadCodec}. */
 public final class GlobalEventPropertiesEditor {
 
 	private GlobalEventPropertiesEditor() {
@@ -18,15 +21,54 @@ public final class GlobalEventPropertiesEditor {
 		record Err(String message) implements Result {}
 	}
 
+	public record PayloadFormSnapshot(String time, GlobalEventPayload payload, GlobalEffectKind kind) {}
+
+	public static PayloadFormSnapshot buildPayloadFormSnapshot(
+		double timeSeconds,
+		@Nullable Map<String, Object> parameters
+	) {
+		GlobalEventPayload payload = GlobalEventPayloadCodec.decode(parameters);
+		return new PayloadFormSnapshot(
+			String.valueOf(timeSeconds),
+			payload,
+			GlobalEffectKind.fromPayload(payload)
+		);
+	}
+
 	public static Result buildUpdatedSnapshot(
 		double timeSeconds,
-		GlobalEventType type,
+		GlobalEventPayload payload,
+		double clipStartSeconds,
+		double clipEndSeconds,
+		Map<String, Double> clipEventTimesById
+	) {
+		if (payload == null) {
+			return new Result.Err(BBTexts.get("beatblock.vfx_creator.insert_failed"));
+		}
+		Map<String, Object> parameters = new LinkedHashMap<>(GlobalEventPayloadCodec.encode(payload));
+		double clampedTime = TimelineEventMovePolicy.clipRange(clipStartSeconds, clipEndSeconds).clamp(timeSeconds);
+		return new Result.Ok(new AnimationEventSnapshot(
+			clampedTime,
+			parameters,
+			clipStartSeconds,
+			clipEndSeconds,
+			clipEventTimesById != null ? clipEventTimesById : Map.of(),
+			Map.of(),
+			clipEndSeconds
+		));
+	}
+
+	/** @deprecated Legacy coarse {@code GlobalEventType} path — strips payload fields. Prefer payload snapshot API. */
+	@Deprecated
+	public static Result buildUpdatedSnapshot(
+		double timeSeconds,
+		com.beatblock.timeline.GlobalEventType type,
 		String name,
 		double clipStartSeconds,
 		double clipEndSeconds,
 		Map<String, Double> clipEventTimesById
 	) {
-		GlobalEventType resolvedType = type != null ? type : GlobalEventType.SPECIAL;
+		com.beatblock.timeline.GlobalEventType resolvedType = type != null ? type : com.beatblock.timeline.GlobalEventType.SPECIAL;
 		String resolvedName = name != null ? name.trim() : "";
 		Map<String, Object> parameters = new HashMap<>();
 		parameters.put("type", resolvedType.name());
@@ -43,14 +85,14 @@ public final class GlobalEventPropertiesEditor {
 		));
 	}
 
-	public static GlobalEventType parseType(String raw) {
+	public static com.beatblock.timeline.GlobalEventType parseType(String raw) {
 		if (raw == null || raw.isBlank()) {
-			return GlobalEventType.SPECIAL;
+			return com.beatblock.timeline.GlobalEventType.SPECIAL;
 		}
 		try {
-			return GlobalEventType.valueOf(raw.trim().toUpperCase());
+			return com.beatblock.timeline.GlobalEventType.valueOf(raw.trim().toUpperCase());
 		} catch (IllegalArgumentException ex) {
-			return GlobalEventType.SPECIAL;
+			return com.beatblock.timeline.GlobalEventType.SPECIAL;
 		}
 	}
 

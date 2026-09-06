@@ -1,12 +1,18 @@
 package com.beatblock.client.export;
 
+import com.beatblock.automap.vfx.ActiveGlobalEffectState;
+import com.beatblock.automap.vfx.GlobalScreenEffectAppearance;
 import com.beatblock.timeline.playback.CompiledGlobalEvent;
 import com.beatblock.timeline.playback.GlobalEventPayload;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-/** Deterministically composites screen-space timeline effects into an exported RGBA frame. */
+/**
+ * Deterministically composites screen-space timeline effects into an exported RGBA frame.
+ * Consumes typed {@link GlobalEventPayload} only (via {@link ActiveGlobalEffectState} +
+ * {@link GlobalScreenEffectAppearance}) — same path as runtime overlay.
+ */
 public final class GlobalVisualEffectFrameCompositor {
 	private GlobalVisualEffectFrameCompositor() {}
 
@@ -25,26 +31,38 @@ public final class GlobalVisualEffectFrameCompositor {
 			throw new IllegalArgumentException("timelineTimeSeconds must be finite");
 		}
 
-		ExportVfxState active = ExportVfxState.resolve(events, timelineTimeSeconds);
-		@Nullable CompiledGlobalEvent tintEvent = active.activeTint();
-		if (tintEvent != null && tintEvent.payload() instanceof GlobalEventPayload.ScreenTint tint) {
-			blend(rgba, tint.r(), tint.g(), tint.b(), clamp(tint.intensity(), 0, 1) * 0.35);
-		}
-		@Nullable CompiledGlobalEvent flashEvent = active.activeFlash();
-		if (flashEvent != null && flashEvent.payload() instanceof GlobalEventPayload.ScreenFlash flash) {
-			double duration = Math.max(0.01, flash.durationSeconds());
-			double progress = clamp((timelineTimeSeconds - flashEvent.timeSeconds()) / duration, 0, 1);
-			blend(rgba, flash.r(), flash.g(), flash.b(), 0.85 * (1.0 - progress));
-		}
+		ActiveGlobalEffectState active = ActiveGlobalEffectState.resolve(events, timelineTimeSeconds);
+		applyTint(rgba, active.screenTint());
+		applyFlash(rgba, active.screenFlash(), timelineTimeSeconds);
 		return rgba;
 	}
 
+	private static void applyTint(byte[] rgba, @Nullable CompiledGlobalEvent tintEvent) {
+		if (tintEvent == null || !(tintEvent.payload() instanceof GlobalEventPayload.ScreenTint tint)) {
+			return;
+		}
+		GlobalScreenEffectAppearance.screenTint(tint).ifPresent(color ->
+			blend(rgba, color.r(), color.g(), color.b(), color.alpha()));
+	}
+
+	private static void applyFlash(
+		byte[] rgba,
+		@Nullable CompiledGlobalEvent flashEvent,
+		double timelineTimeSeconds
+	) {
+		if (flashEvent == null || !(flashEvent.payload() instanceof GlobalEventPayload.ScreenFlash flash)) {
+			return;
+		}
+		GlobalScreenEffectAppearance.screenFlash(flash, flashEvent.timeSeconds(), timelineTimeSeconds)
+			.ifPresent(color -> blend(rgba, color.r(), color.g(), color.b(), color.alpha()));
+	}
+
 	private static void blend(byte[] rgba, float red, float green, float blue, double alpha) {
-		double a = clamp(alpha, 0, 1);
+		double a = Math.max(0.0, Math.min(1.0, alpha));
 		if (a <= 0) return;
-		int overlayR = (int) Math.round(clamp(red, 0, 1) * 255);
-		int overlayG = (int) Math.round(clamp(green, 0, 1) * 255);
-		int overlayB = (int) Math.round(clamp(blue, 0, 1) * 255);
+		int overlayR = (int) Math.round(Math.max(0, Math.min(1, red)) * 255);
+		int overlayG = (int) Math.round(Math.max(0, Math.min(1, green)) * 255);
+		int overlayB = (int) Math.round(Math.max(0, Math.min(1, blue)) * 255);
 		for (int i = 0; i < rgba.length; i += 4) {
 			rgba[i] = (byte) blendChannel(rgba[i] & 0xff, overlayR, a);
 			rgba[i + 1] = (byte) blendChannel(rgba[i + 1] & 0xff, overlayG, a);
@@ -54,9 +72,5 @@ public final class GlobalVisualEffectFrameCompositor {
 
 	private static int blendChannel(int base, int overlay, double alpha) {
 		return (int) Math.round(base * (1.0 - alpha) + overlay * alpha);
-	}
-
-	private static double clamp(double value, double min, double max) {
-		return Math.max(min, Math.min(max, value));
 	}
 }

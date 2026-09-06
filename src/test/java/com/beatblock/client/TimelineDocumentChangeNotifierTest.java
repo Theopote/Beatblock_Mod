@@ -138,6 +138,40 @@ class TimelineDocumentChangeNotifierTest {
 	}
 
 	@Test
+	void insertManualGlobalEffectRefreshesCompiledPlaybackWhileDriving() {
+		BeatBlockClientDriver.startDriving();
+		assertEquals(0, BeatBlockClientDriver.compiledPlaybackForTests().globalEvents().size());
+
+		var result = com.beatblock.automap.vfx.GlobalEventInsertionService.insertManual(
+			timeline,
+			editor,
+			new com.beatblock.automap.vfx.GlobalEventCreationRequest(
+				8.0,
+				new com.beatblock.timeline.playback.GlobalEventPayload.ScreenTint(
+					"Warm", 0.4, 1f, 0.8f, 0.5f, 5.0)
+			)
+		);
+
+		assertTrue(result.written());
+		assertEquals(1, BeatBlockClientDriver.compiledPlaybackForTests().globalEvents().size());
+		assertEquals(8.0,
+			BeatBlockClientDriver.compiledPlaybackForTests().globalEvents().getFirst().timeSeconds(),
+			1e-9);
+	}
+
+	@Test
+	void applyEnvironmentPresetRefreshesCompiledPlaybackWhileDriving() {
+		BeatBlockClientDriver.startDriving();
+		assertEquals(0, BeatBlockClientDriver.compiledPlaybackForTests().globalEvents().size());
+
+		var result = com.beatblock.automap.vfx.GlobalEventInsertionService.applyPreset(
+			timeline, editor, com.beatblock.automap.vfx.EnvironmentPreset.storm(), 10.0);
+
+		assertTrue(result.written());
+		assertEquals(3, BeatBlockClientDriver.compiledPlaybackForTests().globalEvents().size());
+	}
+
+	@Test
 	void insertGeneratedEventsDoesNotRefreshCompiledPlaybackByItself() {
 		BeatBlockClientDriver.startDriving();
 		assertEquals(0, BeatBlockClientDriver.compiledPlaybackForTests().compiledStageEvents().size());

@@ -334,6 +334,23 @@ public final class PresenterFactories {
 		);
 	}
 
+	public static VfxCreatorPanelPresenter vfxCreatorPanelPresenter() {
+		return vfxCreatorPanelPresenter(ctx());
+	}
+
+	public static VfxCreatorPanelPresenter vfxCreatorPanelPresenter(BeatBlockContext context) {
+		return new VfxCreatorPanelPresenter(
+			context::timeline,
+			context::timelineEditor,
+			() -> {
+				var engine = context.blockAnimationEngine();
+				return engine != null ? engine.getStageObjectSystem() : null;
+			},
+			context::buildLayerManager,
+			com.beatblock.automap.vfx.VfxParticlePositionResolver::sampleCrosshairWorldPoint
+		);
+	}
+
 	public static AnimationLibraryPanelPresenter animationLibraryPanelPresenter() {
 		return animationLibraryPanelPresenter(ctx());
 	}

@@ -1,5 +1,6 @@
 package com.beatblock.timeline.playback;
 
+import com.beatblock.automap.camera.CameraSubjectKind;
 import org.jspecify.annotations.Nullable;
 
 import java.util.LinkedHashMap;
@@ -41,7 +42,9 @@ public final class GlobalEventPayloadCodec {
 				number(params, "z", 0.0),
 				positiveInt(params, "count", 1),
 				nonNegative(params, "spread", GlobalEventPayload.ParticleBurst.DEFAULT_SPREAD),
-				nonNegative(params, "speed", GlobalEventPayload.ParticleBurst.DEFAULT_SPEED));
+				nonNegative(params, "speed", GlobalEventPayload.ParticleBurst.DEFAULT_SPEED),
+				parseFollowSubjectKind(params),
+				string(params, "followSubjectRef", ""));
 			case "SCREEN_FLASH" -> new GlobalEventPayload.ScreenFlash(
 				string(params, "name", ""),
 				(float) number(params, "r", 1.0),
@@ -105,6 +108,12 @@ public final class GlobalEventPayloadCodec {
 				params.put("count", value.count());
 				params.put("spread", value.spread());
 				params.put("speed", value.speed());
+				if (value.followSubjectKind() != null) {
+					params.put("followSubjectKind", value.followSubjectKind().name());
+					if (!value.followSubjectRef().isBlank()) {
+						params.put("followSubjectRef", value.followSubjectRef());
+					}
+				}
 			}
 			case GlobalEventPayload.ScreenFlash value -> {
 				params.put("type", "SCREEN_FLASH");
@@ -170,5 +179,17 @@ public final class GlobalEventPayloadCodec {
 			throw new IllegalArgumentException("Invalid positive integer global parameter " + key + ": " + value);
 		}
 		return (int) value;
+	}
+
+	private static @Nullable CameraSubjectKind parseFollowSubjectKind(Map<String, Object> params) {
+		String raw = string(params, "followSubjectKind", "");
+		if (raw.isBlank()) {
+			return null;
+		}
+		try {
+			return CameraSubjectKind.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+		} catch (IllegalArgumentException ex) {
+			return null;
+		}
 	}
 }

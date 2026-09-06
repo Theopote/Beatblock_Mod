@@ -52,6 +52,7 @@ public class BeatBlockUIManager {
 	private final UndoHistoryPanel undoHistoryPanel;
 	private final EventLibraryPanel eventLibraryPanel;
 	private final CameraCreatorPanel cameraCreatorPanel;
+	private final VfxCreatorPanel vfxCreatorPanel;
 	private final PerformanceMonitorPanel performanceMonitorPanel;
 	private final PreferencesPanel preferencesPanel;
 	private final VideoExportDialog videoExportDialog;
@@ -88,6 +89,7 @@ public class BeatBlockUIManager {
 		this.undoHistoryPanel = new UndoHistoryPanel();
 		this.eventLibraryPanel = new EventLibraryPanel();
 		this.cameraCreatorPanel = new CameraCreatorPanel();
+		this.vfxCreatorPanel = new VfxCreatorPanel();
 		this.performanceMonitorPanel = new PerformanceMonitorPanel();
 		this.preferencesPanel = new PreferencesPanel();
 		this.videoExportDialog = new VideoExportDialog();
@@ -230,6 +232,7 @@ public class BeatBlockUIManager {
 		undoHistoryPanel.render(panelVisibility.undoHistory);
 		eventLibraryPanel.render(panelVisibility.eventLibrary);
 		cameraCreatorPanel.render(panelVisibility.cameraCreator);
+		vfxCreatorPanel.render(panelVisibility.vfxCreator);
 		performanceMonitorPanel.render(panelVisibility.performanceMonitor);
 		preferencesPanel.render(panelVisibility.preferences);
 		UiPreferences.popPanelThemeColors();

@@ -1,5 +1,7 @@
 package com.beatblock.timeline.playback;
 
+import com.beatblock.automap.vfx.GlobalEffectSemantics;
+
 import java.util.Objects;
 
 /**
@@ -19,16 +21,16 @@ public record CompiledGlobalEvent(
 		}
 	}
 
-	public PlaybackSemantics semantics() {
-		if (payload instanceof GlobalEventPayload.EnvironmentLighting
-			|| payload instanceof GlobalEventPayload.ScreenTint
-			|| payload instanceof GlobalEventPayload.Lighting
-			|| payload instanceof GlobalEventPayload.LocalVisualWeather
-			|| payload instanceof GlobalEventPayload.AudioMix) {
-			return PlaybackSemantics.STATEFUL;
-		}
-		return PlaybackSemantics.TRANSIENT;
+	/** Domain semantics: STATEFUL reconstructs on seek; IMPULSE does not. */
+	public GlobalEffectSemantics effectSemantics() {
+		return GlobalEffectSemantics.fromPayload(payload);
 	}
+
+	/** Maps {@link #effectSemantics()} into the PlaybackEngine filter vocabulary. */
+	public PlaybackSemantics semantics() {
+		return effectSemantics().toPlaybackSemantics();
+	}
+
 	public String typeName() {
 		if (payload instanceof GlobalEventPayload.Generic g) {
 			return g.typeName();

@@ -4,6 +4,7 @@ import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
+import com.beatblock.automap.vfx.GlobalEffectKind;
 import com.beatblock.timeline.AnimationEventParams;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.EventType;
@@ -172,16 +173,83 @@ public final class EventPropertiesPresenter {
 		if (ref == null || ref.event() == null || ref.event().getType() != EventType.GLOBAL) {
 			return new GlobalFormSnapshot("", "", 0);
 		}
-		Map<String, Object> params = ref.event().getParameters();
-		GlobalEventType type = GlobalEventPropertiesEditor.parseType(
-			EventParameterReaders.stringParam(params, "type", GlobalEventType.SPECIAL.name())
-		);
-		String name = EventParameterReaders.stringParam(params, "name", "");
+		var payloadForm = buildGlobalPayloadFormSnapshot(ref);
 		return new GlobalFormSnapshot(
 			UiNumberFormatter.format(ref.event().getTimeSeconds()),
-			name,
-			Math.max(0, type.ordinal())
+			payloadName(payloadForm.payload()),
+			Math.max(0, payloadForm.kind().ordinal())
 		);
+	}
+
+	public GlobalEventPropertiesEditor.PayloadFormSnapshot buildGlobalPayloadFormSnapshot(EventPropertiesRef ref) {
+		if (ref == null || ref.event() == null || ref.event().getType() != EventType.GLOBAL) {
+			GlobalEffectKind kind = GlobalEffectKind.SCREEN_TINT;
+			return new GlobalEventPropertiesEditor.PayloadFormSnapshot(
+				"", kind.defaultPayload(""), kind);
+		}
+		return GlobalEventPropertiesEditor.buildPayloadFormSnapshot(
+			ref.event().getTimeSeconds(),
+			ref.event().getParameters()
+		);
+	}
+
+	public ApplyResult applyGlobalPayloadEvent(
+		EventPropertiesRef ref,
+		Timeline timeline,
+		CommandManager commandManager,
+		double timeSeconds,
+		com.beatblock.timeline.playback.GlobalEventPayload payload
+	) {
+		if (commandManager == null) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.common.timeline_editor_not_initialized"));
+		}
+		if (ref == null || ref.event() == null || ref.event().getType() != EventType.GLOBAL) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.message.no_global_event"));
+		}
+		if (payload == null) {
+			return new ApplyResult.Err(BBTexts.get("beatblock.vfx_creator.insert_failed"));
+		}
+		String rangeError = GlobalEventPropertiesEditor.validateTimeRange(
+			ref.clip().getStartTimeSeconds(),
+			ref.clip().getEndTimeSeconds()
+		);
+		if (rangeError != null) {
+			return new ApplyResult.Err(rangeError);
+		}
+		Map<String, Double> eventTimes = new HashMap<>();
+		for (TimelineEvent clipEvent : ref.clip().getEvents()) {
+			eventTimes.put(clipEvent.getId(), clipEvent.getTimeSeconds());
+		}
+		var result = GlobalEventPropertiesEditor.buildUpdatedSnapshot(
+			timeSeconds,
+			payload,
+			ref.clip().getStartTimeSeconds(),
+			ref.clip().getEndTimeSeconds(),
+			eventTimes
+		);
+		if (result instanceof GlobalEventPropertiesEditor.Result.Err(String message)) {
+			return new ApplyResult.Err(message);
+		}
+		AnimationEventSnapshot after = ((GlobalEventPropertiesEditor.Result.Ok) result).snapshot();
+		AnimationEventSnapshot before = AnimationEventSnapshot.capture(
+			ref.event(), ref.clip(), timeline, ref.clip().getId());
+		return commitEventEditResult(ref, timeline, commandManager, before, after);
+	}
+
+	private static String payloadName(com.beatblock.timeline.playback.GlobalEventPayload payload) {
+		if (payload == null) {
+			return "";
+		}
+		return switch (payload) {
+			case com.beatblock.timeline.playback.GlobalEventPayload.EnvironmentLighting v -> v.name();
+			case com.beatblock.timeline.playback.GlobalEventPayload.ScreenTint v -> v.name();
+			case com.beatblock.timeline.playback.GlobalEventPayload.Lighting v -> v.name();
+			case com.beatblock.timeline.playback.GlobalEventPayload.LocalVisualWeather v -> v.name();
+			case com.beatblock.timeline.playback.GlobalEventPayload.ParticleBurst v -> v.name();
+			case com.beatblock.timeline.playback.GlobalEventPayload.ScreenFlash v -> v.name();
+			case com.beatblock.timeline.playback.GlobalEventPayload.AudioMix v -> v.name();
+			case com.beatblock.timeline.playback.GlobalEventPayload.Generic v -> v.name();
+		};
 	}
 
 	public ApplyResult applyGlobalEvent(

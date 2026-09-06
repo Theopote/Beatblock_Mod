@@ -38,6 +38,22 @@ class ParticleBurstPayloadRoundTripTest {
 	}
 
 	@Test
+	void codecRoundTripsFollowSubjectFields() {
+		GlobalEventPayload.ParticleBurst original = new GlobalEventPayload.ParticleBurst(
+			"Bind", "minecraft:heart", 0, 64, 0, 12, 1.0, 0.2,
+			com.beatblock.automap.camera.CameraSubjectKind.STAGE_OBJECT, "hero");
+
+		Map<String, Object> encoded = GlobalEventPayloadCodec.encode(original);
+		GlobalEventPayload decoded = GlobalEventPayloadCodec.decode(encoded);
+		GlobalEventPayload.ParticleBurst payload = assertInstanceOf(
+			GlobalEventPayload.ParticleBurst.class, decoded);
+
+		assertEquals(original, payload);
+		assertEquals("STAGE_OBJECT", encoded.get("followSubjectKind"));
+		assertEquals("hero", encoded.get("followSubjectRef"));
+	}
+
+	@Test
 	void codecRoundTripsSpreadAndSpeed() {
 		GlobalEventPayload.ParticleBurst original = new GlobalEventPayload.ParticleBurst(
 			"Hit", "minecraft:firework", 8, 64, -3, 20, 2.5, 0.8);
