@@ -7,6 +7,7 @@ import com.beatblock.timeline.rendering.TimelineSectionEditPopup;
 import com.beatblock.timeline.rendering.SectionEditPopupCoordinator;
 import com.beatblock.ui.presenter.MenuBarPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.presenter.ProjectTemplatePresenter;
 import com.beatblock.ui.presenter.TimelineActionDispatcher;
 import com.beatblock.ui.presenter.TimelineActionId;
 import com.beatblock.ui.presenter.TimelineToolbarFeedbackPresenter;
@@ -42,11 +43,13 @@ public class MenuBarPanel {
 	private final TimelineToolbarFeedbackPresenter showFeedback;
 	private final TimelineBindingEditorPopup bindingEditorPopup;
 	private final TimelineSectionEditPopup sectionEditPopup;
+	private final ProjectTemplatePresenter templatePresenter;
 	private boolean showImportDialog;
 	private boolean showOpenProjectDialog;
 	private boolean showSaveProjectDialog;
 	private boolean showAboutDialog;
 	private boolean showUnsavedDialog;
+	private boolean showNewFromTemplateDialog;
 	private boolean requestBindingEditorPopup;
 	private final ImString importPath = new ImString(IMPORT_PATH_CAPACITY);
 	private final ImString openProjectPath = new ImString(IMPORT_PATH_CAPACITY);
@@ -83,6 +86,7 @@ public class MenuBarPanel {
 			PresenterFactories.timelineBindingEditorPresenter(), showFeedback);
 		this.sectionEditPopup = new TimelineSectionEditPopup(
 			PresenterFactories.timelineSectionEditPresenter(), showFeedback);
+		this.templatePresenter = PresenterFactories.projectTemplatePresenter();
 	}
 
 	public void render() {
@@ -91,6 +95,9 @@ public class MenuBarPanel {
 			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.file"))) {
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.new_project"), "Ctrl+N")) {
 					requestNewProject();
+				}
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.new_from_template"))) {
+					showNewFromTemplateDialog = true;
 				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.open_project"), shortcut(BeatBlockShortcutId.OPEN_PROJECT))) {
 					requestOpenProject();
@@ -254,6 +261,7 @@ public class MenuBarPanel {
 		renderOpenProjectDialog();
 		renderSaveProjectDialog();
 		renderUnsavedChangesDialog();
+		renderNewFromTemplateDialog();
 		renderAboutDialog();
 		if (requestBindingEditorPopup) {
 			ImGui.openPopup(TimelineBindingEditorPopup.POPUP_ID);
@@ -482,6 +490,34 @@ public class MenuBarPanel {
 			if (!projectDialogMessage.isBlank()) {
 				ImGui.spacing();
 				ImGui.textWrapped(projectDialogMessage);
+			}
+		}
+		ImGui.end();
+	}
+
+	private void renderNewFromTemplateDialog() {
+		if (!showNewFromTemplateDialog) return;
+		ImGui.setNextWindowSize(440, 0);
+		if (ImGui.begin(BBTexts.get("beatblock.dialog.new_from_template"), ImGuiWindowFlags.AlwaysAutoResize)) {
+			ImGui.textWrapped(BBTexts.get("beatblock.preferences.templates.desc"));
+			ImGui.spacing();
+			for (ProjectTemplatePresenter.TemplateId templateId : ProjectTemplatePresenter.TemplateId.values()) {
+				ImGui.separator();
+				ImGui.text(BBTexts.get(ProjectTemplatePresenter.labelKey(templateId)));
+				ImGui.textWrapped(BBTexts.get(ProjectTemplatePresenter.descriptionKey(templateId)));
+				if (ImGui.button(BBTexts.get("beatblock.preferences.templates.apply") + "##tpl_" + templateId.name())) {
+					var outcome = templatePresenter.apply(templateId);
+					if (outcome.success()) {
+						ToastNotificationSystem.showSuccess(outcome.message());
+						showNewFromTemplateDialog = false;
+					} else {
+						ToastNotificationSystem.showError(outcome.message());
+					}
+				}
+			}
+			ImGui.spacing();
+			if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##tplCancel")) {
+				showNewFromTemplateDialog = false;
 			}
 		}
 		ImGui.end();

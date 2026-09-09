@@ -5,10 +5,10 @@ import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.preferences.BeatBlockShortcutId;
-import com.beatblock.ui.preferences.UiPreferences;
 import com.beatblock.ui.preferences.UiTheme;
-import com.beatblock.ui.presenter.ProjectTemplatePresenter;
+import com.beatblock.ui.presenter.PreferencesPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
+import com.beatblock.ui.presenter.PresenterResult;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
@@ -16,24 +16,25 @@ import imgui.type.ImInt;
 import imgui.type.ImString;
 
 import java.util.EnumMap;
+import java.util.Map;
 
-/** 偏好设置：主题、快捷键、工程模板。 */
+/** Preferences Creator Surface: Appearance + Shortcuts (user-level only). */
 public final class PreferencesPanel {
 
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private static final int CHORD_CAPACITY = 64;
 
-	private final ProjectTemplatePresenter templatePresenter;
+	private final PreferencesPresenter presenter;
 	private final ImInt themeIndex = new ImInt(0);
 	private final EnumMap<BeatBlockShortcutId, ImString> shortcutBuffers = new EnumMap<>(BeatBlockShortcutId.class);
 	private boolean buffersInitialized;
 
 	public PreferencesPanel() {
-		this(PresenterFactories.projectTemplatePresenter());
+		this(PresenterFactories.preferencesPresenter());
 	}
 
-	PreferencesPanel(ProjectTemplatePresenter templatePresenter) {
-		this.templatePresenter = templatePresenter;
+	PreferencesPanel(PreferencesPresenter presenter) {
+		this.presenter = presenter != null ? presenter : new PreferencesPresenter();
 		for (BeatBlockShortcutId id : BeatBlockShortcutId.values()) {
 			shortcutBuffers.put(id, new ImString(CHORD_CAPACITY));
 		}
@@ -60,10 +61,6 @@ public final class PreferencesPanel {
 					renderShortcutsTab();
 					ImGui.endTabItem();
 				}
-				if (ImGui.beginTabItem(BBTexts.get("beatblock.preferences.tab.templates"))) {
-					renderTemplatesTab();
-					ImGui.endTabItem();
-				}
 				ImGui.endTabBar();
 			}
 		} finally {
@@ -76,9 +73,14 @@ public final class PreferencesPanel {
 			return;
 		}
 		buffersInitialized = true;
-		themeIndex.set(themeToIndex(UiPreferences.theme()));
+		reloadFromStore();
+	}
+
+	private void reloadFromStore() {
+		themeIndex.set(themeToIndex(presenter.theme()));
+		Map<BeatBlockShortcutId, String> all = presenter.allShortcuts();
 		for (BeatBlockShortcutId id : BeatBlockShortcutId.values()) {
-			shortcutBuffers.get(id).set(UiPreferences.shortcut(id));
+			shortcutBuffers.get(id).set(all.getOrDefault(id, id.defaultChord()));
 		}
 	}
 
@@ -92,8 +94,12 @@ public final class PreferencesPanel {
 		);
 		ImGui.setNextItemWidth(-1f);
 		if (ImGui.combo(BBTexts.get("beatblock.preferences.theme.label") + "##uiTheme", themeIndex, labels)) {
-			UiPreferences.setTheme(indexToTheme(themeIndex.get()));
-			ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.preferences.theme.applied"));
+			showResult(presenter.applyTheme(indexToTheme(themeIndex.get())));
+		}
+		ImGui.spacing();
+		if (ImGui.button(BBTexts.get("beatblock.preferences.reset_defaults") + "##resetPrefs")) {
+			showResult(presenter.resetAppearanceAndShortcuts());
+			reloadFromStore();
 		}
 	}
 
@@ -109,36 +115,29 @@ public final class PreferencesPanel {
 		}
 		ImGui.endChild();
 		if (ImGui.button(BBTexts.get("beatblock.preferences.shortcuts.save") + "##saveShortcuts", -1f, 0f)) {
+			EnumMap<BeatBlockShortcutId, String> drafts = new EnumMap<>(BeatBlockShortcutId.class);
 			for (BeatBlockShortcutId id : BeatBlockShortcutId.values()) {
-				UiPreferences.setShortcut(id, shortcutBuffers.get(id).get());
+				drafts.put(id, shortcutBuffers.get(id).get());
 			}
-			ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.preferences.shortcuts.saved"));
+			PresenterResult result = presenter.saveShortcuts(drafts);
+			showResult(result);
+			if (result.ok()) {
+				reloadFromStore();
+			}
 		}
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.preferences.shortcuts.reset") + "##resetShortcuts")) {
-			UiPreferences.resetShortcuts();
-			for (BeatBlockShortcutId id : BeatBlockShortcutId.values()) {
-				shortcutBuffers.get(id).set(UiPreferences.shortcut(id));
-			}
-			ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.preferences.shortcuts.reset_done"));
+			showResult(presenter.resetShortcuts());
+			reloadFromStore();
 		}
 	}
 
-	private void renderTemplatesTab() {
-		ImGui.textWrapped(BBTexts.get("beatblock.preferences.templates.desc"));
-		ImGui.spacing();
-		for (ProjectTemplatePresenter.TemplateId templateId : ProjectTemplatePresenter.TemplateId.values()) {
-			ImGui.separator();
-			ImGui.text(BBTexts.get(ProjectTemplatePresenter.labelKey(templateId)));
-			ImGui.textWrapped(BBTexts.get(ProjectTemplatePresenter.descriptionKey(templateId)));
-			if (ImGui.button(BBTexts.get("beatblock.preferences.templates.apply") + "##tpl_" + templateId.name())) {
-				var outcome = templatePresenter.apply(templateId);
-				if (outcome.success()) {
-					ToastNotificationSystem.showSuccess(outcome.message());
-				} else {
-					ToastNotificationSystem.showError(outcome.message());
-				}
-			}
+	private static void showResult(PresenterResult result) {
+		if (result == null || result.messageOrEmpty().isBlank()) return;
+		if (result.ok()) {
+			ToastNotificationSystem.showSuccess(result.messageOrEmpty());
+		} else {
+			ToastNotificationSystem.showError(result.messageOrEmpty());
 		}
 	}
 

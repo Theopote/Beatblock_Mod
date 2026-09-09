@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import imgui.flag.ImGuiCol;
 import net.fabricmc.loader.api.FabricLoader;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +16,10 @@ import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.Map;
 
-/** UI 偏好：主题与快捷键，持久化到 config/beatblock/ui.json。 */
+/**
+ * UI preferences store: theme + shortcuts + onboarding flags → {@code config/beatblock/ui.json}.
+ * Saves are atomic; corrupt files recover on next save without requiring a parse of the bad file.
+ */
 public final class UiPreferences {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(UiPreferences.class);
@@ -30,8 +34,20 @@ public final class UiPreferences {
 	private static boolean pythonSetupAcknowledged;
 	private static boolean quickStartWizardAcknowledged;
 	private static boolean loaded;
+	/** When load failed or file was corrupt — next save writes a fresh root. */
+	private static boolean corruptRecovered;
 
 	private UiPreferences() {
+	}
+
+	/** Test-only reset of in-memory state. */
+	static void resetForTests() {
+		theme = UiTheme.DARK;
+		shortcuts.clear();
+		pythonSetupAcknowledged = false;
+		quickStartWizardAcknowledged = false;
+		loaded = false;
+		corruptRecovered = false;
 	}
 
 	public static UiTheme theme() {
@@ -39,10 +55,11 @@ public final class UiPreferences {
 		return theme;
 	}
 
-	public static void setTheme(UiTheme value) {
+	/** Apply theme in-memory and persist. @return false if disk write failed (runtime theme still applied). */
+	public static boolean setTheme(UiTheme value) {
 		ensureLoaded();
 		theme = value != null ? value : UiTheme.DARK;
-		save();
+		return save();
 	}
 
 	public static String shortcut(BeatBlockShortcutId id) {
@@ -50,23 +67,58 @@ public final class UiPreferences {
 		return shortcuts.getOrDefault(id, id.defaultChord());
 	}
 
-	public static void setShortcut(BeatBlockShortcutId id, String chord) {
+	/**
+	 * Replace custom shortcuts in one shot and persist once.
+	 * @param custom only non-default chords; empty map means all defaults
+	 */
+	public static boolean replaceShortcuts(Map<BeatBlockShortcutId, String> custom) {
+		ensureLoaded();
+		shortcuts.clear();
+		if (custom != null) {
+			for (Map.Entry<BeatBlockShortcutId, String> entry : custom.entrySet()) {
+				if (entry.getKey() == null) continue;
+				String chord = entry.getValue();
+				if (chord == null || chord.isBlank()) continue;
+				ShortcutChord parsed = ShortcutChord.parse(chord);
+				if (parsed == null) continue;
+				String normalized = parsed.normalize();
+				if (!normalized.equalsIgnoreCase(entry.getKey().defaultChord())) {
+					shortcuts.put(entry.getKey(), normalized);
+				}
+			}
+		}
+		return save();
+	}
+
+	public static boolean setShortcut(BeatBlockShortcutId id, String chord) {
 		if (id == null) {
-			return;
+			return false;
 		}
 		ensureLoaded();
 		if (chord == null || chord.isBlank() || chord.equalsIgnoreCase(id.defaultChord())) {
 			shortcuts.remove(id);
 		} else {
-			shortcuts.put(id, chord.trim());
+			ShortcutChord parsed = ShortcutChord.parse(chord);
+			if (parsed == null) {
+				return false;
+			}
+			shortcuts.put(id, parsed.normalize());
 		}
-		save();
+		return save();
 	}
 
-	public static void resetShortcuts() {
+	public static boolean resetShortcuts() {
 		ensureLoaded();
 		shortcuts.clear();
-		save();
+		return save();
+	}
+
+	/** Theme + shortcuts back to defaults (acknowledgements unchanged). */
+	public static boolean resetAppearanceAndShortcuts() {
+		ensureLoaded();
+		theme = UiTheme.DARK;
+		shortcuts.clear();
+		return save();
 	}
 
 	public static boolean isPythonSetupAcknowledged() {
@@ -74,13 +126,13 @@ public final class UiPreferences {
 		return pythonSetupAcknowledged;
 	}
 
-	public static void setPythonSetupAcknowledged(boolean acknowledged) {
+	public static boolean setPythonSetupAcknowledged(boolean acknowledged) {
 		ensureLoaded();
 		if (pythonSetupAcknowledged == acknowledged) {
-			return;
+			return true;
 		}
 		pythonSetupAcknowledged = acknowledged;
-		save();
+		return save();
 	}
 
 	public static boolean isQuickStartWizardAcknowledged() {
@@ -88,13 +140,13 @@ public final class UiPreferences {
 		return quickStartWizardAcknowledged;
 	}
 
-	public static void setQuickStartWizardAcknowledged(boolean acknowledged) {
+	public static boolean setQuickStartWizardAcknowledged(boolean acknowledged) {
 		ensureLoaded();
 		if (quickStartWizardAcknowledged == acknowledged) {
-			return;
+			return true;
 		}
 		quickStartWizardAcknowledged = acknowledged;
-		save();
+		return save();
 	}
 
 	public static Map<BeatBlockShortcutId, String> allShortcuts() {
@@ -104,6 +156,11 @@ public final class UiPreferences {
 			out.put(id, shortcut(id));
 		}
 		return out;
+	}
+
+	public static boolean wasCorruptOnLoad() {
+		ensureLoaded();
+		return corruptRecovered;
 	}
 
 	public static void pushPanelThemeColors() {
@@ -134,39 +191,45 @@ public final class UiPreferences {
 		}
 		try {
 			JsonObject root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
-			if (root.has(THEME_KEY)) {
-				theme = UiTheme.fromId(root.get(THEME_KEY).getAsString());
-			}
-			if (root.has(SHORTCUTS_KEY) && root.get(SHORTCUTS_KEY).isJsonObject()) {
-				JsonObject map = root.getAsJsonObject(SHORTCUTS_KEY);
-				for (BeatBlockShortcutId id : BeatBlockShortcutId.values()) {
-					if (map.has(id.id()) && map.get(id.id()).isJsonPrimitive()) {
-						shortcuts.put(id, map.get(id.id()).getAsString());
-					}
-				}
-			}
-			if (root.has(PYTHON_SETUP_ACKNOWLEDGED_KEY)) {
-				pythonSetupAcknowledged = root.get(PYTHON_SETUP_ACKNOWLEDGED_KEY).getAsBoolean();
-			}
-			if (root.has(QUICK_START_WIZARD_ACKNOWLEDGED_KEY)) {
-				quickStartWizardAcknowledged = root.get(QUICK_START_WIZARD_ACKNOWLEDGED_KEY).getAsBoolean();
-			}
+			applyRoot(root);
 		} catch (Exception e) {
-			LOGGER.warn("Failed to load UI preferences from {}", path, e);
+			corruptRecovered = true;
+			LOGGER.warn("Failed to load UI preferences from {} — using defaults; next save will rewrite file", path, e);
 		}
 	}
 
-	private static void save() {
+	private static void applyRoot(JsonObject root) {
+		if (root.has(THEME_KEY)) {
+			theme = UiTheme.fromId(root.get(THEME_KEY).getAsString());
+		}
+		if (root.has(SHORTCUTS_KEY) && root.get(SHORTCUTS_KEY).isJsonObject()) {
+			JsonObject map = root.getAsJsonObject(SHORTCUTS_KEY);
+			for (BeatBlockShortcutId id : BeatBlockShortcutId.values()) {
+				if (map.has(id.id()) && map.get(id.id()).isJsonPrimitive()) {
+					String raw = map.get(id.id()).getAsString();
+					ShortcutChord chord = ShortcutChord.parse(raw);
+					if (chord != null) {
+						shortcuts.put(id, chord.normalize());
+					}
+				}
+			}
+		}
+		if (root.has(PYTHON_SETUP_ACKNOWLEDGED_KEY)) {
+			pythonSetupAcknowledged = root.get(PYTHON_SETUP_ACKNOWLEDGED_KEY).getAsBoolean();
+		}
+		if (root.has(QUICK_START_WIZARD_ACKNOWLEDGED_KEY)) {
+			quickStartWizardAcknowledged = root.get(QUICK_START_WIZARD_ACKNOWLEDGED_KEY).getAsBoolean();
+		}
+	}
+
+	/**
+	 * Persist current in-memory preferences atomically.
+	 * @return true on success
+	 */
+	public static boolean save() {
 		Path path = uiConfigPath();
 		try {
-			JsonObject root;
-			if (Files.isRegularFile(path)) {
-				root = JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
-			} else {
-				root = new JsonObject();
-				Path parent = path.getParent();
-				if (parent != null) Files.createDirectories(parent);
-			}
+			JsonObject root = readMergeRoot(path);
 			root.addProperty(THEME_KEY, theme.id());
 			JsonObject map = new JsonObject();
 			for (Map.Entry<BeatBlockShortcutId, String> entry : shortcuts.entrySet()) {
@@ -175,9 +238,29 @@ public final class UiPreferences {
 			root.add(SHORTCUTS_KEY, map);
 			root.addProperty(PYTHON_SETUP_ACKNOWLEDGED_KEY, pythonSetupAcknowledged);
 			root.addProperty(QUICK_START_WIZARD_ACKNOWLEDGED_KEY, quickStartWizardAcknowledged);
-			Files.writeString(path, GSON.toJson(root), StandardCharsets.UTF_8);
+			AtomicConfigFiles.writeAtomically(path, GSON.toJson(root));
+			corruptRecovered = false;
+			return true;
 		} catch (Exception e) {
 			LOGGER.warn("Failed to save UI preferences to {}", path, e);
+			return false;
+		}
+	}
+
+	/**
+	 * Prefer merging unknown keys from an existing valid file.
+	 * If corrupt or {@link #corruptRecovered}, start a fresh root so save can self-heal.
+	 */
+	private static JsonObject readMergeRoot(Path path) {
+		if (corruptRecovered || !Files.isRegularFile(path)) {
+			return new JsonObject();
+		}
+		try {
+			return JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
+		} catch (Exception e) {
+			LOGGER.warn("Existing ui.json unreadable during save — writing fresh preferences root", e);
+			corruptRecovered = true;
+			return new JsonObject();
 		}
 	}
 

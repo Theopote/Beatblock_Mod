@@ -382,6 +382,10 @@ public final class PresenterFactories {
 		);
 	}
 
+	public static PreferencesPresenter preferencesPresenter() {
+		return new PreferencesPresenter();
+	}
+
 	private static Vec3d currentCameraPositionOrZero() {
 		MinecraftClient client = MinecraftClient.getInstance();
 		if (client != null && client.gameRenderer != null && client.gameRenderer.getCamera() != null) {
