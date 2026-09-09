@@ -5,8 +5,6 @@ import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
-import com.beatblock.timeline.editor.InteractionMode;
-import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
@@ -71,7 +69,7 @@ public final class TimelineCameraController {
 	 */
 	public void applyExportSample(TimelineCameraEvaluator.CameraSample sample) {
 		CameraRuntime runtime = CameraRuntime.getInstance();
-		if (sample == null) {
+		if (!CameraOwnershipPolicy.shouldTakeOwnership(false, false, true, sample != null)) {
 			if (runtime.isTimelineOwner()) runtime.setOwner(CameraRuntime.Owner.PLAYER);
 			return;
 		}
@@ -139,15 +137,7 @@ public final class TimelineCameraController {
 			? editor.getPlaybackSession().isPlaying()
 			: (musicPlayer != null && musicPlayer.isPlaying());
 
-		boolean scrubbing = false;
-		if (editor != null && editor.getInteractionState() != null) {
-			scrubbing = editor.getInteractionState().getMode() == InteractionMode.SCRUB_TIME;
-		}
-		if (scrubbing && !ImGui.isMouseDown(0)) {
-			scrubbing = false;
-		}
-
-		if (keyframePreviewFrames > 0 && !playing && !scrubbing) {
+		if (keyframePreviewFrames > 0 && !playing) {
 			previewingKeyframe = true;
 			keyframePreviewFrames--;
 		} else {
@@ -173,7 +163,7 @@ public final class TimelineCameraController {
 		}
 
 		TimelineCameraEvaluator.CameraSample activeSample = null;
-		if ((playing || scrubbing || formalDrive) && hasCameraTrackClips) {
+		if (playing && hasCameraTrackClips) {
 			double timeSeconds = BeatBlockClientDriver.previewTimelineTimeSeconds();
 			MinecraftClient client = MinecraftClient.getInstance();
 			Vec3d anchor = client != null && client.player != null ? client.player.getEyePos() : Vec3d.ZERO;
@@ -195,7 +185,8 @@ public final class TimelineCameraController {
 
 		// A camera track elsewhere on the timeline must not lock the view during
 		// gaps or before/after its clips. Ownership follows an actual sample.
-		boolean wantsTimeline = activeSample != null;
+		boolean wantsTimeline = CameraOwnershipPolicy.shouldTakeOwnership(
+			playing, previewingKeyframe, false, activeSample != null);
 
 		if (wantsTimeline && !runtime.isTimelineOwner()) {
 			runtime.setOwner(CameraRuntime.Owner.TIMELINE);
