@@ -10,10 +10,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * ImGui 多语言字体：优先系统字体（CJK + 西里尔等），可选内置资源，最后回退默认字体。
- * 目标：支持英文、中文、日韩、西里尔等，方便国际玩家。
+ * <p>
+ * 中文显示为「？」通常是字形未烘焙进 ImGui 图集（范围过窄），不是 lang JSON 编码损坏。
+ * 因此除 ChineseSimplifiedCommon 外，会把 {@code lang/*.json} 实际用字 {@code addText} 进图集。
  */
 public final class ImGuiFontManager {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ImGuiFontManager.class);
@@ -27,36 +31,37 @@ public final class ImGuiFontManager {
 
 	/** 系统字体路径：Windows / macOS / Linux 常见 CJK + 多语言字体 */
 	private static final String[] SYSTEM_FONT_PATHS = {
-		// Windows
 		"C:/Windows/Fonts/msyh.ttc",
 		"C:/Windows/Fonts/msyhbd.ttc",
 		"C:/Windows/Fonts/simhei.ttf",
 		"C:/Windows/Fonts/simsun.ttc",
 		"C:/Windows/Fonts/meiryo.ttc",
 		"C:/Windows/Fonts/malgun.ttf",
-		// macOS
 		"/System/Library/Fonts/PingFang.ttc",
 		"/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
 		"/Library/Fonts/Arial Unicode.ttf",
-		// Linux
 		"/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
 		"/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
 		"/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
 		"/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
 	};
 
-	/** 模组内置字体（可选）：放入 assets/beatblock/fonts/ 即可生效 */
-	private static final String BUNDLED_FONT_PATH = "/assets/beatblock/fonts/NotoSansSC-Regular.ttf";
+	/** 模组内置字体（系统字体不可用时） */
+	private static final String[] BUNDLED_FONT_PATHS = {
+		"/assets/beatblock/fonts/NotoSansSC-Regular.ttf",
+		"/assets/beatblock/fonts/SimHei.ttf",
+	};
 
-	/** 模组内置图标字体（替代 emoji）：放入 assets/beatblock/fonts/ 即可生效 */
 	private static final String ICON_FONT_PATH = "/assets/beatblock/fonts/BeatBlock.ttf";
 
-	/** 图标字体私用区范围（BeatBlock.ttf）：U+F000 ~ U+F500 */
+	/** 语言包语料：保证 Preferences / Export 等新增中文也能进图集 */
+	private static final List<String> LANG_CORPUS_PATHS = List.of(
+		"/assets/beatblock/lang/zh_cn.json",
+		"/assets/beatblock/lang/en_us.json"
+	);
+
 	private static final short[] ICON_GLYPH_RANGES = { (short) 0xF000, (short) 0xF500, 0 };
 
-	/**
-	 * 初始化多语言字体：合并 Default + 中文常用字 + 标点/假名小块，避免图集过大导致部分字显示为问号。
-	 */
 	public static void initializeFonts(ImGuiIO io) {
 		ImFontAtlas atlas = io.getFonts();
 		try {
@@ -76,21 +81,17 @@ public final class ImGuiFontManager {
 		config.setPixelSnapH(true);
 		config.setOversampleH(2);
 		config.setOversampleV(2);
-
 		config.setGlyphRanges(glyphRanges);
-		// 1) 优先系统字体
+
 		boolean loaded = tryLoadSystemFonts(io, config);
-		// 2) 再试内置资源
 		if (!loaded) {
-			loaded = tryLoadBundledFont(io, config, glyphRanges);
+			loaded = tryLoadBundledFonts(io, config, glyphRanges);
 		}
-		// 3) 回退默认（仅拉丁等）
 		if (!loaded) {
 			LOGGER.warn("[BeatBlock] No CJK system/bundled font found; UI will show ? for Chinese etc.");
 			atlas.addFontDefault();
 		}
 
-		// 关键：合并自定义图标字体，避免依赖系统 emoji。
 		tryLoadIconFontMerged(atlas);
 		tryLoadIconButtonFontStandalone(atlas);
 
@@ -101,47 +102,29 @@ public final class ImGuiFontManager {
 		LOGGER.info("[BeatBlock] ImGui fonts initialized (multi-language support)");
 	}
 
-	/** 供 {@link com.beatblock.ui.imgui.IconButtonStyle} 使用；未加载图标文件时为 null。 */
 	public static ImFont getIconButtonFont() {
 		return iconButtonFont;
 	}
 
 	/**
-	 * 使用「常用字」范围而非「全量」，避免请求字形过多导致字体图集溢出，未烘焙的字显示为 ?。
-	 * 图集纹理有上限（如 2048×2048），ChineseFull + 整块 0x4E00-0x9FFF 会超出，只补标点+addText。
+	 * Common 范围 + lang 实际用字 + 标点小块。避免 ChineseFull 撑爆图集，同时减少漏字「？」。
 	 */
 	private static short[] buildMultiLanguageGlyphRanges(ImGuiIO io) {
 		ImFontAtlas a = io.getFonts();
 		try {
 			imgui.ImFontGlyphRangesBuilder builder = new imgui.ImFontGlyphRangesBuilder();
 			builder.addRanges(a.getGlyphRangesDefault());
-			// 用常用字范围，保证能全部进图集，减少问号
 			try {
 				builder.addRanges(a.getGlyphRangesChineseSimplifiedCommon());
 			} catch (Throwable ignored) {
 				builder.addRanges(a.getGlyphRangesChineseFull());
 			}
-			// 只补标点/假名等小块，不补整块 0x4E00-0x9FFF（已在 Common/Full 里，再补会重复且撑爆图集）
 			builder.addRanges(CJK_PUNCT_AND_KANA);
-			// 强制包含模组 UI 用字，避免漏字
-			// 注意：这里的字符会直接参与 ImGui 字形图集烘焙；缺字会在 UI 中显示为 '?'。
-			builder.addText(
-				"工具时间线事件属性动画库导入音乐智能映射设置确定取消打开保存新建编辑删除复制粘贴撤销重做播放暂停频段低频中频高频" +
-				// 时间线轨道折叠/展开提示（Tooltip/文案）
-				"展开子轨道折叠子轨道" +
-				// 兼容：如果 UI 实际文案是“子选项”而非“子轨道”
-				"展开子选项折叠子选项" +
-				// 音频解析面板：详情区折叠/展开（按钮 Tooltip）
-				"展开详情面板折叠详情展开详情" +
-				// 时间线轨道类型列 + 默认轨道名
-				"音频波形低频中频高频方块自动摄像机" +
-				// 时间线工具栏：焙 不在 ChineseSimplifiedCommon，缺字会显示为 ?
-				"烘焙绑定映射自动吸附节拍网格磁吸循环入点出点清除缩放适应轨道轨高重置回滚预览持久天降规则细节混合触发持续片段预设" +
-				// 视频导出面板
-				"导出视频帧率分辨率混入编码渲染就绪输出路径范围起点终点隐藏编辑器状态路径无法帧离线逐方块动画与镜头不会录制界面或原版HUD" +
-				// 选区反馈与错误
-				"魔棒连通减选求交图层跳过整列切片笔刷套索框选线选主混音建造还原节奏特征"
-			);
+			String langCorpus = loadLangCorpusForGlyphs();
+			if (!langCorpus.isEmpty()) {
+				builder.addText(langCorpus);
+			}
+			builder.addText(HARDCODED_UI_CJK_CORPUS);
 			tryAddRanges(builder, a, "getGlyphRangesJapanese");
 			tryAddRanges(builder, a, "getGlyphRangesKorean");
 			tryAddRanges(builder, a, "getGlyphRangesCyrillic");
@@ -149,20 +132,44 @@ public final class ImGuiFontManager {
 			tryAddRanges(builder, a, "getGlyphRangesVietnamese");
 			return builder.buildRanges();
 		} catch (Throwable t) {
-			LOGGER.debug("[BeatBlock] GlyphRangesBuilder fallback");
+			LOGGER.debug("[BeatBlock] GlyphRangesBuilder fallback", t);
 			return buildFallbackRanges(a);
 		}
 	}
 
-	/** 仅标点与假名等小块，不包含整块汉字（避免图集过大）。 */
+	/** 包可见：单测确认语料可读且含中文。 */
+	static String loadLangCorpusForGlyphs() {
+		StringBuilder sb = new StringBuilder(64 * 1024);
+		for (String path : LANG_CORPUS_PATHS) {
+			try (InputStream in = ImGuiFontManager.class.getResourceAsStream(path)) {
+				if (in == null) {
+					LOGGER.debug("[BeatBlock] Lang corpus missing: {}", path);
+					continue;
+				}
+				sb.append(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+			} catch (Throwable e) {
+				LOGGER.warn("[BeatBlock] Failed to load lang corpus {}", path, e);
+			}
+		}
+		return sb.toString();
+	}
+
 	private static final short[] CJK_PUNCT_AND_KANA = {
-		(short) 0x2000, (short) 0x206F,  // 通用标点
-		(short) 0x3000, (short) 0x303F,  // CJK 符号与标点（、。「」…—）
-		(short) 0x3040, (short) 0x309F,  // 平假名
-		(short) 0x30A0, (short) 0x30FF,  // 片假名
-		(short) 0xFF00, (short) 0xFFEF,  // 全角
+		(short) 0x2000, (short) 0x206F,
+		(short) 0x3000, (short) 0x303F,
+		(short) 0x3040, (short) 0x309F,
+		(short) 0x30A0, (short) 0x30FF,
+		(short) 0xFF00, (short) 0xFFEF,
 		0
 	};
+
+	/** 仍写在 Java 源码里、可能不经 lang JSON 的中文兜底。 */
+	private static final String HARDCODED_UI_CJK_CORPUS =
+		"工具时间线事件属性动画库导入音乐智能映射设置确定取消打开保存新建编辑删除复制粘贴撤销重做播放暂停频段低频中频高频" +
+			"展开子轨道折叠子轨道展开子选项折叠子选项展开详情面板折叠详情展开详情" +
+			"音频波形方块自动摄像机烘焙绑定映射自动吸附节拍网格磁吸循环入点出点清除缩放适应轨道轨高重置回滚预览持久天降规则细节混合触发持续片段预设" +
+			"导出视频帧率分辨率混入编码渲染就绪输出路径范围起点终点隐藏编辑器状态路径无法帧离线逐方块动画与镜头不会录制界面或原版" +
+			"魔棒连通减选求交图层跳过整列切片笔刷套索框选线选主混音建造还原节奏特征";
 
 	private static short[] buildFallbackRanges(ImFontAtlas a) {
 		try {
@@ -174,6 +181,10 @@ public final class ImGuiFontManager {
 				b.addRanges(a.getGlyphRangesChineseFull());
 			}
 			b.addRanges(CJK_PUNCT_AND_KANA);
+			String corpus = loadLangCorpusForGlyphs();
+			if (!corpus.isEmpty()) {
+				b.addText(corpus);
+			}
 			return b.buildRanges();
 		} catch (Throwable t2) {
 			return a.getGlyphRangesChineseFull();
@@ -207,18 +218,20 @@ public final class ImGuiFontManager {
 		return false;
 	}
 
-	private static boolean tryLoadBundledFont(ImGuiIO io, ImFontConfig config, short[] glyphRanges) {
-		try (InputStream in = ImGuiFontManager.class.getResourceAsStream(BUNDLED_FONT_PATH)) {
-			if (in == null) return false;
-			byte[] data = in.readAllBytes();
-			if (data.length == 0) return false;
-			io.getFonts().addFontFromMemoryTTF(data, FONT_SIZE, config, glyphRanges);
-			LOGGER.info("[BeatBlock] Loaded bundled font: {} ({} bytes)", BUNDLED_FONT_PATH, data.length);
-			return true;
-		} catch (Throwable e) {
-			LOGGER.debug("[BeatBlock] No bundled font: {}", e.getMessage());
-			return false;
+	private static boolean tryLoadBundledFonts(ImGuiIO io, ImFontConfig config, short[] glyphRanges) {
+		for (String path : BUNDLED_FONT_PATHS) {
+			try (InputStream in = ImGuiFontManager.class.getResourceAsStream(path)) {
+				if (in == null) continue;
+				byte[] data = in.readAllBytes();
+				if (data.length == 0) continue;
+				io.getFonts().addFontFromMemoryTTF(data, FONT_SIZE, config, glyphRanges);
+				LOGGER.info("[BeatBlock] Loaded bundled font: {} ({} bytes)", path, data.length);
+				return true;
+			} catch (Throwable e) {
+				LOGGER.debug("[BeatBlock] Bundled font skip {}: {}", path, e.getMessage());
+			}
 		}
+		return false;
 	}
 
 	private static boolean tryLoadIconFontMerged(ImFontAtlas atlas) {
@@ -231,7 +244,6 @@ public final class ImGuiFontManager {
 			if (data.length == 0) return false;
 
 			ImFontConfig iconConfig = new ImFontConfig();
-			// MergeMode=true：把图标 glyph 合并到当前已加载的默认字体中（与 chronoblocks 的做法一致）。
 			iconConfig.setMergeMode(true);
 			iconConfig.setPixelSnapH(true);
 			iconConfig.setOversampleH(2);
@@ -247,10 +259,6 @@ public final class ImGuiFontManager {
 		}
 	}
 
-	/**
-	 * 第二份 BeatBlock.ttf：不合并，字号与轨道行高一致，专供图标按钮在 {@code pushFont} 后尽量铺满方形区域。
-	 * 与合并加载分开读字节，避免 atlas 接管第一份 buffer 后引用失效。
-	 */
 	private static void tryLoadIconButtonFontStandalone(ImFontAtlas atlas) {
 		iconButtonFont = null;
 		try (InputStream in = ImGuiFontManager.class.getResourceAsStream(ICON_FONT_PATH)) {

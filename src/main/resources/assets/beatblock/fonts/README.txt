@@ -1,3 +1,9 @@
-Optional: Drop a font file here for UI text (e.g. NotoSansSC-Regular.ttf).
-If present, it will be used when no suitable system font is found.
-Name must be: NotoSansSC-Regular.ttf (or update ImGuiFontManager.BUNDLED_FONT_PATH).
+Fonts for BeatBlock ImGui UI.
+
+- NotoSansSC-Regular.ttf / SimHei.ttf: CJK text fallback when no system font is found.
+- BeatBlock.ttf: icon PUA glyphs.
+
+Chinese "?" in the UI is usually a missing glyph in the ImGui atlas (not a bad zh_cn.json).
+ImGuiFontManager bakes ChineseSimplifiedCommon + all characters from lang/zh_cn.json
+(and en_us.json) so new preference/export strings stay visible without switching to ChineseFull
+(which can overflow the atlas texture).
