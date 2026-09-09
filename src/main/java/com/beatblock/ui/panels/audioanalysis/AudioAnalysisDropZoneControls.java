@@ -28,46 +28,48 @@ final class AudioAnalysisDropZoneControls {
 		ImGui.popStyleVar(2);
 		ImGui.popStyleColor(2);
 
-		if (ImGui.isWindowHovered()) {
-			float x0 = ImGui.getWindowPosX();
-			float y0 = ImGui.getWindowPosY();
-			float x1 = x0 + ImGui.getWindowWidth();
-			float y1 = y0 + ImGui.getWindowHeight();
-			ImGui.getWindowDrawList().addRectFilled(x0, y0, x1, y1, 0x1F9A90E8, 6f);
-			ImGui.getWindowDrawList().addRect(x0, y0, x1, y1, 0xCCB9B0FF, 6f, 0, 1.5f);
-		}
-
-		float textH = ImGui.getTextLineHeightWithSpacing() * 2f;
-		ImGui.setCursorPosY(Math.max(6f, (zoneH - textH) * 0.5f - (hasHint ? 4f : 0f)));
-
-		AudioAnalysisPanelImGui.centerText(BBTexts.get("beatblock.audio.drop_zone_hint"));
-		AudioAnalysisPanelImGui.centerText(BBTexts.get("beatblock.audio.drop_zone_formats"));
-
-		if (hasHint) {
-			ImGui.spacing();
-			if (state.panelHintError()) {
-				ImGui.pushStyleColor(ImGuiCol.Text, 0.92f, 0.36f, 0.36f, 1f);
-				AudioAnalysisPanelImGui.centerText(state.panelHintText());
-				ImGui.popStyleColor();
-			} else {
-				AudioAnalysisPanelImGui.centerText(state.panelHintText());
+		try {
+			if (ImGui.isWindowHovered()) {
+				float x0 = ImGui.getWindowPosX();
+				float y0 = ImGui.getWindowPosY();
+				float x1 = x0 + ImGui.getWindowWidth();
+				float y1 = y0 + ImGui.getWindowHeight();
+				ImGui.getWindowDrawList().addRectFilled(x0, y0, x1, y1, 0x1F9A90E8, 6f);
+				ImGui.getWindowDrawList().addRect(x0, y0, x1, y1, 0xCCB9B0FF, 6f, 0, 1.5f);
 			}
-		}
 
-		if (ImGui.beginDragDropTarget()) {
-			byte[] raw = ImGui.acceptDragDropPayload("BB_OS_FILE_PATH");
-			if (raw != null) {
-				String filePath = new String(raw).trim();
-				host.handleIncomingAudioPath(filePath);
+			float textH = ImGui.getTextLineHeightWithSpacing() * 2f;
+			ImGui.setCursorPosY(Math.max(6f, (zoneH - textH) * 0.5f - (hasHint ? 4f : 0f)));
+
+			AudioAnalysisPanelImGui.centerText(BBTexts.get("beatblock.audio.drop_zone_hint"));
+			AudioAnalysisPanelImGui.centerText(BBTexts.get("beatblock.audio.drop_zone_formats"));
+
+			if (hasHint) {
+				ImGui.spacing();
+				if (state.panelHintError()) {
+					ImGui.pushStyleColor(ImGuiCol.Text, 0.92f, 0.36f, 0.36f, 1f);
+					AudioAnalysisPanelImGui.centerText(state.panelHintText());
+					ImGui.popStyleColor();
+				} else {
+					AudioAnalysisPanelImGui.centerText(state.panelHintText());
+				}
 			}
-			ImGui.endDragDropTarget();
-		}
 
-		String osDropped;
-		while ((osDropped = ImGuiRenderer.getInstance().pollDroppedFilePath()) != null) {
-			host.handleIncomingAudioPath(osDropped);
-		}
+			if (ImGui.beginDragDropTarget()) {
+				byte[] raw = ImGui.acceptDragDropPayload("BB_OS_FILE_PATH");
+				if (raw != null) {
+					String filePath = new String(raw).trim();
+					host.handleIncomingAudioPath(filePath);
+				}
+				ImGui.endDragDropTarget();
+			}
 
-		ImGui.endChild();
+			String osDropped;
+			while ((osDropped = ImGuiRenderer.getInstance().pollDroppedFilePath()) != null) {
+				host.handleIncomingAudioPath(osDropped);
+			}
+		} finally {
+			ImGui.endChild();
+		}
 	}
 }

@@ -103,49 +103,52 @@ public final class PerformanceCheckDialog {
 
 			List<TimelineDiagnostic> problems = PerformanceCheckController.filteredProblems();
 			ImGui.beginChild("##pcProblems", 0f, 220f, true);
-			int row = 0;
-			for (TimelineDiagnostic d : problems) {
-				boolean err = d.severity() == TimelineDiagnosticSeverity.ERROR;
-				String prefix = err ? "✕ " : "⚠ ";
-				if (err) {
-					ImGui.textColored(1f, 0.45f, 0.45f, 1f, prefix + d.message());
-				} else {
-					ImGui.textColored(1f, 0.85f, 0.3f, 1f, prefix + d.message());
-				}
-				if (TimelineAutoRepair.disposition(d) == TimelineAutoRepair.RepairDisposition.REQUIRES_USER_INPUT) {
-					ImGui.sameLine();
-					ImGui.textDisabled(BBTexts.get("beatblock.performance_check.guided_fix"));
-				}
-				boolean canJump = d.hasTime() || d.eventId() != null || d.sourceLocation() != null;
-				if (canJump) {
-					StringBuilder meta = new StringBuilder();
-					if (d.eventId() != null) {
-						meta.append(d.eventId());
+			try {
+				int row = 0;
+				for (TimelineDiagnostic d : problems) {
+					boolean err = d.severity() == TimelineDiagnosticSeverity.ERROR;
+					String prefix = err ? "✕ " : "⚠ ";
+					if (err) {
+						ImGui.textColored(1f, 0.45f, 0.45f, 1f, prefix + d.message());
+					} else {
+						ImGui.textColored(1f, 0.85f, 0.3f, 1f, prefix + d.message());
 					}
-					if (d.hasTime()) {
+					if (TimelineAutoRepair.disposition(d) == TimelineAutoRepair.RepairDisposition.REQUIRES_USER_INPUT) {
+						ImGui.sameLine();
+						ImGui.textDisabled(BBTexts.get("beatblock.performance_check.guided_fix"));
+					}
+					boolean canJump = d.hasTime() || d.eventId() != null || d.sourceLocation() != null;
+					if (canJump) {
+						StringBuilder meta = new StringBuilder();
 						if (d.eventId() != null) {
-							meta.append(" · ");
+							meta.append(d.eventId());
 						}
-						meta.append(String.format("%.2fs", d.timeSeconds()));
+						if (d.hasTime()) {
+							if (d.eventId() != null) {
+								meta.append(" · ");
+							}
+							meta.append(String.format("%.2fs", d.timeSeconds()));
+						}
+						ImGui.sameLine();
+						if (ImGui.smallButton(BBTexts.get("beatblock.performance_check.jump") + "##pcJump" + row)) {
+							PerformanceCheckController.requestJumpTo(
+								d.eventId(),
+								d.hasTime() ? d.timeSeconds() : 0
+							);
+						}
+						if (ImGui.isItemHovered()) {
+							ImGui.setTooltip(BBTexts.get("beatblock.performance_check.jump.tooltip") + "\n" + meta);
+						}
+						ImGui.textDisabled("    " + meta);
 					}
-					ImGui.sameLine();
-					if (ImGui.smallButton(BBTexts.get("beatblock.performance_check.jump") + "##pcJump" + row)) {
-						PerformanceCheckController.requestJumpTo(
-							d.eventId(),
-							d.hasTime() ? d.timeSeconds() : 0
-						);
-					}
-					if (ImGui.isItemHovered()) {
-						ImGui.setTooltip(BBTexts.get("beatblock.performance_check.jump.tooltip") + "\n" + meta);
-					}
-					ImGui.textDisabled("    " + meta);
+					row++;
 				}
-				row++;
+				if (problems.isEmpty()) {
+					ImGui.textDisabled(BBTexts.get("beatblock.performance_check.no_problems"));
+				}
+			} finally {
+				ImGui.endChild();
 			}
-			if (problems.isEmpty()) {
-				ImGui.textDisabled(BBTexts.get("beatblock.performance_check.no_problems"));
-			}
-			ImGui.endChild();
 		}
 
 		ImGui.spacing();

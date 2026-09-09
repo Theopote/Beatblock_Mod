@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class TimelineCameraCompiledPlaybackTest {
 
@@ -45,5 +46,38 @@ class TimelineCameraCompiledPlaybackTest {
 
 		assertEquals(50.0, live.position().x, 1e-9);
 		assertEquals(1.0, frozen.position().x, 1e-9);
+	}
+
+	@Test
+	void cameraDoesNotHoldOutsideClipBounds() {
+		Timeline timeline = Timeline.createDefault();
+		var clip = TimelineOperations.addClip(timeline.getTrack(Timeline.TRACK_ID_CAMERA), 5.0, 2.0);
+		TimelineOperations.addEvent(clip, 5.0, EventType.CAMERA_KEYFRAME,
+			Map.of("x", 1.0, "y", 2.0, "z", 3.0, "yawDeg", 0.0, "pitchDeg", 0.0));
+		var snapshot = TimelineCompiler.compile(timeline);
+
+		assertNull(TimelineCameraEvaluator.evaluate(timeline, 4.0, Vec3d.ZERO, 0f, 0f));
+		assertNull(TimelineCameraEvaluator.evaluate(timeline, 8.0, Vec3d.ZERO, 0f, 0f));
+		assertNull(TimelineCameraEvaluator.evaluate(
+			snapshot.cameraTrack(), snapshot.bpm(), 4.0, Vec3d.ZERO, 0f, 0f));
+		assertNull(TimelineCameraEvaluator.evaluate(
+			snapshot.cameraTrack(), snapshot.bpm(), 8.0, Vec3d.ZERO, 0f, 0f));
+	}
+
+	@Test
+	void cameraReleasesDuringGapBetweenClips() {
+		Timeline timeline = Timeline.createDefault();
+		var camera = timeline.getTrack(Timeline.TRACK_ID_CAMERA);
+		var first = TimelineOperations.addClip(camera, 0.0, 2.0);
+		var second = TimelineOperations.addClip(camera, 4.0, 2.0);
+		TimelineOperations.addEvent(first, 0.0, EventType.CAMERA_KEYFRAME,
+			Map.of("x", 1.0, "y", 2.0, "z", 3.0));
+		TimelineOperations.addEvent(second, 4.0, EventType.CAMERA_KEYFRAME,
+			Map.of("x", 4.0, "y", 5.0, "z", 6.0));
+
+		assertNull(TimelineCameraEvaluator.evaluate(timeline, 3.0, Vec3d.ZERO, 0f, 0f));
+		var snapshot = TimelineCompiler.compile(timeline);
+		assertNull(TimelineCameraEvaluator.evaluate(
+			snapshot.cameraTrack(), snapshot.bpm(), 3.0, Vec3d.ZERO, 0f, 0f));
 	}
 }

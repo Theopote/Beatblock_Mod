@@ -13,6 +13,8 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -22,6 +24,7 @@ import java.util.function.Supplier;
  */
 public class TimelinePanel {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(TimelinePanel.class);
 	private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoCollapse;
 	private final TimelineToolbar toolbar = new TimelineToolbar();
 	private final TimelinePanelPresenter presenter;
@@ -87,12 +90,19 @@ public class TimelinePanel {
 				editor.tryBeginTimelineDividerDragOnRuler();
 			}
 
-			if (ImGui.beginChild("##TimelineTracks", 0, -1, false)) {
+			// BeginChild/EndChild must pair even when renderTrackArea throws; otherwise
+			// the outer ImGui.end() hits "Must call EndChild() and not End()!".
+			ImGui.beginChild("##TimelineTracks", 0, -1, false);
+			try {
 				if (editor != null) {
 					editor.renderTrackArea();
 				}
+			} catch (RuntimeException ex) {
+				LOGGER.error("BeatBlock Timeline: track area render failed", ex);
+				throw ex;
+			} finally {
+				ImGui.endChild();
 			}
-			ImGui.endChild();
 			if (editor != null) {
 				editor.renderPlayheadOverlay();
 			}

@@ -2,6 +2,7 @@ package com.beatblock.client;
 
 import com.beatblock.client.imgui.ImGuiRenderer;
 import com.beatblock.client.input.BeatBlockInputSystem;
+import com.beatblock.client.camera.CameraRuntime;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.ui.BeatBlockUIManager;
@@ -37,6 +38,7 @@ public class BeatBlockUIScreen extends Screen {
 	public BeatBlockUIScreen() {
 		super(Text.translatable("gui.beatblock.title"));
 		MinecraftClient client = MinecraftClient.getInstance();
+		CameraRuntime.getInstance().beginBeatBlockSession();
 		muteVanillaBackgroundMusic(client);
 		if (client != null && client.mouse != null) {
 			client.mouse.unlockCursor();
@@ -103,6 +105,8 @@ public class BeatBlockUIScreen extends Screen {
 	public void removed() {
 		super.removed();
 		MinecraftClient client = MinecraftClient.getInstance();
+		BeatBlockClientDriver.stopPlayback();
+		CameraRuntime.getInstance().endBeatBlockSession();
 		restoreVanillaBackgroundMusic(client);
 		BeatBlockInputSystem.clearCache();
 		BeatBlockWorldPick.clear();

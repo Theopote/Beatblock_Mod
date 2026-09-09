@@ -62,7 +62,9 @@ public final class TimelineCameraEvaluator {
 			CameraSample legacy = evaluateKeyframeHoldInClip(active, timeSeconds, anchor, fallbackYaw, fallbackPitch);
 			if (legacy != null) return legacy;
 		}
-		return evaluateGlobalKeyframes(cam, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+		// Clip bounds define camera ownership. Holding/interpolating keyframes outside
+		// every clip makes a past (or future) shot lock the vanilla view indefinitely.
+		return null;
 	}
 
 	public static CameraSample evaluate(CompiledCameraTrack track, double bpm, double timeSeconds,
@@ -96,7 +98,7 @@ public final class TimelineCameraEvaluator {
 			CameraSample legacy = evaluateKeyframeHoldInClip(active, timeSeconds, anchor, fallbackYaw, fallbackPitch);
 			if (legacy != null) return legacy;
 		}
-		return evaluateGlobalKeyframes(track, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+		return null;
 	}
 
 	private static CompiledCameraTrack.CameraClip findActiveClip(CompiledCameraTrack track, double timeSeconds) {

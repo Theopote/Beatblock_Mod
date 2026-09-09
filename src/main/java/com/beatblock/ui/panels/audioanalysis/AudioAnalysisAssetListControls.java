@@ -58,22 +58,24 @@ final class AudioAnalysisAssetListControls {
 		ImGui.popStyleVar();
 		ImGui.popStyleColor();
 
-		if (ImGui.isWindowHovered() && ImGui.isMouseClicked(0)) {
-			state.setSelectedAsset(asset);
+		try {
+			if (ImGui.isWindowHovered() && ImGui.isMouseClicked(0)) {
+				state.setSelectedAsset(asset);
+			}
+
+			renderItemHeader(asset);
+
+			ImGui.dummy(0f, 2f);
+			switch (asset.getStatus()) {
+				case PENDING -> renderPendingContent(host, asset);
+				case QUEUED -> renderQueuedContent(host, asset);
+				case ANALYZING -> renderAnalyzingContent(asset);
+				case COMPLETED -> renderCompletedContent(host, asset);
+				case FAILED -> renderFailedContent(host, asset);
+			}
+		} finally {
+			ImGui.endChild();
 		}
-
-		renderItemHeader(asset);
-
-		ImGui.dummy(0f, 2f);
-		switch (asset.getStatus()) {
-			case PENDING -> renderPendingContent(host, asset);
-			case QUEUED -> renderQueuedContent(host, asset);
-			case ANALYZING -> renderAnalyzingContent(asset);
-			case COMPLETED -> renderCompletedContent(host, asset);
-			case FAILED -> renderFailedContent(host, asset);
-		}
-
-		ImGui.endChild();
 	}
 
 	static float estimateItemHeight(AudioAsset asset) {

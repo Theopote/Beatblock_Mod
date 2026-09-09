@@ -57,10 +57,13 @@ public final class AudioAnalysisPanelRenderer {
 			AudioAnalysisPanelImGui.LIST_PANEL_PADDING);
 		ImGui.beginChild("##AudioList", listW, totalH, false, ImGuiWindowFlags.NoScrollbar);
 		ImGui.popStyleVar();
-		AudioAnalysisDropZoneControls.renderDropZone(host);
-		ImGui.spacing();
-		AudioAnalysisAssetListControls.renderAssetList(host, assets);
-		ImGui.endChild();
+		try {
+			AudioAnalysisDropZoneControls.renderDropZone(host);
+			ImGui.spacing();
+			AudioAnalysisAssetListControls.renderAssetList(host, assets);
+		} finally {
+			ImGui.endChild();
+		}
 
 		ImGui.sameLine(0f, 0f);
 		if (uiState.detailExpanded()) {
@@ -89,8 +92,11 @@ public final class AudioAnalysisPanelRenderer {
 				AudioAnalysisPanelImGui.DETAIL_PANEL_PADDING);
 			ImGui.beginChild("##AudioDetail", detailW, totalH, true, ImGuiWindowFlags.NoScrollbar);
 			ImGui.popStyleVar(2);
-			AudioAnalysisAssetDetailControls.renderDetailPanel(host, uiState.selectedAsset());
-			ImGui.endChild();
+			try {
+				AudioAnalysisAssetDetailControls.renderDetailPanel(host, uiState.selectedAsset());
+			} finally {
+				ImGui.endChild();
+			}
 		} else {
 			IconButtonStyle.pushBeatBlockIconButton();
 			if (ImGui.button(Icons.Layout.RIGHT_EXPAND + "##expand",

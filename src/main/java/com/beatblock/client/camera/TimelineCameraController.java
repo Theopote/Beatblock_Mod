@@ -54,6 +54,7 @@ public final class TimelineCameraController {
 	}
 
 	public void stopKeyframePreview() {
+		this.previewingKeyframe = false;
 		this.keyframePreviewFrames = 0;
 		this.keyframeSample = null;
 	}
@@ -70,16 +71,19 @@ public final class TimelineCameraController {
 	 */
 	public void applyExportSample(TimelineCameraEvaluator.CameraSample sample) {
 		CameraRuntime runtime = CameraRuntime.getInstance();
-		runtime.setOwner(CameraRuntime.Owner.TIMELINE);
-		if (sample != null) {
-			runtime.applyTimelineSample(sample);
+		if (sample == null) {
+			if (runtime.isTimelineOwner()) runtime.setOwner(CameraRuntime.Owner.PLAYER);
+			return;
 		}
+		runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+		runtime.applyTimelineSample(sample);
 	}
 
 	/** 在指定时间采样镜头并应用到 CameraRuntime（非导出权威路径；导出请用 {@link #applyExportSample}）。 */
 	public void sampleAtExportTime(double timeSeconds) {
 		Timeline timeline = ctx().timeline();
 		if (timeline == null) {
+			applyExportSample(null);
 			return;
 		}
 		MinecraftClient client = MinecraftClient.getInstance();
@@ -168,51 +172,42 @@ public final class TimelineCameraController {
 			}
 		}
 
-		boolean wantsTimeline = previewingKeyframe
-			|| ((playing || scrubbing || formalDrive) && hasCameraTrackClips);
+		TimelineCameraEvaluator.CameraSample activeSample = null;
+		if ((playing || scrubbing || formalDrive) && hasCameraTrackClips) {
+			double timeSeconds = BeatBlockClientDriver.previewTimelineTimeSeconds();
+			MinecraftClient client = MinecraftClient.getInstance();
+			Vec3d anchor = client != null && client.player != null ? client.player.getEyePos() : Vec3d.ZERO;
+			float fallbackYaw = client != null && client.player != null ? client.player.getYaw() : 0f;
+			float fallbackPitch = client != null && client.player != null ? client.player.getPitch() : 0f;
+			if (formalDrive) {
+				activeSample = compiledPlayback != null
+					? TimelineCameraEvaluator.evaluate(
+						compiledPlayback.cameraTrack(), compiledPlayback.bpm(), timeSeconds,
+						anchor, fallbackYaw, fallbackPitch)
+					: null;
+			} else if (timeline != null) {
+				activeSample = TimelineCameraEvaluator.evaluate(
+					timeline, timeSeconds, anchor, fallbackYaw, fallbackPitch);
+			}
+		} else if (previewingKeyframe) {
+			activeSample = keyframeSample;
+		}
+
+		// A camera track elsewhere on the timeline must not lock the view during
+		// gaps or before/after its clips. Ownership follows an actual sample.
+		boolean wantsTimeline = activeSample != null;
 
 		if (wantsTimeline && !runtime.isTimelineOwner()) {
 			runtime.setOwner(CameraRuntime.Owner.TIMELINE);
 			LOGGER.debug("[CameraController] 接管相机控制");
 		} else if (!wantsTimeline && runtime.isTimelineOwner()) {
-			runtime.syncPlayerToSample(runtime.getCurrentSample());
 			runtime.cancelPlayerLerp();
 			runtime.setOwner(CameraRuntime.Owner.PLAYER);
 			LOGGER.debug("[CameraController] 恢复玩家控制");
 		}
 
-		if (runtime.isTimelineOwner() || wantsTimeline) {
-			if (playing || scrubbing || formalDrive) {
-				double timeSeconds = BeatBlockClientDriver.previewTimelineTimeSeconds();
-				MinecraftClient client = MinecraftClient.getInstance();
-				Vec3d anchor = client.player != null ? client.player.getEyePos() : Vec3d.ZERO;
-				float fallbackYaw = client.player != null ? client.player.getYaw() : 0f;
-				float fallbackPitch = client.player != null ? client.player.getPitch() : 0f;
-
-				TimelineCameraEvaluator.CameraSample sample;
-				if (formalDrive) {
-					// Phase C+: formal path never samples live Timeline for camera
-					sample = compiledPlayback != null
-						? TimelineCameraEvaluator.evaluate(
-							compiledPlayback.cameraTrack(),
-							compiledPlayback.bpm(),
-							timeSeconds,
-							anchor,
-							fallbackYaw,
-							fallbackPitch)
-						: null;
-				} else {
-					// Scrub / preview: live document OK
-					sample = TimelineCameraEvaluator.evaluate(
-						timeline, timeSeconds, anchor, fallbackYaw, fallbackPitch);
-				}
-
-				if (sample != null) {
-					runtime.applyTimelineSample(sample);
-				}
-			} else if (previewingKeyframe && keyframeSample != null) {
-				runtime.applyTimelineSample(keyframeSample);
-			}
+		if (runtime.isTimelineOwner() && activeSample != null) {
+			runtime.applyTimelineSample(activeSample);
 		} else {
 			runtime.tickPlayerLerp(deltaSeconds);
 		}

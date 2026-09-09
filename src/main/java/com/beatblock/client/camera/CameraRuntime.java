@@ -2,6 +2,7 @@ package com.beatblock.client.camera;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,9 @@ public final class CameraRuntime {
 
 	private volatile Owner owner = Owner.PLAYER;
 	private volatile TimelineCameraEvaluator.CameraSample currentSample = new TimelineCameraEvaluator.CameraSample(Vec3d.ZERO, 0, 0);
+	private record RestoreState(World world, TimelineCameraEvaluator.CameraSample sample) {}
+	private volatile RestoreState ownerRestoreState;
+	private volatile RestoreState sessionRestoreState;
 
 	private record LerpState(TimelineCameraEvaluator.CameraSample start, TimelineCameraEvaluator.CameraSample target, float elapsed, float duration, boolean active) {
 		static final LerpState INACTIVE = new LerpState(null, null, 0f, 0f, false);
@@ -116,22 +120,45 @@ public final class CameraRuntime {
 	}
 
 	public void setOwner(Owner newOwner) {
+		if (newOwner == null) newOwner = Owner.PLAYER;
 		if (this.owner == newOwner) return;
-		this.owner = newOwner;
 		MinecraftClient mc = MinecraftClient.getInstance();
-		if (mc.player == null) return;
+		if (newOwner == Owner.TIMELINE) {
+			if (mc == null || mc.player == null) return;
+			ownerRestoreState = captureRestoreState(mc);
+		}
+		this.owner = newOwner;
+		if (mc == null || mc.player == null) return;
 
 		if (newOwner == Owner.TIMELINE) {
 			lockPlayerInput(mc);
 			LOGGER.debug("[CameraRuntime] Owner -> TIMELINE");
 		} else {
 			unlockPlayerInput(mc);
+			restore(mc, ownerRestoreState);
+			ownerRestoreState = null;
 			LOGGER.debug("[CameraRuntime] Owner -> PLAYER");
 		}
 	}
 
 	public void reset() {
 		setOwner(Owner.PLAYER);
+		cancelPlayerLerp();
+	}
+
+	/** Capture the vanilla player pose before BeatBlock starts controlling the view. */
+	public void beginBeatBlockSession() {
+		if (sessionRestoreState != null) return;
+		sessionRestoreState = captureRestoreState(MinecraftClient.getInstance());
+	}
+
+	/** Release every camera override and restore the pose from before BeatBlock opened. */
+	public void endBeatBlockSession() {
+		reset();
+		MinecraftClient mc = MinecraftClient.getInstance();
+		restore(mc, sessionRestoreState);
+		sessionRestoreState = null;
+		ownerRestoreState = null;
 	}
 
 	private void lockPlayerInput(MinecraftClient client) {
@@ -150,6 +177,17 @@ public final class CameraRuntime {
 	}
 
 	private void unlockPlayerInput(MinecraftClient client) {}
+
+	private RestoreState captureRestoreState(MinecraftClient mc) {
+		if (mc == null || mc.player == null || mc.world == null) return null;
+		return new RestoreState(mc.world, new TimelineCameraEvaluator.CameraSample(
+			mc.player.getEyePos(), mc.player.getYaw(), mc.player.getPitch()));
+	}
+
+	private void restore(MinecraftClient mc, RestoreState state) {
+		if (mc == null || state == null || mc.world != state.world() || mc.player == null) return;
+		syncPlayerToSample(state.sample());
+	}
 
 	private void clearKey(net.minecraft.client.option.KeyBinding key) {
 		if (key != null) key.setPressed(false);

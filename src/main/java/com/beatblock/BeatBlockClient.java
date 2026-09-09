@@ -100,11 +100,17 @@ public class BeatBlockClient implements ClientModInitializer {
 		});
 		
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> BuildLayerWorldStore.onWorldJoined(client));
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> BuildLayerWorldStore.onWorldLeft(client));
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			com.beatblock.client.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
+			com.beatblock.client.camera.CameraRuntime.getInstance().endBeatBlockSession();
+			BuildLayerWorldStore.onWorldLeft(client);
+		});
 		ClientChunkEvents.CHUNK_LOAD.register(BuildLayerWorldStore::onChunkLoaded);
 
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
 			LOGGER.info("BeatBlock client stopping: releasing timeline and audio background resources");
+			com.beatblock.client.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
+			com.beatblock.client.camera.CameraRuntime.getInstance().endBeatBlockSession();
 			BuildLayerWorldStore.flushNow(client);
 			var ctx = BeatBlock.getContext();
 			if (ctx.videoExportService() != null && ctx.videoExportService().isExporting()) {
