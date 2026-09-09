@@ -6,6 +6,7 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.editing.TimelineDocumentChangeNotifier;
 import com.beatblock.timeline.project.ProjectSessionController;
+import com.beatblock.timeline.project.UnsavedChangesCoordinator;
 import com.beatblock.ui.i18n.BBTexts;
 
 import java.util.function.Supplier;
@@ -76,8 +77,16 @@ public final class MenuBarPresenter {
 		return sessionController;
 	}
 
+	public UnsavedChangesCoordinator unsavedChanges() {
+		return sessionController.unsavedChanges();
+	}
+
 	public boolean isDirty() {
 		return sessionController.isDirty();
+	}
+
+	public boolean hasProjectPath() {
+		return sessionController.hasProjectPath();
 	}
 
 	public TimelineEditorPresenter.UndoRedoViewState undoRedoState() {
@@ -154,8 +163,21 @@ public final class MenuBarPresenter {
 		return sessionController.openProject(rawPath);
 	}
 
+	/** Save to current path, or signal Save As when unset. */
+	public ProjectSessionController.SaveOutcome save() {
+		return sessionController.save();
+	}
+
+	public PresenterResult saveAs(String rawPath) {
+		return sessionController.saveAs(rawPath);
+	}
+
 	public PresenterResult saveProject(String rawPath) {
-		return sessionController.saveProject(rawPath);
+		return sessionController.saveAs(rawPath);
+	}
+
+	public void closeBeatBlock(Runnable onCloseUi) {
+		sessionController.closeBeatBlock(onCloseUi);
 	}
 
 	static boolean isLoadableLocalAudioPath(String path) {

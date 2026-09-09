@@ -1059,6 +1059,7 @@
   "beatblock.message.project_saved": "Project saved",
   "beatblock.message.project_new": "New project created",
   "beatblock.message.new_project_failed": "New project failed: %s",
+  "beatblock.message.save_as_required": "Choose a path with Save As",
   "beatblock.message.import_music_first": "Import music first to analyze",
   "beatblock.message.marker_not_found": "Marker not found.",
   "beatblock.message.marker_locked": "Marker is locked.",

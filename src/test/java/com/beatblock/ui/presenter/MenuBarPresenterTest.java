@@ -92,11 +92,18 @@ class MenuBarPresenterTest {
 		Path file = tempDir.resolve("show.osc");
 		TimelineDocumentChangeNotifier.notifyDocumentEdited();
 		assertTrue(presenter.isDirty());
-		var result = presenter.saveProject(file.toString());
+		var result = presenter.saveAs(file.toString());
 		assertTrue(result.ok());
 		assertTrue(Files.exists(file));
 		assertEquals(file.toString(), presenter.defaultSaveProjectPath());
 		assertFalse(presenter.isDirty());
+	}
+
+	@Test
+	void saveWithoutPathRoutesToSaveAs() {
+		assertFalse(presenter.hasProjectPath());
+		var outcome = presenter.save();
+		assertEquals(com.beatblock.timeline.project.ProjectSessionController.SaveRoute.NEEDS_SAVE_AS, outcome.route());
 	}
 
 	@Test

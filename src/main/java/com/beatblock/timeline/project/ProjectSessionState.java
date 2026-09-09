@@ -3,6 +3,8 @@ package com.beatblock.timeline.project;
 import com.beatblock.timeline.Timeline;
 import org.jspecify.annotations.Nullable;
 
+import java.nio.file.Path;
+
 /**
  * Project-level session identity and dirty tracking.
  * <p>
@@ -14,7 +16,7 @@ public final class ProjectSessionState {
 	private static final ProjectSessionState INSTANCE = new ProjectSessionState();
 
 	private String projectId = "";
-	private String projectPath = "";
+	private @Nullable Path projectPath;
 	private long documentGeneration;
 	private long savedGeneration;
 
@@ -31,7 +33,7 @@ public final class ProjectSessionState {
 
 	private synchronized void resetInternal() {
 		projectId = "";
-		projectPath = "";
+		projectPath = null;
 		documentGeneration = 0;
 		savedGeneration = 0;
 	}
@@ -52,8 +54,13 @@ public final class ProjectSessionState {
 		return projectId;
 	}
 
-	public synchronized String projectPath() {
+	public synchronized @Nullable Path projectPath() {
 		return projectPath;
+	}
+
+	/** String form for UI / metadata; empty when unset. */
+	public synchronized String projectPathString() {
+		return projectPath != null ? projectPath.toString() : "";
 	}
 
 	/** Called from {@link com.beatblock.timeline.editing.TimelineDocumentChangeNotifier}. */
@@ -65,39 +72,84 @@ public final class ProjectSessionState {
 		savedGeneration = documentGeneration;
 	}
 
-	public synchronized void syncIdentity(@Nullable String id, @Nullable String path) {
-		this.projectId = id != null ? id.trim() : "";
-		this.projectPath = path != null ? path.trim() : "";
-	}
-
-	public synchronized void onProjectSaved(@Nullable String id, @Nullable String path) {
-		syncIdentity(id, path);
+	public synchronized void markSaved(@Nullable Path path) {
+		if (path != null) {
+			this.projectPath = path.toAbsolutePath().normalize();
+		}
 		markClean();
 	}
 
-	public synchronized void onProjectOpened(@Nullable String id, @Nullable String path) {
-		syncIdentity(id, path);
+	public synchronized void markOpened(@Nullable Path path) {
+		if (path != null) {
+			this.projectPath = path.toAbsolutePath().normalize();
+		}
 		markClean();
 	}
 
-	public synchronized void onNewProject(@Nullable String newProjectId) {
+	public synchronized void markNewProject() {
+		this.projectId = java.util.UUID.randomUUID().toString();
+		this.projectPath = null;
+		markClean();
+	}
+
+	public synchronized void markNewProject(String newProjectId) {
 		this.projectId = newProjectId != null && !newProjectId.isBlank()
 			? newProjectId.trim()
 			: java.util.UUID.randomUUID().toString();
-		this.projectPath = "";
+		this.projectPath = null;
 		markClean();
+	}
+
+	public synchronized void syncIdentity(@Nullable String id, @Nullable String path) {
+		this.projectId = id != null ? id.trim() : "";
+		if (path == null || path.isBlank()) {
+			this.projectPath = null;
+		} else {
+			try {
+				this.projectPath = Path.of(path.trim()).toAbsolutePath().normalize();
+			} catch (RuntimeException ex) {
+				this.projectPath = null;
+			}
+		}
+	}
+
+	public synchronized void onProjectSaved(@Nullable String id, @Nullable String path) {
+		if (id != null && !id.isBlank()) {
+			this.projectId = id.trim();
+		}
+		markSaved(path != null && !path.isBlank() ? Path.of(path) : null);
+	}
+
+	public synchronized void onProjectOpened(@Nullable String id, @Nullable String path) {
+		if (id != null && !id.isBlank()) {
+			this.projectId = id.trim();
+		}
+		markOpened(path != null && !path.isBlank() ? Path.of(path) : null);
+	}
+
+	public synchronized void onNewProject(@Nullable String newProjectId) {
+		markNewProject(newProjectId != null ? newProjectId : "");
 	}
 
 	/** Align session mirrors with live Timeline metadata (app start / bind). */
 	public synchronized void bindFromTimeline(@Nullable Timeline timeline) {
 		if (timeline == null) {
 			projectId = "";
-			projectPath = "";
+			projectPath = null;
 			return;
 		}
 		Object id = timeline.getMetadata("projectId");
 		Object path = timeline.getMetadata("projectPath");
 		projectId = id != null ? String.valueOf(id).trim() : "";
-		projectPath = path != null ? String.valueOf(path).trim() : "";
+		String pathStr = path != null ? String.valueOf(path).trim() : "";
+		if (pathStr.isBlank()) {
+			projectPath = null;
+		} else {
+			try {
+				projectPath = Path.of(pathStr).toAbsolutePath().normalize();
+			} catch (RuntimeException ex) {
+				projectPath = null;
+			}
+		}
 	}
 }

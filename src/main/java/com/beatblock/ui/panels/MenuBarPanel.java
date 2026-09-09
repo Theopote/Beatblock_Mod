@@ -13,22 +13,17 @@ import com.beatblock.ui.presenter.TimelineToolbarFeedbackPresenter;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.preferences.BeatBlockShortcutId;
 import com.beatblock.ui.preferences.UiPreferences;
+import com.beatblock.timeline.project.ProjectSessionController;
+import com.beatblock.timeline.project.UnsavedChangesCoordinator;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
-import org.jspecify.annotations.Nullable;
 
 /**
  * 顶部通栏菜单栏：文件、编辑、视图、演出、帮助。
  */
 public class MenuBarPanel {
-
-	private enum PendingLifecycleAction {
-		NEW_PROJECT,
-		OPEN_PROJECT,
-		CLOSE_BEATBLOCK
-	}
 
 	private static final int IMPORT_PATH_CAPACITY = 512;
 
@@ -58,7 +53,7 @@ public class MenuBarPanel {
 	private final ImString saveProjectPath = new ImString(IMPORT_PATH_CAPACITY);
 	private String projectDialogMessage = "";
 	private String importDialogMessage = "";
-	private @Nullable PendingLifecycleAction pendingLifecycleAction;
+	private boolean awaitingSaveAsForUnsavedGate;
 
 	public MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
 			Runnable onGenerateRhythmDrop, Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout,
@@ -292,38 +287,42 @@ public class MenuBarPanel {
 	}
 
 	public void requestNewProject() {
-		if (presenter.isDirty()) {
-			beginUnsavedGate(PendingLifecycleAction.NEW_PROJECT);
+		var gate = presenter.unsavedChanges().request(
+			UnsavedChangesCoordinator.Intent.NEW_PROJECT, presenter.isDirty());
+		if (gate == UnsavedChangesCoordinator.Gate.NEEDS_CONFIRM) {
+			showUnsavedDialog = true;
 			return;
 		}
 		showPresenterResult(presenter.newProject());
 	}
 
 	public void requestOpenProject() {
-		if (presenter.isDirty()) {
-			beginUnsavedGate(PendingLifecycleAction.OPEN_PROJECT);
+		var gate = presenter.unsavedChanges().request(
+			UnsavedChangesCoordinator.Intent.OPEN_PROJECT, presenter.isDirty());
+		if (gate == UnsavedChangesCoordinator.Gate.NEEDS_CONFIRM) {
+			showUnsavedDialog = true;
 			return;
 		}
 		openOpenProjectDialog();
 	}
 
 	public void requestCloseBeatBlock() {
-		if (presenter.isDirty()) {
-			beginUnsavedGate(PendingLifecycleAction.CLOSE_BEATBLOCK);
+		var gate = presenter.unsavedChanges().request(
+			UnsavedChangesCoordinator.Intent.CLOSE_BEATBLOCK, presenter.isDirty());
+		if (gate == UnsavedChangesCoordinator.Gate.NEEDS_CONFIRM) {
+			showUnsavedDialog = true;
 			return;
 		}
-		if (onCloseRequest != null) {
-			onCloseRequest.run();
-		}
+		presenter.closeBeatBlock(onCloseRequest);
 	}
 
 	public void requestSaveProject() {
-		String path = presenter.defaultSaveProjectPath();
-		if (path == null || path.isBlank()) {
+		var outcome = presenter.save();
+		if (outcome.route() == ProjectSessionController.SaveRoute.NEEDS_SAVE_AS) {
 			requestSaveProjectAs();
 			return;
 		}
-		showPresenterResult(presenter.saveProject(path));
+		showPresenterResult(outcome.result());
 	}
 
 	private void requestSaveProjectAs() {
@@ -332,32 +331,22 @@ public class MenuBarPanel {
 		saveProjectPath.set(presenter.defaultSaveProjectPath());
 	}
 
-	private void beginUnsavedGate(PendingLifecycleAction action) {
-		pendingLifecycleAction = action;
-		showUnsavedDialog = true;
-	}
-
 	private void openOpenProjectDialog() {
 		showOpenProjectDialog = true;
 		projectDialogMessage = "";
 		openProjectPath.set("");
 	}
 
-	private void continuePendingLifecycleAction() {
-		PendingLifecycleAction action = pendingLifecycleAction;
-		pendingLifecycleAction = null;
+	private void continuePendingLifecycleAction(UnsavedChangesCoordinator.Intent action) {
 		showUnsavedDialog = false;
+		awaitingSaveAsForUnsavedGate = false;
 		if (action == null) {
 			return;
 		}
 		switch (action) {
 			case NEW_PROJECT -> showPresenterResult(presenter.newProject());
 			case OPEN_PROJECT -> openOpenProjectDialog();
-			case CLOSE_BEATBLOCK -> {
-				if (onCloseRequest != null) {
-					onCloseRequest.run();
-				}
-			}
+			case CLOSE_BEATBLOCK -> presenter.closeBeatBlock(onCloseRequest);
 		}
 	}
 
@@ -368,30 +357,29 @@ public class MenuBarPanel {
 			ImGui.textWrapped(BBTexts.get("beatblock.dialog.unsaved_changes.message"));
 			ImGui.spacing();
 			if (ImGui.button(BBTexts.get("beatblock.common.save"))) {
-				String path = presenter.defaultSaveProjectPath();
-				if (path == null || path.isBlank()) {
+				var choice = presenter.unsavedChanges().chooseSave(presenter.hasProjectPath());
+				if (choice == UnsavedChangesCoordinator.SaveChoice.SAVE_AS) {
 					showUnsavedDialog = false;
-					// Save As first; resume pending after successful save.
-					showSaveProjectDialog = true;
-					projectDialogMessage = "";
-					saveProjectPath.set("");
-					// keep pendingLifecycleAction
-				} else {
-					var result = presenter.saveProject(path);
-					showPresenterResult(result);
-					if (result.ok()) {
-						continuePendingLifecycleAction();
+					awaitingSaveAsForUnsavedGate = true;
+					requestSaveProjectAs();
+				} else if (choice == UnsavedChangesCoordinator.SaveChoice.SAVE) {
+					var outcome = presenter.save();
+					showPresenterResult(outcome.result());
+					if (outcome.ok()) {
+						continuePendingLifecycleAction(
+							presenter.unsavedChanges().continueAfterSuccessfulSave());
 					}
 				}
 			}
 			ImGui.sameLine();
 			if (ImGui.button(BBTexts.get("beatblock.common.dont_save"))) {
-				continuePendingLifecycleAction();
+				continuePendingLifecycleAction(presenter.unsavedChanges().confirmDiscard());
 			}
 			ImGui.sameLine();
 			if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##unsaved")) {
-				pendingLifecycleAction = null;
+				presenter.unsavedChanges().cancel();
 				showUnsavedDialog = false;
+				awaitingSaveAsForUnsavedGate = false;
 			}
 		}
 		ImGui.end();
@@ -472,21 +460,23 @@ public class MenuBarPanel {
 			ImGui.setNextItemWidth(-1);
 			ImGui.inputText("##saveOscPath", saveProjectPath);
 			if (ImGui.button(BBTexts.get("beatblock.common.save"))) {
-				var result = presenter.saveProject(saveProjectPath.get());
+				var result = presenter.saveAs(saveProjectPath.get());
 				projectDialogMessage = result.messageOrEmpty();
 				if (result.ok()) {
 					showSaveProjectDialog = false;
 					showPresenterResult(result);
-					if (pendingLifecycleAction != null) {
-						continuePendingLifecycleAction();
+					if (awaitingSaveAsForUnsavedGate || presenter.unsavedChanges().hasPending()) {
+						continuePendingLifecycleAction(
+							presenter.unsavedChanges().continueAfterSuccessfulSave());
 					}
 				}
 			}
 			ImGui.sameLine();
 			if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##saveOsc")) {
 				showSaveProjectDialog = false;
-				if (pendingLifecycleAction != null) {
-					pendingLifecycleAction = null;
+				if (awaitingSaveAsForUnsavedGate) {
+					presenter.unsavedChanges().cancel();
+					awaitingSaveAsForUnsavedGate = false;
 				}
 			}
 			if (!projectDialogMessage.isBlank()) {

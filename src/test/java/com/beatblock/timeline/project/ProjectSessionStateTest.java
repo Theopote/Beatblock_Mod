@@ -38,14 +38,16 @@ class ProjectSessionStateTest {
 	}
 
 	@Test
-	void saveClearsDirtyWithoutClearingUndoConcept() {
+	void saveClearsDirtyWithoutClearingUndoConcept(@TempDir Path tempDir) {
 		ProjectSessionState session = ProjectSessionState.get();
 		session.markDocumentEdited();
 		assertTrue(session.isDirty());
-		session.onProjectSaved("id-1", "D:/a.osc");
+		Path path = tempDir.resolve("a.osc");
+		session.syncIdentity("id-1", path.toString());
+		session.markSaved(path);
 		assertFalse(session.isDirty());
 		assertEquals("id-1", session.projectId());
-		assertEquals("D:/a.osc", session.projectPath());
+		assertEquals(path.toAbsolutePath().normalize(), session.projectPath());
 	}
 
 	@Test

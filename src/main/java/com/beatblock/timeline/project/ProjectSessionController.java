@@ -2,7 +2,6 @@ package com.beatblock.timeline.project;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.audio.AudioLoader;
-import com.beatblock.client.BeatBlockClientDriver;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.stage.StageManager;
 import com.beatblock.timeline.Timeline;
@@ -16,12 +15,42 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * Project lifecycle: New / Open / Save and session-switch cleanup.
- * MenuBar is UI only; dirty gates are enforced by callers using {@link #isDirty()}.
+ * Project lifecycle: New / Open / Save / Save As and session-switch cleanup.
+ * MenuBar is UI; dirty gates use {@link UnsavedChangesCoordinator}.
  */
 public final class ProjectSessionController {
 
+	public enum SaveRoute {
+		/** Wrote to current projectPath. */
+		SAVED,
+		/** No projectPath — UI must open Save As. */
+		NEEDS_SAVE_AS,
+		/** Save failed; path unchanged; dirty unchanged. */
+		FAILED
+	}
+
+	public record SaveOutcome(SaveRoute route, PresenterResult result) {
+		public boolean ok() {
+			return route == SaveRoute.SAVED && result != null && result.ok();
+		}
+
+		public static SaveOutcome saved(PresenterResult result) {
+			return new SaveOutcome(SaveRoute.SAVED, result);
+		}
+
+		public static SaveOutcome needsSaveAs() {
+			return new SaveOutcome(SaveRoute.NEEDS_SAVE_AS,
+				PresenterResult.failure(BBTexts.get("beatblock.message.save_as_required")));
+		}
+
+		public static SaveOutcome failed(PresenterResult result) {
+			return new SaveOutcome(SaveRoute.FAILED, result);
+		}
+	}
+
 	private final ProjectSessionState session;
+	private final UnsavedChangesCoordinator unsaved;
+	private final ProjectRuntimeResetService runtimeReset;
 	private final Supplier<Timeline> timeline;
 	private final Supplier<TimelineEditor> timelineEditor;
 	private final Supplier<BuildLayerManager> layerManager;
@@ -52,27 +81,89 @@ public final class ProjectSessionController {
 		this.layerManager = layerManager;
 		this.audioLoader = audioLoader;
 		this.stageManager = stageManager != null ? stageManager : () -> null;
+		this.unsaved = new UnsavedChangesCoordinator();
+		this.runtimeReset = new ProjectRuntimeResetService(timelineEditor);
 	}
 
 	public ProjectSessionState session() {
 		return session;
 	}
 
+	public UnsavedChangesCoordinator unsavedChanges() {
+		return unsaved;
+	}
+
+	public ProjectRuntimeResetService runtimeReset() {
+		return runtimeReset;
+	}
+
 	public boolean isDirty() {
 		return session.isDirty();
 	}
 
+	public boolean hasProjectPath() {
+		return !defaultSaveProjectPath().isBlank();
+	}
+
 	public String defaultSaveProjectPath() {
 		Timeline current = timeline.get();
+		if (current != null) {
+			Object path = current.getMetadata("projectPath");
+			if (path != null && !String.valueOf(path).isBlank()) {
+				return String.valueOf(path);
+			}
+		}
+		return session.projectPathString();
+	}
+
+	/**
+	 * Save to current projectPath; if none, returns {@link SaveRoute#NEEDS_SAVE_AS}.
+	 */
+	public SaveOutcome save() {
+		String path = defaultSaveProjectPath();
+		if (path == null || path.isBlank()) {
+			return SaveOutcome.needsSaveAs();
+		}
+		PresenterResult result = saveAs(path);
+		return result.ok() ? SaveOutcome.saved(result) : SaveOutcome.failed(result);
+	}
+
+	/**
+	 * Save As: write to {@code rawPath}; update projectPath only after success.
+	 */
+	public PresenterResult saveAs(String rawPath) {
+		String path = rawPath != null ? rawPath.trim() : "";
+		if (path.isEmpty()) {
+			return PresenterResult.failure(BBTexts.get("beatblock.message.path_empty"));
+		}
+		Timeline current = timeline.get();
 		if (current == null) {
-			return "";
+			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
 		}
-		Object path = current.getMetadata("projectPath");
-		if (path != null && !String.valueOf(path).isBlank()) {
-			return String.valueOf(path);
+		String previousPath = stringMeta(current, "projectPath");
+		try {
+			Path abs = Path.of(path).toAbsolutePath().normalize();
+			OscProjectStore.save(abs, current, layerManager.get());
+			current.setMetadata("projectPath", abs.toString());
+			Object id = current.getMetadata("projectId");
+			if (id != null && !String.valueOf(id).isBlank()) {
+				session.syncIdentity(String.valueOf(id), abs.toString());
+			}
+			session.markSaved(abs);
+			return PresenterResult.success(BBTexts.get("beatblock.message.project_saved"));
+		} catch (Exception e) {
+			// Failure must not update path / dirty.
+			if (!previousPath.isBlank()) {
+				current.setMetadata("projectPath", previousPath);
+			} else {
+				current.setMetadata("projectPath", null);
+			}
+			return PresenterResult.failure(BBTexts.get("beatblock.message.save_failed", e.getMessage()));
 		}
-		String sessionPath = session.projectPath();
-		return sessionPath != null ? sessionPath : "";
+	}
+
+	public PresenterResult saveProject(String rawPath) {
+		return saveAs(rawPath);
 	}
 
 	/**
@@ -84,7 +175,7 @@ public final class ProjectSessionController {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
 		}
 		try {
-			beginSessionSwitch();
+			runtimeReset.reset(ProjectRuntimeResetService.Mode.PREPARE_SWITCH);
 			current.resetToEmptyProject();
 			BuildLayerManager layers = layerManager.get();
 			if (layers != null) {
@@ -98,8 +189,8 @@ public final class ProjectSessionController {
 			current.setMetadata("projectId", newId);
 			current.setMetadata("projectPath", null);
 			current.setMetadata("audioPath", null);
-			finishSessionSwitch(false);
-			session.onNewProject(newId);
+			runtimeReset.reset(ProjectRuntimeResetService.Mode.AFTER_DOCUMENT_SWAP);
+			session.markNewProject(newId);
 			return PresenterResult.success(BBTexts.get("beatblock.message.project_new"));
 		} catch (Exception e) {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.new_project_failed", e.getMessage()));
@@ -108,7 +199,7 @@ public final class ProjectSessionController {
 
 	/**
 	 * Transactional open. Audio missing after document commit remains a soft warning.
-	 * Caller must confirm discard when dirty.
+	 * Undo / runtime clear only after successful commit.
 	 */
 	public PresenterResult openProject(String rawPath) {
 		String path = rawPath != null ? rawPath.trim() : "";
@@ -120,14 +211,28 @@ public final class ProjectSessionController {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
 		}
 		try {
-			beginSessionSwitch();
+			// Cancel live gesture before commit, but do not clear Undo until success.
+			TimelineEditor editor = timelineEditor.get();
+			if (editor != null) {
+				editor.cancelLiveDocumentPreview();
+			}
 			BuildLayerManager layers = layerManager.get();
 			var open = ProjectDocumentLoader.openTransactional(Path.of(path), current, layers);
 			OscProjectStore.LoadedProject loaded = open.loaded();
+			runtimeReset.reset(ProjectRuntimeResetService.Mode.PREPARE_SWITCH);
 			applyLoadedIdentity(current, loaded);
 			boolean audioLoadFailed = loadReferencedAudio(loaded.getAudioPath());
-			finishSessionSwitch(true);
-			session.onProjectOpened(loaded.getProjectId(), loaded.getProjectPath());
+			runtimeReset.reset(ProjectRuntimeResetService.Mode.AFTER_DOCUMENT_SWAP);
+			if (layers != null) {
+				try {
+					layers.applyPersistedWorldState(BuildLayerManager.currentWorld());
+				} catch (Throwable error) {
+					BeatBlock.LOGGER.debug("Skip applyPersistedWorldState after project open", error);
+				}
+			}
+			Path opened = Path.of(path).toAbsolutePath().normalize();
+			session.syncIdentity(loaded.getProjectId(), opened.toString());
+			session.markOpened(opened);
 			return PresenterResult.success(BBTexts.get(audioLoadFailed
 				? "beatblock.message.project_opened_audio_failed"
 				: "beatblock.message.project_opened"));
@@ -136,47 +241,11 @@ public final class ProjectSessionController {
 		}
 	}
 
-	public PresenterResult saveProject(String rawPath) {
-		String path = rawPath != null ? rawPath.trim() : "";
-		if (path.isEmpty()) {
-			return PresenterResult.failure(BBTexts.get("beatblock.message.path_empty"));
-		}
-		Timeline current = timeline.get();
-		if (current == null) {
-			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
-		}
-		try {
-			OscProjectStore.save(Path.of(path), current, layerManager.get());
-			current.setMetadata("projectPath", path);
-			Object id = current.getMetadata("projectId");
-			session.onProjectSaved(id != null ? String.valueOf(id) : "", path);
-			return PresenterResult.success(BBTexts.get("beatblock.message.project_saved"));
-		} catch (Exception e) {
-			return PresenterResult.failure(BBTexts.get("beatblock.message.save_failed", e.getMessage()));
-		}
-	}
-
-	private void beginSessionSwitch() {
-		TimelineEditor editor = timelineEditor.get();
-		if (editor != null) {
-			editor.cancelLiveDocumentPreview();
-		}
-		stopPlaybackSafely();
-	}
-
-	private void finishSessionSwitch(boolean applyPersistedWorld) {
-		TimelineEditor editor = timelineEditor.get();
-		if (editor != null) {
-			editor.clearTransientEditState();
-			editor.syncClockDuration();
-		}
-		BuildLayerManager layers = layerManager.get();
-		if (applyPersistedWorld && layers != null) {
-			try {
-				layers.applyPersistedWorldState(BuildLayerManager.currentWorld());
-			} catch (Throwable error) {
-				BeatBlock.LOGGER.debug("Skip applyPersistedWorldState after project switch", error);
-			}
+	/** Close BeatBlock after unsaved gate: shared runtime cleanup then UI callback. */
+	public void closeBeatBlock(Runnable onCloseUi) {
+		runtimeReset.reset(ProjectRuntimeResetService.Mode.CLOSE_UI);
+		if (onCloseUi != null) {
+			onCloseUi.run();
 		}
 	}
 
@@ -203,12 +272,9 @@ public final class ProjectSessionController {
 		return loader == null || !loader.load(audioPath);
 	}
 
-	private static void stopPlaybackSafely() {
-		try {
-			BeatBlockClientDriver.stopPlayback();
-		} catch (Throwable error) {
-			BeatBlock.LOGGER.debug("Skip stopPlayback during project session switch", error);
-		}
+	private static String stringMeta(Timeline timeline, String key) {
+		Object v = timeline.getMetadata(key);
+		return v != null ? String.valueOf(v).trim() : "";
 	}
 
 	/** 仅尝试加载本地/可解码音频；跳过 golden:// 等测试占位 scheme。 */

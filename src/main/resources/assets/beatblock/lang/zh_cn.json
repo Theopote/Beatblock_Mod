@@ -1059,6 +1059,7 @@
   "beatblock.message.project_saved": "工程已保存",
   "beatblock.message.project_new": "已创建新工程",
   "beatblock.message.new_project_failed": "新建工程失败: %s",
+  "beatblock.message.save_as_required": "请使用「另存为」选择路径",
   "beatblock.message.import_music_first": "请先导入音乐以进行分析",
   "beatblock.message.marker_not_found": "Marker 不存在。",
   "beatblock.message.marker_locked": "Marker 已锁定。",
