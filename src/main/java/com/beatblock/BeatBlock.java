@@ -101,6 +101,10 @@ public class BeatBlock implements ModInitializer {
 			.videoExportService(videoExportService)
 			.selectionManager(new com.beatblock.selection.BeatBlockSelectionManager())
 			.build();
+		com.beatblock.timeline.project.ProjectSessionState session =
+			com.beatblock.timeline.project.ProjectSessionState.get();
+		session.bindFromTimeline(timelineModel);
+		session.markClean();
 	}
 
 	private static void registerAssetConversionHandler() {

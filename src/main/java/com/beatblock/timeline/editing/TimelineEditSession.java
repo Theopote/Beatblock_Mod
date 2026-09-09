@@ -61,6 +61,11 @@ public final class TimelineEditSession {
 		commands.clear();
 	}
 
+	/** Clear interaction clipboard buffer (project switch / New Project). */
+	public void clearClipboard() {
+		interaction.clipboardEvents().clear();
+	}
+
 	public boolean hasSelection() {
 		return !selection.getSelectedEvents().isEmpty() || !selection.getSelectedClips().isEmpty();
 	}

@@ -33,6 +33,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>存储项目身份、时间线基础信息、animationTracks（含音频轨 clips）、
  * clipMetadata（音频片段标签/路径等）、建造图层与编舞计划。
+ * <p>
+ * Transactional open uses {@link #readRoot(Path)} then {@link #applyRoot} on a scratch
+ * document before committing to the live Timeline / BuildLayerManager.
  */
 public final class OscProjectStore {
 
@@ -54,14 +57,45 @@ public final class OscProjectStore {
 
 		String projectId = stringMeta(timeline, "projectId");
 		if (projectId.isBlank()) projectId = UUID.randomUUID().toString();
+
+		JsonObject root = toRoot(timeline, layerManager, abs.toString(), projectId);
+		writeAtomically(abs, GSON.toJson(root));
+
+		// 回写到 timeline，确保后续 UI 隔离键稳定。
+		timeline.setMetadata("projectId", projectId);
+		timeline.setMetadata("projectPath", abs.toString());
 		String audioPath = stringMeta(timeline, "audioPath");
-		String timelineName = timeline.getName();
+		if (!audioPath.isBlank()) timeline.setMetadata("audioPath", audioPath);
+	}
+
+	/**
+	 * Serialize the live document to a JSON root (deep-copyable via {@link #copyRoot}).
+	 * Used for in-memory backup before commit and for Save.
+	 */
+	public static JsonObject toRoot(
+		Timeline timeline,
+		@Nullable BuildLayerManager layerManager,
+		@Nullable String projectPathOverride,
+		@Nullable String projectIdOverride
+	) {
+		if (timeline == null) {
+			throw new IllegalArgumentException("timeline must not be null");
+		}
+		String projectId = projectIdOverride != null && !projectIdOverride.isBlank()
+			? projectIdOverride
+			: stringMeta(timeline, "projectId");
+		if (projectId.isBlank()) projectId = UUID.randomUUID().toString();
+		String projectPath = projectPathOverride != null
+			? projectPathOverride
+			: stringMeta(timeline, "projectPath");
+		String audioPath = stringMeta(timeline, "audioPath");
+
 		JsonObject root = new JsonObject();
 		root.addProperty("format", OscSchemaVersions.FORMAT);
 		root.addProperty("schemaVersion", OscSchemaVersions.CURRENT);
 		root.addProperty("projectId", projectId);
-		root.addProperty("projectPath", abs.toString());
-		root.addProperty("timelineName", timelineName);
+		root.addProperty("projectPath", projectPath);
+		root.addProperty("timelineName", timeline.getName());
 		root.addProperty("audioPath", audioPath);
 		root.addProperty("durationSeconds", timeline.getDurationSeconds());
 		root.addProperty("bpm", timeline.getBpm());
@@ -89,15 +123,80 @@ public final class OscProjectStore {
 		}
 		JsonObject choreography = ChoreographyPlanPersistence.toJson(timeline);
 		if (choreography != null) root.add("choreography", choreography);
+		return root;
+	}
 
-		// 原子写入：唯一临时文件 + ATOMIC_MOVE（必要时回退）+ 失败清理，避免半写/冲突。
-		String json = GSON.toJson(root);
-		writeAtomically(abs, json);
+	/** Deep-copy a JSON root for backup / candidate reuse. */
+	public static JsonObject copyRoot(JsonObject root) {
+		return JsonParser.parseString(GSON.toJson(root)).getAsJsonObject();
+	}
 
-		// 回写到 timeline，确保后续 UI 隔离键稳定。
-		timeline.setMetadata("projectId", projectId);
-		timeline.setMetadata("projectPath", abs.toString());
-		if (!audioPath.isBlank()) timeline.setMetadata("audioPath", audioPath);
+	/** Read + migrate .osc without mutating any live document. */
+	public static JsonObject readRoot(Path filePath) throws IOException {
+		if (filePath == null) throw new IOException("打开失败：文件路径为空");
+		Path abs = filePath.toAbsolutePath().normalize();
+		if (!Files.exists(abs)) throw new IOException("打开失败：文件不存在 " + abs);
+		String json = Files.readString(abs, StandardCharsets.UTF_8);
+		try {
+			return OscProjectMigration.migrateToCurrent(JsonParser.parseString(json).getAsJsonObject());
+		} catch (RuntimeException ex) {
+			throw new IOException("打开失败：无效的工程文件 " + abs + ": " + ex.getMessage(), ex);
+		}
+	}
+
+	/**
+	 * Apply a migrated root into Timeline / BuildLayerManager (mutates targets).
+	 * Callers that need transactional open must apply to scratch first.
+	 */
+	public static LoadedProject applyRoot(
+		JsonObject root,
+		@Nullable BuildLayerManager layerManager,
+		@Nullable Timeline timeline
+	) throws IOException {
+		if (root == null) throw new IOException("打开失败：工程内容为空");
+
+		String projectId = getString(root, "projectId", "");
+		if (projectId.isBlank()) projectId = UUID.randomUUID().toString();
+
+		String projectPath = getString(root, "projectPath", "");
+		String timelineName = getString(root, "timelineName", "");
+		String audioPath = getString(root, "audioPath", "");
+		double durationSeconds = getDouble(root, "durationSeconds", 0.0);
+		double bpm = getDouble(root, "bpm", 0.0);
+		List<TimelineMarker> markers = parseMarkers(root);
+		if (layerManager != null && root.has("buildLayers") && root.get("buildLayers").isJsonArray()) {
+			JsonArray groupsArr = root.has("buildLayerGroups") && root.get("buildLayerGroups").isJsonArray()
+				? root.getAsJsonArray("buildLayerGroups")
+				: null;
+			BuildLayerPersistence.loadInto(layerManager, root.getAsJsonArray("buildLayers"), groupsArr);
+		}
+		if (timeline != null) {
+			timeline.setName(timelineName);
+			timeline.setDurationSeconds(durationSeconds);
+			timeline.setMetadata("projectId", projectId);
+			timeline.setMetadata("projectPath", projectPath.isBlank() ? null : projectPath);
+			timeline.setMetadata("audioPath", audioPath.isBlank() ? null : audioPath);
+			timeline.setMetadata("bpm", bpm > 0 ? bpm : null);
+			timeline.clearMarkers();
+			markers.forEach(timeline::addMarker);
+			JsonArray animationTracks = root.has("animationTracks") && root.get("animationTracks").isJsonArray()
+				? root.getAsJsonArray("animationTracks")
+				: null;
+			TimelineAnimationPersistence.loadInto(timeline, animationTracks);
+			if (root.has("clipMetadata")) {
+				TimelineClipMetadataPersistence.loadInto(timeline, root.get("clipMetadata"));
+			}
+			if (root.has("choreography")) {
+				ChoreographyPlanPersistence.loadInto(timeline, root.get("choreography"));
+			}
+			if (layerManager != null) {
+				BuildLayerBindingSupport.reconcileBindings(layerManager, timeline);
+			}
+		} else if (layerManager != null) {
+			BuildLayerBindingSupport.reconcileBindings(layerManager, null);
+		}
+
+		return new LoadedProject(projectId, projectPath, timelineName, audioPath, markers);
 	}
 
 	/**
@@ -117,13 +216,12 @@ public final class OscProjectStore {
 		String fileName = fileNamePath != null ? fileNamePath.toString() : "project.osc";
 		Path temp = null;
 		try {
-			// 唯一临时名，避免并发保存争用固定的 "*.osc.tmp"
 			temp = parent != null
 				? Files.createTempFile(parent, fileName + ".", ".tmp")
 				: Files.createTempFile(fileName + ".", ".tmp");
 			Files.writeString(temp, content, StandardCharsets.UTF_8);
 			moveReplacing(temp, abs);
-			temp = null; // 已成功移走，finally 无需再删
+			temp = null;
 		} finally {
 			if (temp != null) {
 				try {
@@ -153,55 +251,12 @@ public final class OscProjectStore {
 	}
 
 	public static LoadedProject load(Path filePath, @Nullable BuildLayerManager layerManager, @Nullable Timeline timeline) throws IOException {
-		if (filePath == null) throw new IOException("打开失败：文件路径为空");
+		JsonObject root = readRoot(filePath);
 		Path abs = filePath.toAbsolutePath().normalize();
-		if (!Files.exists(abs)) throw new IOException("打开失败：文件不存在 " + abs);
-
-		String json = Files.readString(abs, StandardCharsets.UTF_8);
-		JsonObject root = OscProjectMigration.migrateToCurrent(JsonParser.parseString(json).getAsJsonObject());
-
-		String projectId = getString(root, "projectId", "");
-		if (projectId.isBlank()) projectId = UUID.randomUUID().toString();
-
-		String projectPath = getString(root, "projectPath", abs.toString());
-		String timelineName = getString(root, "timelineName", "");
-		String audioPath = getString(root, "audioPath", "");
-		double durationSeconds = getDouble(root, "durationSeconds", 0.0);
-		double bpm = getDouble(root, "bpm", 0.0);
-		List<TimelineMarker> markers = parseMarkers(root);
-		if (layerManager != null && root.has("buildLayers") && root.get("buildLayers").isJsonArray()) {
-			JsonArray groupsArr = root.has("buildLayerGroups") && root.get("buildLayerGroups").isJsonArray()
-				? root.getAsJsonArray("buildLayerGroups")
-				: null;
-			BuildLayerPersistence.loadInto(layerManager, root.getAsJsonArray("buildLayers"), groupsArr);
+		if (getString(root, "projectPath", "").isBlank()) {
+			root.addProperty("projectPath", abs.toString());
 		}
-		if (timeline != null) {
-			timeline.setName(timelineName);
-			timeline.setDurationSeconds(durationSeconds);
-			timeline.setMetadata("projectId", projectId);
-			timeline.setMetadata("projectPath", projectPath);
-			timeline.setMetadata("audioPath", audioPath.isBlank() ? null : audioPath);
-			timeline.setMetadata("bpm", bpm > 0 ? bpm : null);
-			timeline.clearMarkers();
-			markers.forEach(timeline::addMarker);
-			JsonArray animationTracks = root.has("animationTracks") && root.get("animationTracks").isJsonArray()
-				? root.getAsJsonArray("animationTracks")
-				: null;
-			TimelineAnimationPersistence.loadInto(timeline, animationTracks);
-			if (root.has("clipMetadata")) {
-				TimelineClipMetadataPersistence.loadInto(timeline, root.get("clipMetadata"));
-			}
-			if (root.has("choreography")) {
-				ChoreographyPlanPersistence.loadInto(timeline, root.get("choreography"));
-			}
-			if (layerManager != null) {
-				BuildLayerBindingSupport.reconcileBindings(layerManager, timeline);
-			}
-		} else if (layerManager != null) {
-			BuildLayerBindingSupport.reconcileBindings(layerManager, null);
-		}
-
-		return new LoadedProject(projectId, projectPath, timelineName, audioPath, markers);
+		return applyRoot(root, layerManager, timeline);
 	}
 
 	private static List<TimelineMarker> parseMarkers(JsonObject root) {
@@ -219,8 +274,6 @@ public final class OscProjectStore {
 				MarkerEditState editState = obj.has("editState")
 					? MarkerEditState.fromValue(getString(obj, "editState", ""))
 					: (origin.isSystemProduced() ? MarkerEditState.GENERATED : MarkerEditState.USER_EDITED);
-				// Legacy projects: no origin → MANUAL + USER_EDITED; SECTION from analysis will be
-				// re-tagged on next analysis run.
 				if (!obj.has("origin") || getString(obj, "origin", "").isBlank()) {
 					origin = MarkerOrigin.MANUAL;
 					editState = MarkerEditState.USER_EDITED;

@@ -137,6 +137,18 @@ public final class TimelineEditor {
 	}
 
 	/**
+	 * Project switch / New Project: drop selection, clipboards, and Undo/Redo.
+	 * Does not mutate the Timeline document itself.
+	 */
+	public void clearTransientEditState() {
+		cancelLiveDocumentPreview();
+		getSelectionState().clearAll();
+		editSession.clearClipboard();
+		com.beatblock.timeline.clipboard.TimelineClipboard.getInstance().clear();
+		clearUndoHistory();
+	}
+
+	/**
 	 * Abort live drag/resize preview mutations (Esc, lost capture, project switch, shutdown).
 	 * Does not create an Undo entry.
 	 */

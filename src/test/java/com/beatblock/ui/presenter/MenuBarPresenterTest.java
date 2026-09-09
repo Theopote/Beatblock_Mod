@@ -7,7 +7,11 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.command.AddTimelineAnimationEventCommand;
+import com.beatblock.timeline.editing.TimelineDocumentChangeNotifier;
 import com.beatblock.timeline.project.OscProjectStore;
+import com.beatblock.timeline.project.ProjectSessionController;
+import com.beatblock.timeline.project.ProjectSessionState;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,11 +35,19 @@ class MenuBarPresenterTest {
 
 	@BeforeEach
 	void setUp() {
+		ProjectSessionState.resetForTests();
 		timeline = Timeline.createDefault();
 		editor = new TimelineEditor(timeline);
 		layerManager = new BuildLayerManager(new StageObjectSystem());
 		audioLoader = new RecordingAudioLoader();
 		presenter = createPresenter(() -> timeline, () -> audioLoader);
+		ProjectSessionState.get().bindFromTimeline(timeline);
+		ProjectSessionState.get().markClean();
+	}
+
+	@AfterEach
+	void tearDown() {
+		ProjectSessionState.resetForTests();
 	}
 
 	@Test
@@ -60,11 +72,13 @@ class MenuBarPresenterTest {
 	}
 
 	@Test
-	void importAudioDelegatesToLoader() {
+	void importAudioDelegatesToLoaderAndMarksDirty() {
 		audioLoader.nextResult = true;
+		assertFalse(presenter.isDirty());
 		var result = presenter.importAudio("C:/music/test.wav");
 		assertTrue(result.ok());
 		assertEquals("C:/music/test.wav", audioLoader.lastPath);
+		assertTrue(presenter.isDirty());
 	}
 
 	@Test
@@ -74,12 +88,15 @@ class MenuBarPresenterTest {
 	}
 
 	@Test
-	void saveProjectPersistsFileAndMetadata(@TempDir Path tempDir) throws Exception {
+	void saveProjectPersistsFileAndClearsDirty(@TempDir Path tempDir) throws Exception {
 		Path file = tempDir.resolve("show.osc");
+		TimelineDocumentChangeNotifier.notifyDocumentEdited();
+		assertTrue(presenter.isDirty());
 		var result = presenter.saveProject(file.toString());
 		assertTrue(result.ok());
 		assertTrue(Files.exists(file));
 		assertEquals(file.toString(), presenter.defaultSaveProjectPath());
+		assertFalse(presenter.isDirty());
 	}
 
 	@Test
@@ -135,6 +152,7 @@ class MenuBarPresenterTest {
 		assertTrue(result.ok());
 		assertFalse(presenter.undoRedoState().canUndo());
 		assertFalse(presenter.undoRedoState().canRedo());
+		assertFalse(presenter.isDirty());
 	}
 
 	@Test
@@ -150,6 +168,46 @@ class MenuBarPresenterTest {
 		assertEquals(com.beatblock.ui.i18n.BBTexts.get(
 			"beatblock.message.project_opened_audio_failed"), result.messageOrEmpty());
 		assertEquals("C:/missing/audio.wav", audioLoader.lastPath);
+		assertFalse(presenter.isDirty());
+	}
+
+	@Test
+	void openCorruptProjectLeavesCurrentDocument(@TempDir Path tempDir) throws Exception {
+		timeline.setName("KeepMe");
+		timeline.setDurationSeconds(9);
+		Path corrupt = tempDir.resolve("corrupt.osc");
+		Files.writeString(corrupt, "%%%");
+
+		var result = presenter.openProject(corrupt.toString());
+		assertFalse(result.ok());
+		assertEquals("KeepMe", timeline.getName());
+		assertEquals(9.0, timeline.getDurationSeconds(), 1e-9);
+	}
+
+	@Test
+	void newProjectResetsIdentityAndClearsDirty() {
+		timeline.setMetadata("projectPath", "D:/old.osc");
+		timeline.setMetadata("audioPath", "D:/old.wav");
+		timeline.setName("OldShow");
+		TimelineDocumentChangeNotifier.notifyDocumentEdited();
+		assertTrue(presenter.isDirty());
+
+		editor.getCommandManager().execute(new AddTimelineAnimationEventCommand(
+			timeline, Timeline.TRACK_ID_ANIMATION_AUTO,
+			new TimelineAnimationEvent("ev-old", 1.0, 1.0, "pulse", "stage", 1f, Map.of())));
+		assertTrue(presenter.undoRedoState().canUndo());
+
+		var result = presenter.newProject();
+		assertTrue(result.ok());
+		assertFalse(presenter.isDirty());
+		assertFalse(presenter.undoRedoState().canUndo());
+		assertEquals("", presenter.defaultSaveProjectPath());
+		assertTrue(timeline.getMetadata("audioPath") == null
+			|| String.valueOf(timeline.getMetadata("audioPath")).isBlank());
+		Object id = timeline.getMetadata("projectId");
+		assertTrue(id != null && !String.valueOf(id).isBlank());
+		assertTrue(timeline.getName() == null || timeline.getName().isBlank());
+		assertTrue(timeline.getStageEvents().isEmpty());
 	}
 
 	private MenuBarPresenter createPresenter(
@@ -163,14 +221,14 @@ class MenuBarPresenterTest {
 			timelineSupplier, () -> editor, () -> net.minecraft.util.math.Vec3d.ZERO, rhythmDrop);
 		TimelineActionDispatcher actions = new TimelineActionDispatcher(
 			editorPresenter, () -> editor, generatedActions);
-		return new MenuBarPresenter(
-			editorPresenter,
-			actions,
+		ProjectSessionController session = new ProjectSessionController(
 			timelineSupplier,
 			() -> editor,
 			() -> layerManager,
-			loaderSupplier
+			loaderSupplier,
+			() -> null
 		);
+		return new MenuBarPresenter(editorPresenter, actions, session, loaderSupplier);
 	}
 
 	private static final class RecordingAudioLoader extends AudioLoader {

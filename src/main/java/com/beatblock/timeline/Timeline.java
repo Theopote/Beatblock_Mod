@@ -666,12 +666,37 @@ public class Timeline {
 
 	public static @NonNull Timeline createDefault() {
 		Timeline t = new Timeline();
-		t.addTrack(new Track(TRACK_ID_AUDIO, "音频", TrackType.AUDIO));
-		t.addTrack(new Track(TRACK_ID_ANIMATION_BLOCK, "方块动画", TrackType.ANIMATION));
-		t.addTrack(new Track(TRACK_ID_ANIMATION_AUTO, "自动动画", TrackType.ANIMATION));
-		BuildLayerTrackSupport.ensureDefaultTrack(t);
-		t.addTrack(new Track(TRACK_ID_CAMERA, "摄像机", TrackType.CAMERA));
-		t.addTrack(new Track(TRACK_ID_GLOBAL, "全局事件", TrackType.EVENT));
+		t.installDefaultTracks();
 		return t;
+	}
+
+	/**
+	 * Reset this instance to an empty default project (keeps object identity for {@code BeatBlockContext}).
+	 * Clears tracks, markers, metadata, and duration; reinstalls default tracks.
+	 */
+	public void resetToEmptyProject() {
+		requireClientThread();
+		tracks.clear();
+		markers.clear();
+		metadata.clear();
+		name = "";
+		durationSeconds = 0;
+		stageEventsCache.clear();
+		blockAnimationCache.clear();
+		autoAnimationCache.clear();
+		buildReverseCache.clear();
+		animationEventsByTrackId.clear();
+		animationCachesDirty = true;
+		stageEventsGeneration++;
+		installDefaultTracks();
+	}
+
+	private void installDefaultTracks() {
+		addTrack(new Track(TRACK_ID_AUDIO, "音频", TrackType.AUDIO));
+		addTrack(new Track(TRACK_ID_ANIMATION_BLOCK, "方块动画", TrackType.ANIMATION));
+		addTrack(new Track(TRACK_ID_ANIMATION_AUTO, "自动动画", TrackType.ANIMATION));
+		BuildLayerTrackSupport.ensureDefaultTrack(this);
+		addTrack(new Track(TRACK_ID_CAMERA, "摄像机", TrackType.CAMERA));
+		addTrack(new Track(TRACK_ID_GLOBAL, "全局事件", TrackType.EVENT));
 	}
 }

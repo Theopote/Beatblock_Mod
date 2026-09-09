@@ -121,9 +121,13 @@ public final class PresenterFactories {
 		return new MenuBarPresenter(
 			timelineEditorPresenter(context),
 			timelineActionDispatcher(context),
-			context::timeline,
-			context::timelineEditor,
-			context::buildLayerManager,
+			new com.beatblock.timeline.project.ProjectSessionController(
+				context::timeline,
+				context::timelineEditor,
+				context::buildLayerManager,
+				context::audioLoader,
+				context::stageManager
+			),
 			context::audioLoader
 		);
 	}

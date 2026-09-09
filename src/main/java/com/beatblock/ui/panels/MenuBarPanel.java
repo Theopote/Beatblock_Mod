@@ -17,11 +17,18 @@ import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 顶部通栏菜单栏：文件、编辑、视图、演出、帮助。
  */
 public class MenuBarPanel {
+
+	private enum PendingLifecycleAction {
+		NEW_PROJECT,
+		OPEN_PROJECT,
+		CLOSE_BEATBLOCK
+	}
 
 	private static final int IMPORT_PATH_CAPACITY = 512;
 
@@ -44,12 +51,14 @@ public class MenuBarPanel {
 	private boolean showOpenProjectDialog;
 	private boolean showSaveProjectDialog;
 	private boolean showAboutDialog;
+	private boolean showUnsavedDialog;
 	private boolean requestBindingEditorPopup;
 	private final ImString importPath = new ImString(IMPORT_PATH_CAPACITY);
 	private final ImString openProjectPath = new ImString(IMPORT_PATH_CAPACITY);
 	private final ImString saveProjectPath = new ImString(IMPORT_PATH_CAPACITY);
 	private String projectDialogMessage = "";
 	private String importDialogMessage = "";
+	private @Nullable PendingLifecycleAction pendingLifecycleAction;
 
 	public MenuBarPanel(Runnable onCloseRequest, BeatBlockPanelVisibility panels, Runnable onOpenSmartAutoMap,
 			Runnable onGenerateRhythmDrop, Runnable onResetLayout, Runnable onSaveLayout, Runnable onLoadLayout,
@@ -85,6 +94,9 @@ public class MenuBarPanel {
 		if (!ImGui.beginMainMenuBar()) return;
 		try {
 			if (ImGui.beginMenu(BBTexts.get("beatblock.menu.file"))) {
+				if (ImGui.menuItem(BBTexts.get("beatblock.menu.new_project"), "Ctrl+N")) {
+					requestNewProject();
+				}
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.open_project"), shortcut(BeatBlockShortcutId.OPEN_PROJECT))) {
 					requestOpenProject();
 				}
@@ -103,7 +115,7 @@ public class MenuBarPanel {
 				}
 				ImGui.separator();
 				if (ImGui.menuItem(BBTexts.get("beatblock.menu.close_beatblock"), "Esc")) {
-					if (onCloseRequest != null) onCloseRequest.run();
+					requestCloseBeatBlock();
 				}
 				ImGui.endMenu();
 			}
@@ -246,6 +258,7 @@ public class MenuBarPanel {
 		renderImportDialog();
 		renderOpenProjectDialog();
 		renderSaveProjectDialog();
+		renderUnsavedChangesDialog();
 		renderAboutDialog();
 		if (requestBindingEditorPopup) {
 			ImGui.openPopup(TimelineBindingEditorPopup.POPUP_ID);
@@ -278,10 +291,30 @@ public class MenuBarPanel {
 		importPath.set("");
 	}
 
+	public void requestNewProject() {
+		if (presenter.isDirty()) {
+			beginUnsavedGate(PendingLifecycleAction.NEW_PROJECT);
+			return;
+		}
+		showPresenterResult(presenter.newProject());
+	}
+
 	public void requestOpenProject() {
-		showOpenProjectDialog = true;
-		projectDialogMessage = "";
-		openProjectPath.set("");
+		if (presenter.isDirty()) {
+			beginUnsavedGate(PendingLifecycleAction.OPEN_PROJECT);
+			return;
+		}
+		openOpenProjectDialog();
+	}
+
+	public void requestCloseBeatBlock() {
+		if (presenter.isDirty()) {
+			beginUnsavedGate(PendingLifecycleAction.CLOSE_BEATBLOCK);
+			return;
+		}
+		if (onCloseRequest != null) {
+			onCloseRequest.run();
+		}
 	}
 
 	public void requestSaveProject() {
@@ -297,6 +330,71 @@ public class MenuBarPanel {
 		showSaveProjectDialog = true;
 		projectDialogMessage = "";
 		saveProjectPath.set(presenter.defaultSaveProjectPath());
+	}
+
+	private void beginUnsavedGate(PendingLifecycleAction action) {
+		pendingLifecycleAction = action;
+		showUnsavedDialog = true;
+	}
+
+	private void openOpenProjectDialog() {
+		showOpenProjectDialog = true;
+		projectDialogMessage = "";
+		openProjectPath.set("");
+	}
+
+	private void continuePendingLifecycleAction() {
+		PendingLifecycleAction action = pendingLifecycleAction;
+		pendingLifecycleAction = null;
+		showUnsavedDialog = false;
+		if (action == null) {
+			return;
+		}
+		switch (action) {
+			case NEW_PROJECT -> showPresenterResult(presenter.newProject());
+			case OPEN_PROJECT -> openOpenProjectDialog();
+			case CLOSE_BEATBLOCK -> {
+				if (onCloseRequest != null) {
+					onCloseRequest.run();
+				}
+			}
+		}
+	}
+
+	private void renderUnsavedChangesDialog() {
+		if (!showUnsavedDialog) return;
+		ImGui.setNextWindowSize(420, 0);
+		if (ImGui.begin(BBTexts.get("beatblock.dialog.unsaved_changes"), ImGuiWindowFlags.AlwaysAutoResize)) {
+			ImGui.textWrapped(BBTexts.get("beatblock.dialog.unsaved_changes.message"));
+			ImGui.spacing();
+			if (ImGui.button(BBTexts.get("beatblock.common.save"))) {
+				String path = presenter.defaultSaveProjectPath();
+				if (path == null || path.isBlank()) {
+					showUnsavedDialog = false;
+					// Save As first; resume pending after successful save.
+					showSaveProjectDialog = true;
+					projectDialogMessage = "";
+					saveProjectPath.set("");
+					// keep pendingLifecycleAction
+				} else {
+					var result = presenter.saveProject(path);
+					showPresenterResult(result);
+					if (result.ok()) {
+						continuePendingLifecycleAction();
+					}
+				}
+			}
+			ImGui.sameLine();
+			if (ImGui.button(BBTexts.get("beatblock.common.dont_save"))) {
+				continuePendingLifecycleAction();
+			}
+			ImGui.sameLine();
+			if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##unsaved")) {
+				pendingLifecycleAction = null;
+				showUnsavedDialog = false;
+			}
+		}
+		ImGui.end();
 	}
 
 	private static void showPresenterResult(com.beatblock.ui.presenter.PresenterResult result) {
@@ -379,11 +477,17 @@ public class MenuBarPanel {
 				if (result.ok()) {
 					showSaveProjectDialog = false;
 					showPresenterResult(result);
+					if (pendingLifecycleAction != null) {
+						continuePendingLifecycleAction();
+					}
 				}
 			}
 			ImGui.sameLine();
 			if (ImGui.button(BBTexts.get("beatblock.common.cancel") + "##saveOsc")) {
 				showSaveProjectDialog = false;
+				if (pendingLifecycleAction != null) {
+					pendingLifecycleAction = null;
+				}
 			}
 			if (!projectDialogMessage.isBlank()) {
 				ImGui.spacing();
