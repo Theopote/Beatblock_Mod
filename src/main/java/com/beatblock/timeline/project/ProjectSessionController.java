@@ -167,28 +167,28 @@ public final class ProjectSessionController {
 	}
 
 	/**
-	 * Reset to a fresh empty project. Caller must confirm discard when dirty.
+	 * Reset to a fresh empty project (transactional). Caller must confirm discard when dirty.
+	 * On failure, live Timeline / BuildLayers are restored from an in-memory backup.
 	 */
 	public PresenterResult newProject() {
 		Timeline current = timeline.get();
 		if (current == null) {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable"));
 		}
+		String newId = UUID.randomUUID().toString();
 		try {
 			runtimeReset.reset(ProjectRuntimeResetService.Mode.PREPARE_SWITCH);
-			current.resetToEmptyProject();
 			BuildLayerManager layers = layerManager.get();
-			if (layers != null) {
-				layers.purgeAllLayers();
-			}
+			ProjectDocumentLoader.newProjectTransactional(current, layers, newId);
 			StageManager stages = stageManager.get();
 			if (stages != null) {
-				stages.clear();
+				try {
+					stages.clear();
+				} catch (RuntimeException stageFailure) {
+					// Document already reset; stage clear is best-effort presentation cleanup.
+					BeatBlock.LOGGER.debug("StageManager.clear failed during New Project", stageFailure);
+				}
 			}
-			String newId = UUID.randomUUID().toString();
-			current.setMetadata("projectId", newId);
-			current.setMetadata("projectPath", null);
-			current.setMetadata("audioPath", null);
 			runtimeReset.reset(ProjectRuntimeResetService.Mode.AFTER_DOCUMENT_SWAP);
 			session.markNewProject(newId);
 			return PresenterResult.success(BBTexts.get("beatblock.message.project_new"));

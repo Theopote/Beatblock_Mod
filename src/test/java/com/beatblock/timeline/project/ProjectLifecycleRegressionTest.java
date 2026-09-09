@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -100,6 +101,59 @@ class ProjectLifecycleRegressionTest {
 	void importAudioMarksDirtyViaNotifier() {
 		TimelineDocumentChangeNotifier.notifyDocumentEdited();
 		assertTrue(controller.isDirty());
+	}
+
+	@Test
+	void afterDocumentSwapClearsPresentationContract() {
+		ProjectRuntimeResetService.lastPresentationStepsForTests = null;
+		controller.runtimeReset().reset(ProjectRuntimeResetService.Mode.AFTER_DOCUMENT_SWAP);
+		List<String> steps = ProjectRuntimeResetService.lastPresentationStepsForTests;
+		assertNotNull(steps);
+		assertTrue(steps.contains("camera"));
+		assertTrue(steps.contains("vfx_overlay"));
+		assertTrue(steps.contains("environment_lighting"));
+	}
+
+	@Test
+	void closeUiRunsPresentationTeardown() {
+		ProjectRuntimeResetService.lastPresentationStepsForTests = null;
+		boolean[] closed = {false};
+		controller.closeBeatBlock(() -> closed[0] = true);
+		assertTrue(closed[0]);
+		List<String> steps = ProjectRuntimeResetService.lastPresentationStepsForTests;
+		assertNotNull(steps);
+		assertTrue(steps.contains("camera"));
+		assertTrue(steps.contains("vfx_overlay"));
+		assertTrue(steps.contains("environment_lighting"));
+	}
+
+	@Test
+	void newProjectFailurePreservesCurrentDocument() throws Exception {
+		timeline.setName("KeepShow");
+		timeline.setDurationSeconds(11);
+		timeline.setMetadata("projectId", "keep-id");
+		timeline.setMetadata("projectPath", "D:/keep.osc");
+		timeline.setMetadata("audioPath", "D:/keep.wav");
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"keep-ev", 2.0, 1.0, "pulse", "stage", 1f, Map.of()));
+		int eventsBefore = timeline.getStageEvents().size();
+		assertTrue(eventsBefore >= 1);
+
+		ProjectDocumentLoader.newProjectFailureInjectorForTests = () -> {
+			throw new IllegalStateException("forced mid-new failure");
+		};
+		try {
+			assertFalse(controller.newProject().ok());
+		} finally {
+			ProjectDocumentLoader.newProjectFailureInjectorForTests = null;
+		}
+
+		assertEquals("KeepShow", timeline.getName());
+		assertEquals(11.0, timeline.getDurationSeconds(), 1e-9);
+		assertEquals("keep-id", String.valueOf(timeline.getMetadata("projectId")));
+		assertEquals("D:/keep.osc", String.valueOf(timeline.getMetadata("projectPath")));
+		assertEquals("D:/keep.wav", String.valueOf(timeline.getMetadata("audioPath")));
+		assertEquals(eventsBefore, timeline.getStageEvents().size());
 	}
 
 	@Test
