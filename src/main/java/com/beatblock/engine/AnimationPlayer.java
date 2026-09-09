@@ -25,7 +25,11 @@ public final class AnimationPlayer {
 	}
 
 	public void removeEnded(double timelineTimeSeconds) {
-		activeInstances.removeIf(inst -> !inst.isActiveAt(timelineTimeSeconds));
+		// Sequential/STEP dispatch schedules later blocks up front.  An instance
+		// that has not reached its start time is pending, not ended; removing every
+		// inactive instance here silently discarded the tail of those animations
+		// on the first tick.
+		activeInstances.removeIf(inst -> timelineTimeSeconds > inst.getEndTimeSeconds());
 	}
 
 	/**

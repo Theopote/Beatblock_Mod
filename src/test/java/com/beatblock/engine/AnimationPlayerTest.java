@@ -41,4 +41,16 @@ class AnimationPlayerTest {
 		player.removeEnded(2.0);
 		assertTrue(player.getActiveInstances().isEmpty());
 	}
+
+	@Test
+	void removeEndedKeepsInstancesThatHaveNotStartedYet() {
+		AnimationPlayer player = new AnimationPlayer();
+		var def = new AnimationDefinition(BlockInfluencePresets.get("Pulse"));
+		var target = StageObjectSystem.fromBlocks("s1", "Stage", List.of(new BlockPos(0, 64, 0)));
+		player.addInstance(new EngineAnimationInstance(def, target, 2, 3, 1f));
+
+		player.removeEnded(1.0);
+
+		assertEquals(1, player.getActiveInstances().size());
+	}
 }

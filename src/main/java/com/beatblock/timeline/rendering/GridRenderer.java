@@ -1,5 +1,6 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.editor.TimelineViewState;
@@ -208,11 +209,6 @@ public final class GridRenderer {
 					float sx = rLeft + xOff;
 					ImGui.getWindowDrawList().addLine(sx, rBot - barTickH, sx, rBot, BAR_TICK_COLOR, 1.5f);
 					// 小节号标签（靠近底部，仅宽度足够时显示）
-					if (barPx >= 30) {
-						int barNum = MusicTimeFormatter.barNumber(t, bpm);
-						ImGui.getWindowDrawList().addText(sx + 2, rBot - 13, LABEL_BAR_COLOR,
-								"B" + barNum);
-					}
 				}
 			}
 
@@ -261,10 +257,9 @@ public final class GridRenderer {
 			if (xOff < -2 || xOff > layout.contentWidth + 2) continue;
 			float sx = rLeft + xOff;
 			ImGui.getWindowDrawList().addLine(sx, rBot - barTickH, sx, rBot, BAR_TICK_COLOR, 1.5f);
-			ImGui.getWindowDrawList().addText(sx + 3, textY, LABEL_TIME_COLOR,
-					MusicTimeFormatter.formatMmSs(t));
 			int barNum = MusicTimeFormatter.barNumber(t, bpm);
-			ImGui.getWindowDrawList().addText(sx + 3, barTextY, LABEL_BAR_COLOR, "B" + barNum);
+			ImGui.getWindowDrawList().addText(sx + 3, textY, LABEL_BAR_COLOR,
+				"B" + barNum + "  " + MusicTimeFormatter.formatMmSs(t));
 		}
 
 		// 拍副刻度（排除小节边界）
@@ -280,11 +275,6 @@ public final class GridRenderer {
 				float sx = rLeft + xOff;
 				ImGui.getWindowDrawList().addLine(sx, rBot - beatTickH, sx, rBot, BEAT_TICK_COLOR, 1f);
 				// 拍号（仅当拍宽够大）
-				if (beatPx >= 20) {
-					int beatNum = MusicTimeFormatter.beatNumber(t, bpm);
-					ImGui.getWindowDrawList().addText(sx + 2, barTextY, BEAT_TICK_COLOR,
-							String.valueOf(beatNum));
-				}
 			}
 		}
 
@@ -346,10 +336,11 @@ public final class GridRenderer {
 		float rLeft
 	) {
 		if (view == null || layout == null || timeline == null || timeline.getMarkers().isEmpty()) return;
+		boolean hasChoreographyPlan = ChoreographyPlanStore.loadPlan(timeline) != null;
         float clipRight = rLeft + layout.rulerWidth;
 		float[] rowRightEdges = new float[MARKER_LABEL_ROWS];
 		for (TimelineMarker marker : timeline.getMarkers()) {
-			if (marker == null) continue;
+			if (!TimelineRulerDisplayPolicy.shouldDrawMarker(marker, hasChoreographyPlan)) continue;
 			int markerColor = marker.getType().getColorAbgr();
 			float x = rLeft + view.timeToScreen(marker.getTimeSeconds());
 			if (x < rLeft - 6 || x > clipRight + 6) continue;

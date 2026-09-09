@@ -1,8 +1,10 @@
 package com.beatblock.engine.influence;
 
-import com.beatblock.engine.AnimationLibrary;
+import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.AnimationPlayer;
 import com.beatblock.engine.BlockControlExecutor;
+import com.beatblock.engine.EngineAnimationInstance;
+import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.WorldMutationSink;
 import com.beatblock.testutil.MinecraftTestBootstrap;
 import net.minecraft.block.Blocks;
@@ -48,5 +50,21 @@ class BlockInfluenceOrchestratorTest {
 		int count = orchestrator.tick(1.0, player, null, null, WorldMutationSink.NO_OP);
 		assertEquals(0, count);
 		assertTrue(orchestrator.getLastFrame().getWorldMutations().isEmpty());
+	}
+
+	@Test
+	void earlyTickDoesNotDiscardASequentiallyScheduledFutureAnimation() {
+		BlockInfluenceOrchestrator orchestrator = new BlockInfluenceOrchestrator();
+		AnimationPlayer player = new AnimationPlayer();
+		var definition = new AnimationDefinition(BlockInfluencePresets.get("Pulse"));
+		var target = StageObjectSystem.fromBlocks(
+			"future", "Future block", List.of(new BlockPos(0, 64, 0)));
+		player.addInstance(new EngineAnimationInstance(definition, target, 2.0, 3.0, 1f));
+
+		orchestrator.tick(1.0, player, null, null, WorldMutationSink.NO_OP);
+		assertEquals(1, player.getActiveInstances().size());
+
+		orchestrator.tick(2.5, player, null, null, WorldMutationSink.NO_OP);
+		assertEquals(1, orchestrator.getLastFrame().getAnimatedBlocks().size());
 	}
 }

@@ -137,12 +137,10 @@ public final class ChoreographySectionBandRenderer {
 				ImGui.getWindowDrawList().addRect(left, top, right, bottom, borderColor, 0f, 0, borderWidth);
 			}
 
-			if (drawLabels) {
+			if (drawLabels && TimelineRulerDisplayPolicy.shouldDrawBandLabel(bottom - top, right - left)) {
 				String label = section.label().isBlank() ? section.sectionType().name() : section.label();
-				if (right - left > 28f) {
-					int borderColor = colorForSection(section.sectionType(), 0xCC);
-					ImGui.getWindowDrawList().addText(left + 3f, top + 2f, borderColor, label);
-				}
+				int borderColor = colorForSection(section.sectionType(), 0xCC);
+				ImGui.getWindowDrawList().addText(left + 3f, top + 2f, borderColor, label);
 			}
 		}
 

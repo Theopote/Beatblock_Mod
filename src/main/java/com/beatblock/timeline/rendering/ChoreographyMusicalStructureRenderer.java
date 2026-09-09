@@ -24,7 +24,6 @@ public final class ChoreographyMusicalStructureRenderer {
 	private static final int BAR_LINE_COLOR = 0x55_55_99_DD;
 	private static final int BAR_LABEL_COLOR = 0xAA_88_BB_FF;
 	private static final float MIN_BAR_PX = 8f;
-	private static final float MIN_PHRASE_LABEL_PX = 24f;
 	private static final int[] REPEAT_GROUP_RGB = {
 		0xFF_AA_66,
 		0x66_CC_FF,
@@ -69,7 +68,7 @@ public final class ChoreographyMusicalStructureRenderer {
 			int border = borderColorForPhrase(plan, phrase, repeatGroupId, PHRASE_BORDER_ALPHA);
 			ImGui.getWindowDrawList().addRect(x0, top, x1, bottom, border, 0f, 0, inRepeatGroup ? 1.5f : 1f);
 
-			if (x1 - x0 > MIN_PHRASE_LABEL_PX) {
+			if (TimelineRulerDisplayPolicy.shouldDrawBandLabel(bottom - top, x1 - x0)) {
 				String label = repeatMember
 					? "P" + phrase.phraseIndex() + " \u21BB"
 					: "P" + phrase.phraseIndex();
