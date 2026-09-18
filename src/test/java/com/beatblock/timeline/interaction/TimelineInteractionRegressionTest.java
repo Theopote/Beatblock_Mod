@@ -77,7 +77,7 @@ class TimelineInteractionRegressionTest {
 
 		float mxPastClip = layout.contentLeft + viewState.timeToScreen(40.0);
 		TimelineEventDragHandler.applyDuringDrag(
-			timeline, interaction, null, viewState, layout, snapDisabled(), mxPastClip);
+			timeline, null, interaction, null, viewState, layout, snapDisabled(), mxPastClip);
 
 		assertEquals(20.0, event.getTimeSeconds(), 1e-9);
 		assertEquals(10.0, clip.getStartTimeSeconds(), 1e-9);

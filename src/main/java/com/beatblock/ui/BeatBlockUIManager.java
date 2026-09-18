@@ -1,10 +1,15 @@
 package com.beatblock.ui;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.client.export.VideoExportCoordinator;
+import com.beatblock.creator.CreationPreset;
+import com.beatblock.timeline.interaction.PostGenerationFocusHelper;
+import com.beatblock.timeline.rendering.SectionEditPopupCoordinator;
 import com.beatblock.client.render.BeatBlockLassoOverlay;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.panels.*;
 import com.beatblock.ui.preferences.BeatBlockShortcutHandler;
@@ -47,6 +52,7 @@ public class BeatBlockUIManager {
 	private final SelectionPropertiesPanel selectionPropertiesPanel;
 	private final LayerPanel layerPanel;
 	private final RhythmDropPanel rhythmDropPanel;
+	private final CreatorHomePanel creatorHomePanel;
 	private final QuickStartWizardPanel quickStartWizardPanel;
 	private final EnvironmentSetupPanel environmentSetupPanel;
 	private final UndoHistoryPanel undoHistoryPanel;
@@ -56,6 +62,7 @@ public class BeatBlockUIManager {
 	private final PerformanceMonitorPanel performanceMonitorPanel;
 	private final PreferencesPanel preferencesPanel;
 	private final VideoExportDialog videoExportDialog;
+	private final CreationPresetSelectDialog creationPresetSelectDialog;
 	private final TimelineActionDispatcher timelineActions;
 
 	private final BeatBlockPanelVisibility panelVisibility = new BeatBlockPanelVisibility();
@@ -63,7 +70,10 @@ public class BeatBlockUIManager {
 
 	public BeatBlockUIManager(Runnable onCloseRequest) {
 		this.timelineActions = PresenterFactories.timelineActionDispatcher();
-		this.toolPanel = new ToolPanel(() -> panelVisibility.selectionProperties.set(true));
+		this.toolPanel = new ToolPanel(
+			() -> panelVisibility.selectionProperties.set(true),
+			this::openSectionEdit
+		);
 		this.markerPanel = new MarkerPanel();
 		this.audioAnalysisPanel = new AudioAnalysisPanel(() -> panelVisibility.timeline.set(true));
 		this.menuBarPanel = new MenuBarPanel(onCloseRequest, panelVisibility,
@@ -71,7 +81,12 @@ public class BeatBlockUIManager {
 			this::generateRhythmDropFromMenu,
 			this::resetLayoutState, this::saveCurrentLayout, this::loadSavedLayout,
 			this::openQuickStartWizard, this::openVideoExportDialog,
-			this::openEnvironmentSetup);
+			this::openEnvironmentSetup, this::openCreatorHome, this::openCreationPresetSelectDialog);
+		this.creatorHomePanel = new CreatorHomePanel(new CreatorHomePanel.Actions(
+			this::openQuickStartWizard,
+			() -> menuBarPanel.requestOpenProject(),
+			() -> menuBarPanel.requestNewProject()
+		));
 		this.timelinePropertiesPanel = new TimelinePropertiesPanel();
 		TimelinePanelVisibility.bind(panelVisibility);
 		this.timelinePanel = new TimelinePanel();
@@ -83,7 +98,8 @@ public class BeatBlockUIManager {
 			this::playPreviewFromWizard,
 			this::editTimelineFromWizard,
 			this::editChoreographyFromWizard,
-			this::saveProjectFromWizard
+			this::saveProjectFromWizard,
+			this::exportVideoFromWizard
 		));
 		this.environmentSetupPanel = new EnvironmentSetupPanel();
 		this.undoHistoryPanel = new UndoHistoryPanel();
@@ -93,10 +109,19 @@ public class BeatBlockUIManager {
 		this.performanceMonitorPanel = new PerformanceMonitorPanel();
 		this.preferencesPanel = new PreferencesPanel();
 		this.videoExportDialog = new VideoExportDialog();
+		this.creationPresetSelectDialog = new CreationPresetSelectDialog();
 	}
 
 	public void openQuickStartWizard() {
 		quickStartWizardPanel.open();
+	}
+
+	public void openCreatorHome() {
+		creatorHomePanel.open();
+	}
+
+	public void openCreationPresetSelectDialog() {
+		creationPresetSelectDialog.openForTimelineApply();
 	}
 
 	private void playPreviewFromWizard() {
@@ -111,15 +136,52 @@ public class BeatBlockUIManager {
 	private void editTimelineFromWizard() {
 		panelVisibility.timeline.set(true);
 		panelVisibility.timelineProperties.set(true);
+		panelVisibility.tool.set(true);
+		focusAfterWizardGeneration();
 	}
 
 	private void editChoreographyFromWizard() {
+		CreationPreset preset = quickStartWizardPanel.creationPreset();
+		panelVisibility.timeline.set(true);
+		panelVisibility.timelineProperties.set(true);
 		panelVisibility.tool.set(true);
-		toolPanel.setShowAutoMapSettings(true);
+		focusAfterWizardGeneration();
+
+		switch (preset.doneRefinementTarget()) {
+			case BINDING_EDITOR -> menuBarPanel.requestBindingEditor();
+			case RHYTHM_DROP -> panelVisibility.rhythmDrop.set(true);
+			case SECTION_EDIT -> {
+				var timeline = BeatBlock.getContext().timeline();
+				if (timeline != null && ChoreographyPlanStore.hasPlan(timeline)) {
+					SectionEditPopupCoordinator.requestOpen(0);
+					ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.wizard.done.refinement.section_toast"));
+				} else {
+					ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.wizard.done.refinement.timeline_toast"));
+				}
+			}
+			case TIMELINE -> ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.wizard.done.refinement.timeline_toast"));
+		}
+	}
+
+	public void openSectionEdit() {
+		SectionEditPopupCoordinator.requestOpen();
+	}
+
+	private void focusAfterWizardGeneration() {
+		var context = BeatBlock.getContext();
+		PostGenerationFocusHelper.focusStageObjectOrFirstAnimation(
+			context.timeline(),
+			context.timelineEditor(),
+			quickStartWizardPanel.lastGenerateStageObjectId()
+		);
 	}
 
 	private void saveProjectFromWizard() {
 		menuBarPanel.requestSaveProject();
+	}
+
+	private void exportVideoFromWizard() {
+		openVideoExportDialog();
 	}
 
 	public void openEnvironmentSetup() {
@@ -238,8 +300,11 @@ public class BeatBlockUIManager {
 		UiPreferences.popPanelThemeColors();
 
 		environmentSetupPanel.render();
-		quickStartWizardPanel.onUiOpened(environmentSetupPanel.isOpen());
+		boolean environmentSetupOpen = environmentSetupPanel.isOpen();
+		creatorHomePanel.onUiOpened(environmentSetupOpen);
+		creatorHomePanel.render();
 		quickStartWizardPanel.render();
+		creationPresetSelectDialog.render();
 		videoExportDialog.render();
 		com.beatblock.client.render.GlobalVisualEffectOverlay.render();
 		BeatBlockLassoOverlay.render();

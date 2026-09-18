@@ -5,6 +5,7 @@ import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineOperations;
+import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.editor.HitResult;
 import com.beatblock.timeline.editor.InteractionMode;
 import com.beatblock.timeline.editor.InteractionState;
@@ -106,9 +107,99 @@ class TimelineEventDragHandlerTest {
 
 		float mx = layout.contentLeft + viewState.timeToScreen(4.0);
 		TimelineEventDragHandler.applyDuringDrag(
-			timeline, interaction, null, viewState, layout, toolbar, mx);
+			timeline, null, interaction, null, viewState, layout, toolbar, mx);
 
 		assertTrue(event.getTimeSeconds() > 1.0);
 		assertEquals(4.0, event.getTimeSeconds(), 1e-9);
+	}
+
+	@Test
+	void clickingSelectedEventPreservesMultiSelection() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 0, 10);
+		TimelineEvent first = TimelineOperations.addEvent(clip, 1.0, EventType.ANIMATION, Map.of());
+		TimelineEvent second = TimelineOperations.addEvent(clip, 3.0, EventType.ANIMATION, Map.of());
+
+		SelectionState selection = new SelectionState();
+		selection.selectEvent(first.getId());
+		selection.selectEvent(second.getId());
+
+		HitResult hit = HitResult.event(
+			Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(), second.getId(), 3.0);
+		TimelineEventSelectionHandler.applyClickSelection(timeline, selection, hit, false, false);
+
+		assertTrue(selection.isEventSelected(first.getId()));
+		assertTrue(selection.isEventSelected(second.getId()));
+	}
+
+	@Test
+	void groupDragMovesAllSelectedEventsTogether() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 0, 10);
+		TimelineEvent first = TimelineOperations.addEvent(clip, 1.0, EventType.ANIMATION, Map.of());
+		TimelineEvent second = TimelineOperations.addEvent(clip, 3.0, EventType.ANIMATION, Map.of());
+
+		SelectionState selection = new SelectionState();
+		selection.selectEvent(first.getId());
+		selection.selectEvent(second.getId());
+
+		HitResult hit = HitResult.event(
+			Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(), first.getId(), 1.0);
+		InteractionState interaction = new InteractionState();
+		TimelineEventDragSession session = TimelineEventDragHandler.tryBeginFromHit(
+			timeline, hit, interaction, selection, null, 100f, 50f, false, false);
+
+		assertNotNull(session);
+		assertEquals(2, session.memberEventIds().size());
+
+		com.beatblock.timeline.editor.TimelineViewState viewState = new com.beatblock.timeline.editor.TimelineViewState();
+		viewState.setZoom(100f);
+		com.beatblock.timeline.rendering.TimelineLayout layout = new com.beatblock.timeline.rendering.TimelineLayout();
+		layout.contentLeft = 0f;
+		com.beatblock.timeline.rendering.TimelineToolbarState toolbar = snapDisabled();
+
+		float mx = layout.contentLeft + viewState.timeToScreen(5.0);
+		TimelineEventDragHandler.applyDuringDrag(
+			timeline, session, interaction, null, viewState, layout, toolbar, mx);
+
+		assertEquals(5.0, first.getTimeSeconds(), 1e-9);
+		assertEquals(7.0, second.getTimeSeconds(), 1e-9);
+	}
+
+	@Test
+	void groupDragCommitCreatesCompositeUndoStep() {
+		Timeline timeline = Timeline.createDefault();
+		Clip clip = TimelineOperations.addClip(timeline, Timeline.TRACK_ID_ANIMATION_AUTO, 0, 10);
+		TimelineEvent first = TimelineOperations.addEvent(clip, 1.0, EventType.ANIMATION, Map.of());
+		TimelineEvent second = TimelineOperations.addEvent(clip, 3.0, EventType.ANIMATION, Map.of());
+
+		SelectionState selection = new SelectionState();
+		selection.selectEvent(first.getId());
+		selection.selectEvent(second.getId());
+		HitResult hit = HitResult.event(
+			Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(), first.getId(), 1.0);
+
+		InteractionState interaction = new InteractionState();
+		TimelineEventDragSession session = TimelineEventDragHandler.tryBeginFromHit(
+			timeline, hit, interaction, selection, null, 100f, 50f, false, false);
+		first.setTimeSeconds(5.0);
+		second.setTimeSeconds(7.0);
+
+		TimelineEditor editor = new TimelineEditor(timeline);
+		TimelineDragCommitSupport.commitEventDrag(timeline, editor, session);
+		assertEquals(1, editor.getCommandManager().undoCount());
+
+		editor.getCommandManager().undo();
+		assertEquals(1.0, first.getTimeSeconds(), 1e-9);
+		assertEquals(3.0, second.getTimeSeconds(), 1e-9);
+	}
+
+	private static com.beatblock.timeline.rendering.TimelineToolbarState snapDisabled() {
+		com.beatblock.timeline.rendering.TimelineToolbarState toolbar =
+			new com.beatblock.timeline.rendering.TimelineToolbarState();
+		toolbar.setSnapToGrid(false);
+		toolbar.setSnapToBeat(false);
+		toolbar.setMagnetSnap(false);
+		return toolbar;
 	}
 }

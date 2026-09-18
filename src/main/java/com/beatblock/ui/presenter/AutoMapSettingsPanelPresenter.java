@@ -6,6 +6,7 @@ import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.generation.GenerationReapplyGuard;
 import com.beatblock.ui.i18n.BBTexts;
 
 import java.util.List;
@@ -60,6 +61,14 @@ public final class AutoMapSettingsPanelPresenter {
 
 	public boolean canGenerate() {
 		return generateBlockedReason() == null;
+	}
+
+	public boolean smartAutoMapRequiresConfirmation() {
+		return GenerationReapplyGuard.requiresConfirmation(timeline(), GenerationReapplyGuard.Kind.SMART_AUTO_MAP);
+	}
+
+	public int smartAutoMapAffectedEventCount() {
+		return GenerationReapplyGuard.affectedEventCount(timeline(), GenerationReapplyGuard.Kind.SMART_AUTO_MAP);
 	}
 
 	public GenerateOutcome generate(AutoMapSettings settings) {

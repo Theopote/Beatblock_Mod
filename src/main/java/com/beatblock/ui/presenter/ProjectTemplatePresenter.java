@@ -1,5 +1,6 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.creator.CreationPreset;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.generation.TimelineDraftWriter;
 import com.beatblock.ui.i18n.BBTexts;
@@ -40,6 +41,17 @@ public final class ProjectTemplatePresenter {
 		};
 	}
 
+	public ApplyOutcome apply(CreationPreset preset) {
+		if (preset == null || !preset.supportsTimelineTemplateApply()) {
+			return new ApplyOutcome(false, BBTexts.get("beatblock.preset.timeline_apply.unsupported"));
+		}
+		ProjectTemplatePresenter.TemplateId templateId = preset.toProjectTemplate();
+		if (templateId == null) {
+			return new ApplyOutcome(false, BBTexts.get("beatblock.preset.timeline_apply.unsupported"));
+		}
+		return apply(templateId);
+	}
+
 	private ApplyOutcome applyBlank(Timeline current) {
 		TimelineDraftWriter.clearTrack(current, Timeline.TRACK_ID_ANIMATION_BLOCK);
 		TimelineDraftWriter.clearTrack(current, Timeline.TRACK_ID_ANIMATION_AUTO);
@@ -54,6 +66,10 @@ public final class ProjectTemplatePresenter {
 	}
 
 	public static String labelKey(TemplateId id) {
+		CreationPreset preset = CreationPreset.fromProjectTemplate(id);
+		if (preset != null && preset != CreationPreset.BLANK) {
+			return preset.titleKey();
+		}
 		return switch (id) {
 			case BLANK -> "beatblock.template.blank";
 			case RHYTHM_PARKOUR -> "beatblock.timeline.binding.template.rhythm_parkour";
@@ -62,6 +78,10 @@ public final class ProjectTemplatePresenter {
 	}
 
 	public static String descriptionKey(TemplateId id) {
+		CreationPreset preset = CreationPreset.fromProjectTemplate(id);
+		if (preset != null) {
+			return preset.cardDescKey();
+		}
 		return switch (id) {
 			case BLANK -> "beatblock.template.blank.desc";
 			case RHYTHM_PARKOUR -> "beatblock.template.rhythm_parkour.desc";

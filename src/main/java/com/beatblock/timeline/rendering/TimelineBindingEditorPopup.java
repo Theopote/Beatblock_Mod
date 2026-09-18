@@ -2,7 +2,9 @@ package com.beatblock.timeline.rendering;
 
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.binding.AnimationBindingRule;
+import com.beatblock.timeline.generation.GenerationReapplyGuard;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.panels.GenerationReapplyConfirmDialog;
 import com.beatblock.ui.presenter.TimelineBindingEditorPresenter;
 import com.beatblock.ui.presenter.TimelineToolbarFeedbackPresenter;
 import imgui.ImGui;
@@ -24,6 +26,7 @@ public final class TimelineBindingEditorPopup {
 
 	private final TimelineBindingEditorPresenter binding;
 	private final TimelineToolbarFeedbackPresenter feedback;
+	private final GenerationReapplyConfirmDialog generationReapplyConfirm = new GenerationReapplyConfirmDialog();
 	private final ImInt bindingTemplateComboIndex = new ImInt(0);
 
 	public TimelineBindingEditorPopup(
@@ -57,6 +60,7 @@ public final class TimelineBindingEditorPopup {
 			binding.saveRules(timeline, rules);
 		}
 		renderApplyButtons();
+		generationReapplyConfirm.render();
 
 		ImGui.endPopup();
 	}
@@ -357,13 +361,32 @@ public final class TimelineBindingEditorPopup {
 	private void renderApplyButtons() {
 		ImGui.separator();
 		if (ImGui.button(BBTexts.get("beatblock.timeline.binding.apply_block") + "##bindingApplyBlock")) {
-			var outcome = binding.applyToBlockTrack();
-			feedback.setTemplateApplyFeedback(outcome.message(), outcome.success());
+			requestBindingApply(GenerationReapplyGuard.Kind.BINDING_MAP_BLOCK);
 		}
 		ImGui.sameLine();
 		if (ImGui.button(BBTexts.get("beatblock.timeline.binding.apply_auto") + "##bindingApplyAuto")) {
-			var outcome = binding.applyToAutoTrack();
-			feedback.setTemplateApplyFeedback(outcome.message(), outcome.success());
+			requestBindingApply(GenerationReapplyGuard.Kind.BINDING_MAP_AUTO);
 		}
+	}
+
+	private void requestBindingApply(GenerationReapplyGuard.Kind kind) {
+		boolean needsConfirm = kind == GenerationReapplyGuard.Kind.BINDING_MAP_BLOCK
+			? binding.blockTrackApplyRequiresConfirmation()
+			: binding.autoTrackApplyRequiresConfirmation();
+		if (needsConfirm) {
+			int affected = kind == GenerationReapplyGuard.Kind.BINDING_MAP_BLOCK
+				? binding.blockTrackAffectedEventCount()
+				: binding.autoTrackAffectedEventCount();
+			generationReapplyConfirm.request(kind, affected, () -> applyBinding(kind));
+			return;
+		}
+		applyBinding(kind);
+	}
+
+	private void applyBinding(GenerationReapplyGuard.Kind kind) {
+		var outcome = kind == GenerationReapplyGuard.Kind.BINDING_MAP_BLOCK
+			? binding.applyToBlockTrack()
+			: binding.applyToAutoTrack();
+		feedback.setTemplateApplyFeedback(outcome.message(), outcome.success());
 	}
 }

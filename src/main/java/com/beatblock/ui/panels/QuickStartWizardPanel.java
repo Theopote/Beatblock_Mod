@@ -1,5 +1,6 @@
 package com.beatblock.ui.panels;
 
+import com.beatblock.creator.CreationPreset;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.notification.ToastNotificationSystem;
 import com.beatblock.ui.preferences.UiPreferences;
@@ -9,9 +10,8 @@ import com.beatblock.ui.util.AudioFilePicker;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiHoveredFlags;
-import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
-import imgui.type.ImInt;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import org.jspecify.annotations.Nullable;
 
@@ -32,23 +32,26 @@ public final class QuickStartWizardPanel {
 		Runnable playPreview,
 		Runnable editTimeline,
 		Runnable editChoreography,
-		Runnable saveProject
+		Runnable saveProject,
+		Runnable exportVideo
 	) {
 		public static DoneActions noop() {
-			return new DoneActions(() -> {}, () -> {}, () -> {}, () -> {});
+			return new DoneActions(() -> {}, () -> {}, () -> {}, () -> {}, () -> {});
 		}
 
 		public static DoneActions of(
 			@Nullable Runnable playPreview,
 			@Nullable Runnable editTimeline,
 			@Nullable Runnable editChoreography,
-			@Nullable Runnable saveProject
+			@Nullable Runnable saveProject,
+			@Nullable Runnable exportVideo
 		) {
 			return new DoneActions(
 				playPreview != null ? playPreview : () -> {},
 				editTimeline != null ? editTimeline : () -> {},
 				editChoreography != null ? editChoreography : () -> {},
-				saveProject != null ? saveProject : () -> {}
+				saveProject != null ? saveProject : () -> {},
+				exportVideo != null ? exportVideo : () -> {}
 			);
 		}
 	}
@@ -57,9 +60,7 @@ public final class QuickStartWizardPanel {
 	private final DoneActions doneActions;
 	private final ImString musicPath = new ImString(PATH_CAPACITY);
 	private final ImString stageObjectName = new ImString(64);
-	private final ImInt creationTypeIndex = new ImInt(3);
 	private final ImBoolean windowOpen = new ImBoolean(false);
-	private boolean autoOpenTriggered;
 	private boolean skippedImportOnOpen;
 	private boolean stageObjectNameSynced;
 
@@ -68,7 +69,7 @@ public final class QuickStartWizardPanel {
 	}
 
 	public QuickStartWizardPanel(Runnable onPlayPreview) {
-		this(PresenterFactories.quickStartWizardPresenter(), DoneActions.of(onPlayPreview, null, null, null));
+		this(PresenterFactories.quickStartWizardPresenter(), DoneActions.of(onPlayPreview, null, null, null, null));
 	}
 
 	public QuickStartWizardPanel(DoneActions doneActions) {
@@ -80,7 +81,7 @@ public final class QuickStartWizardPanel {
 	}
 
 	QuickStartWizardPanel(QuickStartWizardPresenter presenter, Runnable onPlayPreview) {
-		this(presenter, DoneActions.of(onPlayPreview, null, null, null));
+		this(presenter, DoneActions.of(onPlayPreview, null, null, null, null));
 	}
 
 	QuickStartWizardPanel(QuickStartWizardPresenter presenter, DoneActions doneActions) {
@@ -88,28 +89,22 @@ public final class QuickStartWizardPanel {
 		this.doneActions = doneActions != null ? doneActions : DoneActions.noop();
 	}
 
+	public CreationPreset creationPreset() {
+		return presenter.creationPreset();
+	}
+
+	public @org.jspecify.annotations.Nullable String lastGenerateStageObjectId() {
+		var outcome = presenter.lastGenerateOutcome();
+		return outcome != null ? outcome.stageObjectId() : null;
+	}
+
 	public void open() {
 		var session = presenter.prepareOpen();
 		musicPath.set(session.audioPath());
-		creationTypeIndex.set(presenter.indexForCreationType(presenter.viewState().creationType()));
 		stageObjectName.set("");
 		stageObjectNameSynced = false;
 		skippedImportOnOpen = session.skippedImport();
 		windowOpen.set(true);
-	}
-
-	public void onUiOpened(boolean environmentSetupOpen) {
-		if (autoOpenTriggered || environmentSetupOpen) {
-			return;
-		}
-		if (UiPreferences.isQuickStartWizardAcknowledged()) {
-			return;
-		}
-		if (!UiPreferences.isPythonSetupAcknowledged()) {
-			return;
-		}
-		autoOpenTriggered = true;
-		open();
 	}
 
 	public void render() {
@@ -283,30 +278,15 @@ public final class QuickStartWizardPanel {
 		ImGui.textWrapped(BBTexts.get("beatblock.wizard.type.desc"));
 		ImGui.spacing();
 
-		String[] typeLabels = BBTexts.labels(
-			"beatblock.wizard.style.cinematic",
-			"beatblock.wizard.style.rhythmic",
-			"beatblock.wizard.style.drop",
-			"beatblock.wizard.style.full"
+		CreationPreset selected = presenter.creationPreset();
+		CreationPresetCardControls.renderPresetList(
+			CreationPreset.WIZARD_PRESETS,
+			selected,
+			presenter::setCreationPreset
 		);
-		ImGui.setNextItemWidth(-1f);
-		if (ImGui.combo(BBTexts.get("beatblock.wizard.type.label") + "##wizardType", creationTypeIndex, typeLabels)) {
-			presenter.setCreationType(switch (creationTypeIndex.get()) {
-				case 0 -> QuickStartWizardPresenter.CreationType.CINEMATIC_BUILD;
-				case 1 -> QuickStartWizardPresenter.CreationType.RHYTHMIC_PERFORMANCE;
-				case 2 -> QuickStartWizardPresenter.CreationType.DROP_IMPACT;
-				default -> QuickStartWizardPresenter.CreationType.FULL_CHOREOGRAPHY;
-			});
-		}
 
-		String tooltip = switch (creationTypeIndex.get()) {
-			case 0 -> BBTexts.get("beatblock.wizard.style.cinematic.tooltip");
-			case 1 -> BBTexts.get("beatblock.wizard.style.rhythmic.tooltip");
-			case 2 -> BBTexts.get("beatblock.wizard.style.drop.tooltip");
-			default -> BBTexts.get("beatblock.wizard.style.full.tooltip");
-		};
-		if (ImGui.isItemHovered()) ImGui.setTooltip(tooltip);
-
+		ImGui.spacing();
+		ImGui.textDisabled(BBTexts.get("beatblock.wizard.type.timeline_apply_hint"));
 		ImGui.spacing();
 		if (ImGui.button(BBTexts.get("beatblock.wizard.back") + "##wizardBackType")) {
 			presenter.goToStep(QuickStartWizardPresenter.Step.IMPORT);
@@ -484,19 +464,22 @@ public final class QuickStartWizardPanel {
 		ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.vfx", summary.vfxEvents()));
 		ImGui.spacing();
 
-		ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
-		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
-		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
-		if (ImGui.button(BBTexts.get("beatblock.wizard.done.play") + "##wizardPlayPreview", -1f, 32f)) {
+		String refinementHint = presenter.doneRefinementHint();
+		if (!refinementHint.isBlank()) {
+			ImGui.textWrapped(refinementHint);
+			ImGui.spacing();
+		}
+
+		if (ImGui.button(BBTexts.get("beatblock.wizard.done.play") + "##wizardPlayPreview", -1f, 0f)) {
 			doneActions.playPreview().run();
 		}
-		ImGui.popStyleColor(3);
 
 		if (ImGui.button(BBTexts.get("beatblock.wizard.done.edit_timeline") + "##wizardEditTimeline", -1f, 0f)) {
 			doneActions.editTimeline().run();
 			closeWizard(true);
 		}
-		if (ImGui.button(BBTexts.get("beatblock.wizard.done.edit_choreography") + "##wizardEditChoreography", -1f, 0f)) {
+		String editLabelKey = presenter.creationPreset().doneEditChoreographyLabelKey();
+		if (ImGui.button(BBTexts.get(editLabelKey) + "##wizardEditChoreography", -1f, 0f)) {
 			doneActions.editChoreography().run();
 			closeWizard(true);
 		}
@@ -505,7 +488,16 @@ public final class QuickStartWizardPanel {
 		}
 
 		ImGui.spacing();
-		if (ImGui.button(BBTexts.get("beatblock.wizard.done.finish") + "##wizardFinish", -1f, 32f)) {
+		ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
+		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
+		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
+		if (ImGui.button(BBTexts.get("beatblock.wizard.done.export_video") + "##wizardExportVideo", -1f, 32f)) {
+			doneActions.exportVideo().run();
+		}
+		ImGui.popStyleColor(3);
+
+		ImGui.spacing();
+		if (ImGui.button(BBTexts.get("beatblock.wizard.done.finish") + "##wizardFinish", -1f, 0f)) {
 			closeWizard(true);
 		}
 	}

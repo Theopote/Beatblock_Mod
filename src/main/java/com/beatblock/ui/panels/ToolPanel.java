@@ -1,6 +1,9 @@
 package com.beatblock.ui.panels;
 
+import com.beatblock.BeatBlock;
+import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
+import com.beatblock.timeline.Timeline;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.selection.SelectionOperation;
 import com.beatblock.ui.i18n.BBTexts;
@@ -51,14 +54,20 @@ public class ToolPanel {
 		);
 	}
 	private final Runnable onOpenSelectionInspector;
+	private final Runnable onOpenSectionEdit;
 
 	public ToolPanel() {
-		this(null);
+		this(null, null);
 	}
 
 	public ToolPanel(Runnable onOpenSelectionInspector) {
+		this(onOpenSelectionInspector, null);
+	}
+
+	public ToolPanel(Runnable onOpenSelectionInspector, Runnable onOpenSectionEdit) {
 		this(
 			onOpenSelectionInspector,
+			onOpenSectionEdit,
 			PresenterFactories.toolPanelPresenter(),
 			PresenterFactories.selectionPropertiesPresenter()
 		);
@@ -66,10 +75,12 @@ public class ToolPanel {
 
 	ToolPanel(
 		Runnable onOpenSelectionInspector,
+		Runnable onOpenSectionEdit,
 		ToolPanelPresenter presenter,
 		SelectionPropertiesPresenter selectionPresenter
 	) {
 		this.onOpenSelectionInspector = onOpenSelectionInspector;
+		this.onOpenSectionEdit = onOpenSectionEdit;
 		this.presenter = presenter;
 		this.selectionPresenter = selectionPresenter;
 		stageObjectNameBuffer.set("selection_object");
@@ -112,6 +123,7 @@ public class ToolPanel {
 					lastAutoMapResult.getAnimationEvents(),
 					lastAutoMapResult.getCameraEvents(),
 					lastAutoMapResult.getParticleEvents()));
+				renderSectionEditNextStep();
 			}
 
 			renderStageObjectCreator();
@@ -122,6 +134,24 @@ public class ToolPanel {
 		if (showAutoMapSettings) {
 			boolean done = autoMapSettingsPanel.render(res -> lastAutoMapResult = res);
 			if (done) showAutoMapSettings = false;
+		}
+	}
+
+	private void renderSectionEditNextStep() {
+		if (onOpenSectionEdit == null) {
+			return;
+		}
+		Timeline timeline = BeatBlock.getContext().timeline();
+		if (!ChoreographyPlanStore.hasPlan(timeline)) {
+			return;
+		}
+		ImGui.spacing();
+		ImGui.textWrapped(BBTexts.get("beatblock.tool.section_edit.next_step"));
+		if (ImGui.button(BBTexts.get("beatblock.section_edit.toolbar") + "##toolSectionEdit")) {
+			onOpenSectionEdit.run();
+		}
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.section_edit.toolbar.tooltip"));
 		}
 	}
 

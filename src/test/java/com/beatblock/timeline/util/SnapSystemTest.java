@@ -30,6 +30,37 @@ class SnapSystemTest {
 	}
 
 	@Test
+	void snapsToAnalyzedBeatsWhenAvailable() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addFeatureEvent("kick", new FeatureEvent(0.52, 1f));
+		timeline.addFeatureEvent("kick", new FeatureEvent(1.48, 1f));
+
+		assertEquals(0.52, SnapSystem.snap(0.48, timeline, false, 0, true, 120, false, null), 1e-9);
+		assertEquals(1.48, SnapSystem.snap(1.44, timeline, false, 0, true, 120, false, null), 1e-9);
+	}
+
+	@Test
+	void analyzedBeatsTakePriorityOverBpmGrid() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addFeatureEvent("kick", new FeatureEvent(0.52, 1f));
+
+		double snapped = SnapSystem.snap(0.48, timeline, false, 0, true, 120, false, null);
+		assertEquals(0.52, snapped, 1e-9);
+	}
+
+	@Test
+	void beatSnapWithGuidesReturnsAnalyzedBeatReference() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.addFeatureEvent("kick", new FeatureEvent(2.05, 1f));
+
+		SnapSystem.SnapResult result = SnapSystem.snapWithGuides(
+			2.01, timeline, false, 0, true, 120, false, null);
+
+		assertEquals(2.05, result.timeSeconds(), 1e-9);
+		assertArrayEquals(new double[] {2.05}, result.guideTimes(), 1e-9);
+	}
+
+	@Test
 	void magnetSnapsToTimelineEventMarkerAndClipEdge() {
 		Timeline timeline = Timeline.createDefault();
 		timeline.addMarker(new TimelineMarker("m1", 2.0, "Hit", MarkerType.GENERIC));

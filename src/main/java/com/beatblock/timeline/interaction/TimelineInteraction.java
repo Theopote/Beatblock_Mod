@@ -431,7 +431,7 @@ public final class TimelineInteraction implements TimelineInteractionPopupHost {
 				}
 			if (interactionState.getMode() == InteractionMode.DRAG_EVENT) {
 				TimelineEventDragHandler.applyDuringDrag(
-					timeline, interactionState, trackListState, viewState, layout, toolbarState, mx);
+					timeline, eventDragSession, interactionState, trackListState, viewState, layout, toolbarState, mx);
 				return;
 			}
 			if (interactionState.getMode() == InteractionMode.BOX_SELECT && selectionBox != null) {

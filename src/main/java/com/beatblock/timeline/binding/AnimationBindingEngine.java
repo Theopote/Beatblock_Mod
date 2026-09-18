@@ -39,6 +39,30 @@ public final class AnimationBindingEngine {
 
 	private AnimationBindingEngine() {}
 
+	public static int countRemovableGeneratedEvents(Timeline timeline, int targetRowIndex) {
+		if (timeline == null) {
+			return 0;
+		}
+		boolean toBlockTrack = targetRowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK;
+		boolean toAutoTrack = targetRowIndex == TimelineTrackMeta.ROW_ANIM_AUTO;
+		if (!toBlockTrack && !toAutoTrack) {
+			return 0;
+		}
+		int count = 0;
+		if (toBlockTrack) {
+			for (Track track : timeline.getTracks()) {
+				if (track == null || !Timeline.isBlockAnimationFeatureTrackId(track.getId())) {
+					continue;
+				}
+				count += countBindingGeneratedOnTrack(timeline, track.getId());
+			}
+			count += countBindingGeneratedOnTrack(timeline, Timeline.TRACK_ID_ANIMATION_BLOCK);
+		} else {
+			count += countBindingGeneratedOnTrack(timeline, Timeline.TRACK_ID_ANIMATION_AUTO);
+		}
+		return count;
+	}
+
 	public static int applyRules(Timeline timeline, int targetRowIndex, boolean createDefaultsIfMissing) {
 		if (timeline == null) return 0;
 		boolean toBlockTrack = targetRowIndex == TimelineTrackMeta.ROW_ANIM_BLOCK;
@@ -449,6 +473,35 @@ public final class AnimationBindingEngine {
 			if (track == null || !Timeline.isBlockAnimationFeatureTrackId(track.getId())) continue;
 			pruneGeneratedEventsOnTrack(timeline, track.getId());
 		}
+	}
+
+	private static int countBindingGeneratedOnTrack(Timeline timeline, String trackId) {
+		if (timeline == null || trackId == null || trackId.isBlank()) {
+			return 0;
+		}
+		Track track = timeline.getTrack(trackId);
+		if (track == null) {
+			return 0;
+		}
+		int count = 0;
+		for (var clip : track.getClips()) {
+			if (clip == null) {
+				continue;
+			}
+			for (var event : clip.getEvents()) {
+				if (event == null || event.getType() != EventType.ANIMATION) {
+					continue;
+				}
+				Object generatedBy = event.getParameters().get("generatedBy");
+				if (generatedBy == null) {
+					continue;
+				}
+				if (GENERATED_BY_MARK.equalsIgnoreCase(String.valueOf(generatedBy).trim())) {
+					count++;
+				}
+			}
+		}
+		return count;
 	}
 
 	private static void pruneGeneratedEventsOnTrack(Timeline timeline, String trackId) {

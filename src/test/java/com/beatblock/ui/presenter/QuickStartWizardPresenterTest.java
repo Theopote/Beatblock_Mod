@@ -1,6 +1,7 @@
 package com.beatblock.ui.presenter;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.creator.CreationPreset;
 import com.beatblock.audio.analysis.AudioAnalysisEngine;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.DetectedBeat;
@@ -12,6 +13,7 @@ import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.selection.SelectionOperation;
+import com.beatblock.creator.CreationPreset;
 import com.beatblock.test.BeatBlockTestSupport;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
@@ -52,6 +54,7 @@ class QuickStartWizardPresenterTest {
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			PresenterFactories.toolPanelPresenter(context),
 			PresenterFactories.rhythmDropPanelPresenter(context),
+			PresenterFactories.timelineBindingEditorPresenter(context),
 			context::selectionManager,
 			() -> timeline,
 			() -> editor
@@ -201,7 +204,7 @@ class QuickStartWizardPresenterTest {
 
 	@Test
 	void canGenerateRequiresAnalysisReady() {
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.FULL_CHOREOGRAPHY);
+		presenter.setCreationPreset(CreationPreset.FULL_CHOREOGRAPHY);
 		assertFalse(presenter.canGenerate());
 
 		AudioAnalysisEngine engine = BeatBlock.getContext().audioAnalysisEngine();
@@ -221,7 +224,7 @@ class QuickStartWizardPresenterTest {
 
 	@Test
 	void blockFallAnalysisRequiresBeatGrid() {
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.DROP_IMPACT);
+		presenter.setCreationPreset(CreationPreset.DROP_IMPACT);
 		assertFalse(presenter.isAnalysisReady());
 
 		AudioAnalysisEngine engine = BeatBlock.getContext().audioAnalysisEngine();
@@ -250,7 +253,7 @@ class QuickStartWizardPresenterTest {
 			new BlockPos(1, 64, 0)
 		), SelectionOperation.NEW);
 
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.RHYTHMIC_PERFORMANCE);
+		presenter.setCreationPreset(CreationPreset.RHYTHM_PULSE);
 		presenter.goToStep(QuickStartWizardPresenter.Step.GENERATE);
 		assertTrue(presenter.canGenerate());
 
@@ -352,11 +355,12 @@ class QuickStartWizardPresenterTest {
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			toolPanel,
 			failingRhythmDrop,
+			PresenterFactories.timelineBindingEditorPresenter(BeatBlock.getContext()),
 			BeatBlock.getContext()::selectionManager,
 			() -> timeline,
 			() -> editor
 		);
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.DROP_IMPACT);
+		presenter.setCreationPreset(CreationPreset.DROP_IMPACT);
 		presenter.goToStep(QuickStartWizardPresenter.Step.GENERATE);
 
 		assertTrue(presenter.canGenerate());
@@ -369,11 +373,12 @@ class QuickStartWizardPresenterTest {
 	}
 
 	@Test
-	void indexForCreationTypeMatchesComboOrder() {
-		assertEquals(0, presenter.indexForCreationType(QuickStartWizardPresenter.CreationType.CINEMATIC_BUILD));
-		assertEquals(1, presenter.indexForCreationType(QuickStartWizardPresenter.CreationType.RHYTHMIC_PERFORMANCE));
-		assertEquals(2, presenter.indexForCreationType(QuickStartWizardPresenter.CreationType.DROP_IMPACT));
-		assertEquals(3, presenter.indexForCreationType(QuickStartWizardPresenter.CreationType.FULL_CHOREOGRAPHY));
+	void indexForCreationPresetMatchesWizardOrder() {
+		assertEquals(0, presenter.indexForCreationPreset(CreationPreset.BUILD_REVEAL));
+		assertEquals(1, presenter.indexForCreationPreset(CreationPreset.RHYTHM_PULSE));
+		assertEquals(2, presenter.indexForCreationPreset(CreationPreset.RHYTHM_PATH));
+		assertEquals(3, presenter.indexForCreationPreset(CreationPreset.DROP_IMPACT));
+		assertEquals(4, presenter.indexForCreationPreset(CreationPreset.FULL_CHOREOGRAPHY));
 	}
 
 	@Test
@@ -386,7 +391,7 @@ class QuickStartWizardPresenterTest {
 			new BlockPos(1, 64, 0)
 		), SelectionOperation.NEW);
 
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.FULL_CHOREOGRAPHY);
+		presenter.setCreationPreset(CreationPreset.FULL_CHOREOGRAPHY);
 		presenter.setStageObjectName("");
 		presenter.advanceFromSelectStep();
 
@@ -394,7 +399,7 @@ class QuickStartWizardPresenterTest {
 		assertEquals(2, plan.selectionCount());
 		assertFalse(plan.objectName().isBlank());
 		assertFalse(plan.objectName().startsWith("selection_"));
-		assertEquals(QuickStartWizardPresenter.styleLabel(QuickStartWizardPresenter.CreationType.FULL_CHOREOGRAPHY), plan.styleLabel());
+		assertEquals(CreationPreset.FULL_CHOREOGRAPHY.styleLabel(), plan.styleLabel());
 		assertFalse(plan.animationSummary().isBlank());
 		assertFalse(plan.cameraSummary().isBlank());
 		assertFalse(plan.vfxSummary().isBlank());

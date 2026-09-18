@@ -1,6 +1,8 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
+import com.beatblock.timeline.generation.GenerationReapplyGuard;
 
 import java.util.function.Supplier;
 
@@ -69,6 +71,34 @@ public final class TimelineActionDispatcher {
 		};
 	}
 
+	public GenerationReapplyGuard.@org.jspecify.annotations.Nullable Kind reapplyKindFor(TimelineActionId actionId) {
+		if (actionId == null) {
+			return null;
+		}
+		return switch (actionId) {
+			case RUN_BINDING_MAP -> GenerationReapplyGuard.Kind.BINDING_MAP_BLOCK;
+			case RUN_AUTO_MAP -> GenerationReapplyGuard.Kind.AUTO_MAP_TOOLBAR;
+			default -> null;
+		};
+	}
+
+	public boolean requiresConfirmation(TimelineActionId actionId) {
+		GenerationReapplyGuard.Kind kind = reapplyKindFor(actionId);
+		if (kind == null) {
+			return false;
+		}
+		Timeline timeline = currentTimeline();
+		return GenerationReapplyGuard.requiresConfirmation(timeline, kind);
+	}
+
+	public int affectedEventCount(TimelineActionId actionId) {
+		GenerationReapplyGuard.Kind kind = reapplyKindFor(actionId);
+		if (kind == null) {
+			return 0;
+		}
+		return GenerationReapplyGuard.affectedEventCount(currentTimeline(), kind);
+	}
+
 	public ActionResult execute(TimelineActionId actionId) {
 		if (!isEnabled(actionId)) return ActionResult.unavailable();
 		TimelineEditor editor = timelineEditor.get();
@@ -99,6 +129,11 @@ public final class TimelineActionDispatcher {
 			editor.getPlaybackSession().currentTimeSeconds()
 		);
 		return result.written();
+	}
+
+	private Timeline currentTimeline() {
+		TimelineEditor editor = timelineEditor.get();
+		return editor != null ? editor.getTimeline() : null;
 	}
 
 	private static ActionResult fromOutcome(TimelineToolbarActionsPresenter.ActionOutcome outcome) {

@@ -5,6 +5,7 @@ import com.beatblock.automap.engine.AutoMapSettingsStore;
 import com.beatblock.automap.engine.AutoMapStyle;
 import com.beatblock.automap.engine.Complexity;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
+import com.beatblock.timeline.generation.GenerationReapplyGuard;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.AutoMapSettingsPanelPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
@@ -24,6 +25,8 @@ import java.util.function.Consumer;
 public final class AutoMapSettingsPanel {
 
 	private final AutoMapSettingsPanelPresenter presenter;
+	private final GenerationReapplyConfirmDialog generationReapplyConfirm = new GenerationReapplyConfirmDialog();
+	private boolean requestCloseAfterGenerate;
 	private final AutoMapSettings settings = AutoMapSettingsStore.current();
 	private final ImInt styleIndex = new ImInt(0);
 	private final ImInt complexityIndex = new ImInt(1);
@@ -106,12 +109,18 @@ public final class AutoMapSettingsPanel {
 
 		boolean generated = false;
 		if (ImGui.button(BBTexts.get("beatblock.automap.generate"), 120, 0)) {
-			var outcome = presenter.generate(settings);
-			if (outcome.result().ok()) {
-				if (onResult != null) {
-					onResult.accept(outcome.autoMapResult());
-				}
-				generated = true;
+			if (presenter.smartAutoMapRequiresConfirmation()) {
+				generationReapplyConfirm.request(
+					GenerationReapplyGuard.Kind.SMART_AUTO_MAP,
+					presenter.smartAutoMapAffectedEventCount(),
+					() -> {
+						if (runGenerate(onResult)) {
+							requestCloseAfterGenerate = true;
+						}
+					}
+				);
+			} else {
+				generated = runGenerate(onResult);
 			}
 		}
 		if (ImGui.isItemHovered() && !presenter.canGenerate()) {
@@ -121,8 +130,26 @@ public final class AutoMapSettingsPanel {
 			}
 		}
 
+		generationReapplyConfirm.render();
+		if (requestCloseAfterGenerate) {
+			requestCloseAfterGenerate = false;
+			ImGui.end();
+			return true;
+		}
+
 		ImGui.end();
 		return generated;
+	}
+
+	private boolean runGenerate(Consumer<SmartAutoMapEngine.AutoMapResult> onResult) {
+		var outcome = presenter.generate(settings);
+		if (!outcome.result().ok()) {
+			return false;
+		}
+		if (onResult != null) {
+			onResult.accept(outcome.autoMapResult());
+		}
+		return true;
 	}
 
 	private void ensureTargetsInitialized() {

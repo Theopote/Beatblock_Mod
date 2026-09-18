@@ -1,6 +1,7 @@
 package com.beatblock.ui.presenter;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.creator.CreationPreset;
 import com.beatblock.audio.analysis.AudioAnalysisEngine;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.DetectedBeat;
@@ -57,6 +58,7 @@ class QuickStartGenerationRegressionTest {
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			toolPanel,
 			PresenterFactories.rhythmDropPanelPresenter(context),
+			PresenterFactories.timelineBindingEditorPresenter(context),
 			context::selectionManager,
 			() -> timeline,
 			() -> editor
@@ -80,7 +82,7 @@ class QuickStartGenerationRegressionTest {
 	@Test
 	void fullChoreographyCreatesStageObjectAnimationCameraAndVfx() {
 		prepareAnalysisAndSelection(richFeatureTimeline());
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.FULL_CHOREOGRAPHY);
+		presenter.setCreationPreset(CreationPreset.FULL_CHOREOGRAPHY);
 		presenter.goToStep(QuickStartWizardPresenter.Step.GENERATE);
 
 		int stagesBefore = toolPanel.listStageObjects().size();
@@ -116,7 +118,7 @@ class QuickStartGenerationRegressionTest {
 	@Test
 	void rhythmicPerformanceCreatesAnimationWithoutCameraOrVfxExpectation() {
 		prepareAnalysisAndSelection(richFeatureTimeline());
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.RHYTHMIC_PERFORMANCE);
+		presenter.setCreationPreset(CreationPreset.RHYTHM_PULSE);
 		presenter.goToStep(QuickStartWizardPresenter.Step.GENERATE);
 
 		int stagesBefore = toolPanel.listStageObjects().size();
@@ -143,7 +145,7 @@ class QuickStartGenerationRegressionTest {
 		engine.fillTimelineFromFeature(timeline, richFeatureTimeline(), 44100);
 		selectBlocks();
 
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.DROP_IMPACT);
+		presenter.setCreationPreset(CreationPreset.DROP_IMPACT);
 		presenter.goToStep(QuickStartWizardPresenter.Step.GENERATE);
 		assertTrue(presenter.canGenerate());
 
@@ -177,11 +179,12 @@ class QuickStartGenerationRegressionTest {
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			toolPanel,
 			failingRhythmDrop,
+			PresenterFactories.timelineBindingEditorPresenter(BeatBlock.getContext()),
 			BeatBlock.getContext()::selectionManager,
 			() -> timeline,
 			() -> editor
 		);
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.DROP_IMPACT);
+		presenter.setCreationPreset(CreationPreset.DROP_IMPACT);
 		presenter.goToStep(QuickStartWizardPresenter.Step.GENERATE);
 
 		var outcome = presenter.generate();
@@ -226,7 +229,7 @@ class QuickStartGenerationRegressionTest {
 	@Test
 	void generateTwiceThenUndoOnlyRevertsLatestPerformance() {
 		prepareAnalysisAndSelection(richFeatureTimeline());
-		presenter.setCreationType(QuickStartWizardPresenter.CreationType.RHYTHMIC_PERFORMANCE);
+		presenter.setCreationPreset(CreationPreset.RHYTHM_PULSE);
 
 		int stagesBefore = toolPanel.listStageObjects().size();
 		assertTrue(presenter.generate().result().ok());

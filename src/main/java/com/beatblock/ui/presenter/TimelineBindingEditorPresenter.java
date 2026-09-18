@@ -9,6 +9,7 @@ import com.beatblock.timeline.TimelineAnimationActionMode;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.binding.AnimationBindingEngine;
+import com.beatblock.timeline.generation.GenerationReapplyGuard;
 import com.beatblock.timeline.binding.AnimationBindingRule;
 import com.beatblock.timeline.binding.SpatialDispatchMode;
 import com.beatblock.timeline.rendering.TimelineTrackMeta;
@@ -261,6 +262,24 @@ public final class TimelineBindingEditorPresenter {
 		List<AnimationBindingRule> updated = new ArrayList<>(rules);
 		updated.remove(index);
 		return updated;
+	}
+
+	public boolean blockTrackApplyRequiresConfirmation() {
+		Timeline current = timeline.get();
+		return GenerationReapplyGuard.requiresConfirmation(current, GenerationReapplyGuard.Kind.BINDING_MAP_BLOCK);
+	}
+
+	public boolean autoTrackApplyRequiresConfirmation() {
+		Timeline current = timeline.get();
+		return GenerationReapplyGuard.requiresConfirmation(current, GenerationReapplyGuard.Kind.BINDING_MAP_AUTO);
+	}
+
+	public int blockTrackAffectedEventCount() {
+		return GenerationReapplyGuard.affectedEventCount(timeline.get(), GenerationReapplyGuard.Kind.BINDING_MAP_BLOCK);
+	}
+
+	public int autoTrackAffectedEventCount() {
+		return GenerationReapplyGuard.affectedEventCount(timeline.get(), GenerationReapplyGuard.Kind.BINDING_MAP_AUTO);
 	}
 
 	public ApplyTrackOutcome applyToBlockTrack() {

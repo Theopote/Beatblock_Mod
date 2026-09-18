@@ -11,6 +11,9 @@ import com.beatblock.timeline.rendering.TimelineToolbarState;
 import com.beatblock.timeline.util.SnapSystem;
 import com.beatblock.timeline.util.TimeUtils;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * 拖拽逻辑：事件时间更新、可选吸附。
  */
@@ -52,6 +55,72 @@ public final class DragController {
 
 		event.setTimeSeconds(t);
 		if (isAnimationTrack(trackId)) {
+			timeline.markAnimationEventsDirty(trackId);
+		}
+	}
+
+	/**
+	 * 多选组拖：主事件吸附后，其余选中事件按相同 delta 移动并各自夹到所属 Clip 范围。
+	 */
+	public static void dragEventGroup(
+		Timeline timeline,
+		TimelineEventDragSession session,
+		double primaryNewTimeSeconds,
+		TimelineToolbarState toolbarState,
+		TimelineViewState viewState,
+		InteractionState interactionState
+	) {
+		if (timeline == null || session == null || session.primaryEventId() == null) {
+			return;
+		}
+		TimelineEventRef primaryRef = TimelineEventRefs.find(timeline, session.primaryEventId());
+		if (primaryRef == null || primaryRef.event() == null || primaryRef.clip() == null) {
+			return;
+		}
+		TimelineEventMovePolicy.MoveBounds primaryBounds =
+			TimelineEventMovePolicy.boundsFor(primaryRef.clip(), primaryRef.event());
+		if (primaryBounds.isFixed()) {
+			return;
+		}
+
+		double snappedPrimary = computeEventDragTime(
+			primaryNewTimeSeconds,
+			session.primaryEventId(),
+			primaryBounds.minTimeSeconds(),
+			primaryBounds.maxTimeSeconds(),
+			timeline,
+			toolbarState,
+			viewState,
+			interactionState,
+			session.memberEventIds()
+		);
+		if (Double.isNaN(snappedPrimary)) {
+			return;
+		}
+
+		TimelineEventDragSession.Member primaryMember = session.member(session.primaryEventId());
+		double primaryInitial = primaryMember != null
+			? primaryMember.initialTimeSeconds()
+			: primaryRef.event().getTimeSeconds();
+		double delta = snappedPrimary - primaryInitial;
+
+		Set<String> dirtyTracks = new HashSet<>();
+		for (TimelineEventDragSession.Member member : session.members()) {
+			TimelineEventRef ref = TimelineEventRefs.find(timeline, member.eventId());
+			if (ref == null || ref.event() == null || ref.clip() == null) {
+				continue;
+			}
+			TimelineEventMovePolicy.MoveBounds bounds = TimelineEventMovePolicy.boundsFor(ref.clip(), ref.event());
+			if (bounds.isFixed()) {
+				continue;
+			}
+			double target = bounds.clamp(member.initialTimeSeconds() + delta);
+			ref.event().setTimeSeconds(target);
+			if (isAnimationTrack(member.trackId())) {
+				dirtyTracks.add(member.trackId());
+			}
+		}
+		for (String trackId : dirtyTracks) {
 			timeline.markAnimationEventsDirty(trackId);
 		}
 	}
@@ -98,9 +167,27 @@ public final class DragController {
 		TimelineViewState viewState,
 		InteractionState interactionState
 	) {
+		Set<String> excludeEventIds = eventId != null && !eventId.isBlank() ? Set.of(eventId) : Set.of();
+		return computeEventDragTime(
+			newTimeSeconds, eventId, minTimeSeconds, maxTimeSeconds,
+			timeline, toolbarState, viewState, interactionState, excludeEventIds);
+	}
+
+	public static double computeEventDragTime(
+		double newTimeSeconds,
+		String eventId,
+		double minTimeSeconds,
+		double maxTimeSeconds,
+		Timeline timeline,
+		TimelineToolbarState toolbarState,
+		TimelineViewState viewState,
+		InteractionState interactionState,
+		Set<String> magnetExcludeEventIds
+	) {
 		if (timeline == null) return Double.NaN;
 
-		SnapSystem.SnapResult snapped = applySnapWithGuides(newTimeSeconds, eventId, timeline, toolbarState, viewState);
+		SnapSystem.SnapResult snapped = applySnapWithGuides(
+			newTimeSeconds, magnetExcludeEventIds, timeline, toolbarState, viewState);
 		if (interactionState != null) {
 			interactionState.setAlignmentGuideTimes(snapped.guideTimes());
 		}
@@ -127,7 +214,7 @@ public final class DragController {
 		if (clip == null) return dragInitialClipStart;
 
 		double rawNewStart = dragInitialClipStart + (mouseTimeSeconds - dragInitialMouseTime);
-		SnapSystem.SnapResult snapped = applySnapWithGuides(rawNewStart, null, timeline, toolbarState, viewState);
+		SnapSystem.SnapResult snapped = applySnapWithGuides(rawNewStart, (String) null, timeline, toolbarState, viewState);
 		if (interactionState != null) {
 			interactionState.setAlignmentGuideTimes(snapped.guideTimes());
 		}
@@ -209,6 +296,30 @@ public final class DragController {
 		TimelineToolbarState toolbarState,
 		TimelineViewState viewState
 	) {
+		Set<String> excludeEventIds = excludeEventId != null && !excludeEventId.isBlank()
+			? Set.of(excludeEventId)
+			: Set.of();
+		return applySnapWithGuides(timeSeconds, excludeEventIds, excludeMarkerId, timeline, toolbarState, viewState);
+	}
+
+	private static SnapSystem.SnapResult applySnapWithGuides(
+		double timeSeconds,
+		Set<String> excludeEventIds,
+		Timeline timeline,
+		TimelineToolbarState toolbarState,
+		TimelineViewState viewState
+	) {
+		return applySnapWithGuides(timeSeconds, excludeEventIds, null, timeline, toolbarState, viewState);
+	}
+
+	private static SnapSystem.SnapResult applySnapWithGuides(
+		double timeSeconds,
+		Set<String> excludeEventIds,
+		String excludeMarkerId,
+		Timeline timeline,
+		TimelineToolbarState toolbarState,
+		TimelineViewState viewState
+	) {
 		if (toolbarState == null) return SnapSystem.SnapResult.unchanged(timeSeconds);
 		boolean grid = toolbarState.isSnapToGrid();
 		boolean beat = toolbarState.isSnapToBeat();
@@ -223,6 +334,6 @@ public final class DragController {
 				viewState.getZoom());
 		}
 		return SnapSystem.snapWithGuides(
-			timeSeconds, timeline, grid, gridStep, beat, timeline.getBpm(), magnet, excludeEventId, excludeMarkerId);
+			timeSeconds, timeline, grid, gridStep, beat, timeline.getBpm(), magnet, excludeEventIds, excludeMarkerId);
 	}
 }

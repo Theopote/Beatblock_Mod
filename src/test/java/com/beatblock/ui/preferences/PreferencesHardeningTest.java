@@ -106,6 +106,16 @@ class PreferencesHardeningTest {
 		}
 	}
 
+	@Test
+	void creatorHomeDismissedPersists() {
+		assertFalse(UiPreferences.isCreatorHomeDismissed());
+		assertTrue(UiPreferences.setCreatorHomeDismissed(true));
+		assertTrue(UiPreferences.isCreatorHomeDismissed());
+		UiPreferences.resetForTests();
+		UiPreferences.setCreatorHomeDismissed(true);
+		assertTrue(UiPreferences.isCreatorHomeDismissed());
+	}
+
 	private static EnumMap<BeatBlockShortcutId, String> defaults() {
 		EnumMap<BeatBlockShortcutId, String> drafts = new EnumMap<>(BeatBlockShortcutId.class);
 		for (BeatBlockShortcutId id : BeatBlockShortcutId.values()) {

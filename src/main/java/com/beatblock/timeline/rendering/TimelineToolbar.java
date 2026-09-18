@@ -24,6 +24,7 @@ public final class TimelineToolbar {
 	private final TimelineToolbarTransportStrip transportStrip;
 	private final TimelineToolbarActionRollbackControls actionRollbackControls;
 	private final TimelineToolbarRecordControls recordControls;
+	private final TimelineToolbarSectionEditControls sectionEditControls;
 	private final TimelineToolbarSnapGridControls snapGridControls;
 	private final TimelineToolbarViewControls viewControls;
 	private final TimelineToolbarLoopSpeedControls loopSpeedControls;
@@ -52,6 +53,7 @@ public final class TimelineToolbar {
 		var trackHeightControls = new TimelineToolbarTrackHeightControls();
 		this.actionRollbackControls = new TimelineToolbarActionRollbackControls(config, actionRollbackComboIndex);
 		this.recordControls = new TimelineToolbarRecordControls(PresenterFactories.timelineRecordModePresenter());
+		this.sectionEditControls = new TimelineToolbarSectionEditControls();
 		this.snapGridControls = new TimelineToolbarSnapGridControls();
 		this.viewControls = new TimelineToolbarViewControls(zoomComboIndex, trackHeightControls);
 		this.loopSpeedControls = new TimelineToolbarLoopSpeedControls(transport, speedComboIndex, actionRollbackControls);
@@ -84,6 +86,8 @@ public final class TimelineToolbar {
 
 		recordControls.renderInline(editor, toolbarState, transportState.playing());
 
+		TimelineToolbarImGui.nextGroupOrWrap(0);
+		sectionEditControls.renderInline(editor);
 		TimelineToolbarImGui.nextGroupOrWrap(0);
 		overflowMenu.renderButtonAndPopup(editor, toolbarState, seekStep);
 	}

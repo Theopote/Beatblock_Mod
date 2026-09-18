@@ -274,6 +274,7 @@ public final class PresenterFactories {
 			autoMapSettingsPanelPresenter(context),
 			toolPanelPresenter(context),
 			rhythmDropPanelPresenter(context),
+			timelineBindingEditorPresenter(context),
 			context::selectionManager,
 			context::timeline,
 			context::timelineEditor

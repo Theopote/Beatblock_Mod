@@ -3,6 +3,7 @@ package com.beatblock.timeline.util;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.FeatureTrack;
+import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.TimelineMarker;
@@ -10,6 +11,7 @@ import com.beatblock.timeline.Track;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 时间吸附：靠近 Beat / Grid / Event / Marker / 特征点 / 片段边界时对齐。
@@ -57,6 +59,18 @@ public final class SnapSystem {
 			boolean snapToGrid, double gridStepSeconds,
 			boolean snapToBeat, double bpm,
 			boolean magnetSnap, String excludeEventId, String excludeMarkerId) {
+		Set<String> excludeEventIds = excludeEventId != null && !excludeEventId.isBlank()
+			? Set.of(excludeEventId)
+			: Set.of();
+		return snapWithGuides(
+			timeSeconds, timeline, snapToGrid, gridStepSeconds, snapToBeat, bpm,
+			magnetSnap, excludeEventIds, excludeMarkerId);
+	}
+
+	public static SnapResult snapWithGuides(double timeSeconds, Timeline timeline,
+			boolean snapToGrid, double gridStepSeconds,
+			boolean snapToBeat, double bpm,
+			boolean magnetSnap, Set<String> excludeEventIds, String excludeMarkerId) {
 		if (timeline == null) return SnapResult.unchanged(timeSeconds);
 
 		MutableSnapState state = new MutableSnapState(timeSeconds, SNAP_THRESHOLD_SECONDS);
@@ -64,10 +78,8 @@ public final class SnapSystem {
 			double grid = Math.round(timeSeconds / gridStepSeconds) * gridStepSeconds;
 			state.consider(timeSeconds, grid);
 		}
-		if (snapToBeat && bpm > 0) {
-			double beatDuration = 60.0 / bpm;
-			double beat = Math.round(timeSeconds / beatDuration) * beatDuration;
-			state.consider(timeSeconds, beat);
+		if (snapToBeat) {
+			considerBeatSnap(state, timeSeconds, timeline, bpm);
 		}
 		if (magnetSnap) {
 			for (Track track : timeline.getTracks()) {
@@ -76,7 +88,7 @@ public final class SnapSystem {
 					state.consider(timeSeconds, clip.getStartTimeSeconds());
 					state.consider(timeSeconds, clip.getEndTimeSeconds());
 					for (TimelineEvent e : clip.getEvents()) {
-						if (excludeEventId != null && excludeEventId.equals(e.getId())) continue;
+						if (excludeEventIds != null && excludeEventIds.contains(e.getId())) continue;
 						state.consider(timeSeconds, e.getTimeSeconds());
 					}
 				}
@@ -128,6 +140,21 @@ public final class SnapSystem {
 			boolean snapToGrid, double gridStepSeconds,
 			boolean snapToBeat, double bpm) {
 		return snap(timeSeconds, timeline, snapToGrid, gridStepSeconds, snapToBeat, bpm, false, null, null);
+	}
+
+	private static void considerBeatSnap(MutableSnapState state, double timeSeconds, Timeline timeline, double bpm) {
+		double[] analyzedBeats = ReferenceBeatResolver.resolveBeatTimesSeconds(timeline);
+		if (analyzedBeats.length > 0) {
+			for (double beat : analyzedBeats) {
+				state.consider(timeSeconds, beat);
+			}
+			return;
+		}
+		if (bpm > 0) {
+			double beatDuration = 60.0 / bpm;
+			double beat = Math.round(timeSeconds / beatDuration) * beatDuration;
+			state.consider(timeSeconds, beat);
+		}
 	}
 
 	private static final class MutableSnapState {

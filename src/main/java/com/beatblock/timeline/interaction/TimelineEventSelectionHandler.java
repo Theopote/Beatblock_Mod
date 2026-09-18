@@ -23,6 +23,12 @@ public final class TimelineEventSelectionHandler {
 
 		String eventId = hit.getEventId();
 		if (eventId != null) {
+			if (!ctrl && !shift
+				&& selectionState.isEventSelected(eventId)
+				&& selectionState.getSelectedEvents().size() > 1) {
+				selectionState.setRangeAnchorEventId(eventId);
+				return;
+			}
 			if (ctrl) {
 				if (selectionState.isEventSelected(eventId)) {
 					selectionState.deselectEvent(eventId);

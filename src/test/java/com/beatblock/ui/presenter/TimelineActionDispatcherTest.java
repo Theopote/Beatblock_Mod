@@ -1,8 +1,13 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.test.WithBeatBlockContext;
+import com.beatblock.timeline.EventType;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.TimelineOperations;
+import com.beatblock.timeline.Track;
+import com.beatblock.timeline.TrackType;
+import com.beatblock.timeline.binding.AnimationBindingEngine;
 import net.minecraft.util.math.Vec3d;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@WithBeatBlockContext
 class TimelineActionDispatcherTest {
 
 	@Test
@@ -41,6 +47,22 @@ class TimelineActionDispatcherTest {
 		assertTrue(result.executed());
 		assertFalse(result.success());
 		assertEquals(com.beatblock.ui.i18n.BBTexts.get("beatblock.message.auto_map_skipped"), result.message());
+	}
+
+	@Test
+	void bindingMapRequiresConfirmationWhenGeneratedEventsExist() {
+		Timeline timeline = Timeline.createDefault();
+		TimelineEditor editor = new TimelineEditor(timeline);
+		String trackId = Timeline.blockAnimationFeatureTrackId("kick");
+		timeline.addTrack(new Track(trackId, "kick", TrackType.ANIMATION));
+		var clip = TimelineOperations.addClip(timeline, trackId, 0, 4);
+		TimelineOperations.addEvent(clip, 1.0, EventType.ANIMATION, Map.of(
+			"generatedBy", AnimationBindingEngine.GENERATED_BY_MARK
+		));
+
+		TimelineActionDispatcher dispatcher = dispatcher(() -> timeline, () -> editor);
+		assertTrue(dispatcher.requiresConfirmation(TimelineActionId.RUN_BINDING_MAP));
+		assertEquals(1, dispatcher.affectedEventCount(TimelineActionId.RUN_BINDING_MAP));
 	}
 
 	@Test

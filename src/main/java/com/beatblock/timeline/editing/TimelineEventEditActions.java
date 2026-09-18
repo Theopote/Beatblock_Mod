@@ -4,14 +4,20 @@ import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.command.ApplyClipDragCommand;
+import com.beatblock.timeline.command.Command;
 import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.timeline.command.CompositeCommand;
 import com.beatblock.timeline.command.MoveEventCommand;
+import com.beatblock.timeline.interaction.EventMoveSnapshot;
 import com.beatblock.timeline.command.UpdateAnimationEventCommand;
 import com.beatblock.timeline.command.UpdateClipPropertiesCommand;
 
 import com.beatblock.timeline.Track;
 
 import org.jspecify.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 通过 CommandManager 提交事件 / 片段属性编辑，供 Panel 与 Interaction 共用。
@@ -100,6 +106,39 @@ public final class TimelineEventEditActions {
 			return false;
 		}
 		return executeClipOnly(timeline, commandManager, trackId, clip.getId(), before, after);
+	}
+
+	public static boolean commitEventMoves(
+		Timeline timeline,
+		CommandManager commandManager,
+		List<EventMoveSnapshot> moves
+	) {
+		if (timeline == null || commandManager == null || moves == null || moves.isEmpty()) {
+			return false;
+		}
+		List<Command> commands = new ArrayList<>();
+		for (EventMoveSnapshot move : moves) {
+			if (move == null || Math.abs(move.oldTimeSeconds() - move.newTimeSeconds()) < 1e-9) {
+				continue;
+			}
+			commands.add(new MoveEventCommand(
+				timeline,
+				move.trackId(),
+				move.clipId(),
+				move.eventId(),
+				move.oldTimeSeconds(),
+				move.newTimeSeconds()
+			));
+		}
+		if (commands.isEmpty()) {
+			return false;
+		}
+		if (commands.size() == 1) {
+			commandManager.execute(commands.getFirst());
+		} else {
+			commandManager.execute(new CompositeCommand(commands));
+		}
+		return true;
 	}
 
 	public static boolean commitEventMove(

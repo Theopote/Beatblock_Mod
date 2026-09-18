@@ -28,11 +28,13 @@ public final class UiPreferences {
 	private static final String SHORTCUTS_KEY = "shortcuts";
 	private static final String PYTHON_SETUP_ACKNOWLEDGED_KEY = "pythonSetupAcknowledged";
 	private static final String QUICK_START_WIZARD_ACKNOWLEDGED_KEY = "quickStartWizardAcknowledged";
+	private static final String CREATOR_HOME_DISMISSED_KEY = "creatorHomeDismissed";
 
 	private static UiTheme theme = UiTheme.DARK;
 	private static final EnumMap<BeatBlockShortcutId, String> shortcuts = new EnumMap<>(BeatBlockShortcutId.class);
 	private static boolean pythonSetupAcknowledged;
 	private static boolean quickStartWizardAcknowledged;
+	private static boolean creatorHomeDismissed;
 	private static boolean loaded;
 	/** When load failed or file was corrupt — next save writes a fresh root. */
 	private static boolean corruptRecovered;
@@ -46,6 +48,7 @@ public final class UiPreferences {
 		shortcuts.clear();
 		pythonSetupAcknowledged = false;
 		quickStartWizardAcknowledged = false;
+		creatorHomeDismissed = false;
 		loaded = false;
 		corruptRecovered = false;
 	}
@@ -149,6 +152,20 @@ public final class UiPreferences {
 		return save();
 	}
 
+	public static boolean isCreatorHomeDismissed() {
+		ensureLoaded();
+		return creatorHomeDismissed;
+	}
+
+	public static boolean setCreatorHomeDismissed(boolean dismissed) {
+		ensureLoaded();
+		if (creatorHomeDismissed == dismissed) {
+			return true;
+		}
+		creatorHomeDismissed = dismissed;
+		return save();
+	}
+
 	public static Map<BeatBlockShortcutId, String> allShortcuts() {
 		ensureLoaded();
 		Map<BeatBlockShortcutId, String> out = new EnumMap<>(BeatBlockShortcutId.class);
@@ -220,6 +237,9 @@ public final class UiPreferences {
 		if (root.has(QUICK_START_WIZARD_ACKNOWLEDGED_KEY)) {
 			quickStartWizardAcknowledged = root.get(QUICK_START_WIZARD_ACKNOWLEDGED_KEY).getAsBoolean();
 		}
+		if (root.has(CREATOR_HOME_DISMISSED_KEY)) {
+			creatorHomeDismissed = root.get(CREATOR_HOME_DISMISSED_KEY).getAsBoolean();
+		}
 	}
 
 	/**
@@ -238,6 +258,7 @@ public final class UiPreferences {
 			root.add(SHORTCUTS_KEY, map);
 			root.addProperty(PYTHON_SETUP_ACKNOWLEDGED_KEY, pythonSetupAcknowledged);
 			root.addProperty(QUICK_START_WIZARD_ACKNOWLEDGED_KEY, quickStartWizardAcknowledged);
+			root.addProperty(CREATOR_HOME_DISMISSED_KEY, creatorHomeDismissed);
 			AtomicConfigFiles.writeAtomically(path, GSON.toJson(root));
 			corruptRecovered = false;
 			return true;

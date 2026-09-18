@@ -1,10 +1,9 @@
 package com.beatblock.ui.presenter;
 
-import com.beatblock.automap.choreography.ChoreographyLayerProfile;
 import com.beatblock.automap.engine.AutoMapSettings;
-import com.beatblock.automap.engine.AutoMapStyle;
-import com.beatblock.automap.engine.Complexity;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
+import com.beatblock.automap.choreography.ChoreographyPlanStore;
+import com.beatblock.creator.CreationPreset;
 import com.beatblock.audio.assets.AudioAsset;
 import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.assets.AudioAssetStatus;
@@ -17,13 +16,14 @@ import com.beatblock.timeline.ReferenceBeatResolver;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.command.CreateQuickStartPerformanceCommand;
+import com.beatblock.timeline.binding.AnimationBindingEngine;
+import com.beatblock.timeline.rendering.TimelineTrackMeta;
 import com.beatblock.ui.i18n.BBTexts;
 
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -32,21 +32,8 @@ import java.util.function.Supplier;
 public final class QuickStartWizardPresenter {
 
 	/**
-	 * 向导里的创作风格（产品层）。EDM / Complexity / LayerProfile 等仅为内部映射，不对用户暴露。
-	 * <ul>
-	 *   <li>{@link #CINEMATIC_BUILD} — 建筑逐步出现、镜头克制</li>
-	 *   <li>{@link #RHYTHMIC_PERFORMANCE} — 跟随节奏运动</li>
-	 *   <li>{@link #DROP_IMPACT} — 高潮坠落 / 爆发命中</li>
-	 *   <li>{@link #FULL_CHOREOGRAPHY} — Accent + Phrase + Hero + Camera + VFX</li>
-	 * </ul>
+	 * 向导步骤与 {@link CreationPreset} 配合，见 {@code com.beatblock.creator.CreationPreset}。
 	 */
-	public enum CreationType {
-		CINEMATIC_BUILD,
-		RHYTHMIC_PERFORMANCE,
-		DROP_IMPACT,
-		FULL_CHOREOGRAPHY
-	}
-
 	public enum Step {
 		IMPORT,
 		CHOOSE_TYPE,
@@ -96,7 +83,7 @@ public final class QuickStartWizardPresenter {
 		boolean musicLoaded,
 		boolean analysisReady,
 		int selectionCount,
-		CreationType creationType,
+		CreationPreset creationPreset,
 		String stageObjectName,
 		String statusMessage
 	) {}
@@ -178,6 +165,7 @@ public final class QuickStartWizardPresenter {
 	}
 
 	private final AutoMapSettingsPanelPresenter autoMapPresenter;
+	private final TimelineBindingEditorPresenter bindingPresenter;
 	private final ToolPanelPresenter toolPanelPresenter;
 	private final RhythmDropPanelPresenter rhythmDropPresenter;
 	private final Supplier<BeatBlockSelectionManager> selectionManager;
@@ -185,7 +173,7 @@ public final class QuickStartWizardPresenter {
 	private final Supplier<TimelineEditor> timelineEditor;
 
 	private Step step = Step.IMPORT;
-	private CreationType creationType = CreationType.FULL_CHOREOGRAPHY;
+	private CreationPreset creationPreset = CreationPreset.FULL_CHOREOGRAPHY;
 	private String stageObjectName = "";
 	private String statusMessage = "";
 	/** 用户是否已在本步骤点击「开始选择」（或从已有选区进入）。 */
@@ -206,6 +194,7 @@ public final class QuickStartWizardPresenter {
 		AutoMapSettingsPanelPresenter autoMapPresenter,
 		ToolPanelPresenter toolPanelPresenter,
 		RhythmDropPanelPresenter rhythmDropPresenter,
+		TimelineBindingEditorPresenter bindingPresenter,
 		Supplier<BeatBlockSelectionManager> selectionManager,
 		Supplier<Timeline> timeline,
 		Supplier<TimelineEditor> timelineEditor
@@ -213,6 +202,7 @@ public final class QuickStartWizardPresenter {
 		this.autoMapPresenter = autoMapPresenter;
 		this.toolPanelPresenter = toolPanelPresenter;
 		this.rhythmDropPresenter = rhythmDropPresenter;
+		this.bindingPresenter = bindingPresenter;
 		this.selectionManager = selectionManager;
 		this.timeline = timeline;
 		this.timelineEditor = timelineEditor;
@@ -224,7 +214,7 @@ public final class QuickStartWizardPresenter {
 			isMusicLoaded(),
 			isAnalysisReady(),
 			selectionCount(),
-			creationType,
+			creationPreset,
 			resolvedStageObjectName(),
 			statusMessage
 		);
@@ -258,10 +248,10 @@ public final class QuickStartWizardPresenter {
 		return new GenerationPlan(
 			selectionCount(),
 			resolvedStageObjectName(),
-			styleLabel(creationType),
-			animationSummary(creationType),
-			cameraSummary(creationType),
-			vfxSummary(creationType)
+			creationPreset.styleLabel(),
+			creationPreset.animationPlanSummary(),
+			creationPreset.cameraPlanSummary(),
+			creationPreset.vfxPlanSummary()
 		);
 	}
 
@@ -279,7 +269,7 @@ public final class QuickStartWizardPresenter {
 	public void reset() {
 		abortGenerationIfNeeded();
 		step = Step.IMPORT;
-		creationType = CreationType.FULL_CHOREOGRAPHY;
+		creationPreset = CreationPreset.FULL_CHOREOGRAPHY;
 		stageObjectName = "";
 		statusMessage = "";
 		selectionSessionStarted = false;
@@ -299,10 +289,14 @@ public final class QuickStartWizardPresenter {
 		return new OpenSession(path, false);
 	}
 
-	public void setCreationType(CreationType type) {
-		if (type != null) {
-			creationType = type;
+	public void setCreationPreset(CreationPreset preset) {
+		if (preset != null && preset != CreationPreset.BLANK) {
+			creationPreset = preset;
 		}
+	}
+
+	public CreationPreset creationPreset() {
+		return creationPreset;
 	}
 
 	public void setStageObjectName(String name) {
@@ -313,23 +307,15 @@ public final class QuickStartWizardPresenter {
 		return resolvedStageObjectName();
 	}
 
-	public int indexForCreationType(CreationType type) {
-		if (type == null) {
-			return 3;
-		}
-		return switch (type) {
-			case CINEMATIC_BUILD -> 0;
-			case RHYTHMIC_PERFORMANCE -> 1;
-			case DROP_IMPACT -> 2;
-			case FULL_CHOREOGRAPHY -> 3;
-		};
+	public int indexForCreationPreset(CreationPreset preset) {
+		return preset != null ? preset.wizardIndex() : CreationPreset.FULL_CHOREOGRAPHY.wizardIndex();
 	}
 
 	public boolean isAnalysisReady() {
-		return switch (creationType) {
-			case DROP_IMPACT -> hasBeatGrid();
-			default -> autoMapPresenter.canGenerate();
-		};
+		if (creationPreset == CreationPreset.DROP_IMPACT) {
+			return hasBeatGrid();
+		}
+		return autoMapPresenter.canGenerate();
 	}
 
 	public boolean canGenerate() {
@@ -569,9 +555,8 @@ public final class QuickStartWizardPresenter {
 		pendingObjectName = resolvedStageObjectName();
 		pendingObjectId = null;
 		pendingAutoMapResult = null;
-		pendingCamera = creationType == CreationType.CINEMATIC_BUILD
-			|| creationType == CreationType.FULL_CHOREOGRAPHY;
-		pendingVfx = creationType == CreationType.FULL_CHOREOGRAPHY;
+		pendingCamera = creationPreset.wantsCamera();
+		pendingVfx = creationPreset.wantsVfx();
 		activeTx = QuickStartGenerationTransaction.begin(timeline.get());
 		generationPhase = GenerationPhase.CREATE_STAGE_OBJECT;
 		setGenerationProgress(GenerationPhase.CREATE_STAGE_OBJECT, 0.05f);
@@ -676,6 +661,20 @@ public final class QuickStartWizardPresenter {
 		);
 	}
 
+	public boolean hasChoreographyPlan() {
+		Timeline tl = timeline.get();
+		return tl != null && ChoreographyPlanStore.hasPlan(tl);
+	}
+
+	public String doneRefinementHint() {
+		DoneSummary summary = doneSummary();
+		String key = creationPreset.doneRefinementHintKey(hasChoreographyPlan());
+		String objectLabel = summary.objectName().isBlank()
+			? BBTexts.get("beatblock.wizard.done.refinement.object_fallback")
+			: summary.objectName();
+		return BBTexts.get(key, objectLabel);
+	}
+
 	private void runCreateStageObjectPhase() {
 		setGenerationProgress(GenerationPhase.CREATE_STAGE_OBJECT, 0.15f);
 		ToolPanelPresenter.StageObjectCreateRequest createRequest = new ToolPanelPresenter.StageObjectCreateRequest(
@@ -692,7 +691,7 @@ public final class QuickStartWizardPresenter {
 		}
 		pendingObjectId = createOutcome.objectId();
 		activeTx.recordCreatedStageObject(pendingObjectId);
-		if (creationType == CreationType.DROP_IMPACT) {
+		if (creationPreset == CreationPreset.DROP_IMPACT) {
 			generationPhase = GenerationPhase.CREATE_DROP_IMPACT;
 			setGenerationProgress(GenerationPhase.CREATE_DROP_IMPACT, 0.35f);
 		} else {
@@ -703,21 +702,11 @@ public final class QuickStartWizardPresenter {
 
 	private void runChoreographyPhase() {
 		setGenerationProgress(GenerationPhase.CREATE_CHOREOGRAPHY, 0.55f);
-		AutoMapSettings settings = switch (creationType) {
-			case CINEMATIC_BUILD -> buildAutoMapSettings(
-				AutoMapStyle.CINEMATIC, Complexity.MEDIUM, true, false,
-				ChoreographyLayerProfile.PHRASE, pendingObjectId
-			);
-			case RHYTHMIC_PERFORMANCE -> buildAutoMapSettings(
-				AutoMapStyle.EDM, Complexity.MEDIUM, false, false,
-				ChoreographyLayerProfile.PHRASE, pendingObjectId
-			);
-			case FULL_CHOREOGRAPHY -> buildAutoMapSettings(
-				AutoMapStyle.EDM, Complexity.MEDIUM, true, true,
-				ChoreographyLayerProfile.HERO_FULL, pendingObjectId
-			);
-			default -> null;
-		};
+		if (creationPreset.generationStrategy() == CreationPreset.GenerationStrategy.BINDING_TEMPLATE_MAP) {
+			runBindingTemplateChoreography();
+			return;
+		}
+		AutoMapSettings settings = creationPreset.buildAutoMapSettings(pendingObjectId);
 		if (settings == null) {
 			failGeneration(PresenterResult.failure(BBTexts.get("beatblock.wizard.unknown_type")), null);
 			return;
@@ -731,6 +720,41 @@ public final class QuickStartWizardPresenter {
 			failGeneration(outcome.result(), pendingAutoMapResult);
 			return;
 		}
+		advanceAfterChoreography();
+	}
+
+	private void runBindingTemplateChoreography() {
+		Timeline current = timeline.get();
+		if (current == null) {
+			failGeneration(PresenterResult.failure(BBTexts.get("beatblock.message.timeline_unavailable")), null);
+			return;
+		}
+		int templateIndex = creationPreset.bindingTemplateIndex();
+		if (templateIndex < 0) {
+			failGeneration(PresenterResult.failure(BBTexts.get("beatblock.wizard.unknown_type")), null);
+			return;
+		}
+		var templateOutcome = bindingPresenter.replaceWithTemplate(
+			current,
+			bindingPresenter.loadRules(current),
+			templateIndex
+		);
+		if (!templateOutcome.success()) {
+			failGeneration(PresenterResult.failure(templateOutcome.message()), null);
+			return;
+		}
+		int count = AnimationBindingEngine.applyRules(current, TimelineTrackMeta.ROW_ANIM_BLOCK, true);
+		if (count <= 0) {
+			failGeneration(
+				PresenterResult.failure(BBTexts.get("beatblock.message.binding_map_skipped")),
+				null
+			);
+			return;
+		}
+		advanceAfterChoreography();
+	}
+
+	private void advanceAfterChoreography() {
 		if (pendingCamera) {
 			generationPhase = GenerationPhase.CREATE_CAMERA;
 			setGenerationProgress(GenerationPhase.CREATE_CAMERA, 0.75f);
@@ -832,12 +856,14 @@ public final class QuickStartWizardPresenter {
 
 	private String successMessage(String objectName, SmartAutoMapEngine.@Nullable AutoMapResult autoMapResult) {
 		int events = autoMapResult != null ? autoMapResult.getAnimationEvents() : 0;
-		return switch (creationType) {
-			case CINEMATIC_BUILD -> BBTexts.get("beatblock.wizard.generated_cinematic", objectName, events);
-			case RHYTHMIC_PERFORMANCE -> BBTexts.get("beatblock.wizard.generated_rhythmic", objectName, events);
-			case DROP_IMPACT -> BBTexts.get("beatblock.wizard.generated_drop", objectName);
-			case FULL_CHOREOGRAPHY -> BBTexts.get("beatblock.wizard.generated_full", objectName, events);
-		};
+		if (creationPreset == CreationPreset.DROP_IMPACT) {
+			return BBTexts.get(creationPreset.generatedMessageKey(), objectName);
+		}
+		if (creationPreset == CreationPreset.RHYTHM_PATH) {
+			int bindingEvents = countTrackEvents(timeline.get(), Timeline.TRACK_ID_ANIMATION_BLOCK);
+			return BBTexts.get(creationPreset.generatedMessageKey(), objectName, bindingEvents);
+		}
+		return BBTexts.get(creationPreset.generatedMessageKey(), objectName, events);
 	}
 
 	private void setGenerationProgress(GenerationPhase phase, float fraction) {
@@ -892,24 +918,6 @@ public final class QuickStartWizardPresenter {
 		pendingCamera = false;
 		pendingVfx = false;
 		activeTx = null;
-	}
-
-	private static AutoMapSettings buildAutoMapSettings(
-		AutoMapStyle style,
-		Complexity complexity,
-		boolean camera,
-		boolean particles,
-		ChoreographyLayerProfile layerProfile,
-		String objectId
-	) {
-		AutoMapSettings settings = new AutoMapSettings();
-		settings.setStyle(style);
-		settings.setComplexity(complexity);
-		settings.setCameraEnabled(camera);
-		settings.setParticlesEnabled(particles);
-		settings.setLayerProfile(layerProfile);
-		settings.setTargetObjectIds(List.of(objectId));
-		return settings;
 	}
 
 	private static String failedMessage(AudioAsset asset) {
@@ -1036,39 +1044,5 @@ public final class QuickStartWizardPresenter {
 			return "Building " + counter;
 		}
 		return formatted;
-	}
-
-	static String styleLabel(CreationType type) {
-		return switch (type) {
-			case CINEMATIC_BUILD -> BBTexts.get("beatblock.wizard.style.cinematic");
-			case RHYTHMIC_PERFORMANCE -> BBTexts.get("beatblock.wizard.style.rhythmic");
-			case DROP_IMPACT -> BBTexts.get("beatblock.wizard.style.drop");
-			case FULL_CHOREOGRAPHY -> BBTexts.get("beatblock.wizard.style.full");
-		};
-	}
-
-	private static String animationSummary(CreationType type) {
-		return switch (type) {
-			case CINEMATIC_BUILD -> BBTexts.get("beatblock.wizard.plan.animation.cinematic");
-			case RHYTHMIC_PERFORMANCE -> BBTexts.get("beatblock.wizard.plan.animation.rhythmic");
-			case DROP_IMPACT -> BBTexts.get("beatblock.wizard.plan.animation.drop");
-			case FULL_CHOREOGRAPHY -> BBTexts.get("beatblock.wizard.plan.animation.full");
-		};
-	}
-
-	private static String cameraSummary(CreationType type) {
-		return switch (type) {
-			case CINEMATIC_BUILD -> BBTexts.get("beatblock.wizard.plan.camera.restrained");
-			case RHYTHMIC_PERFORMANCE, DROP_IMPACT -> BBTexts.get("beatblock.wizard.plan.camera.off");
-			case FULL_CHOREOGRAPHY -> BBTexts.get("beatblock.wizard.plan.camera.auto");
-		};
-	}
-
-	private static String vfxSummary(CreationType type) {
-		return switch (type) {
-			case FULL_CHOREOGRAPHY -> BBTexts.get("beatblock.wizard.plan.vfx.auto");
-			case DROP_IMPACT -> BBTexts.get("beatblock.wizard.plan.vfx.impact");
-			default -> BBTexts.get("beatblock.wizard.plan.vfx.off");
-		};
 	}
 }

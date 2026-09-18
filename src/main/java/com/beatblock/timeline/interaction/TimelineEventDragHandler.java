@@ -43,11 +43,13 @@ public final class TimelineEventDragHandler {
 			return null;
 		}
 
-		return TimelineEventDragSession.begin(timeline, hit, interactionState, mx, my);
+		return TimelineEventDragSession.begin(
+			timeline, hit, selectionState, trackListState, interactionState, mx, my);
 	}
 
 	public static void applyDuringDrag(
 		Timeline timeline,
+		TimelineEventDragSession session,
 		InteractionState interactionState,
 		TimelineTrackListState trackListState,
 		TimelineViewState viewState,
@@ -65,6 +67,11 @@ public final class TimelineEventDragHandler {
 			return;
 		}
 		double t = viewState.screenToTime(mx - layout.contentLeft);
+		if (session != null && session.memberEventIds().size() > 1) {
+			DragController.dragEventGroup(
+				timeline, session, t, toolbarState, viewState, interactionState);
+			return;
+		}
 		DragController.dragEvent(
 			timeline,
 			interactionState.getActiveTrackId(),
@@ -92,9 +99,9 @@ public final class TimelineEventDragHandler {
 		float dy = my - interactionState.getMouseStartY();
 		boolean belowThreshold = dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX;
 		if (belowThreshold) {
-			TimelineDragCommitSupport.revertEventDrag(timeline, interactionState, session.initialTimeSeconds());
+			TimelineDragCommitSupport.revertEventDrag(timeline, session);
 		} else {
-			TimelineDragCommitSupport.commitEventDrag(timeline, editor, interactionState, session.initialTimeSeconds());
+			TimelineDragCommitSupport.commitEventDrag(timeline, editor, session);
 		}
 		session.clear();
 	}

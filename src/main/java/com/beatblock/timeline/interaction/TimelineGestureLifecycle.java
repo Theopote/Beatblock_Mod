@@ -47,8 +47,7 @@ public final class TimelineGestureLifecycle {
 
 		if (mode == InteractionMode.DRAG_EVENT) {
 			if (eventDragSession != null) {
-				TimelineDragCommitSupport.revertEventDrag(
-					timeline, interactionState, eventDragSession.initialTimeSeconds());
+				TimelineDragCommitSupport.revertEventDrag(timeline, eventDragSession);
 				eventDragSession.clear();
 			}
 			if (clearEventSession != null) {

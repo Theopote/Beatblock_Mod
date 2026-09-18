@@ -36,7 +36,8 @@ class TimelineGestureLifecycleTest {
 
 		InteractionState interaction = new InteractionState();
 		HitResult hit = HitResult.event(Timeline.TRACK_ID_ANIMATION_AUTO, clip.getId(), event.getId(), 2.0);
-		TimelineEventDragSession session = TimelineEventDragSession.begin(timeline, hit, interaction, 0f, 0f);
+		TimelineEventDragSession session = TimelineEventDragSession.begin(
+			timeline, hit, null, null, interaction, 0f, 0f);
 		event.setTimeSeconds(7.0);
 
 		AtomicBoolean cleared = new AtomicBoolean();

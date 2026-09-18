@@ -17,10 +17,26 @@ public final class TimelineDragCommitSupport {
 	public static void commitEventDrag(
 		Timeline timeline,
 		TimelineEditor editor,
+		TimelineEventDragSession session
+	) {
+		if (editor == null || session == null) return;
+		boolean committed = TimelineEventEditActions.commitEventMoves(
+			timeline,
+			editor.getCommandManager(),
+			session.collectMoveSnapshots(timeline)
+		);
+		if (committed) {
+			TimelineDocumentChangeNotifier.notifyDocumentEdited();
+		}
+	}
+
+	public static void commitEventDrag(
+		Timeline timeline,
+		TimelineEditor editor,
 		InteractionState interactionState,
 		double dragEventInitialTimeSeconds
 	) {
-		if (editor == null) return;
+		if (editor == null || interactionState == null) return;
 		TimelineEventRef ref = TimelineEventRefs.find(timeline, interactionState.getActiveEventId());
 		if (ref == null || ref.event() == null) return;
 		boolean committed = TimelineEventEditActions.commitEventMove(
@@ -35,6 +51,11 @@ public final class TimelineDragCommitSupport {
 		if (committed) {
 			TimelineDocumentChangeNotifier.notifyDocumentEdited();
 		}
+	}
+
+	public static void revertEventDrag(Timeline timeline, TimelineEventDragSession session) {
+		if (session == null) return;
+		session.restoreInitialTimes(timeline);
 	}
 
 	public static void revertEventDrag(
