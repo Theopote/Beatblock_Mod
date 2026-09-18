@@ -25,6 +25,11 @@ final class TimelineToolbarViewControls {
 		trackHeight.renderInline(editor);
 	}
 
+	void renderZoomInlineOnly(TimelineEditor editor) {
+		if (editor == null) return;
+		renderZoom(editor, BBTexts.get("beatblock.timeline.zoom"), "");
+	}
+
 	void renderCompact(TimelineEditor editor) {
 		if (editor == null) return;
 		ImGui.separator();

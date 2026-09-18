@@ -322,6 +322,25 @@ public final class PresenterFactories {
 		);
 	}
 
+	public static com.beatblock.creator.add.CreatorAddPresenter creatorAddPresenter() {
+		return creatorAddPresenter(ctx());
+	}
+
+	public static com.beatblock.creator.add.CreatorAddPresenter creatorAddPresenter(BeatBlockContext context) {
+		return new com.beatblock.creator.add.CreatorAddPresenter(
+			context::timeline,
+			context::timelineEditor,
+			context::buildLayerManager,
+			() -> {
+				var engine = context.blockAnimationEngine();
+				return engine != null ? engine.getStageObjectSystem() : null;
+			},
+			cameraCreatorPanelPresenter(context),
+			vfxCreatorPanelPresenter(context),
+			markerPanelPresenter(context)
+		);
+	}
+
 	public static CameraCreatorPanelPresenter cameraCreatorPanelPresenter() {
 		return cameraCreatorPanelPresenter(ctx());
 	}
@@ -368,7 +387,8 @@ public final class PresenterFactories {
 			() -> {
 				var engine = context.blockAnimationEngine();
 				return engine != null ? engine.getAnimationLibrary() : new com.beatblock.engine.AnimationLibrary();
-			}
+			},
+			creatorAddPresenter(context)
 		);
 	}
 

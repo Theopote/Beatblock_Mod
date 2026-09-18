@@ -11,12 +11,12 @@ public final class VfxSection implements EventPropertySection {
 
 	@Override
 	public Tab tab() {
-		return Tab.BASIC;
+		return Tab.SPATIAL;
 	}
 
 	@Override
 	public int order() {
-		return 40;
+		return 30;
 	}
 
 	@Override

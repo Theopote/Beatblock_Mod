@@ -1,5 +1,6 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.creator.timeline.CreatorTimelineProjection;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.TimelineBindingEditorPresenter;
@@ -29,6 +30,8 @@ public final class TimelineToolbar {
 	private final TimelineToolbarViewControls viewControls;
 	private final TimelineToolbarLoopSpeedControls loopSpeedControls;
 	private final TimelineToolbarOverflowMenu overflowMenu;
+	private final TimelineToolbarPreviewControls previewControls;
+	private final TimelineToolbarAddControls addControls;
 	private final TimelineDemucsMappingControls demucsControls;
 
 	public TimelineToolbar() {
@@ -58,8 +61,16 @@ public final class TimelineToolbar {
 		this.viewControls = new TimelineToolbarViewControls(zoomComboIndex, trackHeightControls);
 		this.loopSpeedControls = new TimelineToolbarLoopSpeedControls(transport, speedComboIndex, actionRollbackControls);
 		this.demucsControls = new TimelineDemucsMappingControls(config);
+		this.previewControls = new TimelineToolbarPreviewControls(transport);
+		this.addControls = new TimelineToolbarAddControls();
 		this.overflowMenu = new TimelineToolbarOverflowMenu(
-			loopSpeedControls, snapGridControls, viewControls, recordControls, demucsControls);
+			loopSpeedControls,
+			snapGridControls,
+			viewControls,
+			recordControls,
+			sectionEditControls,
+			demucsControls
+		);
 	}
 
 	public void render(TimelineEditor editor, TimelineToolbarState toolbarState) {
@@ -77,18 +88,29 @@ public final class TimelineToolbar {
 		transportStrip.render(editor, transportState, stepSeek);
 		TimelineToolbarImGui.nextGroupOrWrap(0);
 
-		loopSpeedControls.renderInline(editor, toolbarState, seekStep, now);
-		TimelineToolbarImGui.nextGroupOrWrap(0);
-
-		snapGridControls.renderInline(toolbarState);
-		viewControls.renderInline(editor);
-		TimelineToolbarImGui.nextGroupOrWrap(0);
-
-		recordControls.renderInline(editor, toolbarState, transportState.playing());
-
-		TimelineToolbarImGui.nextGroupOrWrap(0);
-		sectionEditControls.renderInline(editor);
-		TimelineToolbarImGui.nextGroupOrWrap(0);
+		boolean creatorToolbar = CreatorTimelineProjection.isEnabled();
+		if (creatorToolbar) {
+			snapGridControls.renderInline(toolbarState);
+			TimelineToolbarImGui.nextGroupOrWrap(0);
+			loopSpeedControls.renderLoopInlineOnly(toolbarState, seekStep, now);
+			TimelineToolbarImGui.nextGroupOrWrap(0);
+			viewControls.renderZoomInlineOnly(editor);
+			TimelineToolbarImGui.nextGroupOrWrap(0);
+			previewControls.render(editor);
+			TimelineToolbarImGui.nextGroupOrWrap(0);
+			addControls.render(editor);
+			TimelineToolbarImGui.nextGroupOrWrap(0);
+		} else {
+			loopSpeedControls.renderInline(editor, toolbarState, seekStep, now);
+			TimelineToolbarImGui.nextGroupOrWrap(0);
+			snapGridControls.renderInline(toolbarState);
+			viewControls.renderInline(editor);
+			TimelineToolbarImGui.nextGroupOrWrap(0);
+			recordControls.renderInline(editor, toolbarState, transportState.playing());
+			TimelineToolbarImGui.nextGroupOrWrap(0);
+			sectionEditControls.renderInline(editor);
+			TimelineToolbarImGui.nextGroupOrWrap(0);
+		}
 		overflowMenu.renderButtonAndPopup(editor, toolbarState, seekStep);
 	}
 }

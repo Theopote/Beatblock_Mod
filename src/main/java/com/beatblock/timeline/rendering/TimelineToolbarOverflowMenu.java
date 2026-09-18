@@ -1,5 +1,6 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.creator.timeline.CreatorTimelineProjection;
 import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.ui.i18n.BBTexts;
 import imgui.ImGui;
@@ -12,6 +13,7 @@ final class TimelineToolbarOverflowMenu {
 	private final TimelineToolbarSnapGridControls snapGrid;
 	private final TimelineToolbarViewControls view;
 	private final TimelineToolbarRecordControls recordControls;
+	private final TimelineToolbarSectionEditControls sectionEditControls;
 	private final TimelineDemucsMappingControls demucsControls;
 
 	TimelineToolbarOverflowMenu(
@@ -19,12 +21,14 @@ final class TimelineToolbarOverflowMenu {
 		TimelineToolbarSnapGridControls snapGrid,
 		TimelineToolbarViewControls view,
 		TimelineToolbarRecordControls recordControls,
+		TimelineToolbarSectionEditControls sectionEditControls,
 		TimelineDemucsMappingControls demucsControls
 	) {
 		this.loopSpeed = loopSpeed;
 		this.snapGrid = snapGrid;
 		this.view = view;
 		this.recordControls = recordControls;
+		this.sectionEditControls = sectionEditControls;
 		this.demucsControls = demucsControls;
 	}
 
@@ -39,6 +43,10 @@ final class TimelineToolbarOverflowMenu {
 		snapGrid.renderCompact(toolbarState);
 		view.renderCompact(editor);
 		recordControls.renderCompact(editor, toolbarState, editor.getClock().isPlaying());
+		if (CreatorTimelineProjection.isEnabled()) {
+			ImGui.separator();
+			sectionEditControls.renderInline(editor);
+		}
 		demucsControls.render(true, null);
 
 		ImGui.endPopup();

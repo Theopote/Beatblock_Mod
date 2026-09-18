@@ -1,5 +1,6 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.creator.add.CreatorAddPresenter;
 import com.beatblock.engine.AnimationDefinition;
 import com.beatblock.engine.AnimationLibrary;
 import com.beatblock.engine.influence.InfluenceDimension;
@@ -40,6 +41,7 @@ public final class AnimationLibraryPanelPresenter {
 	private final Supplier<Timeline> timeline;
 	private final Supplier<TimelineEditor> timelineEditor;
 	private final Supplier<AnimationLibrary> animationLibrary;
+	private final CreatorAddPresenter creatorAdd;
 
 	private String statusMessage = "";
 
@@ -48,7 +50,7 @@ public final class AnimationLibraryPanelPresenter {
 		Supplier<Timeline> timeline,
 		Supplier<TimelineEditor> timelineEditor
 	) {
-		this(eventPropertiesPresenter, timeline, timelineEditor, AnimationLibraryPanelPresenter::defaultLibrary);
+		this(eventPropertiesPresenter, timeline, timelineEditor, AnimationLibraryPanelPresenter::defaultLibrary, null);
 	}
 
 	public AnimationLibraryPanelPresenter(
@@ -57,10 +59,21 @@ public final class AnimationLibraryPanelPresenter {
 		Supplier<TimelineEditor> timelineEditor,
 		Supplier<AnimationLibrary> animationLibrary
 	) {
+		this(eventPropertiesPresenter, timeline, timelineEditor, animationLibrary, null);
+	}
+
+	public AnimationLibraryPanelPresenter(
+		EventPropertiesPresenter eventPropertiesPresenter,
+		Supplier<Timeline> timeline,
+		Supplier<TimelineEditor> timelineEditor,
+		Supplier<AnimationLibrary> animationLibrary,
+		@Nullable CreatorAddPresenter creatorAdd
+	) {
 		this.eventPropertiesPresenter = eventPropertiesPresenter;
 		this.timeline = timeline;
 		this.timelineEditor = timelineEditor;
 		this.animationLibrary = animationLibrary != null ? animationLibrary : AnimationLibraryPanelPresenter::defaultLibrary;
+		this.creatorAdd = creatorAdd;
 	}
 
 	public ViewState viewState() {
@@ -127,6 +140,18 @@ public final class AnimationLibraryPanelPresenter {
 		}
 		groups.values().removeIf(List::isEmpty);
 		return groups;
+	}
+
+	/**
+	 * 双击预设：在播放头插入新动画事件（Target = 当前选区/舞台对象解析结果）。
+	 */
+	public ApplyOutcome insertAtPlayhead(String presetId) {
+		if (creatorAdd == null) {
+			return fail(BBTexts.get("beatblock.common.timeline_not_initialized"));
+		}
+		CreatorAddPresenter.Outcome outcome = creatorAdd.insertAnimationPreset(presetId);
+		statusMessage = outcome.message() != null ? outcome.message() : "";
+		return new ApplyOutcome(outcome.success(), statusMessage);
 	}
 
 	public ApplyOutcome applyPresetToSelection(String presetId) {

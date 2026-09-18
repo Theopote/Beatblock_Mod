@@ -154,7 +154,13 @@ public class AnimationLibraryPanel {
 			itemId);
 		PresetChannelPreview.renderCollapsibleChannelsOnly(label, item);
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(BBTexts.get("beatblock.animation_library.drag_hint"));
+			ImGui.setTooltip(BBTexts.get("beatblock.animation_library.item_hint"));
+		}
+		if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(0)) {
+			var outcome = presenter.insertAtPlayhead(itemId);
+			if (!outcome.success()) {
+				notify(outcome);
+			}
 		}
 		if (ImGui.beginDragDropSource(ImGuiDragDropFlags.SourceAllowNullID)) {
 			ImGui.setDragDropPayload(ANIMATION_PRESET_PAYLOAD_TYPE, itemId);

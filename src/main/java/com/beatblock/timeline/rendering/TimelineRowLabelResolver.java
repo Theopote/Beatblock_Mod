@@ -1,5 +1,6 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.creator.timeline.CreatorTimelineProjection;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.ui.i18n.BBTexts;
 
@@ -18,6 +19,11 @@ public final class TimelineRowLabelResolver {
 		List<TrackDefinition> animationSubTracks,
 		List<TrackDefinition> buildLayerTracks
 	) {
+		String creatorName = CreatorTimelineProjection.creatorDisplayName(
+			rowIndex, trackListState, audioSubTracks, animationSubTracks, buildLayerTracks);
+		if (creatorName != null) {
+			return creatorName;
+		}
 		if (trackListState != null) {
 			String custom = trackListState.getDisplayName(rowIndex);
 			String fallback = TimelineTrackMeta.getDefaultName(rowIndex);
@@ -68,6 +74,10 @@ public final class TimelineRowLabelResolver {
 		List<TrackDefinition> animationSubTracks,
 		List<TrackDefinition> buildLayerTracks
 	) {
+		String creatorType = CreatorTimelineProjection.creatorTypeLabel(rowIndex);
+		if (creatorType != null) {
+			return creatorType;
+		}
 		if (rowIndex == TimelineTrackMeta.ROW_AUDIO_GROUP) return "音频片段";
 		if (TimelineTrackMeta.isAudioSubRow(rowIndex)) {
 			int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);

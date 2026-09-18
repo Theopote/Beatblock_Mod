@@ -36,6 +36,10 @@ final class TimelineToolbarLoopSpeedControls {
 		actionRollback.renderInline();
 	}
 
+	void renderLoopInlineOnly(TimelineToolbarState toolbarState, double seekStep, double now) {
+		renderLoopButtons(toolbarState, now, seekStep, "", "", "");
+	}
+
 	void renderCompact(TimelineEditor editor, TimelineToolbarState toolbarState, double seekStep, double now) {
 		ImGui.textDisabled(BBTexts.get("beatblock.timeline.loop_speed"));
 		renderLoopButtons(toolbarState, now, seekStep, "##tlMoreIn", "##tlMoreOut", "##tlMoreClr");

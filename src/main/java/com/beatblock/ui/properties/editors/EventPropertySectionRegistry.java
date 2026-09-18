@@ -66,6 +66,18 @@ public final class EventPropertySectionRegistry {
 			.toList();
 	}
 
+	/** Whether any registered section in the tab supports the current context. */
+	public boolean tabHasSupportedSections(EventPropertySection.Tab tab, EventEditContext context) {
+		Objects.requireNonNull(tab, "tab");
+		Objects.requireNonNull(context, "context");
+		for (EventPropertySection section : forTab(tab)) {
+			if (section.supports(context)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Render all supported sections for a tab. */
 	public void renderTab(EventPropertySection.Tab tab, EventEditContext context) {
 		for (EventPropertySection section : forTab(tab)) {

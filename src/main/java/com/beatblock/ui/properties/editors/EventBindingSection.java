@@ -8,12 +8,12 @@ public final class EventBindingSection implements EventPropertySection {
 
 	@Override
 	public Tab tab() {
-		return Tab.BASIC;
+		return Tab.ADVANCED;
 	}
 
 	@Override
 	public int order() {
-		return 20;
+		return 5;
 	}
 
 	@Override

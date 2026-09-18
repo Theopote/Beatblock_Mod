@@ -1,5 +1,6 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.creator.add.CreatorAddPresenter;
 import com.beatblock.engine.AnimationLibrary;
 import com.beatblock.engine.influence.InfluenceDimension;
 import com.beatblock.test.WithBeatBlockContext;
@@ -18,6 +19,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -32,6 +34,7 @@ class AnimationLibraryPanelPresenterTest {
 	private EventPropertiesPresenter eventPropertiesPresenter;
 	private AnimationLibraryPanelPresenter presenter;
 	private AnimationLibrary library;
+	private CreatorAddPresenter creatorAdd;
 
 	@BeforeEach
 	void setUp() {
@@ -46,12 +49,33 @@ class AnimationLibraryPanelPresenterTest {
 			() -> List.of(new EventPropertiesOption("", "未绑定")),
 			() -> new EventPropertiesPresenter.CameraViewSample(1, 2, 3, 90f, 0f)
 		);
+		creatorAdd = PresenterFactories.creatorAddPresenter(com.beatblock.BeatBlock.getContext());
 		presenter = new AnimationLibraryPanelPresenter(
 			eventPropertiesPresenter,
 			() -> timeline,
 			() -> editor,
-			() -> library
+			() -> library,
+			creatorAdd
 		);
+	}
+
+	@Test
+	void insertAtPlayheadCreatesAnimationEvent() {
+		var context = com.beatblock.BeatBlock.getContext();
+		Timeline contextTimeline = context.timeline();
+		TimelineEditor contextEditor = context.timelineEditor();
+		TimelineOperations.addClip(contextTimeline, Timeline.TRACK_ID_ANIMATION_BLOCK, 0, 30);
+		var contextPresenter = new AnimationLibraryPanelPresenter(
+			eventPropertiesPresenter,
+			context::timeline,
+			context::timelineEditor,
+			() -> library,
+			PresenterFactories.creatorAddPresenter(context)
+		);
+		var outcome = contextPresenter.insertAtPlayhead("Pulse");
+		assertTrue(outcome.success());
+		assertFalse(contextTimeline.getBlockAnimationEvents().isEmpty());
+		assertNotNull(contextEditor);
 	}
 
 	@Test

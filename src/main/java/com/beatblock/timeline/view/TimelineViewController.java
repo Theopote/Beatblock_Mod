@@ -1,5 +1,6 @@
 package com.beatblock.timeline.view;
 
+import com.beatblock.creator.timeline.CreatorTimelineProjection;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.editor.TimelineViewState;
 import com.beatblock.timeline.layer.BuildLayerTrackSupport;
@@ -41,6 +42,7 @@ public final class TimelineViewController {
 		this.timeline = timeline;
 		this.viewState = viewState;
 		uiStateStore.loadTrackListState(timeline, trackListState);
+		CreatorTimelineProjection.applyCreatorDefaults(trackListState);
 	}
 
 	public TimelineViewState viewState() { return viewState; }
@@ -95,8 +97,13 @@ public final class TimelineViewController {
 		layout.setActiveAudioSubRowCount(audioDefs.size());
 		layout.setActiveAnimationSubRowCount(controlDefs.size());
 		layout.setActiveBuildLayerRowCount(buildLayerDefs.size());
-		layout.setCustomRowOrder(buildFeaturePairedRowOrder(audioDefs, controlDefs, buildLayerDefs));
-		layout.setCustomRowParents(buildCustomRowParents(audioDefs, controlDefs));
+		if (CreatorTimelineProjection.isEnabled()) {
+			layout.setCustomRowOrder(CreatorTimelineProjection.buildRowOrder(audioDefs, controlDefs, buildLayerDefs));
+			layout.setCustomRowParents(CreatorTimelineProjection.buildRowParents(audioDefs, controlDefs));
+		} else {
+			layout.setCustomRowOrder(buildFeaturePairedRowOrder(audioDefs, controlDefs, buildLayerDefs));
+			layout.setCustomRowParents(buildCustomRowParents(audioDefs, controlDefs));
+		}
 		layout.attachTrackAreaContext(trackListState);
 	}
 

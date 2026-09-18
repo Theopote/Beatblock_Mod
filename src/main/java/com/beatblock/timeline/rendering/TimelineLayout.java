@@ -1,5 +1,7 @@
 package com.beatblock.timeline.rendering;
 
+import com.beatblock.creator.timeline.CreatorTimelineProjection;
+
 import imgui.ImGui;
 
 import java.util.ArrayList;
@@ -254,6 +256,9 @@ public final class TimelineLayout {
 
 	private static boolean isRowVisible(int rowIndex, TimelineTrackListState state, int activeAudioSubRowCount, int activeAnimationSubRowCount,
 	                                   int activeBuildLayerRowCount, Map<Integer, Integer> parentOverrides) {
+		if (CreatorTimelineProjection.suppressesRow(rowIndex)) {
+			return false;
+		}
 		// 超出活跃音频子轨数量的槽位始终不可见
 		if (TimelineTrackMeta.isAudioSubRow(rowIndex)) {
 			int slot = TimelineTrackMeta.audioSubRowSlot(rowIndex);

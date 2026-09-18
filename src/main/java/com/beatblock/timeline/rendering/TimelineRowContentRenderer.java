@@ -1,6 +1,7 @@
 package com.beatblock.timeline.rendering;
 
 import com.beatblock.audio.assets.AudioAsset;
+import com.beatblock.creator.timeline.CreatorTimelineProjection;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.FeatureEvent;
 import com.beatblock.timeline.Timeline;
@@ -103,6 +104,10 @@ public final class TimelineRowContentRenderer {
 				viewState, toolbarState, interactionState, selectionState);
 			eventRenderer.renderAnimationEventBlocks(
 				rowY, timeline.getBlockAnimationEvents(), layout, viewState, selectionState);
+			if (CreatorTimelineProjection.mergesAutoOntoPerformanceRow(rowIndex)) {
+				eventRenderer.renderAnimationEventBlocks(
+					rowY, timeline.getAutoAnimationEvents(), layout, viewState, selectionState);
+			}
 		} else if (rowIndex == TimelineTrackMeta.ROW_ANIM_AUTO) {
 			TimelineAudioDropHandler.renderAnimationTrackDropTarget(
 				dropHost, rowIndex, rowHeight, timeline, layout,

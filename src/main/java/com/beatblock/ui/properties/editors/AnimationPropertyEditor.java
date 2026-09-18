@@ -374,22 +374,10 @@ public final class AnimationPropertyEditor {
 		}
 
 		if (ImGui.beginTabBar("##eventPropTabs")) {
-			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.basic"))) {
-				sectionRegistry.renderTab(EventPropertySection.Tab.BASIC, ctx);
-				ImGui.endTabItem();
-			}
-			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.spatial"))) {
-				sectionRegistry.renderTab(EventPropertySection.Tab.SPATIAL, ctx);
-				ImGui.endTabItem();
-			}
-			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.advanced"))) {
-				sectionRegistry.renderTab(EventPropertySection.Tab.ADVANCED, ctx);
-				ImGui.endTabItem();
-			}
-			if (ImGui.beginTabItem(BBTexts.get("beatblock.event.tab.info"))) {
-				sectionRegistry.renderTab(EventPropertySection.Tab.INFO, ctx);
-				ImGui.endTabItem();
-			}
+			renderInspectorTab(EventPropertySection.Tab.BASIC, "beatblock.event.tab.basic", ctx);
+			renderInspectorTab(EventPropertySection.Tab.SPATIAL, "beatblock.event.tab.motion_effect", ctx);
+			renderInspectorTab(EventPropertySection.Tab.ADVANCED, "beatblock.event.tab.advanced", ctx);
+			renderInspectorTab(EventPropertySection.Tab.INFO, "beatblock.event.tab.diagnostics", ctx);
 			ImGui.endTabBar();
 		}
 
@@ -424,6 +412,16 @@ public final class AnimationPropertyEditor {
 	void openAnimationPreview(String presetId) {
 		animationPreviewPresetId = presetId;
 		ImGui.openPopup("##eventAnimPreviewPopup");
+	}
+
+	private void renderInspectorTab(EventPropertySection.Tab tab, String labelKey, EventEditContext ctx) {
+		if (!sectionRegistry.tabHasSupportedSections(tab, ctx)) {
+			return;
+		}
+		if (ImGui.beginTabItem(BBTexts.get(labelKey))) {
+			sectionRegistry.renderTab(tab, ctx);
+			ImGui.endTabItem();
+		}
 	}
 
 	private void renderAnimationPreviewPopup() {

@@ -29,12 +29,14 @@ public final class UiPreferences {
 	private static final String PYTHON_SETUP_ACKNOWLEDGED_KEY = "pythonSetupAcknowledged";
 	private static final String QUICK_START_WIZARD_ACKNOWLEDGED_KEY = "quickStartWizardAcknowledged";
 	private static final String CREATOR_HOME_DISMISSED_KEY = "creatorHomeDismissed";
+	private static final String CREATOR_TIMELINE_VIEW_KEY = "creatorTimelineView";
 
 	private static UiTheme theme = UiTheme.DARK;
 	private static final EnumMap<BeatBlockShortcutId, String> shortcuts = new EnumMap<>(BeatBlockShortcutId.class);
 	private static boolean pythonSetupAcknowledged;
 	private static boolean quickStartWizardAcknowledged;
 	private static boolean creatorHomeDismissed;
+	private static boolean creatorTimelineView = true;
 	private static boolean loaded;
 	/** When load failed or file was corrupt — next save writes a fresh root. */
 	private static boolean corruptRecovered;
@@ -49,6 +51,7 @@ public final class UiPreferences {
 		pythonSetupAcknowledged = false;
 		quickStartWizardAcknowledged = false;
 		creatorHomeDismissed = false;
+		creatorTimelineView = true;
 		loaded = false;
 		corruptRecovered = false;
 	}
@@ -166,6 +169,20 @@ public final class UiPreferences {
 		return save();
 	}
 
+	public static boolean creatorTimelineView() {
+		ensureLoaded();
+		return creatorTimelineView;
+	}
+
+	public static boolean setCreatorTimelineView(boolean enabled) {
+		ensureLoaded();
+		if (creatorTimelineView == enabled) {
+			return true;
+		}
+		creatorTimelineView = enabled;
+		return save();
+	}
+
 	public static Map<BeatBlockShortcutId, String> allShortcuts() {
 		ensureLoaded();
 		Map<BeatBlockShortcutId, String> out = new EnumMap<>(BeatBlockShortcutId.class);
@@ -240,6 +257,9 @@ public final class UiPreferences {
 		if (root.has(CREATOR_HOME_DISMISSED_KEY)) {
 			creatorHomeDismissed = root.get(CREATOR_HOME_DISMISSED_KEY).getAsBoolean();
 		}
+		if (root.has(CREATOR_TIMELINE_VIEW_KEY)) {
+			creatorTimelineView = root.get(CREATOR_TIMELINE_VIEW_KEY).getAsBoolean();
+		}
 	}
 
 	/**
@@ -259,6 +279,7 @@ public final class UiPreferences {
 			root.addProperty(PYTHON_SETUP_ACKNOWLEDGED_KEY, pythonSetupAcknowledged);
 			root.addProperty(QUICK_START_WIZARD_ACKNOWLEDGED_KEY, quickStartWizardAcknowledged);
 			root.addProperty(CREATOR_HOME_DISMISSED_KEY, creatorHomeDismissed);
+			root.addProperty(CREATOR_TIMELINE_VIEW_KEY, creatorTimelineView);
 			AtomicConfigFiles.writeAtomically(path, GSON.toJson(root));
 			corruptRecovered = false;
 			return true;
