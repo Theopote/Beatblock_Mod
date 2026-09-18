@@ -21,7 +21,7 @@ final class AudioAnalysisDropZoneControls {
 
 		ImGui.pushStyleColor(ImGuiCol.ChildBg, 0.12f, 0.11f, 0.18f, 1f);
 		ImGui.pushStyleColor(ImGuiCol.Border, 0.40f, 0.38f, 0.60f, 0.45f);
-		ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 6f);
+		ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
 		ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
 
 		ImGui.beginChild("##DropZone", availX, zoneH, true);
@@ -34,8 +34,8 @@ final class AudioAnalysisDropZoneControls {
 				float y0 = ImGui.getWindowPosY();
 				float x1 = x0 + ImGui.getWindowWidth();
 				float y1 = y0 + ImGui.getWindowHeight();
-				ImGui.getWindowDrawList().addRectFilled(x0, y0, x1, y1, 0x1F9A90E8, 6f);
-				ImGui.getWindowDrawList().addRect(x0, y0, x1, y1, 0xCCB9B0FF, 6f, 0, 1.5f);
+				ImGui.getWindowDrawList().addRectFilled(x0, y0, x1, y1, 0x1F9A90E8, 0f);
+				ImGui.getWindowDrawList().addRect(x0, y0, x1, y1, 0xCCB9B0FF, 0f, 0, 1.5f);
 			}
 
 			float textH = ImGui.getTextLineHeightWithSpacing() * 2f;

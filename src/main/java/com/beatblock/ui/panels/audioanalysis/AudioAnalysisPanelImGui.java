@@ -392,7 +392,7 @@ final class AudioAnalysisPanelImGui {
 		float midY = y0 + barH * 0.5f;
 		int waveformColor = 0xFF7777D0;
 		int bgColor = 0xFF2A2A32;
-		dl.addRectFilled(x0, y0, x0 + barW, y0 + barH, bgColor, 3f);
+		dl.addRectFilled(x0, y0, x0 + barW, y0 + barH, bgColor, 0f);
 		for (int col = 0; col < columns; col++) {
 			int start = (int) ((long) col * samples / columns);
 			int end = (int) ((long) (col + 1) * samples / columns);
@@ -428,10 +428,9 @@ final class AudioAnalysisPanelImGui {
 		ImGui.dummy(barW, barH + 2f);
 
 		var dl = ImGui.getWindowDrawList();
-		float r = 3f;
-		dl.addRectFilled(x0, y0, x0 + lowW, y0 + barH, 0xFF7777D0, r);
+		dl.addRectFilled(x0, y0, x0 + lowW, y0 + barH, 0xFF7777D0, 0f);
 		dl.addRectFilled(x0 + lowW, y0, x0 + lowW + midW, y0 + barH, 0xFF57C4A0);
-		dl.addRectFilled(x0 + lowW + midW, y0, x0 + barW, y0 + barH, 0xFF27A0EF, r);
+		dl.addRectFilled(x0 + lowW + midW, y0, x0 + barW, y0 + barH, 0xFF27A0EF, 0f);
 
 		ImGui.pushStyleColor(ImGuiCol.Text, COLOR_LOW.x, COLOR_LOW.y, COLOR_LOW.z, COLOR_LOW.w);
 		ImGui.text(BBTexts.get("beatblock.audio.band_low"));

@@ -86,7 +86,7 @@ public final class AudioAnalysisPanelRenderer {
 			}
 
 			ImGui.sameLine(0f, 0f);
-			ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 4f);
+			ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
 			ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding,
 				AudioAnalysisPanelImGui.DETAIL_PANEL_PADDING,
 				AudioAnalysisPanelImGui.DETAIL_PANEL_PADDING);

@@ -53,7 +53,7 @@ final class AudioAnalysisAssetListControls {
 				AudioAnalysisPanelImGui.COLOR_HOVER_BG.z, 0f);
 		}
 
-		ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 4f);
+		ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, 0f);
 		ImGui.beginChild("##item_" + asset.getId(), 0f, itemH, true, ImGuiWindowFlags.NoScrollbar);
 		ImGui.popStyleVar();
 		ImGui.popStyleColor();
