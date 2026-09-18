@@ -27,7 +27,12 @@ public final class OscProjectMigration {
 		new LegacyFormatV4ToCreatorSchemaV3Migration()
 	);
 
+	private static final List<CreatorSchemaMigration> CREATOR_SCHEMA_CHAIN = List.of(
+		new CreatorSchemaV3ToV4Migration()
+	);
+
 	private static final Map<Integer, ProjectMigration> LEGACY_BY_FROM = indexByFrom(LEGACY_FORMAT_CHAIN);
+	private static final Map<Integer, CreatorSchemaMigration> SCHEMA_BY_FROM = indexCreatorSchemaByFrom(CREATOR_SCHEMA_CHAIN);
 
 	private OscProjectMigration() {}
 
@@ -42,15 +47,23 @@ public final class OscProjectMigration {
 		}
 
 		if (source.has("schemaVersion") && !source.get("schemaVersion").isJsonNull()) {
-			int schemaVersion = readInt(source, "schemaVersion", 0);
-			if (schemaVersion > OscSchemaVersions.CURRENT) {
-				throw unsupportedVersion(schemaVersion, OscSchemaVersions.CURRENT, true);
+			JsonObject current = source.deepCopy();
+			while (true) {
+				int schemaVersion = readInt(current, "schemaVersion", 0);
+				if (schemaVersion > OscSchemaVersions.CURRENT) {
+					throw unsupportedVersion(schemaVersion, OscSchemaVersions.CURRENT, true);
+				}
+				if (schemaVersion == OscSchemaVersions.CURRENT) {
+					return current;
+				}
+				CreatorSchemaMigration step = SCHEMA_BY_FROM.get(schemaVersion);
+				if (step == null) {
+					throw new IOException("不支持的 .osc schemaVersion: " + schemaVersion
+						+ "（当前支持 <= " + OscSchemaVersions.CURRENT + "，且缺少对应迁移）");
+				}
+				BeatBlock.LOGGER.info("Migrating .osc: {}", step.describeStep());
+				current = step.migrate(current);
 			}
-			if (schemaVersion == OscSchemaVersions.CURRENT) {
-				return source.deepCopy();
-			}
-			throw new IOException("不支持的 .osc schemaVersion: " + schemaVersion
-				+ "（当前支持 <= " + OscSchemaVersions.CURRENT + "，且缺少对应迁移）");
 		}
 
 		JsonObject current = source.deepCopy();
@@ -97,6 +110,14 @@ public final class OscProjectMigration {
 		Map<Integer, ProjectMigration> map = new LinkedHashMap<>();
 		for (ProjectMigration migration : chain) {
 			map.put(migration.fromVersion(), migration);
+		}
+		return Map.copyOf(map);
+	}
+
+	private static Map<Integer, CreatorSchemaMigration> indexCreatorSchemaByFrom(List<CreatorSchemaMigration> chain) {
+		Map<Integer, CreatorSchemaMigration> map = new LinkedHashMap<>();
+		for (CreatorSchemaMigration migration : chain) {
+			map.put(migration.fromSchema(), migration);
 		}
 		return Map.copyOf(map);
 	}

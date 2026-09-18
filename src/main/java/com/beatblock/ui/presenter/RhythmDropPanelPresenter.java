@@ -9,6 +9,7 @@ import com.beatblock.timeline.TimelineEditor;
 import com.beatblock.timeline.generation.RhythmDropGenerator;
 import com.beatblock.timeline.generation.RhythmDropEventFactory;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.labels.BlockOrderLabels;
 import net.minecraft.util.math.BlockPos;
 
 import org.jspecify.annotations.Nullable;
@@ -148,12 +149,12 @@ public final class RhythmDropPanelPresenter {
 		List<ToolPanelPresenter.StageObjectListItem> out = new ArrayList<>();
 		for (RuntimeStageObject obj : system.getAll()) {
 			if (obj == null) continue;
-			String source = obj.getGroupSpec() != null ? obj.getGroupSpec().getSourceType() : "manual";
 			out.add(new ToolPanelPresenter.StageObjectListItem(
 				obj.getId(),
 				obj.getName(),
 				obj.getBlocks().size(),
-				source
+				BlockOrderLabels.sourceTypeLabel(obj.getGroupSpec()),
+				BlockOrderLabels.sortingStrategyLabel(obj.getGroupSpec().getSortingStrategy())
 			));
 		}
 		return out;

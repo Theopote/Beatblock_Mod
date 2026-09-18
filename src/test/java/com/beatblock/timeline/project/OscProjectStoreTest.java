@@ -6,6 +6,7 @@ import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.choreography.DensityCurve;
 import com.beatblock.automap.choreography.SectionEditProfile;
 import com.beatblock.automap.engine.SectionType;
+import com.beatblock.engine.GroupSortingStrategy;
 import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayer;
@@ -22,6 +23,7 @@ import com.beatblock.timeline.TimelineEventOrigin;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.project.migration.OscSchemaVersions;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.block.Blocks;
@@ -45,6 +47,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -59,7 +62,7 @@ class OscProjectStoreTest {
 	Path tempDir;
 
 	@Test
-	void saveWritesSchemaVersion3NotLegacyVersion() throws Exception {
+	void saveWritesSchemaVersion4NotLegacyVersion() throws Exception {
 		Path file = tempDir.resolve("schema.osc");
 		Timeline timeline = Timeline.createDefault();
 		timeline.setName("Schema");
@@ -237,6 +240,116 @@ class OscProjectStoreTest {
 		assertEquals("v2-project", loaded.getProjectId());
 		assertEquals("V2 Show", loaded.getTimelineName());
 		assertEquals("/music/v2.mp3", loaded.getAudioPath());
+	}
+
+	@Test
+	void roundTripsStandaloneStageObjectsWhenManagerProvided() throws Exception {
+		Path file = tempDir.resolve("standalone-stage.osc");
+		StageObjectSystem stageObjects = new StageObjectSystem();
+		BlockPos pos = new BlockPos(3, 64, 4);
+		RuntimeStageObject standalone = StageObjectSystem.fromSelectionSnapshot(
+			"building_1", "Building 1", List.of(pos), GroupSortingStrategy.RADIAL, 0.5);
+		stageObjects.register(standalone);
+		BuildLayerManager layers = new BuildLayerManager(stageObjects);
+
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"ev-1", 1.0, 1.0, "bounce", "building_1", 1.0f,
+			Map.of("eventOrigin", TimelineEventOrigin.GENERATED.name())));
+		OscProjectStore.save(file, timeline, layers);
+
+		JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+		assertTrue(root.has("stageObjects"));
+		assertEquals(1, root.getAsJsonArray("stageObjects").size());
+		assertEquals("building_1", root.getAsJsonArray("stageObjects").get(0).getAsJsonObject().get("id").getAsString());
+
+		StageObjectSystem restoredStages = new StageObjectSystem();
+		BuildLayerManager restoredLayers = new BuildLayerManager(restoredStages);
+		Timeline restoredTimeline = Timeline.createDefault();
+		OscProjectStore.LoadedProject loaded = OscProjectStore.load(file, restoredLayers, restoredTimeline);
+
+		assertNotNull(restoredStages.get("building_1"));
+		assertEquals("Building 1", restoredStages.get("building_1").getName());
+		assertEquals(GroupSortingStrategy.RADIAL, restoredStages.get("building_1").getGroupSpec().getSortingStrategy());
+		assertEquals("building_1", restoredTimeline.getAutoAnimationEvents().getFirst().getTargetObjectId());
+		assertFalse(loaded.hasBrokenReferences());
+	}
+
+	@Test
+	void standaloneStageObjectsExcludeLayerOwnedIds() throws Exception {
+		Path file = tempDir.resolve("mixed-stage.osc");
+		StageObjectSystem stageObjects = new StageObjectSystem();
+		BlockPos layerPos = new BlockPos(1, 64, 1);
+		BlockPos standalonePos = new BlockPos(2, 64, 2);
+		RuntimeStageObject layerStage = StageObjectSystem.fromBlocks("layer_stage", "Layer Stage", List.of(layerPos));
+		stageObjects.register(layerStage);
+		RuntimeStageObject standalone = StageObjectSystem.fromBlocks("solo_stage", "Solo", List.of(standalonePos));
+		stageObjects.register(standalone);
+		BuildLayerManager layers = new BuildLayerManager(stageObjects);
+		layers.registerRestored(new BuildLayer(
+			"layer-1", "Layer", layerStage, LayerVisibilityState.FREE_VISIBLE, Map.of(), null));
+
+		OscProjectStore.save(file, Timeline.createDefault(), layers);
+
+		JsonObject root = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+		JsonArray stageObjectsJson = root.getAsJsonArray("stageObjects");
+		assertEquals(1, stageObjectsJson.size());
+		assertEquals("solo_stage", stageObjectsJson.get(0).getAsJsonObject().get("id").getAsString());
+	}
+
+	@Test
+	void loadsSchemaVersion3AndMigratesStandaloneStageObjects() throws Exception {
+		Path file = tempDir.resolve("schema3-stage.osc");
+		Files.writeString(file, """
+			{
+			  "format": "beatblock.osc",
+			  "schemaVersion": 3,
+			  "projectId": "schema3-stage",
+			  "timelineName": "Schema3",
+			  "audioPath": "",
+			  "durationSeconds": 10,
+			  "bpm": 120,
+			  "markers": [],
+			  "buildLayers": [],
+			  "stageObjects": [
+			    {
+			      "id": "tower_1",
+			      "name": "Tower",
+			      "blocks": [{ "x": 0, "y": 64, "z": 0 }],
+			      "groupSpec": {
+			        "sourceType": "selection_snapshot",
+			        "sortingStrategy": "SEQUENTIAL",
+			        "staggerDelaySeconds": 0.0
+			      }
+			    }
+			  ]
+			}
+			""", StandardCharsets.UTF_8);
+
+		StageObjectSystem restoredStages = new StageObjectSystem();
+		BuildLayerManager restoredLayers = new BuildLayerManager(restoredStages);
+		OscProjectStore.load(file, restoredLayers);
+
+		assertNotNull(restoredStages.get("tower_1"));
+		assertEquals("Tower", restoredStages.get("tower_1").getName());
+	}
+
+	@Test
+	void reportsBrokenReferencesAfterLoadWhenStageObjectMissing() throws Exception {
+		Path file = tempDir.resolve("broken-target.osc");
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"ev-missing", 2.0, 1.0, "bounce", "ghost_stage", 1.0f,
+			Map.of("eventOrigin", TimelineEventOrigin.GENERATED.name())));
+		StageObjectSystem stages = new StageObjectSystem();
+		OscProjectStore.save(file, timeline, new BuildLayerManager(stages));
+
+		StageObjectSystem restoredStages = new StageObjectSystem();
+		OscProjectStore.LoadedProject loaded = OscProjectStore.load(
+			file, new BuildLayerManager(restoredStages), Timeline.createDefault());
+
+		assertTrue(loaded.hasBrokenReferences());
+		assertTrue(loaded.getTargetIntegrity().missingStageObjectIds().contains("ghost_stage"));
 	}
 
 	@Test

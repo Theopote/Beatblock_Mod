@@ -9,6 +9,7 @@ import com.beatblock.audio.assets.AudioAssetManager;
 import com.beatblock.audio.assets.AudioAssetStatus;
 import com.beatblock.engine.GroupSortingStrategy;
 import com.beatblock.engine.RuntimeStageObject;
+import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.selection.SelectionOperation;
@@ -167,6 +168,7 @@ public final class QuickStartWizardPresenter {
 	private final AutoMapSettingsPanelPresenter autoMapPresenter;
 	private final TimelineBindingEditorPresenter bindingPresenter;
 	private final ToolPanelPresenter toolPanelPresenter;
+	private final BuildLayersPresenter buildLayersPresenter;
 	private final RhythmDropPanelPresenter rhythmDropPresenter;
 	private final Supplier<BeatBlockSelectionManager> selectionManager;
 	private final Supplier<Timeline> timeline;
@@ -193,6 +195,7 @@ public final class QuickStartWizardPresenter {
 	public QuickStartWizardPresenter(
 		AutoMapSettingsPanelPresenter autoMapPresenter,
 		ToolPanelPresenter toolPanelPresenter,
+		BuildLayersPresenter buildLayersPresenter,
 		RhythmDropPanelPresenter rhythmDropPresenter,
 		TimelineBindingEditorPresenter bindingPresenter,
 		Supplier<BeatBlockSelectionManager> selectionManager,
@@ -201,6 +204,7 @@ public final class QuickStartWizardPresenter {
 	) {
 		this.autoMapPresenter = autoMapPresenter;
 		this.toolPanelPresenter = toolPanelPresenter;
+		this.buildLayersPresenter = buildLayersPresenter;
 		this.rhythmDropPresenter = rhythmDropPresenter;
 		this.bindingPresenter = bindingPresenter;
 		this.selectionManager = selectionManager;
@@ -677,19 +681,41 @@ public final class QuickStartWizardPresenter {
 
 	private void runCreateStageObjectPhase() {
 		setGenerationProgress(GenerationPhase.CREATE_STAGE_OBJECT, 0.15f);
-		ToolPanelPresenter.StageObjectCreateRequest createRequest = new ToolPanelPresenter.StageObjectCreateRequest(
-			pendingObjectName,
-			false,
-			GroupSortingStrategy.SEQUENTIAL,
-			0.0
-		);
-		ToolPanelPresenter.CreateStageObjectOutcome createOutcome =
-			toolPanelPresenter.createFromSelectionSnapshot(createRequest);
-		if (!createOutcome.result().ok()) {
-			failGeneration(createOutcome.result(), null);
-			return;
+		if (creationPreset.wantsBuildLayer()) {
+			BeatBlockSelectionManager mgr = selectionManager.get();
+			if (mgr == null) {
+				failGeneration(PresenterResult.failure(BBTexts.get("beatblock.message.selection_manager_unavailable")), null);
+				return;
+			}
+			var layerOutcome = buildLayersPresenter.createLayerFromSelection(
+				pendingObjectName,
+				new java.util.ArrayList<>(mgr.getSelectedBlocks())
+			);
+			if (!layerOutcome.result().ok() || layerOutcome.createdLayerId() == null) {
+				failGeneration(layerOutcome.result(), null);
+				return;
+			}
+			BuildLayer layer = buildLayersPresenter.findLayer(layerOutcome.createdLayerId());
+			if (layer == null) {
+				failGeneration(PresenterResult.failure(BBTexts.get("beatblock.message.create_layer_failed")), null);
+				return;
+			}
+			pendingObjectId = layer.getStageObjectId();
+		} else {
+			ToolPanelPresenter.StageObjectCreateRequest createRequest = new ToolPanelPresenter.StageObjectCreateRequest(
+				pendingObjectName,
+				false,
+				GroupSortingStrategy.SEQUENTIAL,
+				0.0
+			);
+			ToolPanelPresenter.CreateStageObjectOutcome createOutcome =
+				toolPanelPresenter.createFromSelectionSnapshot(createRequest);
+			if (!createOutcome.result().ok()) {
+				failGeneration(createOutcome.result(), null);
+				return;
+			}
+			pendingObjectId = createOutcome.objectId();
 		}
-		pendingObjectId = createOutcome.objectId();
 		activeTx.recordCreatedStageObject(pendingObjectId);
 		if (creationPreset == CreationPreset.DROP_IMPACT) {
 			generationPhase = GenerationPhase.CREATE_DROP_IMPACT;

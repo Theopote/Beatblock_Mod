@@ -75,6 +75,11 @@ public enum CreationPreset {
 		return this == FULL_CHOREOGRAPHY;
 	}
 
+	/** Build Reveal 预设应创建带显隐能力的 BuildLayer，而非裸 StageObject。 */
+	public boolean wantsBuildLayer() {
+		return this == BUILD_REVEAL;
+	}
+
 	public String titleKey() {
 		return switch (this) {
 			case BUILD_REVEAL -> "beatblock.wizard.style.cinematic";

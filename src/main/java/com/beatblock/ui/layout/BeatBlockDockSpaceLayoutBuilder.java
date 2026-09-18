@@ -28,6 +28,7 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 	public static final String ANIMATION_LIBRARY_PANEL_ID = "AnimationLibraryPanel";
 	public static final String SELECTION_PROPERTIES_PANEL_ID = "BeatBlockSelectionProperties";
 	public static final String LAYER_PANEL_ID = "LayerPanel";
+	public static final String STAGE_EXPLORER_PANEL_ID = "StageExplorerPanel";
 	public static final String RHYTHM_DROP_PANEL_ID = "RhythmDropPanel";
 	public static final String UNDO_HISTORY_PANEL_ID = "UndoHistoryPanel";
 	public static final String EVENT_LIBRARY_PANEL_ID = "EventLibraryPanel";
@@ -68,6 +69,10 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 
 	public static String layerPanelWindow() {
 		return BBTexts.windowTitle("beatblock.panel.layer", LAYER_PANEL_ID);
+	}
+
+	public static String stageExplorerWindow() {
+		return BBTexts.windowTitle("beatblock.panel.stage_explorer", STAGE_EXPLORER_PANEL_ID);
 	}
 
 	public static String rhythmDropPanelWindow() {
@@ -117,12 +122,14 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 			ImInt dockLeft = new ImInt();
 			imgui.internal.ImGui.dockBuilderSplitNode(dockMain.get(), ImGuiDir.Left, 0.22f, dockLeft, dockMain);
 
-			// 2.1 左侧再纵向分割：上半音频解析，中制40%工具，下半60%Marker与调试
+			// 2.1 左侧再纵向分割：上半音频解析，中上工具，中下 Stage Explorer，底部 Marker
 			ImInt dockLeftTop = new ImInt();
 			ImInt dockLeftMiddle = new ImInt();
+			ImInt dockLeftExplorer = new ImInt();
 			ImInt dockLeftBottom = new ImInt();
-			imgui.internal.ImGui.dockBuilderSplitNode(dockLeft.get(), ImGuiDir.Up, 0.52f, dockLeftTop, dockLeftMiddle);
-			imgui.internal.ImGui.dockBuilderSplitNode(dockLeftMiddle.get(), ImGuiDir.Up, 0.55f, dockLeftMiddle, dockLeftBottom);
+			imgui.internal.ImGui.dockBuilderSplitNode(dockLeft.get(), ImGuiDir.Up, 0.40f, dockLeftTop, dockLeftMiddle);
+			imgui.internal.ImGui.dockBuilderSplitNode(dockLeftMiddle.get(), ImGuiDir.Up, 0.42f, dockLeftMiddle, dockLeftExplorer);
+			imgui.internal.ImGui.dockBuilderSplitNode(dockLeftExplorer.get(), ImGuiDir.Up, 0.55f, dockLeftExplorer, dockLeftBottom);
 
 			// 3. 右侧：统一属性面板（约 26%）
 			ImInt dockRight = new ImInt();
@@ -132,6 +139,7 @@ public final class BeatBlockDockSpaceLayoutBuilder {
 			imgui.internal.ImGui.dockBuilderDockWindow(timelinePanelWindow(), dockBottom.get());
 			imgui.internal.ImGui.dockBuilderDockWindow(audioAnalysisWindow(), dockLeftTop.get());
 			imgui.internal.ImGui.dockBuilderDockWindow(toolPanelWindow(), dockLeftMiddle.get());
+			imgui.internal.ImGui.dockBuilderDockWindow(stageExplorerWindow(), dockLeftExplorer.get());
 			imgui.internal.ImGui.dockBuilderDockWindow(markerPanelWindow(), dockLeftBottom.get());
 			imgui.internal.ImGui.dockBuilderDockWindow(timelinePropertiesWindow(), dockRight.get());
 

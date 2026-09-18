@@ -63,6 +63,17 @@ public final class PresenterFactories {
 		return new SelectionPropertiesPresenter(context::selectionManager);
 	}
 
+	public static StageExplorerPresenter stageExplorerPresenter() {
+		return stageExplorerPresenter(ctx());
+	}
+
+	public static StageExplorerPresenter stageExplorerPresenter(BeatBlockContext context) {
+		return new StageExplorerPresenter(
+			toolPanelPresenter(context),
+			buildLayersPresenter(context)
+		);
+	}
+
 	public static ToolPanelPresenter toolPanelPresenter() {
 		return toolPanelPresenter(ctx());
 	}
@@ -273,6 +284,7 @@ public final class PresenterFactories {
 		return new QuickStartWizardPresenter(
 			autoMapSettingsPanelPresenter(context),
 			toolPanelPresenter(context),
+			buildLayersPresenter(context),
 			rhythmDropPanelPresenter(context),
 			timelineBindingEditorPresenter(context),
 			context::selectionManager,

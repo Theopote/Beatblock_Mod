@@ -9,6 +9,7 @@ import com.beatblock.timeline.StageObjectReferenceService;
 import com.beatblock.ui.icons.Icons;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.BuildLayersPresenter;
+import com.beatblock.ui.presenter.StageExplorerPresenter;
 import com.beatblock.ui.imgui.IconButtonStyle;
 import com.beatblock.ui.imgui.ImGuiModifierKeys;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
@@ -24,6 +25,8 @@ import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,6 +66,8 @@ public class LayerPanel {
 	private boolean requestColorPopup;
 	private String statusMessage = "";
 	private final BuildLayersPresenter presenter;
+	private boolean explorerEmbedMode;
+	private String explorerFilterQuery = "";
 
 	public LayerPanel() {
 		this(com.beatblock.ui.presenter.PresenterFactories.buildLayersPresenter());
@@ -82,8 +87,7 @@ public class LayerPanel {
 		}
 		try {
 			renderContent();
-			renderDeleteConfirmPopup();
-			renderColorPopup();
+			renderOverlayModals();
 		} finally {
 			BeatBlockDockPanelBegin.endWithRecord(BeatBlockDockSpaceLayoutBuilder.layerPanelWindow());
 		}
@@ -93,22 +97,66 @@ public class LayerPanel {
 		ImGui.text(BBTexts.get("beatblock.layer.title"));
 		ImGui.separator();
 		ImGui.textWrapped(BBTexts.get("beatblock.layer.hint"));
+		renderBuildLayersBody();
+	}
 
-		int selCount = presenter.worldSelectionCount();
-		ImGui.textDisabled(BBTexts.get("beatblock.layer.current_selection", selCount));
-
-		ImGui.setNextItemWidth(-1f);
-		ImGui.inputText(BBTexts.get("beatblock.layer.name") + "##layerName", newLayerNameBuffer);
-
-		if (selCount <= 0) ImGui.beginDisabled();
-		if (ImGui.button(BBTexts.get("beatblock.layer.create_from_selection") + "##layerCreate", -1f, 0f)) {
-			createLayerFromSelection();
+	/**
+	 * Build Layers 区块（嵌入 {@link StageExplorerPanel}）。
+	 */
+	void renderBuildLayersExplorerSection(@Nullable String filterQuery) {
+		explorerEmbedMode = true;
+		explorerFilterQuery = StageExplorerPresenter.normalizeSearchQuery(filterQuery);
+		try {
+			ImGui.setNextItemOpen(true, ImGuiCond.FirstUseEver);
+			if (!ImGui.collapsingHeader(
+				buildLayersExplorerHeader() + "##stageExplorerBuildLayers",
+				ImGuiTreeNodeFlags.DefaultOpen
+			)) {
+				return;
+			}
+			renderBuildLayersBody();
+		} finally {
+			explorerEmbedMode = false;
+			explorerFilterQuery = "";
 		}
-		if (selCount <= 0) ImGui.endDisabled();
+	}
 
-		ImGui.separator();
-		renderLayerToolbar();
-		ImGui.separator();
+	private String buildLayersExplorerHeader() {
+		var manager = presenter.currentLayerManager();
+		if (manager == null || explorerFilterQuery.isEmpty()) {
+			return BBTexts.get("beatblock.stage_explorer.build_layers");
+		}
+		int total = manager.getAll().size();
+		int visible = StageExplorerPresenter.countFilteredLayers(manager, explorerFilterQuery);
+		return BBTexts.get("beatblock.stage_explorer.build_layers_filtered", visible, total);
+	}
+
+	void renderOverlayModals() {
+		renderDeleteConfirmPopup();
+		renderColorPopup();
+	}
+
+	private void renderBuildLayersBody() {
+		if (!explorerEmbedMode) {
+			int selCount = presenter.worldSelectionCount();
+			ImGui.textDisabled(BBTexts.get("beatblock.layer.current_selection", selCount));
+
+			ImGui.setNextItemWidth(-1f);
+			ImGui.inputText(BBTexts.get("beatblock.layer.name") + "##layerName", newLayerNameBuffer);
+
+			if (selCount <= 0) ImGui.beginDisabled();
+			if (ImGui.button(BBTexts.get("beatblock.layer.create_from_selection") + "##layerCreate", -1f, 0f)) {
+				createLayerFromSelection();
+			}
+			if (selCount <= 0) ImGui.endDisabled();
+
+			ImGui.separator();
+			renderLayerToolbar();
+			ImGui.separator();
+		} else {
+			ImGui.textDisabled(BBTexts.get("beatblock.stage_explorer.build_layers.hint"));
+			ImGui.separator();
+		}
 		renderLayerList();
 
 		if (!statusMessage.isBlank()) {
@@ -163,22 +211,45 @@ public class LayerPanel {
 			return;
 		}
 
+		boolean filtering = explorerEmbedMode && !explorerFilterQuery.isEmpty();
 		Set<String> rendered = new HashSet<>();
 		for (BuildLayerGroup group : manager.getAllGroups()) {
 			renderGroupNode(group, manager, rendered);
 		}
 		for (BuildLayer layer : manager.getUngroupedLayers()) {
-			renderLayerRow(layer, manager, 0);
+			if (!filtering || StageExplorerPresenter.layerMatchesFilter(layer, explorerFilterQuery)) {
+				renderLayerRow(layer, manager, 0);
+			}
 			rendered.add(layer.getId());
 		}
 		for (BuildLayer layer : layers) {
-			if (!rendered.contains(layer.getId())) {
+			if (!rendered.contains(layer.getId())
+				&& (!filtering || StageExplorerPresenter.layerMatchesFilter(layer, explorerFilterQuery))) {
 				renderLayerRow(layer, manager, 0);
 			}
+		}
+		if (filtering && StageExplorerPresenter.countFilteredLayers(manager, explorerFilterQuery) == 0) {
+			ImGui.textDisabled(BBTexts.get("beatblock.stage_explorer.no_filter_matches"));
 		}
 	}
 
 	private void renderGroupNode(BuildLayerGroup group, BuildLayerManager manager, Set<String> rendered) {
+		boolean filtering = explorerEmbedMode && !explorerFilterQuery.isEmpty();
+		List<BuildLayer> members = manager.getLayersInGroup(group.getId());
+		boolean groupNameMatches = !filtering || StageExplorerPresenter.groupNameMatchesFilter(group, explorerFilterQuery);
+		List<BuildLayer> visibleMembers = new ArrayList<>();
+		for (BuildLayer layer : members) {
+			if (!filtering || groupNameMatches || StageExplorerPresenter.layerMatchesFilter(layer, explorerFilterQuery)) {
+				visibleMembers.add(layer);
+			}
+		}
+		for (BuildLayer layer : members) {
+			rendered.add(layer.getId());
+		}
+		if (filtering && visibleMembers.isEmpty()) {
+			return;
+		}
+
 		ImGui.pushID("group_" + group.getId());
 		renderColorButton(group.getColorArgb(), null, group.getId());
 		ImGui.sameLine();
@@ -209,13 +280,10 @@ public class LayerPanel {
 			}
 		}
 		if (open) {
-			for (BuildLayer layer : manager.getLayersInGroup(group.getId())) {
+			for (BuildLayer layer : visibleMembers) {
 				renderLayerRow(layer, manager, 1);
 			}
 			ImGui.treePop();
-		}
-		for (BuildLayer layer : manager.getLayersInGroup(group.getId())) {
-			rendered.add(layer.getId());
 		}
 		ImGui.popID();
 	}
@@ -251,8 +319,13 @@ public class LayerPanel {
 		IconButtonStyle.popBeatBlockIconButton();
 		ImGui.sameLine();
 
-		float nameWidth = Math.max(80f, ImGui.getContentRegionAvail().x - reservedIcons - 8f);
+		float badgeReserve = explorerEmbedMode ? estimateLayerStateBadgeWidth(layer) : 0f;
+		float nameWidth = Math.max(80f, ImGui.getContentRegionAvail().x - reservedIcons - badgeReserve - 8f);
 		renderLayerName(layer, manager, nameWidth, selected);
+		if (explorerEmbedMode) {
+			ImGui.sameLine(0f, 4f);
+			renderLayerStateBadges(layer);
+		}
 		ImGui.sameLine();
 
 		if (layer.canBindToTrack()) {
@@ -283,7 +356,7 @@ public class LayerPanel {
 
 		renderLayerContextMenu(layer);
 
-		if (layer.getState() == LayerVisibilityState.BOUND_TO_TRACK) {
+		if (!explorerEmbedMode && layer.getState() == LayerVisibilityState.BOUND_TO_TRACK) {
 			ImGui.sameLine();
 			ImGui.textDisabled(BBTexts.get("beatblock.layer.bound"));
 		}
@@ -327,7 +400,13 @@ public class LayerPanel {
 		if (layer.getColorArgb() != 0) {
 			LayerColorUtils.pushTextColor(layer.getColorArgb());
 		}
-		boolean clickedRow = ImGui.selectable(layer.getName() + "##layerRow", selected, 0, nameWidth, ICON_BTN);
+		boolean clickedRow = ImGui.selectable(
+			(explorerEmbedMode ? "▣ " : "") + layer.getName() + "##layerRow",
+			selected,
+			0,
+			nameWidth,
+			ICON_BTN
+		);
 		boolean timelineBindDragActive = layer.canBindToTrack() && setupTimelineBindDragSource(layer);
 		if (clickedRow && !timelineBindDragActive) {
 			presenter.selectLayer(
@@ -460,6 +539,38 @@ public class LayerPanel {
 
 	private static String decodePayload(byte[] raw) {
 		return BuildLayerDragDropHandler.decodeLayerId(raw);
+	}
+
+	private static float estimateLayerStateBadgeWidth(BuildLayer layer) {
+		LayerVisibilityState state = layer.getState();
+		if (state != LayerVisibilityState.FREE_HIDDEN && state != LayerVisibilityState.BOUND_TO_TRACK) {
+			return 0f;
+		}
+		String label = state == LayerVisibilityState.FREE_HIDDEN
+			? BBTexts.get("beatblock.stage_explorer.badge.hidden")
+			: BBTexts.get("beatblock.stage_explorer.badge.bound");
+		return ImGui.calcTextSize("[" + label + "]").x + 8f;
+	}
+
+	private void renderLayerStateBadges(BuildLayer layer) {
+		LayerVisibilityState state = layer.getState();
+		if (state == LayerVisibilityState.FREE_HIDDEN) {
+			ImGui.textColored(1f, 0.55f, 0.35f, 1f,
+				"[" + BBTexts.get("beatblock.stage_explorer.badge.hidden") + "]");
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip(BBTexts.get("beatblock.stage_explorer.badge.hidden.tooltip"));
+			}
+		} else if (state == LayerVisibilityState.BOUND_TO_TRACK) {
+			ImGui.textColored(0.45f, 0.75f, 1f, 1f,
+				"[" + BBTexts.get("beatblock.stage_explorer.badge.bound") + "]");
+			if (ImGui.isItemHovered()) {
+				String tooltip = BBTexts.get("beatblock.stage_explorer.badge.bound.tooltip");
+				if (layer.getBoundClipId() != null) {
+					tooltip += "\n" + BBTexts.get("beatblock.layer.bound_clip", layer.getBoundClipId());
+				}
+				ImGui.setTooltip(tooltip);
+			}
+		}
 	}
 
 	private String renderVisibilityIconButton(BuildLayer layer) {

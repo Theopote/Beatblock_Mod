@@ -17,7 +17,7 @@ public final class OscSchemaVersions {
 	public static final String FORMAT = "beatblock.osc";
 
 	/** 当前稳定 Creator schema（Creator Alpha）。 */
-	public static final int CURRENT = 3;
+	public static final int CURRENT = 4;
 
 	/** legacy {@code version} 字段的最高值（冻结，不再新增 legacy 版本）。 */
 	public static final int LEGACY_FORMAT_MAX = 4;

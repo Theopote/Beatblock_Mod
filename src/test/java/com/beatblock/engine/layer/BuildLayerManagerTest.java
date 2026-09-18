@@ -161,6 +161,41 @@ class BuildLayerManagerTest {
 		assertEquals(List.of(layer), manager.getLayersInGroup(group.getId()));
 	}
 
+	@Test
+	void standaloneSelectionMergesIntoAnimationTargets() {
+		BlockPos soloPos = new BlockPos(5, 64, 5);
+		BlockPos layerPos = new BlockPos(6, 64, 6);
+		RuntimeStageObject solo = StageObjectSystem.fromBlocks("solo", "Solo", List.of(soloPos));
+		stageObjectSystem.register(solo);
+		BuildLayer layer = manager.createFromSelection("Layer", List.of(layerPos));
+
+		manager.selectStandaloneStageObject("solo", false, false, List.of("solo"));
+		assertEquals(List.of("solo"), manager.getSelectedStageObjectIds());
+
+		manager.selectLayer(layer.getId(), false, false, List.of(layer.getId()));
+		assertEquals(List.of(layer.getStageObjectId()), manager.getSelectedStageObjectIds());
+		assertTrue(manager.getSelectedStandaloneStageObjectIds().isEmpty());
+
+		manager.selectStandaloneStageObject("solo", true, false, List.of("solo"));
+		assertEquals(2, manager.getSelectedStageObjectIds().size());
+		assertTrue(manager.getSelectedStageObjectIds().contains("solo"));
+		assertTrue(manager.getSelectedStageObjectIds().contains(layer.getStageObjectId()));
+	}
+
+	@Test
+	void attachBuildRevealWrapsStandaloneStageObject() {
+		RuntimeStageObject solo = StageObjectSystem.fromSelectionSnapshot(
+			"solo", "Solo", List.of(new BlockPos(4, 64, 4)), com.beatblock.engine.GroupSortingStrategy.SEQUENTIAL, 0.0);
+		stageObjectSystem.register(solo);
+
+		BuildLayer attached = manager.attachBuildReveal(solo, "Reveal Layer");
+		assertNotNull(attached);
+		assertEquals("solo", attached.getStageObjectId());
+		assertEquals(LayerVisibilityState.FREE_HIDDEN, attached.getState());
+		assertNotNull(manager.findLayerOwningStageObject("solo"));
+		assertNull(manager.attachBuildReveal(solo, "Again"));
+	}
+
 	private BuildLayer restoredLayer(String id, int x) {
 		RuntimeStageObject stage = StageObjectSystem.fromBlocks(
 			"stage-" + id, id, List.of(new BlockPos(x, 64, 0)));

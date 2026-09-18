@@ -38,9 +38,16 @@ public final class BuildLayerManager {
 	 */
 	private final LinkedHashSet<String> selectedLayerIds = new LinkedHashSet<>();
 	private String selectionAnchorLayerId;
+	/** Standalone RuntimeStageObject ids (not owned by a BuildLayer). */
+	private final LinkedHashSet<String> selectedStandaloneStageObjectIds = new LinkedHashSet<>();
+	private String selectionAnchorStandaloneId;
 
 	public BuildLayerManager(StageObjectSystem stageObjectSystem) {
 		this.stageObjectSystem = stageObjectSystem;
+	}
+
+	public StageObjectSystem getStageObjectSystem() {
+		return stageObjectSystem;
 	}
 
 	public Collection<BuildLayer> getAll() {
@@ -160,6 +167,8 @@ public final class BuildLayerManager {
 			if (anchorIndex >= 0 && targetIndex >= 0) {
 				if (!ctrl) {
 					selectedLayerIds.clear();
+					selectedStandaloneStageObjectIds.clear();
+					selectionAnchorStandaloneId = null;
 				}
 				int from = Math.min(anchorIndex, targetIndex);
 				int to = Math.max(anchorIndex, targetIndex);
@@ -174,6 +183,8 @@ public final class BuildLayerManager {
 		}
 		if (!ctrl && !shift) {
 			selectedLayerIds.clear();
+			selectedStandaloneStageObjectIds.clear();
+			selectionAnchorStandaloneId = null;
 		}
 		if (ctrl && selectedLayerIds.contains(layerId)) {
 			selectedLayerIds.remove(layerId);
@@ -186,7 +197,9 @@ public final class BuildLayerManager {
 	/** Replace selection with a single layer (e.g. after create/merge). */
 	public void setSelectionTo(String layerId) {
 		selectedLayerIds.clear();
+		selectedStandaloneStageObjectIds.clear();
 		selectionAnchorLayerId = null;
+		selectionAnchorStandaloneId = null;
 		if (layerId != null && layers.containsKey(layerId)) {
 			selectedLayerIds.add(layerId);
 			selectionAnchorLayerId = layerId;
@@ -204,6 +217,59 @@ public final class BuildLayerManager {
 	public void clearSelection() {
 		selectedLayerIds.clear();
 		selectionAnchorLayerId = null;
+		selectedStandaloneStageObjectIds.clear();
+		selectionAnchorStandaloneId = null;
+	}
+
+	public Set<String> getSelectedStandaloneStageObjectIds() {
+		pruneMissingSelection();
+		return Set.copyOf(selectedStandaloneStageObjectIds);
+	}
+
+	public boolean isStandaloneStageObjectSelected(String stageObjectId) {
+		return stageObjectId != null && selectedStandaloneStageObjectIds.contains(stageObjectId);
+	}
+
+	public void selectStandaloneStageObject(
+		String stageObjectId,
+		boolean ctrl,
+		boolean shift,
+		List<String> displayOrder
+	) {
+		if (stageObjectId == null || stageObjectId.isBlank() || stageObjectSystem.get(stageObjectId) == null) {
+			return;
+		}
+		if (shift && selectionAnchorStandaloneId != null && displayOrder != null && !displayOrder.isEmpty()) {
+			int anchorIndex = displayOrder.indexOf(selectionAnchorStandaloneId);
+			int targetIndex = displayOrder.indexOf(stageObjectId);
+			if (anchorIndex >= 0 && targetIndex >= 0) {
+				if (!ctrl) {
+					selectedStandaloneStageObjectIds.clear();
+					selectedLayerIds.clear();
+					selectionAnchorLayerId = null;
+				}
+				int from = Math.min(anchorIndex, targetIndex);
+				int to = Math.max(anchorIndex, targetIndex);
+				for (int i = from; i <= to; i++) {
+					String id = displayOrder.get(i);
+					if (id != null && stageObjectSystem.get(id) != null) {
+						selectedStandaloneStageObjectIds.add(id);
+					}
+				}
+				return;
+			}
+		}
+		if (!ctrl && !shift) {
+			selectedStandaloneStageObjectIds.clear();
+			selectedLayerIds.clear();
+			selectionAnchorLayerId = null;
+		}
+		if (ctrl && selectedStandaloneStageObjectIds.contains(stageObjectId)) {
+			selectedStandaloneStageObjectIds.remove(stageObjectId);
+		} else {
+			selectedStandaloneStageObjectIds.add(stageObjectId);
+		}
+		selectionAnchorStandaloneId = stageObjectId;
 	}
 
 	/**
@@ -221,6 +287,11 @@ public final class BuildLayerManager {
 				stageIds.add(stageId);
 			}
 		}
+		for (String stageObjectId : selectedStandaloneStageObjectIds) {
+			if (stageObjectSystem.get(stageObjectId) != null) {
+				stageIds.add(stageObjectId);
+			}
+		}
 		return new ArrayList<>(stageIds);
 	}
 
@@ -228,6 +299,11 @@ public final class BuildLayerManager {
 		selectedLayerIds.removeIf(id -> id == null || !layers.containsKey(id));
 		if (selectionAnchorLayerId != null && !layers.containsKey(selectionAnchorLayerId)) {
 			selectionAnchorLayerId = selectedLayerIds.isEmpty() ? null : selectedLayerIds.getFirst();
+		}
+		selectedStandaloneStageObjectIds.removeIf(id -> id == null || stageObjectSystem.get(id) == null);
+		if (selectionAnchorStandaloneId != null && stageObjectSystem.get(selectionAnchorStandaloneId) == null) {
+			selectionAnchorStandaloneId = selectedStandaloneStageObjectIds.isEmpty()
+				? null : selectedStandaloneStageObjectIds.getFirst();
 		}
 	}
 
@@ -237,6 +313,67 @@ public final class BuildLayerManager {
 			if (clipId.equals(layer.getBoundClipId())) return layer;
 		}
 		return null;
+	}
+
+	public @Nullable BuildLayer findLayerOwningStageObject(String stageObjectId) {
+		if (stageObjectId == null || stageObjectId.isBlank()) {
+			return null;
+		}
+		for (BuildLayer layer : layers.values()) {
+			if (stageObjectId.equals(layer.getStageObjectId())) {
+				return layer;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * 为已有 StageObject 附加 Build / Reveal 能力（捕获方块并隐藏）。
+	 */
+	public @Nullable BuildLayer attachBuildReveal(RuntimeStageObject stageObject, @Nullable String preferredLayerName) {
+		if (stageObject == null || findLayerOwningStageObject(stageObject.getId()) != null) {
+			return null;
+		}
+		List<BlockPos> blocks = stageObject.getBlocks();
+		List<BlockPos> available = filterUnclaimedBlocks(blocks);
+		if (available.isEmpty()) {
+			return null;
+		}
+
+		String layerName = uniqueLayerName(
+			preferredLayerName != null && !preferredLayerName.isBlank() ? preferredLayerName : stageObject.getName()
+		);
+		String id = uniqueLayerId(layerName);
+
+		Map<BlockPos, BlockState> initialCapture = new LinkedHashMap<>();
+		World world = currentWorld();
+		if (world != null) {
+			snapshotBlocksFromWorld(available, world, initialCapture);
+		}
+
+		BuildLayer layer = new BuildLayer(
+			id, layerName, stageObject, LayerVisibilityState.FREE_HIDDEN, initialCapture, null);
+		layers.put(id, layer);
+		claimBlocks(layer);
+		if (world != null) {
+			applyHiddenBlocks(layer, world);
+		}
+		return layer;
+	}
+
+	/** 撤销「附加 BuildLayer」时使用：保留 StageObject，仅移除图层包装。 */
+	public boolean removeLayerKeepStageObject(BuildLayer layer, @Nullable World world) {
+		if (layer == null) {
+			return false;
+		}
+		if (layer.getState() == LayerVisibilityState.FREE_HIDDEN && world != null) {
+			showLayer(layer, world);
+		}
+		String id = layer.getId();
+		layers.remove(id);
+		removeFromSelection(id);
+		releaseBlocks(layer);
+		return true;
 	}
 
 	public BuildLayer createFromSelection(String name, List<BlockPos> blocks) {

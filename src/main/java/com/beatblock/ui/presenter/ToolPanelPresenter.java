@@ -2,12 +2,19 @@ package com.beatblock.ui.presenter;
 
 import com.beatblock.engine.GroupSortingStrategy;
 import com.beatblock.engine.RuntimeStageObject;
+import com.beatblock.engine.StageObjectLifecycleService;
+import com.beatblock.engine.StageObjectPersistence;
 import com.beatblock.engine.StageObjectSystem;
+import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.selection.preset.SelectionPresetManager;
 import com.beatblock.selection.preset.SelectionPresetStore;
+import com.beatblock.timeline.StageObjectReferenceService;
+import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.ui.i18n.BBTexts;
+import com.beatblock.ui.labels.BlockOrderLabels;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
@@ -70,7 +77,13 @@ public final class ToolPanelPresenter {
 		double staggerSeconds
 	) {}
 
-	public record StageObjectListItem(String id, String name, int blockCount, String sourceType) {}
+	public record StageObjectListItem(
+		String id,
+		String name,
+		int blockCount,
+		String sourceTypeLabel,
+		String blockOrderLabel
+	) {}
 
 	public record CornerState(BlockPos posA, BlockPos posB) {}
 
@@ -78,8 +91,20 @@ public final class ToolPanelPresenter {
 
 	public record CreateStageObjectOutcome(PresenterResult result, String objectId) {}
 
+	public record DeleteStageObjectOutcome(
+		PresenterResult result,
+		StageObjectReferenceService.ReferenceSummary blockedReferences
+	) {
+		public DeleteStageObjectOutcome(PresenterResult result) {
+			this(result, new StageObjectReferenceService.ReferenceSummary(java.util.List.of()));
+		}
+	}
+
 	private final Supplier<BeatBlockSelectionManager> selectionManager;
 	private final Supplier<StageObjectSystem> stageObjectSystem;
+	private final Supplier<BuildLayerManager> layerManager;
+	private final Supplier<Timeline> timeline;
+	private final Supplier<CommandManager> commandManager;
 	private final Supplier<World> world;
 	private final CrosshairBlockPicker crosshairPicker;
 
@@ -92,8 +117,23 @@ public final class ToolPanelPresenter {
 		Supplier<World> world,
 		CrosshairBlockPicker crosshairPicker
 	) {
+		this(selectionManager, stageObjectSystem, () -> null, () -> null, () -> null, world, crosshairPicker);
+	}
+
+	public ToolPanelPresenter(
+		Supplier<BeatBlockSelectionManager> selectionManager,
+		Supplier<StageObjectSystem> stageObjectSystem,
+		Supplier<BuildLayerManager> layerManager,
+		Supplier<Timeline> timeline,
+		Supplier<CommandManager> commandManager,
+		Supplier<World> world,
+		CrosshairBlockPicker crosshairPicker
+	) {
 		this.selectionManager = selectionManager;
 		this.stageObjectSystem = stageObjectSystem;
+		this.layerManager = layerManager;
+		this.timeline = timeline;
+		this.commandManager = commandManager;
 		this.world = world;
 		this.crosshairPicker = crosshairPicker;
 	}
@@ -251,15 +291,34 @@ public final class ToolPanelPresenter {
 		);
 	}
 
+	public StageObjectReferenceService.ReferenceSummary findStageObjectReferences(String stageObjectId) {
+		return StageObjectLifecycleService.findReferences(timeline.get(), stageObjectId);
+	}
+
+	public DeleteStageObjectOutcome deleteStageObject(String id) {
+		return deleteStageObject(id, false);
+	}
+
+	public DeleteStageObjectOutcome deleteStageObject(String id, boolean clearReferences) {
+		StageObjectLifecycleService.DeleteOutcome outcome = StageObjectLifecycleService.deleteStageObject(
+			commandManager.get(),
+			stageObjectSystem.get(),
+			timeline.get(),
+			layerManager.get(),
+			id,
+			clearReferences
+		);
+		if (outcome.blockedReferences() != null && !outcome.blockedReferences().isEmpty()
+			&& !outcome.result().ok()) {
+			return new DeleteStageObjectOutcome(outcome.result(), outcome.blockedReferences());
+		}
+		return new DeleteStageObjectOutcome(outcome.result());
+	}
+
+	/** @deprecated Prefer {@link #deleteStageObject(String)} with reference protection. */
+	@Deprecated
 	public PresenterResult removeStageObject(String id) {
-		StageObjectSystem system = stageObjectSystem.get();
-		if (system == null || id == null || id.isBlank()) {
-			return PresenterResult.failure(BBTexts.get("beatblock.message.delete_object_failed"));
-		}
-		if (!system.remove(id)) {
-			return PresenterResult.failure(BBTexts.get("beatblock.message.object_not_found", id));
-		}
-		return PresenterResult.success(BBTexts.get("beatblock.message.object_deleted", id));
+		return deleteStageObject(id).result();
 	}
 
 	public @Nullable RuntimeStageObject getStageObject(String id) {
@@ -285,11 +344,21 @@ public final class ToolPanelPresenter {
 				obj.getId(),
 				obj.getName(),
 				obj.getBlocks().size(),
-				obj.getGroupSpec().getSourceType()
+				BlockOrderLabels.sourceTypeLabel(obj.getGroupSpec()),
+				BlockOrderLabels.sortingStrategyLabel(obj.getGroupSpec().getSortingStrategy())
 			));
 		}
 		items.sort(Comparator.comparing(StageObjectListItem::name, String.CASE_INSENSITIVE_ORDER));
 		return items;
+	}
+
+	/** StageObject 未绑定 BuildLayer 的演出对象（Stage Explorer 专用）。 */
+	public List<StageObjectListItem> listStandaloneStageObjects() {
+		BuildLayerManager manager = layerManager.get();
+		Set<String> layerOwned = StageObjectPersistence.collectLayerOwnedStageIds(manager);
+		return listStageObjects().stream()
+			.filter(item -> !layerOwned.contains(item.id()))
+			.toList();
 	}
 
 	public static String selectionModeLabel(SelectionMode mode) {

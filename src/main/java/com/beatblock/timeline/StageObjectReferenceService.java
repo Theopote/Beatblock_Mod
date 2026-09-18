@@ -212,6 +212,29 @@ public final class StageObjectReferenceService {
 		return !find(timeline, stageObjectIds).isEmpty();
 	}
 
+	/** 扫描 Timeline / AutoMap / 编舞中引用的全部 StageObject id（去重）。 */
+	public static Set<String> collectReferencedStageObjectIds(@Nullable Timeline timeline) {
+		Set<String> ids = new LinkedHashSet<>();
+		for (StageObjectReference ref : findAllReferences(timeline).references()) {
+			if (ref.targetObjectId() != null && !ref.targetObjectId().isBlank()) {
+				ids.add(ref.targetObjectId());
+			}
+		}
+		return Set.copyOf(ids);
+	}
+
+	/** 返回 Timeline / AutoMap / 编舞中的全部 StageObject 引用（不按 id 过滤）。 */
+	public static @NonNull ReferenceSummary findAllReferences(@Nullable Timeline timeline) {
+		List<StageObjectReference> refs = new ArrayList<>();
+		collectAnimationEventRefs(timeline, null, refs);
+		collectBindingRuleRefs(timeline, null, refs);
+		collectPlanRefs(timeline, null, refs);
+		collectConfigRefs(timeline, null, refs);
+		collectCameraSegmentRefs(timeline, null, refs);
+		collectAutoMapSettingsRefs(null, refs);
+		return new ReferenceSummary(refs);
+	}
+
 	/**
 	 * Rewrite every matching StageObject id to {@code toId} (merge path).
 	 */
@@ -302,7 +325,7 @@ public final class StageObjectReferenceService {
 
 	private static void collectAnimationEventRefs(
 		@Nullable Timeline timeline,
-		Set<String> ids,
+		@Nullable Set<String> ids,
 		List<StageObjectReference> out
 	) {
 		if (timeline == null) return;
@@ -313,7 +336,7 @@ public final class StageObjectReferenceService {
 				for (TimelineEvent event : clip.getEvents()) {
 					if (event == null || event.getType() != EventType.ANIMATION) continue;
 					String target = stringParam(event.getParameter("targetObject"));
-					if (ids.contains(target)) {
+					if (matchesTarget(ids, target)) {
 						out.add(new StageObjectReference(ReferenceType.ANIMATION_EVENT, event.getId(), target));
 					}
 				}
@@ -323,13 +346,13 @@ public final class StageObjectReferenceService {
 
 	private static void collectBindingRuleRefs(
 		@Nullable Timeline timeline,
-		Set<String> ids,
+		@Nullable Set<String> ids,
 		List<StageObjectReference> out
 	) {
 		if (timeline == null) return;
 		for (AnimationBindingRule rule : AnimationBindingEngine.loadRules(timeline)) {
 			String target = rule.targetObjectId();
-			if (ids.contains(target)) {
+			if (matchesTarget(ids, target)) {
 				out.add(new StageObjectReference(ReferenceType.BINDING_RULE, rule.id(), target));
 			}
 		}
@@ -337,7 +360,7 @@ public final class StageObjectReferenceService {
 
 	private static void collectPlanRefs(
 		@Nullable Timeline timeline,
-		Set<String> ids,
+		@Nullable Set<String> ids,
 		List<StageObjectReference> out
 	) {
 		ChoreographyPlan plan = timeline != null ? ChoreographyPlanStore.loadPlan(timeline) : null;
@@ -345,7 +368,7 @@ public final class StageObjectReferenceService {
 		int roleIndex = 0;
 		for (ChoreographyPlan.StageRoleAssignment role : plan.stageRoles()) {
 			String target = role.targetObjectId();
-			if (target != null && ids.contains(target)) {
+			if (matchesTarget(ids, target)) {
 				out.add(new StageObjectReference(
 					ReferenceType.STAGE_ROLE,
 					role.normalizedFeatureKey() + "#" + roleIndex,
@@ -361,7 +384,7 @@ public final class StageObjectReferenceService {
 				continue;
 			}
 			for (String target : phrase.targets().objectIds()) {
-				if (ids.contains(target)) {
+				if (matchesTarget(ids, target)) {
 					out.add(new StageObjectReference(
 						ReferenceType.GRAMMAR_TARGET,
 						"phrase#" + phraseIndex,
@@ -373,7 +396,7 @@ public final class StageObjectReferenceService {
 		}
 		int camIndex = 0;
 		for (ChoreographyPlan.CameraPhrase camera : plan.cameraPhrases()) {
-			if (isStageObjectSubject(camera.subjectKind()) && ids.contains(camera.subjectRef())) {
+			if (isStageObjectSubject(camera.subjectKind()) && matchesTarget(ids, camera.subjectRef())) {
 				out.add(new StageObjectReference(
 					ReferenceType.CAMERA_PHRASE,
 					"camera#" + camIndex,
@@ -386,7 +409,7 @@ public final class StageObjectReferenceService {
 		for (ChoreographyVfx vfx : plan.vfxPhrases()) {
 			if (vfx instanceof ChoreographyVfx.ParticleBurst burst) {
 				CameraSubject subject = burst.target();
-				if (subject != null && isStageObjectKind(subject.kind()) && ids.contains(subject.refId())) {
+				if (subject != null && isStageObjectKind(subject.kind()) && matchesTarget(ids, subject.refId())) {
 					out.add(new StageObjectReference(
 						ReferenceType.VFX_TARGET,
 						"vfx#" + vfxIndex,
@@ -400,7 +423,7 @@ public final class StageObjectReferenceService {
 
 	private static void collectConfigRefs(
 		@Nullable Timeline timeline,
-		Set<String> ids,
+		@Nullable Set<String> ids,
 		List<StageObjectReference> out
 	) {
 		AutoMapConfig config = timeline != null ? ChoreographyPlanStore.loadConfig(timeline) : null;
@@ -408,7 +431,7 @@ public final class StageObjectReferenceService {
 		int ruleIndex = 0;
 		for (AutoMapRule rule : config.getRules()) {
 			String target = rule.getTargetObjectId();
-			if (target != null && ids.contains(target)) {
+			if (matchesTarget(ids, target)) {
 				out.add(new StageObjectReference(
 					ReferenceType.AUTOMAP_RULE,
 					rule.getFeatureKey() + "#" + ruleIndex,
@@ -418,7 +441,7 @@ public final class StageObjectReferenceService {
 			ruleIndex++;
 		}
 		for (Map.Entry<String, String> e : config.getTargetByNormalizedFeature().entrySet()) {
-			if (ids.contains(e.getValue())) {
+			if (matchesTarget(ids, e.getValue())) {
 				out.add(new StageObjectReference(
 					ReferenceType.AUTOMAP_FEATURE_TARGET,
 					e.getKey(),
@@ -430,7 +453,7 @@ public final class StageObjectReferenceService {
 
 	private static void collectCameraSegmentRefs(
 		@Nullable Timeline timeline,
-		Set<String> ids,
+		@Nullable Set<String> ids,
 		List<StageObjectReference> out
 	) {
 		if (timeline == null) return;
@@ -441,7 +464,7 @@ public final class StageObjectReferenceService {
 			for (TimelineEvent event : clip.getEvents()) {
 				if (event == null || event.getType() != EventType.CAMERA_SEGMENT) continue;
 				CameraSubject follow = CameraSegmentSemantics.followSubjectFrom(event.getParameters());
-				if (follow != null && isStageObjectKind(follow.kind()) && ids.contains(follow.refId())) {
+				if (follow != null && isStageObjectKind(follow.kind()) && matchesTarget(ids, follow.refId())) {
 					out.add(new StageObjectReference(
 						ReferenceType.CAMERA_SEGMENT,
 						event.getId(),
@@ -452,13 +475,20 @@ public final class StageObjectReferenceService {
 		}
 	}
 
-	private static void collectAutoMapSettingsRefs(Set<String> ids, List<StageObjectReference> out) {
+	private static void collectAutoMapSettingsRefs(@Nullable Set<String> ids, List<StageObjectReference> out) {
 		AutoMapSettings settings = AutoMapSettingsStore.current();
 		for (String target : settings.getTargetObjectIds()) {
-			if (ids.contains(target)) {
+			if (matchesTarget(ids, target)) {
 				out.add(new StageObjectReference(ReferenceType.AUTOMAP_SETTINGS, "session", target));
 			}
 		}
+	}
+
+	private static boolean matchesTarget(@Nullable Set<String> ids, @Nullable String target) {
+		if (target == null || target.isBlank()) {
+			return false;
+		}
+		return ids == null || ids.contains(target);
 	}
 
 	// --- mutators ---

@@ -53,6 +53,7 @@ class QuickStartWizardPresenterTest {
 		presenter = new QuickStartWizardPresenter(
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			PresenterFactories.toolPanelPresenter(context),
+			PresenterFactories.buildLayersPresenter(context),
 			PresenterFactories.rhythmDropPanelPresenter(context),
 			PresenterFactories.timelineBindingEditorPresenter(context),
 			context::selectionManager,
@@ -354,6 +355,7 @@ class QuickStartWizardPresenterTest {
 		presenter = new QuickStartWizardPresenter(
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			toolPanel,
+			PresenterFactories.buildLayersPresenter(BeatBlock.getContext()),
 			failingRhythmDrop,
 			PresenterFactories.timelineBindingEditorPresenter(BeatBlock.getContext()),
 			BeatBlock.getContext()::selectionManager,

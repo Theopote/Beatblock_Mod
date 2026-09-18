@@ -57,6 +57,7 @@ class QuickStartGenerationRegressionTest {
 		presenter = new QuickStartWizardPresenter(
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			toolPanel,
+			PresenterFactories.buildLayersPresenter(context),
 			PresenterFactories.rhythmDropPanelPresenter(context),
 			PresenterFactories.timelineBindingEditorPresenter(context),
 			context::selectionManager,
@@ -178,6 +179,7 @@ class QuickStartGenerationRegressionTest {
 		presenter = new QuickStartWizardPresenter(
 			new AutoMapSettingsPanelPresenter(BeatBlock::getContext),
 			toolPanel,
+			PresenterFactories.buildLayersPresenter(BeatBlock.getContext()),
 			failingRhythmDrop,
 			PresenterFactories.timelineBindingEditorPresenter(BeatBlock.getContext()),
 			BeatBlock.getContext()::selectionManager,

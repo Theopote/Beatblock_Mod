@@ -33,10 +33,12 @@ public final class QuickStartWizardPanel {
 		Runnable editTimeline,
 		Runnable editChoreography,
 		Runnable saveProject,
-		Runnable exportVideo
+		Runnable exportVideo,
+		Runnable openStageExplorer,
+		Runnable focusStageObjectSelection
 	) {
 		public static DoneActions noop() {
-			return new DoneActions(() -> {}, () -> {}, () -> {}, () -> {}, () -> {});
+			return new DoneActions(() -> {}, () -> {}, () -> {}, () -> {}, () -> {}, () -> {}, () -> {});
 		}
 
 		public static DoneActions of(
@@ -46,12 +48,26 @@ public final class QuickStartWizardPanel {
 			@Nullable Runnable saveProject,
 			@Nullable Runnable exportVideo
 		) {
+			return of(playPreview, editTimeline, editChoreography, saveProject, exportVideo, null, null);
+		}
+
+		public static DoneActions of(
+			@Nullable Runnable playPreview,
+			@Nullable Runnable editTimeline,
+			@Nullable Runnable editChoreography,
+			@Nullable Runnable saveProject,
+			@Nullable Runnable exportVideo,
+			@Nullable Runnable openStageExplorer,
+			@Nullable Runnable focusStageObjectSelection
+		) {
 			return new DoneActions(
 				playPreview != null ? playPreview : () -> {},
 				editTimeline != null ? editTimeline : () -> {},
 				editChoreography != null ? editChoreography : () -> {},
 				saveProject != null ? saveProject : () -> {},
-				exportVideo != null ? exportVideo : () -> {}
+				exportVideo != null ? exportVideo : () -> {},
+				openStageExplorer != null ? openStageExplorer : () -> {},
+				focusStageObjectSelection != null ? focusStageObjectSelection : () -> {}
 			);
 		}
 	}
@@ -63,6 +79,7 @@ public final class QuickStartWizardPanel {
 	private final ImBoolean windowOpen = new ImBoolean(false);
 	private boolean skippedImportOnOpen;
 	private boolean stageObjectNameSynced;
+	private boolean doneStageObjectSelectionApplied;
 
 	public QuickStartWizardPanel() {
 		this(PresenterFactories.quickStartWizardPresenter(), DoneActions.noop());
@@ -103,6 +120,7 @@ public final class QuickStartWizardPanel {
 		musicPath.set(session.audioPath());
 		stageObjectName.set("");
 		stageObjectNameSynced = false;
+		doneStageObjectSelectionApplied = false;
 		skippedImportOnOpen = session.skippedImport();
 		windowOpen.set(true);
 	}
@@ -449,16 +467,30 @@ public final class QuickStartWizardPanel {
 	}
 
 	private void renderDoneStep() {
+		applyDoneStageObjectSelectionOnce();
+
 		var summary = presenter.doneSummary();
 		ImGui.textColored(0.4f, 1f, 0.4f, 1f, BBTexts.get("beatblock.wizard.done.title"));
 		ImGui.textWrapped(BBTexts.get("beatblock.wizard.done.desc"));
 		ImGui.spacing();
 
 		if (!summary.objectName().isBlank()) {
-			ImGui.textDisabled(summary.objectName());
+			ImGui.separator();
+			ImGui.text(BBTexts.get("beatblock.wizard.done.created_object"));
+			ImGui.textColored(0.45f, 0.85f, 1f, 1f, summary.objectName());
+			ImGui.textDisabled(BBTexts.get("beatblock.wizard.done.stat.blocks", summary.blockCount()));
 			ImGui.spacing();
+			if (ImGui.button(BBTexts.get("beatblock.wizard.done.open_stage_explorer") + "##wizardOpenStageExplorer", -1f, 0f)) {
+				doneActions.openStageExplorer().run();
+			}
+			if (ImGui.isItemHovered()) {
+				ImGui.setTooltip(BBTexts.get("beatblock.wizard.done.open_stage_explorer.tooltip"));
+			}
+			ImGui.separator();
+			ImGui.spacing();
+		} else if (summary.blockCount() > 0) {
+			ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.blocks", summary.blockCount()));
 		}
-		ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.blocks", summary.blockCount()));
 		ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.animation", summary.animationEvents()));
 		ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.camera", summary.cameraShots()));
 		ImGui.bulletText(BBTexts.get("beatblock.wizard.done.stat.vfx", summary.vfxEvents()));
@@ -575,10 +607,19 @@ public final class QuickStartWizardPanel {
 		}
 	}
 
+	private void applyDoneStageObjectSelectionOnce() {
+		if (doneStageObjectSelectionApplied) {
+			return;
+		}
+		doneStageObjectSelectionApplied = true;
+		doneActions.focusStageObjectSelection().run();
+	}
+
 	private void closeWizard(boolean completed) {
 		windowOpen.set(false);
 		presenter.reset();
 		stageObjectNameSynced = false;
+		doneStageObjectSelectionApplied = false;
 		skippedImportOnOpen = false;
 		if (completed) {
 			UiPreferences.setQuickStartWizardAcknowledged(true);

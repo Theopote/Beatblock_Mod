@@ -233,9 +233,15 @@ public final class ProjectSessionController {
 			Path opened = Path.of(path).toAbsolutePath().normalize();
 			session.syncIdentity(loaded.getProjectId(), opened.toString());
 			session.markOpened(opened);
-			return PresenterResult.success(BBTexts.get(audioLoadFailed
-				? "beatblock.message.project_opened_audio_failed"
-				: "beatblock.message.project_opened"));
+			if (audioLoadFailed) {
+				return PresenterResult.success(BBTexts.get("beatblock.message.project_opened_audio_failed"));
+			}
+			if (loaded.hasBrokenReferences()) {
+				return PresenterResult.success(BBTexts.get(
+					"beatblock.message.project_opened_broken_references",
+					loaded.getTargetIntegrity().danglingReferenceCount()));
+			}
+			return PresenterResult.success(BBTexts.get("beatblock.message.project_opened"));
 		} catch (Exception e) {
 			return PresenterResult.failure(BBTexts.get("beatblock.message.open_failed", e.getMessage()));
 		}

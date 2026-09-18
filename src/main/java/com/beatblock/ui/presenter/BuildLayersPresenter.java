@@ -1,9 +1,11 @@
 package com.beatblock.ui.presenter;
 
+import com.beatblock.engine.RuntimeStageObject;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerGroup;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.LayerVisibilityState;
+import com.beatblock.timeline.command.layer.AttachBuildRevealCommand;
 import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.timeline.StageObjectReferenceService;
 import com.beatblock.timeline.StageObjectTargetConflictFinder;
@@ -23,6 +25,7 @@ import com.beatblock.timeline.command.layer.UngroupLayersCommand;
 import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -140,6 +143,28 @@ public final class BuildLayersPresenter {
 		manager.selectLayer(layerId, ctrl, shift, displayOrder);
 	}
 
+	public boolean isStandaloneStageObjectSelected(String stageObjectId) {
+		BuildLayerManager manager = layerManager.get();
+		return manager != null && manager.isStandaloneStageObjectSelected(stageObjectId);
+	}
+
+	public void selectStandaloneStageObject(
+		String stageObjectId,
+		boolean ctrl,
+		boolean shift,
+		List<String> displayOrder
+	) {
+		BuildLayerManager manager = layerManager.get();
+		if (manager != null) {
+			manager.selectStandaloneStageObject(stageObjectId, ctrl, shift, displayOrder);
+		}
+	}
+
+	public List<String> selectedStageObjectIds() {
+		BuildLayerManager manager = layerManager.get();
+		return manager != null ? manager.getSelectedStageObjectIds() : List.of();
+	}
+
 	public void clearSelection() {
 		BuildLayerManager manager = layerManager.get();
 		if (manager != null) {
@@ -240,6 +265,42 @@ public final class BuildLayersPresenter {
 		}
 		commands.execute(new RenameGroupCommand(manager, group.getId(), trimmed));
 		return new RenameOutcome(PresenterResult.success(BBTexts.get("beatblock.message.group_renamed", trimmed)), trimmed);
+	}
+
+	public LayerActionOutcome enableBuildRevealForStageObject(String stageObjectId, @Nullable RuntimeStageObject stageObject) {
+		CommandManager commands = commandManager.get();
+		BuildLayerManager manager = layerManager.get();
+		if (commands == null || manager == null) {
+			return new LayerActionOutcome(PresenterResult.failure(BBTexts.get("beatblock.message.engine_or_timeline_unavailable")), null);
+		}
+		if (stageObject == null || stageObjectId == null || stageObjectId.isBlank()) {
+			return new LayerActionOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.object_not_found", stageObjectId)),
+				null
+			);
+		}
+		if (manager.findLayerOwningStageObject(stageObjectId) != null) {
+			return new LayerActionOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.build_reveal_already_enabled")),
+				null
+			);
+		}
+
+		var cmd = new AttachBuildRevealCommand(manager, stageObject, stageObject.getName());
+		commands.execute(cmd);
+		BuildLayer attached = cmd.getAttachedLayer();
+		if (attached == null) {
+			return new LayerActionOutcome(
+				PresenterResult.failure(BBTexts.get("beatblock.message.build_reveal_attach_failed")),
+				null
+			);
+		}
+
+		manager.setSelectionTo(attached.getId());
+		return new LayerActionOutcome(
+			PresenterResult.success(BBTexts.get("beatblock.message.build_reveal_enabled", attached.getName())),
+			attached.getId()
+		);
 	}
 
 	public CreateOutcome createLayerFromSelection(String rawName, List<BlockPos> selectedBlocks) {

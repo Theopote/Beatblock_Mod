@@ -16,6 +16,7 @@ public final class BeatBlockPanelVisibility {
 	public final ImBoolean animationLibrary = new ImBoolean(false);
 	public final ImBoolean selectionProperties = new ImBoolean(false);
 	public final ImBoolean layer = new ImBoolean(false);
+	public final ImBoolean stageExplorer = new ImBoolean(true);
 	public final ImBoolean rhythmDrop = new ImBoolean(false);
 	public final ImBoolean undoHistory = new ImBoolean(false);
 	public final ImBoolean eventLibrary = new ImBoolean(false);
@@ -33,6 +34,7 @@ public final class BeatBlockPanelVisibility {
 		animationLibrary.set(false);
 		selectionProperties.set(false);
 		layer.set(false);
+		stageExplorer.set(false);
 		rhythmDrop.set(false);
 		undoHistory.set(false);
 		eventLibrary.set(false);
@@ -51,6 +53,7 @@ public final class BeatBlockPanelVisibility {
 		animationLibrary.set(true);
 		selectionProperties.set(true);
 		layer.set(true);
+		stageExplorer.set(true);
 		rhythmDrop.set(true);
 		undoHistory.set(true);
 		eventLibrary.set(true);

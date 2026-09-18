@@ -7,12 +7,17 @@ import com.beatblock.selection.BeatBlockSelectionManager;
 import com.beatblock.selection.SelectionMode;
 import com.beatblock.selection.SelectionOperation;
 import com.beatblock.selection.preset.SelectionPresetManager;
+import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.TimelineAnimationEvent;
+import com.beatblock.timeline.TimelineEventOrigin;
+import com.beatblock.timeline.command.CommandManager;
 import com.beatblock.ui.i18n.BBTexts;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,6 +29,8 @@ class ToolPanelPresenterTest {
 
 	private BeatBlockSelectionManager selectionManager;
 	private StageObjectSystem stageObjectSystem;
+	private Timeline timeline;
+	private CommandManager commandManager;
 	private ToolPanelPresenter presenter;
 
 	@BeforeEach
@@ -33,9 +40,14 @@ class ToolPanelPresenterTest {
 		selectionManager.reset();
 		selectionManager.setMode(SelectionMode.BOX);
 		stageObjectSystem = new StageObjectSystem();
+		timeline = Timeline.createDefault();
+		commandManager = new CommandManager();
 		presenter = new ToolPanelPresenter(
 			() -> selectionManager,
 			() -> stageObjectSystem,
+			() -> null,
+			() -> timeline,
+			() -> commandManager,
 			() -> null,
 			() -> new BlockPos(10, 64, 10)
 		);
@@ -100,16 +112,24 @@ class ToolPanelPresenterTest {
 	}
 
 	@Test
-	void removeStageObjectDeletesRegisteredObject() {
+	void deleteStageObjectBlockedWhenReferenced() {
 		selectionManager.setMode(SelectionMode.LASSO);
 		selectionManager.commitLassoSelection(List.of(new BlockPos(2, 64, 2)), SelectionOperation.NEW);
 		var created = presenter.createFromSelectionSnapshot(new ToolPanelPresenter.StageObjectCreateRequest(
 			"Obj", false, GroupSortingStrategy.ALL, 0.0));
-		assertTrue(created.result().ok());
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"ev-1", 1.0, 1.0, "bounce", created.objectId(), 1.0f,
+			Map.of("eventOrigin", TimelineEventOrigin.GENERATED.name())));
 
-		var removed = presenter.removeStageObject(created.objectId());
-		assertTrue(removed.ok());
+		var blocked = presenter.deleteStageObject(created.objectId(), false);
+		assertFalse(blocked.result().ok());
+		assertEquals(1, blocked.blockedReferences().count());
+		assertEquals(1, stageObjectSystem.size());
+
+		var cleared = presenter.deleteStageObject(created.objectId(), true);
+		assertTrue(cleared.result().ok());
 		assertEquals(0, stageObjectSystem.size());
+		assertTrue(timeline.getAutoAnimationEvents().getFirst().getTargetObjectId().isBlank());
 	}
 
 	@Test
@@ -180,9 +200,9 @@ class ToolPanelPresenterTest {
 	}
 
 	@Test
-	void removeStageObjectRejectsMissingId() {
-		assertFalse(presenter.removeStageObject("missing").ok());
-		assertFalse(presenter.removeStageObject("  ").ok());
+	void deleteStageObjectRejectsMissingId() {
+		assertFalse(presenter.deleteStageObject("missing").result().ok());
+		assertFalse(presenter.deleteStageObject("  ").result().ok());
 	}
 
 	@Test

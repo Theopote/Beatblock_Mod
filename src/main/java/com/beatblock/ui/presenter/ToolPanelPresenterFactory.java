@@ -19,6 +19,11 @@ final class ToolPanelPresenterFactory {
 			() -> context.blockAnimationEngine() != null
 				? context.blockAnimationEngine().getStageObjectSystem()
 				: null,
+			context::buildLayerManager,
+			context::timeline,
+			() -> context.timelineEditor() != null
+				? context.timelineEditor().getCommandManager()
+				: null,
 			() -> {
 				MinecraftClient mc = MinecraftClient.getInstance();
 				return mc != null ? mc.world : null;

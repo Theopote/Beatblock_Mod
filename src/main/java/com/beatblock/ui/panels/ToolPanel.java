@@ -9,6 +9,8 @@ import com.beatblock.selection.SelectionOperation;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.layout.BeatBlockDockPanelBegin;
 import com.beatblock.ui.layout.BeatBlockDockSpaceLayoutBuilder;
+import com.beatblock.ui.labels.BlockOrderLabels;
+import com.beatblock.ui.presenter.BuildLayersPresenter;
 import com.beatblock.ui.presenter.PresenterFactories;
 import com.beatblock.ui.presenter.SelectionPropertiesPresenter;
 import com.beatblock.ui.presenter.SelectionPropertiesViewState;
@@ -33,10 +35,12 @@ public class ToolPanel {
 	private boolean showAutoMapSettings = false;
 	private final AutoMapSettingsPanel autoMapSettingsPanel = new AutoMapSettingsPanel();
 	private final ToolPanelPresenter presenter;
+	private final BuildLayersPresenter buildLayersPresenter;
 	private final SelectionPropertiesPresenter selectionPresenter;
 	private final ImString stageObjectNameBuffer = new ImString(64);
 	private final ImBoolean stageObjectIncludeAir = new ImBoolean(false);
 	private final ImInt stageObjectSortingIndex = new ImInt(0);
+	private final ImInt stageObjectPurposeIndex = new ImInt(0);
 	private final ImString stageObjectStaggerBuffer = new ImString(16);
 	private final ImString selectionPresetNameBuffer = new ImString(48);
 	private final ImInt selectedPresetIndex = new ImInt(-1);
@@ -45,30 +49,38 @@ public class ToolPanel {
 	private String stageObjectMessage;
 	private long stageObjectMessageTimeMs;
 	private static String[] stageGroupSortingLabels() {
+		return BlockOrderLabels.sortingComboLabels();
+	}
+
+	private static String[] stageObjectPurposeLabels() {
 		return BBTexts.labels(
-			"beatblock.tool.sorting.sequential",
-			"beatblock.tool.sorting.radial",
-			"beatblock.tool.sorting.spiral",
-			"beatblock.tool.sorting.random",
-			"beatblock.tool.sorting.all"
+			"beatblock.tool.create_purpose.animate",
+			"beatblock.tool.create_purpose.build_reveal"
 		);
 	}
 	private final Runnable onOpenSelectionInspector;
 	private final Runnable onOpenSectionEdit;
+	private final Runnable onOpenStageExplorer;
 
 	public ToolPanel() {
-		this(null, null);
+		this(null, null, null);
 	}
 
 	public ToolPanel(Runnable onOpenSelectionInspector) {
-		this(onOpenSelectionInspector, null);
+		this(onOpenSelectionInspector, null, null);
 	}
 
 	public ToolPanel(Runnable onOpenSelectionInspector, Runnable onOpenSectionEdit) {
+		this(onOpenSelectionInspector, onOpenSectionEdit, null);
+	}
+
+	public ToolPanel(Runnable onOpenSelectionInspector, Runnable onOpenSectionEdit, Runnable onOpenStageExplorer) {
 		this(
 			onOpenSelectionInspector,
 			onOpenSectionEdit,
+			onOpenStageExplorer,
 			PresenterFactories.toolPanelPresenter(),
+			PresenterFactories.buildLayersPresenter(),
 			PresenterFactories.selectionPropertiesPresenter()
 		);
 	}
@@ -76,12 +88,16 @@ public class ToolPanel {
 	ToolPanel(
 		Runnable onOpenSelectionInspector,
 		Runnable onOpenSectionEdit,
+		Runnable onOpenStageExplorer,
 		ToolPanelPresenter presenter,
+		BuildLayersPresenter buildLayersPresenter,
 		SelectionPropertiesPresenter selectionPresenter
 	) {
 		this.onOpenSelectionInspector = onOpenSelectionInspector;
 		this.onOpenSectionEdit = onOpenSectionEdit;
+		this.onOpenStageExplorer = onOpenStageExplorer;
 		this.presenter = presenter;
+		this.buildLayersPresenter = buildLayersPresenter;
 		this.selectionPresenter = selectionPresenter;
 		stageObjectNameBuffer.set("selection_object");
 		stageObjectStaggerBuffer.set("0.00");
@@ -325,48 +341,38 @@ public class ToolPanel {
 			ImGui.textColored(1f, 0.6f, 0.2f, 1f, BBTexts.get("beatblock.tool.select_blocks_first"));
 		}
 
-		// === 快速创建按钮（推荐） ===
+		ImGui.spacing();
+		ImGui.text(BBTexts.get("beatblock.tool.object_name"));
+		ImGui.setNextItemWidth(-1f);
+		ImGui.inputText("##stageObjName", stageObjectNameBuffer);
+
+		ImGui.text(BBTexts.get("beatblock.tool.create_purpose"));
+		ImGui.setNextItemWidth(-1f);
+		ImGui.combo("##stageObjPurpose", stageObjectPurposeIndex, stageObjectPurposeLabels());
+		if (ImGui.isItemHovered()) {
+			ImGui.setTooltip(BBTexts.get("beatblock.tool.create_purpose.tooltip"));
+		}
+
 		boolean canCreateFromSelection = selCount > 0;
 		if (!canCreateFromSelection) ImGui.beginDisabled();
 
+		ImGui.spacing();
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button, 0.2f, 0.6f, 0.2f, 1f);
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered, 0.3f, 0.7f, 0.3f, 1f);
 		ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive, 0.15f, 0.5f, 0.15f, 1f);
-
-		if (ImGui.button(BBTexts.get("beatblock.tool.quick_create") + "##quickCreate", -1f, 32f)) {
-			quickCreateFromSelection();
+		if (ImGui.button(BBTexts.get("beatblock.tool.create_from_selection") + "##createFromSelection", -1f, 32f)) {
+			createObjectFromSelection();
 		}
-
 		ImGui.popStyleColor(3);
-
 		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(BBTexts.get("beatblock.tool.quick_create.tooltip"));
+			ImGui.setTooltip(BBTexts.get("beatblock.tool.create_from_selection.tooltip"));
 		}
-
 		if (!canCreateFromSelection) ImGui.endDisabled();
 
-		// === 精确创建（快照模式） ===
-		ImGui.spacing();
-		if (!canCreateFromSelection) ImGui.beginDisabled();
-		if (ImGui.button(BBTexts.get("beatblock.tool.precise_create") + "##stageCreateFromSelection", -1f, 0f)) {
-			var outcome = presenter.createFromSelectionSnapshot(buildQuickStageObjectRequest());
-			applyStageObjectMessage(outcome.result());
-		}
-		if (!canCreateFromSelection) ImGui.endDisabled();
-		if (ImGui.isItemHovered()) {
-			ImGui.setTooltip(BBTexts.get("beatblock.tool.precise_create.tooltip"));
-		}
-
-		// === 高级选项（折叠） ===
 		ImGui.spacing();
 		ImGui.setNextItemOpen(false, ImGuiCond.Once);
 		if (ImGui.collapsingHeader(BBTexts.get("beatblock.tool.advanced_options") + "##stageAdvanced")) {
 			ImGui.textWrapped(BBTexts.get("beatblock.tool.advanced.hint"));
-
-			ImGui.spacing();
-			ImGui.text(BBTexts.get("beatblock.tool.object_name"));
-			ImGui.setNextItemWidth(-1f);
-			ImGui.inputText("##stageObjName", stageObjectNameBuffer);
 
 			ImGui.text(BBTexts.get("beatblock.tool.corner_points"));
 			ToolPanelPresenter.CornerState corners = presenter.currentCorners();
@@ -397,7 +403,7 @@ public class ToolPanel {
 			ImGui.checkbox(BBTexts.get("beatblock.tool.include_air") + "##stageObjIncludeAir", stageObjectIncludeAir);
 
 			ImGui.spacing();
-			ImGui.text(BBTexts.get("beatblock.tool.sorting_strategy"));
+			ImGui.text(BBTexts.get("beatblock.block_order.title"));
 			ImGui.setNextItemWidth(-1f);
 			ImGui.combo("##stageGroupSorting", stageObjectSortingIndex, stageGroupSortingLabels());
 
@@ -420,36 +426,20 @@ public class ToolPanel {
 			ImGui.textWrapped(stageObjectMessage);
 		}
 
-		renderStageObjectList();
+		renderStageExplorerLink();
 	}
 
-	private void renderStageObjectList() {
-		var objects = presenter.listStageObjects();
-		if (objects.isEmpty()) {
-			ImGui.spacing();
-			ImGui.textDisabled(BBTexts.get("beatblock.tool.no_stage_objects"));
-			return;
-		}
-
+	private void renderStageExplorerLink() {
+		int count = presenter.listStandaloneStageObjects().size();
 		ImGui.spacing();
-		ImGui.text(BBTexts.get("beatblock.tool.registered_objects", objects.size()));
-		String removeId = null;
-		if (ImGui.beginChild("##StageObjectList", 0, Math.min(objects.size() * 22f + 8f, 160f), true)) {
-			for (var obj : objects) {
-				String label = BBTexts.get("beatblock.tool.stage_object_entry", obj.name(), obj.id(), obj.blockCount());
-				ImGui.text(label);
-				ImGui.sameLine();
-				ImGui.textDisabled(BBTexts.get("beatblock.tool.source_type", obj.sourceType()));
-				ImGui.sameLine();
-				if (ImGui.smallButton(BBTexts.get("beatblock.common.delete") + "##stageObjDel_" + obj.id())) {
-					removeId = obj.id();
-				}
-			}
+		if (count > 0) {
+			ImGui.textDisabled(BBTexts.get("beatblock.tool.stage_objects_in_explorer", count));
+		} else {
+			ImGui.textDisabled(BBTexts.get("beatblock.tool.stage_objects_use_explorer"));
 		}
-		ImGui.endChild();
-
-		if (removeId != null) {
-			applyStageObjectMessage(presenter.removeStageObject(removeId));
+		if (onOpenStageExplorer != null
+			&& ImGui.button(BBTexts.get("beatblock.tool.open_stage_explorer") + "##openStageExplorer", -1f, 0f)) {
+			onOpenStageExplorer.run();
 		}
 	}
 
@@ -462,29 +452,34 @@ public class ToolPanel {
 		);
 	}
 
-	/**
-	 * 快速创建：自动生成名称，使用默认参数
-	 */
-	private void quickCreateFromSelection() {
-		// 自动生成名称 selection_1, selection_2, ...
-		String autoName = generateAutoObjectName();
+	private void createObjectFromSelection() {
+		String name = stageObjectNameBuffer.get();
+		if (name == null || name.isBlank()) {
+			name = generateAutoObjectName();
+			stageObjectNameBuffer.set(name);
+		}
 
-		// 使用默认参数
-		ToolPanelPresenter.StageObjectCreateRequest request =
-			new ToolPanelPresenter.StageObjectCreateRequest(
-				autoName,
-				false,  // 默认不包含空气
-				com.beatblock.engine.GroupSortingStrategy.SEQUENTIAL,  // 默认顺序
-				0.0     // 默认无延迟
-			);
+		if (stageObjectPurposeIndex.get() == 1) {
+			var outcome = buildLayersPresenter.createLayerFromWorldSelection(name);
+			applyStageObjectMessage(outcome.result());
+			if (outcome.result().ok()) {
+				stageObjectMessage = BBTexts.get("beatblock.tool.created_build_layer_hint", name);
+				stageObjectMessageTimeMs = System.currentTimeMillis();
+				if (onOpenStageExplorer != null) {
+					onOpenStageExplorer.run();
+				}
+			}
+			return;
+		}
 
-		var outcome = presenter.createFromSelectionSnapshot(request);
+		var outcome = presenter.createFromSelectionSnapshot(buildQuickStageObjectRequest());
 		applyStageObjectMessage(outcome.result());
-
-		// 如果创建成功，显示提示
 		if (outcome.result().ok()) {
-			stageObjectMessage = BBTexts.get("beatblock.tool.created_hint", autoName);
+			stageObjectMessage = BBTexts.get("beatblock.tool.created_hint", name);
 			stageObjectMessageTimeMs = System.currentTimeMillis();
+			if (onOpenStageExplorer != null) {
+				onOpenStageExplorer.run();
+			}
 		}
 	}
 

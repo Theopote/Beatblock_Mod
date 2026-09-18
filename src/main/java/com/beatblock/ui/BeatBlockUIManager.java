@@ -19,7 +19,6 @@ import com.beatblock.ui.presenter.TimelineActionDispatcher;
 import com.beatblock.ui.presenter.TimelineActionId;
 import imgui.ImGui;
 import imgui.ImGuiIO;
-import imgui.ImGuiViewport;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
@@ -51,6 +50,7 @@ public class BeatBlockUIManager {
 	private final AnimationLibraryPanel animationLibraryPanel;
 	private final SelectionPropertiesPanel selectionPropertiesPanel;
 	private final LayerPanel layerPanel;
+	private final StageExplorerPanel stageExplorerPanel;
 	private final RhythmDropPanel rhythmDropPanel;
 	private final CreatorHomePanel creatorHomePanel;
 	private final QuickStartWizardPanel quickStartWizardPanel;
@@ -72,7 +72,8 @@ public class BeatBlockUIManager {
 		this.timelineActions = PresenterFactories.timelineActionDispatcher();
 		this.toolPanel = new ToolPanel(
 			() -> panelVisibility.selectionProperties.set(true),
-			this::openSectionEdit
+			this::openSectionEdit,
+			() -> panelVisibility.stageExplorer.set(true)
 		);
 		this.markerPanel = new MarkerPanel();
 		this.audioAnalysisPanel = new AudioAnalysisPanel(() -> panelVisibility.timeline.set(true));
@@ -84,8 +85,8 @@ public class BeatBlockUIManager {
 			this::openEnvironmentSetup, this::openCreatorHome, this::openCreationPresetSelectDialog);
 		this.creatorHomePanel = new CreatorHomePanel(new CreatorHomePanel.Actions(
 			this::openQuickStartWizard,
-			() -> menuBarPanel.requestOpenProject(),
-			() -> menuBarPanel.requestNewProject()
+                menuBarPanel::requestOpenProject,
+                menuBarPanel::requestNewProject
 		));
 		this.timelinePropertiesPanel = new TimelinePropertiesPanel();
 		TimelinePanelVisibility.bind(panelVisibility);
@@ -93,13 +94,19 @@ public class BeatBlockUIManager {
  		this.animationLibraryPanel = new AnimationLibraryPanel(PresenterFactories.animationLibraryPanelPresenter());
 		this.selectionPropertiesPanel = new SelectionPropertiesPanel();
 		this.layerPanel = new LayerPanel();
+		this.stageExplorerPanel = new StageExplorerPanel(
+			PresenterFactories.stageExplorerPresenter(),
+			layerPanel
+		);
 		this.rhythmDropPanel = new RhythmDropPanel();
 		this.quickStartWizardPanel = new QuickStartWizardPanel(new QuickStartWizardPanel.DoneActions(
 			this::playPreviewFromWizard,
 			this::editTimelineFromWizard,
 			this::editChoreographyFromWizard,
 			this::saveProjectFromWizard,
-			this::exportVideoFromWizard
+			this::exportVideoFromWizard,
+			this::openStageExplorerFromWizard,
+			this::focusQuickStartStageObjectInExplorer
 		));
 		this.environmentSetupPanel = new EnvironmentSetupPanel();
 		this.undoHistoryPanel = new UndoHistoryPanel();
@@ -168,12 +175,27 @@ public class BeatBlockUIManager {
 	}
 
 	private void focusAfterWizardGeneration() {
+		focusQuickStartStageObjectInExplorer();
 		var context = BeatBlock.getContext();
 		PostGenerationFocusHelper.focusStageObjectOrFirstAnimation(
 			context.timeline(),
 			context.timelineEditor(),
 			quickStartWizardPanel.lastGenerateStageObjectId()
 		);
+	}
+
+	private void openStageExplorerFromWizard() {
+		panelVisibility.stageExplorer.set(true);
+		focusQuickStartStageObjectInExplorer();
+		ToastNotificationSystem.showSuccess(BBTexts.get("beatblock.wizard.done.open_stage_explorer.toast"));
+	}
+
+	private void focusQuickStartStageObjectInExplorer() {
+		String stageObjectId = quickStartWizardPanel.lastGenerateStageObjectId();
+		if (stageObjectId == null || stageObjectId.isBlank()) {
+			return;
+		}
+		PresenterFactories.stageExplorerPresenter().focusAnimationTarget(stageObjectId);
 	}
 
 	private void saveProjectFromWizard() {
@@ -289,6 +311,7 @@ public class BeatBlockUIManager {
 		timelinePanel.render(panelVisibility.timeline);
 		animationLibraryPanel.render(panelVisibility.animationLibrary);
 		selectionPropertiesPanel.render(panelVisibility.selectionProperties);
+		stageExplorerPanel.render(panelVisibility.stageExplorer);
 		layerPanel.render(panelVisibility.layer);
 		rhythmDropPanel.render(panelVisibility.rhythmDrop);
 		undoHistoryPanel.render(panelVisibility.undoHistory);

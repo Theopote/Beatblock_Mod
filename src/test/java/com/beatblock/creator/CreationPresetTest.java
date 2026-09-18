@@ -45,6 +45,8 @@ class CreationPresetTest {
 		assertTrue(CreationPreset.FULL_CHOREOGRAPHY.wantsCamera());
 		assertTrue(CreationPreset.FULL_CHOREOGRAPHY.wantsVfx());
 		assertFalse(CreationPreset.RHYTHM_PULSE.wantsCamera());
+		assertTrue(CreationPreset.BUILD_REVEAL.wantsBuildLayer());
+		assertFalse(CreationPreset.RHYTHM_PULSE.wantsBuildLayer());
 	}
 
 	@Test

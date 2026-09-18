@@ -4,6 +4,8 @@ import com.beatblock.BeatBlock;
 import com.beatblock.timeline.MarkerEditState;
 import com.beatblock.timeline.MarkerOrigin;
 import com.beatblock.timeline.MarkerType;
+import com.beatblock.engine.StageObjectPersistence;
+import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.engine.layer.BuildLayerBindingSupport;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.engine.layer.BuildLayerPersistence;
@@ -25,6 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
@@ -115,6 +118,12 @@ public final class OscProjectStore {
 		if (layerManager != null) {
 			root.add("buildLayers", BuildLayerPersistence.toJson(layerManager));
 			root.add("buildLayerGroups", BuildLayerPersistence.groupsToJson(layerManager));
+			Set<String> layerOwnedStageIds = StageObjectPersistence.collectLayerOwnedStageIds(layerManager);
+			JsonArray stageObjects = StageObjectPersistence.toJson(
+				layerManager.getStageObjectSystem(), layerOwnedStageIds);
+			if (!stageObjects.isEmpty()) {
+				root.add("stageObjects", stageObjects);
+			}
 		}
 		root.add("animationTracks", TimelineAnimationPersistence.toJson(timeline));
 		JsonObject clipMetadata = TimelineClipMetadataPersistence.toJson(timeline);
@@ -164,11 +173,20 @@ public final class OscProjectStore {
 		double durationSeconds = getDouble(root, "durationSeconds", 0.0);
 		double bpm = getDouble(root, "bpm", 0.0);
 		List<TimelineMarker> markers = parseMarkers(root);
+		StageObjectSystem stageObjectSystem = layerManager != null
+			? layerManager.getStageObjectSystem() : null;
 		if (layerManager != null && root.has("buildLayers") && root.get("buildLayers").isJsonArray()) {
 			JsonArray groupsArr = root.has("buildLayerGroups") && root.get("buildLayerGroups").isJsonArray()
 				? root.getAsJsonArray("buildLayerGroups")
 				: null;
 			BuildLayerPersistence.loadInto(layerManager, root.getAsJsonArray("buildLayers"), groupsArr);
+		}
+		if (stageObjectSystem != null) {
+			Set<String> layerOwnedStageIds = StageObjectPersistence.collectLayerOwnedStageIds(layerManager);
+			JsonArray stageObjects = root.has("stageObjects") && root.get("stageObjects").isJsonArray()
+				? root.getAsJsonArray("stageObjects")
+				: null;
+			StageObjectPersistence.loadInto(stageObjectSystem, stageObjects, layerOwnedStageIds);
 		}
 		if (timeline != null) {
 			timeline.setName(timelineName);
@@ -196,7 +214,10 @@ public final class OscProjectStore {
 			BuildLayerBindingSupport.reconcileBindings(layerManager, null);
 		}
 
-		return new LoadedProject(projectId, projectPath, timelineName, audioPath, markers);
+		ProjectTargetIntegrityValidator.Report targetIntegrity = ProjectTargetIntegrityValidator.validate(
+			timeline, stageObjectSystem);
+
+		return new LoadedProject(projectId, projectPath, timelineName, audioPath, markers, targetIntegrity);
 	}
 
 	/**
@@ -321,13 +342,33 @@ public final class OscProjectStore {
 		private final String timelineName;
 		private final String audioPath;
 		private final List<TimelineMarker> markers;
+		private final ProjectTargetIntegrityValidator.Report targetIntegrity;
 
-		public LoadedProject(String projectId, String projectPath, String timelineName, String audioPath, List<TimelineMarker> markers) {
+		public LoadedProject(
+			String projectId,
+			String projectPath,
+			String timelineName,
+			String audioPath,
+			List<TimelineMarker> markers
+		) {
+			this(projectId, projectPath, timelineName, audioPath, markers, ProjectTargetIntegrityValidator.Report.clean());
+		}
+
+		public LoadedProject(
+			String projectId,
+			String projectPath,
+			String timelineName,
+			String audioPath,
+			List<TimelineMarker> markers,
+			ProjectTargetIntegrityValidator.Report targetIntegrity
+		) {
 			this.projectId = projectId == null ? "" : projectId;
 			this.projectPath = projectPath == null ? "" : projectPath;
 			this.timelineName = timelineName == null ? "" : timelineName;
 			this.audioPath = audioPath == null ? "" : audioPath;
 			this.markers = markers != null ? List.copyOf(markers) : List.of();
+			this.targetIntegrity = targetIntegrity != null
+				? targetIntegrity : ProjectTargetIntegrityValidator.Report.clean();
 		}
 
 		public String getProjectId() { return projectId; }
@@ -335,5 +376,7 @@ public final class OscProjectStore {
 		public String getTimelineName() { return timelineName; }
 		public String getAudioPath() { return audioPath; }
 		public List<TimelineMarker> getMarkers() { return markers; }
+		public ProjectTargetIntegrityValidator.Report getTargetIntegrity() { return targetIntegrity; }
+		public boolean hasBrokenReferences() { return targetIntegrity.hasBrokenReferences(); }
 	}
 }
