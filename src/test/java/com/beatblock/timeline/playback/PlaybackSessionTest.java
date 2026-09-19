@@ -85,6 +85,73 @@ class PlaybackSessionTest {
 	}
 
 	@Test
+	void loopWrapRequestsWorldReconstruct() {
+		toolbar.setLoop(true);
+		toolbar.setLoopInSeconds(2.0);
+		toolbar.setLoopOutSeconds(5.0);
+		session.play();
+		audio.time = 5.0;
+		assertFalse(session.hasPendingWorldReconstruct());
+		session.syncFromAudio(audio);
+		assertTrue(session.hasPendingWorldReconstruct());
+		assertTrue(session.consumePendingWorldReconstruct());
+		assertFalse(session.hasPendingWorldReconstruct());
+	}
+
+	@Test
+	void loopClampBelowInRequestsWorldReconstruct() {
+		toolbar.setLoop(true);
+		toolbar.setLoopInSeconds(3.0);
+		toolbar.setLoopOutSeconds(8.0);
+		session.play();
+		audio.time = 1.0;
+		session.syncFromAudio(audio);
+		assertEquals(3.0, clock.getCurrentTimeSeconds(), 1e-9);
+		assertTrue(session.consumePendingWorldReconstruct());
+	}
+
+	@Test
+	void backwardSeekWhileDrivingRequestsWorldReconstruct() {
+		AtomicBoolean driving = new AtomicBoolean(true);
+		session.setDriveControl(new PlaybackSession.DriveControl() {
+			@Override
+			public boolean isDriving() {
+				return driving.get();
+			}
+
+			@Override
+			public void startDriving() {}
+
+			@Override
+			public void stopDriving() {}
+		});
+		session.seek(10.0);
+		assertFalse(session.hasPendingWorldReconstruct());
+		session.seek(4.0);
+		assertTrue(session.consumePendingWorldReconstruct());
+	}
+
+	@Test
+	void forwardSeekWhileDrivingDoesNotRequestReconstruct() {
+		AtomicBoolean driving = new AtomicBoolean(true);
+		session.setDriveControl(new PlaybackSession.DriveControl() {
+			@Override
+			public boolean isDriving() {
+				return driving.get();
+			}
+
+			@Override
+			public void startDriving() {}
+
+			@Override
+			public void stopDriving() {}
+		});
+		session.seek(4.0);
+		session.seek(10.0);
+		assertFalse(session.hasPendingWorldReconstruct());
+	}
+
+	@Test
 	void driveControlStartedOnPlay() {
 		AtomicBoolean driving = new AtomicBoolean(false);
 		AtomicInteger starts = new AtomicInteger();

@@ -44,6 +44,12 @@ public final class PlaybackSession {
 		@Override public void startDriving() {}
 		@Override public void stopDriving() {}
 	};
+	/**
+	 * Loop wrap / 回退 seek 时置位：ClientDriver 应走 {@code RECONSTRUCT_STATE}，
+	 * 而不是依赖「时间变小」的间接 rewind 检测。
+	 */
+	private boolean pendingWorldReconstruct;
+	private static final double RECONSTRUCT_TIME_EPSILON = 1e-4;
 
 	public PlaybackSession(
 		@NonNull TimelineClock clock,
@@ -118,8 +124,12 @@ public final class PlaybackSession {
 	}
 
 	public void seek(double timeSeconds) {
+		double prev = clock.getCurrentTimeSeconds();
 		double t = clampTime(timeSeconds);
 		clock.seek(t);
+		if (driveControl.isDriving() && t + RECONSTRUCT_TIME_EPSILON < prev) {
+			requestWorldReconstruct();
+		}
 		IAudioPlayer audio = activeAudio();
 		if (audio == null) {
 			notifyCameraTick();
@@ -131,6 +141,22 @@ public final class PlaybackSession {
 			musicPlayer.setCurrentTimeSeconds(t);
 		}
 		notifyCameraTick();
+	}
+
+	/** Loop wrap 或回退 seek 后，下一帧正式播放应重建舞台世界态。 */
+	public void requestWorldReconstruct() {
+		pendingWorldReconstruct = true;
+	}
+
+	/** @return 是否有待处理的世界态重建请求（读取即清除） */
+	public boolean consumePendingWorldReconstruct() {
+		boolean pending = pendingWorldReconstruct;
+		pendingWorldReconstruct = false;
+		return pending;
+	}
+
+	public boolean hasPendingWorldReconstruct() {
+		return pendingWorldReconstruct;
 	}
 
 	public void play() {
@@ -215,11 +241,15 @@ public final class PlaybackSession {
 				if (t >= loopOut) {
 					playback.setCurrentTimeSeconds(loopIn);
 					clock.seek(loopIn);
+					// 显式请求重建：与 Formal Seek / Export 共用 RECONSTRUCT_STATE，
+					// 不依赖 ClientDriver 对「时间回退」的间接检测。
+					requestWorldReconstruct();
 					return;
 				}
 				if (t < loopIn) {
 					playback.setCurrentTimeSeconds(loopIn);
 					clock.seek(loopIn);
+					requestWorldReconstruct();
 					return;
 				}
 			}

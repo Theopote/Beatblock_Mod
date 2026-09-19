@@ -65,6 +65,20 @@ class StageStateResolverTest {
 	}
 
 	@Test
+	void loopWrapTargetMatchesSeekViaResolver() {
+		CompiledTimelineSnapshot program = compileTenBlockWall();
+		double loopIn = 5.5;
+		// Loop wrap 落到 loopIn 时的逻辑态，必须与直接 Seek 到 loopIn 一致
+		ResolvedStageState afterLoop = StageStateResolver.resolve(program, loopIn);
+		ResolvedStageState afterSeek = StageStateResolver.resolve(program, loopIn);
+		assertEquals(afterSeek.toPlaybackDigest(), afterLoop.toPlaybackDigest());
+		assertEquals(
+			PlaybackStateDigest.reconstructAt(program, loopIn),
+			afterLoop.toPlaybackDigest()
+		);
+	}
+
+	@Test
 	void resolveWithCameraAnchorFillsCameraSample() {
 		CompiledTimelineSnapshot program = VideoExportSyncFixtures.tenSecondShowcase();
 		ResolvedStageState resolved = StageStateResolver.resolve(

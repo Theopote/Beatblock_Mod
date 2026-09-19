@@ -771,7 +771,9 @@ public final class BeatBlockClientDriver {
 		}
 
 		// Formal play — PlaybackEngine only
-		boolean rewinding = currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime;
+		boolean loopOrSeekReconstruct = consumePendingWorldReconstruct();
+		boolean rewinding = loopOrSeekReconstruct
+			|| currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime;
 		if (rewinding) {
 			restoreTimelineMutationSnapshot();
 			engine.clear();
@@ -792,7 +794,7 @@ public final class BeatBlockClientDriver {
 		double bpm = playback.bpm();
 		PlaybackEngine.StageEventHandler stageHandler =
 			(compiled, event) -> applyTimelineActionEvent(event, compiled, false, referenceBeats, bpm);
-		// 导出每帧独立重建；rewind 同样走 reconstruct，避免 advance 游标与 realtime 限流耦合
+		// 导出 / Loop wrap / 回退 Seek 均走 reconstruct，与 StageStateResolver 语义对齐
 		if (exportPresentationIsolated || rewinding) {
 			playbackEngine.seek(
 				currentTime,
@@ -805,6 +807,15 @@ public final class BeatBlockClientDriver {
 		}
 		syncStatefulGlobalVfxAt(currentTime);
 		lastStageEventTime = currentTime;
+	}
+
+	/** PlaybackSession Loop wrap / 回退 seek 发出的显式重建请求。 */
+	private boolean consumePendingWorldReconstruct() {
+		var editor = ctx().timelineEditor();
+		if (editor == null) {
+			return false;
+		}
+		return editor.getPlaybackSession().consumePendingWorldReconstruct();
 	}
 
 	private void syncStageEventsPreview(double currentTime, com.beatblock.timeline.Timeline timeline,
