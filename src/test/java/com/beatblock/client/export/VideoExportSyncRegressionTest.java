@@ -10,6 +10,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 作品级视频导出同步回归：
@@ -46,6 +47,14 @@ class VideoExportSyncRegressionTest {
 		PlaybackStateDigest seekDigest = PlaybackStateDigest.reconstructAt(program, TIMELINE_TIME);
 		assertEquals(playDigest, seekDigest, "formal playback and reconstruct must agree at export probe time");
 		assertEquals(seekDigest, frame.stageState(), "export stage state must match compiled playback");
+		assertTrue(seekDigest.buildProgress().containsKey("stage-main")
+			|| seekDigest.stageStates().containsKey("stage-main"));
+		if (seekDigest.buildProgress().containsKey("stage-main")) {
+			assertEquals(
+				seekDigest.buildProgress().get("stage-main").completedBlockCount(),
+				frame.stageState().buildProgress().get("stage-main").completedBlockCount()
+			);
+		}
 
 		TimelineCameraEvaluator.CameraSample expectedCamera = TimelineCameraEvaluator.evaluate(
 			program.cameraTrack(),

@@ -103,4 +103,18 @@ class ExportPresentationIsolationTest {
 		assertEquals(before.intensity(), EnvironmentLightingRuntime.current().intensity(), 1e-6);
 		assertTrue(BeatBlockClientDriver.isExportPresentationIsolated());
 	}
+
+	@Test
+	void exportSessionForcesExportReconstructionModeAndBlocksOrdinaryTick() {
+		ExportPresentationSession session = ExportPresentationSession.begin();
+
+		assertEquals(
+			PlaybackExecutionMode.EXPORT_RECONSTRUCTION,
+			BeatBlockClientDriver.executionMode()
+		);
+		assertTrue(BeatBlockClientDriver.executionMode().blocksOrdinaryClientTick());
+
+		session.close();
+		assertEquals(PlaybackExecutionMode.EDITOR_PREVIEW, BeatBlockClientDriver.executionMode());
+	}
 }

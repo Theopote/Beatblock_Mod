@@ -94,11 +94,6 @@ public final class BeatBlockClientDriver {
 	/** 视频导出期间隔离 live presentation，帧捕获后再恢复 {@link #exportPresentationSnapshot}。 */
 	private volatile boolean exportPresentationIsolated;
 	private @org.jspecify.annotations.Nullable ExportPresentationSnapshot exportPresentationSnapshot;
-	/**
-	 * 播放时每帧 BUILD 世界写入上限，避免单 tick 放置海量方块卡顿。
-	 * 预览路径使用 {@link WorldMutationSink#visualPreview}，不受此预算影响。
-	 */
-	private static final int PLAYBACK_MUTATION_BUDGET_PER_TICK = 768;
 	private final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
 	private RegistryKey<World> timelineMutationWorldKey;
 	private volatile TimelineActionExecutionReport lastTimelineActionExecutionReport;
@@ -186,15 +181,17 @@ public final class BeatBlockClientDriver {
 			engine.setRuntimeCameraPosition(camera.getCameraPos());
 			engine.setRuntimeCameraOrientation(camera.getYaw(), camera.getPitch());
 		}
-		if (!exportPresentationIsolated) {
+		PlaybackExecutionMode mode = currentExecutionMode();
+		if (!mode.blocksOrdinaryClientTick()) {
 			com.beatblock.client.camera.TimelineCameraController.getInstance().tick();
 		}
 
-		if (exportPresentationIsolated) {
+		// 导出重建由 VideoExportCoordinator 独占驱动，禁止普通 preview/realtime tick 推进同一引擎
+		if (mode.blocksOrdinaryClientTick()) {
 			return;
 		}
 
-		if (driving) {
+		if (mode == PlaybackExecutionMode.REALTIME_PLAYBACK) {
 			if (world == null) return;
 
 			long now = System.nanoTime();
@@ -207,30 +204,47 @@ public final class BeatBlockClientDriver {
 			}
 			ctx().pauseFullMixIfStemPlayback();
 			double currentTime = ctx().playbackTimeSeconds();
-			tickBlockAnimationEngine(currentTime, false, world);
+			tickBlockAnimationEngine(currentTime, PlaybackExecutionMode.REALTIME_PLAYBACK, world);
 			return;
 		}
 
 		if (world != null && engine != null && ctx().timeline() != null) {
-			tickBlockAnimationEngine(previewTimelineTimeSeconds(), true, world);
+			tickBlockAnimationEngine(previewTimelineTimeSeconds(), PlaybackExecutionMode.EDITOR_PREVIEW, world);
 		}
 	}
 
-	private void tickBlockAnimationEngine(double currentTime, boolean previewOnly, World world) {
+	/** 当前 client tick 应使用的执行模式（导出会话期间强制 EXPORT_RECONSTRUCTION）。 */
+	PlaybackExecutionMode currentExecutionMode() {
+		if (exportPresentationIsolated) {
+			return PlaybackExecutionMode.EXPORT_RECONSTRUCTION;
+		}
+		if (driving) {
+			return PlaybackExecutionMode.REALTIME_PLAYBACK;
+		}
+		return PlaybackExecutionMode.EDITOR_PREVIEW;
+	}
+
+	public static PlaybackExecutionMode executionMode() {
+		return requireInstance().currentExecutionMode();
+	}
+
+	private void tickBlockAnimationEngine(double currentTime, PlaybackExecutionMode mode, World world) {
 		var engine = ctx().blockAnimationEngine();
 		if (engine == null) return;
+		boolean previewOnly = mode.isPreviewOnly();
+		syncStageEvents(currentTime, previewOnly);
 		var buildSequencer = engine.getBuildSequencer();
 		if (buildSequencer != null) {
-			// 正式播放限流；预览不写世界，预算保持无上限以免测试/状态机被截断
-			buildSequencer.setMutationBudgetPerTick(
-				previewOnly ? Integer.MAX_VALUE : PLAYBACK_MUTATION_BUDGET_PER_TICK);
+			// 必须在 sync 之后设置：rewind 路径不得把导出预算打回 realtime 768
+			buildSequencer.setMutationBudgetPerTick(mode.mutationBudgetPerTick());
 		}
-		syncStageEvents(currentTime, previewOnly);
 		WorldMutationSink sink = previewOnly
 			? WorldMutationSink.visualPreview(engine.getAnimationPlayer())
-			: BeatBlockAuthoritativeWorldMutator.sinkFor(engine.getBlockControlExecutor(), world);
+			: (mode == PlaybackExecutionMode.EXPORT_RECONSTRUCTION
+				? BeatBlockAuthoritativeWorldMutator.awaitingSinkFor(engine.getBlockControlExecutor(), world)
+				: BeatBlockAuthoritativeWorldMutator.sinkFor(engine.getBlockControlExecutor(), world));
 		engine.tick(currentTime, world, sink);
-		if (!previewOnly && world != null) {
+		if (mode.writesAuthoritativeWorld() && world != null) {
 			VfxEmitter.emit(MinecraftClient.getInstance(), engine.getLastInfluenceFrame());
 		}
 	}
@@ -295,7 +309,8 @@ public final class BeatBlockClientDriver {
 			engine.clear();
 			var buildSequencer = engine.getBuildSequencer();
 			if (buildSequencer != null) {
-				buildSequencer.setMutationBudgetPerTick(PLAYBACK_MUTATION_BUDGET_PER_TICK);
+				buildSequencer.setMutationBudgetPerTick(
+					PlaybackExecutionMode.REALTIME_MUTATION_BUDGET_PER_TICK);
 			}
 		}
 		if (compiledPlayback == null) {
@@ -503,14 +518,26 @@ public final class BeatBlockClientDriver {
 
 	private void prepareExportFrameInternal(double timeSeconds) {
 		ClientThreadGuard.assertClientThread();
-		stopPlaybackInternal();
-		seekPreviewClock(timeSeconds);
-		resetTimelineAnimationScheduling();
+		prepareExportFrameCommon(timeSeconds);
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
 		if (world != null) {
-			tickBlockAnimationEngine(timeSeconds, true, world);
+			tickBlockAnimationEngine(timeSeconds, PlaybackExecutionMode.EXPORT_RECONSTRUCTION, world);
 		}
+	}
+
+	/**
+	 * 导出帧公共准备：暂停驱动并重置调度。导出会话期间不碰 Camera/VFX（由 isolation 冻结）。
+	 */
+	private void prepareExportFrameCommon(double timeSeconds) {
+		if (exportPresentationIsolated) {
+			driving = false;
+			drivingCompilePolicy = CompilePolicy.STRICT;
+		} else {
+			stopPlaybackInternal();
+			seekPreviewClock(timeSeconds);
+		}
+		resetTimelineAnimationScheduling();
 	}
 
 	private ExportPresentationSnapshot beginExportPresentationInternal() {
@@ -671,19 +698,22 @@ public final class BeatBlockClientDriver {
 			prepareExportFrameInternal(timeSeconds);
 			return;
 		}
-		stopPlaybackInternal();
-		seekPreviewClock(timeSeconds);
-		resetTimelineAnimationScheduling();
+		prepareExportFrameCommon(timeSeconds);
 		compiledPlayback = snapshot;
 		playbackEngine.load(snapshot);
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
 		if (world != null) {
-			tickBlockAnimationEngine(timeSeconds, false, world);
+			tickBlockAnimationEngine(timeSeconds, PlaybackExecutionMode.EXPORT_RECONSTRUCTION, world);
 		} else {
 			syncStageEvents(timeSeconds, false);
 			var engine = ctx().blockAnimationEngine();
 			if (engine != null) {
+				var buildSequencer = engine.getBuildSequencer();
+				if (buildSequencer != null) {
+					buildSequencer.setMutationBudgetPerTick(
+						PlaybackExecutionMode.EXPORT_RECONSTRUCTION.mutationBudgetPerTick());
+				}
 				engine.tick(timeSeconds, null, WorldMutationSink.NO_OP);
 			}
 		}
@@ -741,7 +771,8 @@ public final class BeatBlockClientDriver {
 			engine.clear();
 			var buildSequencer = engine.getBuildSequencer();
 			if (buildSequencer != null) {
-				buildSequencer.setMutationBudgetPerTick(PLAYBACK_MUTATION_BUDGET_PER_TICK);
+				buildSequencer.setMutationBudgetPerTick(
+					PlaybackExecutionMode.REALTIME_MUTATION_BUDGET_PER_TICK);
 			}
 			clearGlobalVfxPresentation();
 		}
@@ -755,7 +786,8 @@ public final class BeatBlockClientDriver {
 		double bpm = playback.bpm();
 		PlaybackEngine.StageEventHandler stageHandler =
 			(compiled, event) -> applyTimelineActionEvent(event, compiled, false, referenceBeats, bpm);
-		if (rewinding) {
+		// 导出每帧独立重建；rewind 同样走 reconstruct，避免 advance 游标与 realtime 限流耦合
+		if (exportPresentationIsolated || rewinding) {
 			playbackEngine.seek(
 				currentTime,
 				SeekMode.RECONSTRUCT_STATE,
@@ -792,7 +824,6 @@ public final class BeatBlockClientDriver {
 		engine.clear();
 		var buildSequencer = engine.getBuildSequencer();
 		if (buildSequencer != null) {
-			buildSequencer.setTimeline(timeline);
 			buildSequencer.setMutationBudgetPerTick(Integer.MAX_VALUE);
 		}
 
@@ -921,7 +952,7 @@ public final class BeatBlockClientDriver {
 		}
 
 			if (actionMode == TimelineAnimationActionMode.BUILD) {
-				var inst = engine.getBuildSequencer().schedule(event);
+				var inst = engine.getBuildSequencer().schedule(event, referenceBeats, bpm);
 				if (inst != null) {
 					String detail = previewOnly
 						? "preview-scheduled-" + inst.getTotalBlocks() + "-blocks"
@@ -956,8 +987,9 @@ public final class BeatBlockClientDriver {
 			for (BlockControlExecutor.BlockMutation mutation : mutations) {
 				captureTimelineMutationOriginalState(world, mutation.pos(), mutation.fromState());
 			}
-			WorldMutationSink sink = BeatBlockAuthoritativeWorldMutator.sinkFor(
-				engine.getBlockControlExecutor(), world);
+			WorldMutationSink sink = exportPresentationIsolated
+				? BeatBlockAuthoritativeWorldMutator.awaitingSinkFor(engine.getBlockControlExecutor(), world)
+				: BeatBlockAuthoritativeWorldMutator.sinkFor(engine.getBlockControlExecutor(), world);
 			engine.applyControlMutations(mutations, sink);
 			recordActionReport(event, mutations.size(), "APPLIED", "ok");
 		}
@@ -1033,7 +1065,15 @@ public final class BeatBlockClientDriver {
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
 		if (world != null && timelineMutationWorldKey != null && timelineMutationWorldKey.equals(world.getRegistryKey())) {
-			BeatBlockAuthoritativeWorldMutator.restoreAuthoritative(world, Map.copyOf(timelineMutationSnapshot));
+			if (exportPresentationIsolated) {
+				BeatBlockAuthoritativeWorldMutator.restoreAuthoritativeAndAwait(
+					world,
+					Map.copyOf(timelineMutationSnapshot),
+					BeatBlockAuthoritativeWorldMutator.DEFAULT_AWAIT_TIMEOUT
+				);
+			} else {
+				BeatBlockAuthoritativeWorldMutator.restoreAuthoritative(world, Map.copyOf(timelineMutationSnapshot));
+			}
 		}
 		timelineMutationSnapshot.clear();
 		timelineMutationWorldKey = null;

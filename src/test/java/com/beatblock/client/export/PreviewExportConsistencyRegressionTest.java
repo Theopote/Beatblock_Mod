@@ -59,6 +59,9 @@ class PreviewExportConsistencyRegressionTest {
 		PlaybackStateDigest exportDigest = PlaybackStateDigest.reconstructAt(program, 10.0);
 		assertTrue(exportDigest.stageStates().containsKey("stage-main"));
 		assertEquals("BUILD:Pulse", exportDigest.stageStates().get("stage-main"));
+		assertTrue(exportDigest.buildProgress().containsKey("stage-main"));
+		assertEquals(1, exportDigest.buildProgress().get("stage-main").totalBlockCount());
+		assertEquals(1, exportDigest.buildProgress().get("stage-main").completedBlockCount());
 	}
 
 	@Test

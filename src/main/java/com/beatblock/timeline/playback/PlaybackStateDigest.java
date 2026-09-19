@@ -8,11 +8,18 @@ import java.util.Map;
 /** Deterministic logical state left by state-bearing events at a timeline position. */
 public record PlaybackStateDigest(
 	Map<String, String> stageStates,
-	Map<String, String> globalStates
+	Map<String, String> globalStates,
+	Map<String, BuildProgressDigest> buildProgress
 ) {
 	public PlaybackStateDigest {
 		stageStates = Map.copyOf(stageStates != null ? stageStates : Map.of());
 		globalStates = Map.copyOf(globalStates != null ? globalStates : Map.of());
+		buildProgress = Map.copyOf(buildProgress != null ? buildProgress : Map.of());
+	}
+
+	/** 兼容旧调用：仅 stage + global。 */
+	public PlaybackStateDigest(Map<String, String> stageStates, Map<String, String> globalStates) {
+		this(stageStates, globalStates, Map.of());
 	}
 
 	public static PlaybackStateDigest playTo(CompiledTimelineSnapshot program, double timeSeconds) {
@@ -36,12 +43,18 @@ public record PlaybackStateDigest(
 
 		private void stage(CompiledStageEvent compiled, com.beatblock.timeline.TimelineAnimationEvent event) {
 			if (compiled.semantics() == PlaybackSemantics.TRANSIENT) return;
-			String target = event.getTargetObjectId().isBlank() ? "event:" + compiled.stableSequence() : event.getTargetObjectId();
+			String target = event.getTargetObjectId().isBlank()
+				? "event:" + compiled.stableSequence()
+				: event.getTargetObjectId();
 			stages.put(target, event.getActionMode().name() + ":" + event.getAnimationTypeId());
 		}
 
 		private PlaybackStateDigest digest(CompiledTimelineSnapshot program, double timeSeconds) {
-			return new PlaybackStateDigest(stages, globalStatesAt(program, timeSeconds));
+			return new PlaybackStateDigest(
+				stages,
+				globalStatesAt(program, timeSeconds),
+				BuildProgressDigest.fromProgram(program, timeSeconds)
+			);
 		}
 	}
 

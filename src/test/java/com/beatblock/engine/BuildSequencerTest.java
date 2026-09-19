@@ -206,4 +206,63 @@ class BuildSequencerTest {
 		assertEquals(3, instance.getPlacedCount());
 		assertTrue(sequencer.getActiveInstances().isEmpty());
 	}
+
+	@Test
+	void unlimitedBudgetCompletesLargeBuildInSingleTick() {
+		BlockState air = Blocks.AIR.getDefaultState();
+		BlockState stone = Blocks.STONE.getDefaultState();
+		int blockCount = 2000;
+		List<BlockPos> blocks = new java.util.ArrayList<>(blockCount);
+		Map<BlockPos, BlockState> world = new HashMap<>();
+		for (int i = 0; i < blockCount; i++) {
+			BlockPos pos = new BlockPos(i, 64, 0);
+			blocks.add(pos);
+			world.put(pos, air);
+		}
+		BuildSequencer.BuildInstance instance = sequencer.createInstanceForTest(
+			"ev_export_full", blocks, stone, null, 0.0, 1.0, false);
+		sequencer.enqueueBuildInstance(instance);
+		sequencer.setMutationBudgetPerTick(
+			com.beatblock.client.PlaybackExecutionMode.EXPORT_RECONSTRUCTION.mutationBudgetPerTick());
+
+		BlockStateLookup lookup = pos -> world.getOrDefault(pos.toImmutable(), air);
+		InfluenceFrame frame = new InfluenceFrame();
+		sequencer.contributeExistenceMutations(frame, 1.0, lookup, pos -> true);
+
+		assertEquals(blockCount, frame.getWorldMutations().size());
+		assertEquals(blockCount, instance.getPlacedCount());
+		assertTrue(instance.isFinished());
+		assertTrue(sequencer.getActiveInstances().isEmpty());
+	}
+
+	@Test
+	void realtimeBudgetCapsLargeBuildWithinSingleTick() {
+		BlockState air = Blocks.AIR.getDefaultState();
+		BlockState stone = Blocks.STONE.getDefaultState();
+		int blockCount = 2000;
+		List<BlockPos> blocks = new java.util.ArrayList<>(blockCount);
+		Map<BlockPos, BlockState> world = new HashMap<>();
+		for (int i = 0; i < blockCount; i++) {
+			BlockPos pos = new BlockPos(i, 64, 0);
+			blocks.add(pos);
+			world.put(pos, air);
+		}
+		BuildSequencer.BuildInstance instance = sequencer.createInstanceForTest(
+			"ev_realtime_cap", blocks, stone, null, 0.0, 1.0, false);
+		sequencer.enqueueBuildInstance(instance);
+		sequencer.setMutationBudgetPerTick(
+			com.beatblock.client.PlaybackExecutionMode.REALTIME_MUTATION_BUDGET_PER_TICK);
+
+		BlockStateLookup lookup = pos -> world.getOrDefault(pos.toImmutable(), air);
+		InfluenceFrame frame = new InfluenceFrame();
+		sequencer.contributeExistenceMutations(frame, 1.0, lookup, pos -> true);
+
+		assertEquals(
+			com.beatblock.client.PlaybackExecutionMode.REALTIME_MUTATION_BUDGET_PER_TICK,
+			frame.getWorldMutations().size());
+		assertEquals(
+			com.beatblock.client.PlaybackExecutionMode.REALTIME_MUTATION_BUDGET_PER_TICK,
+			instance.getPlacedCount());
+		assertEquals(1, sequencer.getActiveInstances().size());
+	}
 }

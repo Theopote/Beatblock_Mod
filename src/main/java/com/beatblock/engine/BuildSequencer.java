@@ -3,8 +3,6 @@ package com.beatblock.engine;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.selection.BlockStateLookup;
-import com.beatblock.timeline.ReferenceBeatResolver;
-import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.generation.PacingRequest;
 import com.beatblock.timeline.generation.PacingStrategy;
@@ -22,36 +20,24 @@ import java.util.function.Predicate;
 
 /**
  * 累积式建造序列器：将 RuntimeStageObject 的方块按 BuildSequenceMode 排序，
- * 根据事件时长逐步放置（BUILD）或逐步移除（DISSOLVE 反向），
- * 每帧由 BeatBlockClientDriver 驱动 tick，随时间推进逐块出现。
+ * 根据事件时长逐步放置（BUILD）或逐步移除（DISSOLVE 反向）。
  * <p>
- * 绑定图层的 BUILD 反向事件使用 {@link BuildLayer#getCapturedStates()} 逐块还原。
- * <p>
- * <strong>节拍对齐：</strong> 方块揭示/消失时间卡在真实节拍点上（通过 {@link PacingStrategy}），
- * 而不是线性插值，确保"踩着节奏"的核心卖点。需要 {@link Timeline} 注入才能启用节拍对齐；
- * 若未注入则回退到线性插值（兼容测试和无时间线场景）。
+ * 节拍对齐只消费调用方传入的 {@code referenceBeatTimes} / {@code bpm}
+ * （通常来自 {@code CompiledTimelineSnapshot}），不持有 live {@code Timeline}。
  */
 public final class BuildSequencer {
 
 	private final StageObjectSystem stageObjectSystem;
 	private final BuildLayerManager buildLayerManager;
-	private Timeline timeline;  // 可选：用于节拍对齐
 	/**
 	 * 每帧最多产生的世界 mutation 数量。默认无上限；
 	 * 播放路径可由 {@code BeatBlockClientDriver} 注入有限预算，避免单 tick 卡顿。
-	 * 预算耗尽时本帧停止放置，剩余方块留到后续帧（实例保持活跃）。
 	 */
 	private int mutationBudgetPerTick = Integer.MAX_VALUE;
 
 	public BuildSequencer(StageObjectSystem stageObjectSystem, BuildLayerManager buildLayerManager) {
 		this.stageObjectSystem = stageObjectSystem;
 		this.buildLayerManager = buildLayerManager;
-		this.timeline = null;
-	}
-
-	/** 注入 Timeline 以启用节拍对齐（卡真实节拍点），否则回退到线性插值。 */
-	public void setTimeline(Timeline timeline) {
-		this.timeline = timeline;
 	}
 
 	/**
@@ -112,11 +98,19 @@ public final class BuildSequencer {
 
 	private final List<BuildInstance> activeInstances = new ArrayList<>();
 
-	/**
-	 * 从 TimelineAnimationEvent 创建建造序列并加入活跃列表。
-	 * @return 新创建的 BuildInstance，若无法创建则返回 null
-	 */
+	/** 无节拍上下文时回退线性插值（测试 / 兼容）。 */
 	public BuildInstance schedule(TimelineAnimationEvent event) {
+		return schedule(event, null, 0.0);
+	}
+
+	/**
+	 * 从事件创建建造序列；节拍 pacing 仅使用冻结的 {@code referenceBeatTimes} / {@code bpm}。
+	 */
+	public BuildInstance schedule(
+		TimelineAnimationEvent event,
+		double @Nullable [] referenceBeatTimes,
+		double bpm
+	) {
 		if (event == null) return null;
 
 		var payload = event.getPayload();
@@ -130,7 +124,6 @@ public final class BuildSequencer {
 			dissolveFlag = build.dissolve();
 			placeBlockId = build.placeBlockId();
 		} else {
-			// 兼容：actionMode 尚未标成 BUILD 但 map 里带有建造字段
 			Map<String, Object> params = event.getParameters();
 			layerId = readLayerId(params);
 			buildModeRaw = String.valueOf(params.getOrDefault("buildMode", "wall"));
@@ -160,14 +153,15 @@ public final class BuildSequencer {
 			? Blocks.AIR.getDefaultState()
 			: (layerReveal ? Blocks.AIR.getDefaultState() : resolveBuildBlockState(placeBlockId));
 
-		List<BlockPos> ordered = BlockBuildOrder.sortBlocks(target.getBlocks(), mode, target.getCenter(), event, target);
+		List<BlockPos> ordered = BlockBuildOrder.sortBlocks(
+			target.getBlocks(), mode, target.getCenter(), event, target.getId());
 		if (dissolve) Collections.reverse(ordered);
 
 		double startTime = event.getTimeSeconds();
 		double endTime = startTime + Math.max(0.05, event.getDurationSeconds());
 
-		// 使用 PacingStrategy 预计算每个方块的揭示时间戳（卡节拍）
-		List<Double> blockTimestamps = computeBlockTimestamps(ordered.size(), startTime, endTime);
+		List<Double> blockTimestamps = computeBlockTimestamps(
+			ordered.size(), startTime, endTime, referenceBeatTimes, bpm);
 
 		BuildInstance instance = new BuildInstance(
 			event.getEventId(), ordered, toState, perBlockTargets, startTime, endTime, dissolve || layerReveal,
@@ -177,7 +171,42 @@ public final class BuildSequencer {
 	}
 
 	/**
-	 * 将本帧 EXISTENCE 维度的建造 mutation 写入 {@link com.beatblock.engine.influence.InfluenceFrame}（由 orchestrator 统一 apply）。
+	 * 使用冻结节拍网格预计算每个方块的揭示时间戳；无有效 beats 时返回 null（线性插值）。
+	 */
+	public static @Nullable List<Double> computeBlockTimestamps(
+		int blockCount,
+		double startTime,
+		double endTime,
+		double @Nullable [] referenceBeatTimes,
+		double bpm
+	) {
+		if (blockCount <= 0) return null;
+		double[] beats = referenceBeatTimes != null ? referenceBeatTimes : new double[0];
+		if (beats.length == 0) return null;
+		double safeBpm = bpm > 0 ? bpm : 120.0;
+
+		PacingRequest request = new PacingRequest(
+			blockCount,
+			startTime,
+			true,
+			beats,
+			safeBpm,
+			60.0 / safeBpm
+		);
+
+		List<Double> timestamps = PacingStrategy.beatGrid().computeTimestamps(request);
+		if (timestamps.isEmpty()) {
+			return null;
+		}
+		List<Double> clamped = new ArrayList<>(timestamps.size());
+		for (double t : timestamps) {
+			clamped.add(Math.min(endTime, Math.max(startTime, t)));
+		}
+		return clamped;
+	}
+
+	/**
+	 * 将本帧 EXISTENCE 维度的建造 mutation 写入 {@link com.beatblock.engine.influence.InfluenceFrame}。
 	 */
 	public void contributeExistenceMutations(
 		com.beatblock.engine.influence.InfluenceFrame frame,
@@ -188,10 +217,6 @@ public final class BuildSequencer {
 		contributeExistenceMutations(frame, currentTime, world::getBlockState, world::isChunkLoaded);
 	}
 
-	/**
-	 * 与 {@link #contributeExistenceMutations(com.beatblock.engine.influence.InfluenceFrame, double, World)}
-	 * 相同逻辑，注入方块查询与区块加载判定（供单元测试）。
-	 */
 	void contributeExistenceMutations(
 		com.beatblock.engine.influence.InfluenceFrame frame,
 		double currentTime,
@@ -227,7 +252,6 @@ public final class BuildSequencer {
 					}
 				}
 				inst.placedCount++;
-				// 按处理方块数计费：含已是目标态/区块未加载的推进，保证每帧工作量有上界
 				remainingBudget--;
 			}
 			if (inst.isFinished()) it.remove();
@@ -255,14 +279,10 @@ public final class BuildSequencer {
 		activeInstances.clear();
 	}
 
-	/** 同包单元测试注入活跃实例（绕过 {@link World} / 注册表）。 */
 	void enqueueBuildInstance(BuildInstance instance) {
 		if (instance != null) activeInstances.add(instance);
 	}
 
-	/**
-	 * 单元测试构造器：直接创建 BuildInstance 而不依赖 Timeline。
-	 */
 	BuildInstance createInstanceForTest(
 		String eventId,
 		List<BlockPos> orderedBlocks,
@@ -283,41 +303,7 @@ public final class BuildSequencer {
 		return id.isEmpty() ? null : id;
 	}
 
-	/**
-	 * 使用 {@link PacingStrategy#beatGrid()} 预计算每个方块的揭示时间戳。
-	 * 方块将卡在真实节拍点上出现，而不是线性插值。
-	 */
-	private List<Double> computeBlockTimestamps(int blockCount, double startTime, double endTime) {
-		if (blockCount <= 0 || timeline == null) return null;
-
-		double[] beats = ReferenceBeatResolver.resolveBeatTimesSeconds(timeline);
-		double bpm = timeline.getBpm() > 0 ? timeline.getBpm() : 120.0;
-
-		PacingRequest request = new PacingRequest(
-			blockCount,
-			startTime,
-			true,  // startImmediately: 第一个方块在 startTime 出现
-			beats,
-			bpm,
-			60.0 / bpm
-		);
-
-		List<Double> timestamps = PacingStrategy.beatGrid().computeTimestamps(request);
-
-		// 确保所有时间戳都在 [startTime, endTime] 范围内
-		if (!timestamps.isEmpty()) {
-			List<Double> clamped = new ArrayList<>(timestamps.size());
-			for (double t : timestamps) {
-				clamped.add(Math.min(endTime, Math.max(startTime, t)));
-			}
-			return clamped;
-		}
-
-		return null;  // 回退到线性插值
-	}
-
-	private static int computeTargetCount(BuildInstance inst, double currentTime) {
-		// 优先使用预计算的节拍时间戳
+	static int computeTargetCount(BuildInstance inst, double currentTime) {
 		if (inst.blockTimestamps != null && !inst.blockTimestamps.isEmpty()) {
 			int count = 0;
 			for (double timestamp : inst.blockTimestamps) {
@@ -329,14 +315,28 @@ public final class BuildSequencer {
 			}
 			return count;
 		}
-
-		// 回退到线性插值（兼容没有 Timeline 的测试场景）
 		return BlockBuildOrder.computeTargetBlockCount(
 			inst.orderedBlocks.size(),
 			inst.startTime,
 			inst.endTime,
 			currentTime
 		);
+	}
+
+	/** 公开：给定时间戳列表时，已揭示方块数（供 digest / 测试）。 */
+	public static int countRevealedBlocks(@Nullable List<Double> blockTimestamps, double currentTime, int totalBlocks) {
+		if (blockTimestamps == null || blockTimestamps.isEmpty()) {
+			return -1;
+		}
+		int count = 0;
+		for (double timestamp : blockTimestamps) {
+			if (currentTime >= timestamp - 1e-6) {
+				count++;
+			} else {
+				break;
+			}
+		}
+		return Math.min(count, Math.max(0, totalBlocks));
 	}
 
 	private static BlockState resolveBuildBlockState(@Nullable String placeBlockId) {

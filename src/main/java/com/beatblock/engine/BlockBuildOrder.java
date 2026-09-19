@@ -3,6 +3,7 @@ package com.beatblock.engine;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +25,16 @@ public final class BlockBuildOrder {
 		TimelineAnimationEvent event,
 		RuntimeStageObject target
 	) {
+		return sortBlocks(blocks, mode, center, event, target != null ? target.getId() : null);
+	}
+
+	public static List<BlockPos> sortBlocks(
+		List<BlockPos> blocks,
+		BuildSequenceMode mode,
+		Vec3d center,
+		TimelineAnimationEvent event,
+		@Nullable String targetId
+	) {
 		if (blocks == null || blocks.isEmpty()) return List.of();
 		List<BlockPos> ordered = new ArrayList<>(blocks);
 		if (ordered.size() <= 1) return ordered;
@@ -43,7 +54,7 @@ public final class BlockBuildOrder {
 				.comparingDouble((BlockPos p) -> horizontalDistSq(p, c))
 				.thenComparingInt(BlockPos::getY));
 			case DISSOLVE -> {
-				long seed = buildSeed(event, target);
+				long seed = buildSeed(event, targetId);
 				ordered.sort(Comparator.comparingLong(p -> mixHash(seed, p)));
 			}
 		}
@@ -67,10 +78,10 @@ public final class BlockBuildOrder {
 		return dx * dx + dz * dz;
 	}
 
-	private static long buildSeed(TimelineAnimationEvent event, RuntimeStageObject target) {
+	private static long buildSeed(TimelineAnimationEvent event, String targetId) {
 		long t = event != null ? Double.doubleToLongBits(event.getTimeSeconds()) : 0L;
 		long id = event != null ? Objects.hashCode(event.getEventId()) : 0L;
-		long tid = target != null ? Objects.hashCode(target.getId()) : 0L;
+		long tid = targetId != null ? Objects.hashCode(targetId) : 0L;
 		return t ^ (id * 31L) ^ (tid * 131L);
 	}
 
