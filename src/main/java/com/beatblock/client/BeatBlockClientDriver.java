@@ -235,8 +235,8 @@ public final class BeatBlockClientDriver {
 		syncStageEvents(currentTime, previewOnly);
 		var buildSequencer = engine.getBuildSequencer();
 		if (buildSequencer != null) {
-			// 必须在 sync 之后设置：rewind 路径不得把导出预算打回 realtime 768
-			buildSequencer.setMutationBudgetPerTick(mode.mutationBudgetPerTick());
+			// 必须在 sync 之后：rewind 路径不得把导出策略打回 realtime
+			buildSequencer.setExecutionPolicy(mode.buildPolicy());
 		}
 		WorldMutationSink sink = previewOnly
 			? WorldMutationSink.visualPreview(engine.getAnimationPlayer())
@@ -704,6 +704,12 @@ public final class BeatBlockClientDriver {
 		MinecraftClient mc = MinecraftClient.getInstance();
 		World world = mc != null ? mc.world : null;
 		if (world != null) {
+			var resolved = com.beatblock.timeline.playback.StageStateResolver.resolve(snapshot, timeSeconds);
+			com.beatblock.client.export.ExportChunkPreloader.ensureChunksLoadedAndAwait(
+				world,
+				resolved.requiredBuildBlockPositions(),
+				BeatBlockAuthoritativeWorldMutator.DEFAULT_AWAIT_TIMEOUT
+			);
 			tickBlockAnimationEngine(timeSeconds, PlaybackExecutionMode.EXPORT_RECONSTRUCTION, world);
 		} else {
 			syncStageEvents(timeSeconds, false);
@@ -711,8 +717,8 @@ public final class BeatBlockClientDriver {
 			if (engine != null) {
 				var buildSequencer = engine.getBuildSequencer();
 				if (buildSequencer != null) {
-					buildSequencer.setMutationBudgetPerTick(
-						PlaybackExecutionMode.EXPORT_RECONSTRUCTION.mutationBudgetPerTick());
+					buildSequencer.setExecutionPolicy(
+						PlaybackExecutionMode.EXPORT_RECONSTRUCTION.buildPolicy());
 				}
 				engine.tick(timeSeconds, null, WorldMutationSink.NO_OP);
 			}
@@ -824,7 +830,7 @@ public final class BeatBlockClientDriver {
 		engine.clear();
 		var buildSequencer = engine.getBuildSequencer();
 		if (buildSequencer != null) {
-			buildSequencer.setMutationBudgetPerTick(Integer.MAX_VALUE);
+			buildSequencer.setExecutionPolicy(com.beatblock.engine.BuildExecutionPolicy.PREVIEW);
 		}
 
 		double[] referenceBeats = playback.referenceBeatTimesSeconds();

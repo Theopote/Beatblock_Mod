@@ -3,10 +3,12 @@ package com.beatblock.client.export;
 import com.beatblock.client.camera.TimelineCameraEvaluator;
 import com.beatblock.timeline.playback.CompiledTimelineSnapshot;
 import com.beatblock.timeline.playback.PlaybackStateDigest;
+import com.beatblock.timeline.playback.ResolvedStageState;
+import com.beatblock.timeline.playback.StageStateResolver;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * 与 {@link VideoExportFrameSampler} 同语义的呈现探针，供 Preview ↔ Export 一致性回归复用。
+ * 与 {@link VideoExportFrameSampler} 同语义的呈现探针，经 {@link StageStateResolver} 解析舞台态。
  */
 public final class PresentationFrameProbe {
 
@@ -35,20 +37,26 @@ public final class PresentationFrameProbe {
 		long audioSampleIndex = Math.round(Math.max(0.0, timelineTimeSeconds) * audioSampleRate);
 		double audioSourceTime = VideoExportFrameClock.audioTimeFromSampleIndex(audioSampleIndex, audioSampleRate);
 
-		return new Frame(
-			timelineTimeSeconds,
-			audioSampleIndex,
-			audioSourceTime,
-			TimelineCameraEvaluator.evaluate(
+		ResolvedStageState stage = StageStateResolver.resolve(
+			program, timelineTimeSeconds, cameraAnchor, fallbackYawDeg, fallbackPitchDeg);
+		TimelineCameraEvaluator.CameraSample camera = stage.camera() != null
+			? stage.camera()
+			: TimelineCameraEvaluator.evaluate(
 				program.cameraTrack(),
 				program.bpm(),
 				timelineTimeSeconds,
 				cameraAnchor,
 				fallbackYawDeg,
 				fallbackPitchDeg
-			),
-			PlaybackStateDigest.reconstructAt(program, timelineTimeSeconds),
-			ExportVfxState.resolve(program.globalEvents(), timelineTimeSeconds)
+			);
+
+		return new Frame(
+			timelineTimeSeconds,
+			audioSampleIndex,
+			audioSourceTime,
+			camera,
+			stage.toPlaybackDigest(),
+			stage.vfxState()
 		);
 	}
 }

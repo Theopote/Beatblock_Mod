@@ -34,10 +34,21 @@ public final class BuildSequencer {
 	 * 播放路径可由 {@code BeatBlockClientDriver} 注入有限预算，避免单 tick 卡顿。
 	 */
 	private int mutationBudgetPerTick = Integer.MAX_VALUE;
+	private BuildExecutionPolicy executionPolicy = BuildExecutionPolicy.REALTIME;
 
 	public BuildSequencer(StageObjectSystem stageObjectSystem, BuildLayerManager buildLayerManager) {
 		this.stageObjectSystem = stageObjectSystem;
 		this.buildLayerManager = buildLayerManager;
+	}
+
+	/** 应用执行策略（预算 + 未加载区块行为）。 */
+	public void setExecutionPolicy(BuildExecutionPolicy policy) {
+		this.executionPolicy = policy != null ? policy : BuildExecutionPolicy.REALTIME;
+		setMutationBudgetPerTick(this.executionPolicy.mutationBudgetPerTick());
+	}
+
+	public BuildExecutionPolicy getExecutionPolicy() {
+		return executionPolicy;
 	}
 
 	/**
@@ -238,18 +249,27 @@ public final class BuildSequencer {
 				&& remainingBudget > 0) {
 				BlockPos pos = inst.orderedBlocks.get(inst.placedCount);
 				BlockState desired = inst.resolveTargetState(pos);
-				if (chunkLoaded.test(pos)) {
-					BlockState current = blockStates.getBlockState(pos);
-					if (!current.equals(desired)) {
-						frame.addWorldMutation(new BlockControlExecutor.BlockMutation(
-							pos.toImmutable(), current, desired));
-						frame.addVfxTrigger(new com.beatblock.engine.influence.VfxTrigger(
-							inst.dissolve ? "existence_dissolve" : "existence_place",
-							pos.toImmutable(),
-							currentTime,
-							1f
-						));
+				boolean loaded = chunkLoaded.test(pos);
+				if (!loaded) {
+					if (executionPolicy.advancePastUnloadedChunks()) {
+						// REALTIME / PREVIEW：跳过并推进，避免远距 chunk 卡住
+						inst.placedCount++;
+						remainingBudget--;
+						continue;
 					}
+					// OFFLINE_EXPORT：停在未加载块，等 chunk ready
+					break;
+				}
+				BlockState current = blockStates.getBlockState(pos);
+				if (!current.equals(desired)) {
+					frame.addWorldMutation(new BlockControlExecutor.BlockMutation(
+						pos.toImmutable(), current, desired));
+					frame.addVfxTrigger(new com.beatblock.engine.influence.VfxTrigger(
+						inst.dissolve ? "existence_dissolve" : "existence_place",
+						pos.toImmutable(),
+						currentTime,
+						1f
+					));
 				}
 				inst.placedCount++;
 				remainingBudget--;

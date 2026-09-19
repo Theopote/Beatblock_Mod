@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -156,6 +157,7 @@ class BuildSequencerTest {
 
 	@Test
 	void advancesPlacedCountEvenWhenChunksNotLoaded() {
+		sequencer.setExecutionPolicy(BuildExecutionPolicy.REALTIME);
 		BlockPos p0 = new BlockPos(0, 64, 0);
 		BlockPos p1 = new BlockPos(1, 64, 0);
 		BuildSequencer.BuildInstance instance = sequencer.createInstanceForTest(
@@ -169,6 +171,24 @@ class BuildSequencerTest {
 		assertTrue(instance.isFinished());
 		assertTrue(frame.getWorldMutations().isEmpty());
 		assertTrue(sequencer.getActiveInstances().isEmpty());
+	}
+
+	@Test
+	void offlineExportDoesNotAdvancePastUnloadedChunks() {
+		sequencer.setExecutionPolicy(BuildExecutionPolicy.OFFLINE_EXPORT);
+		BlockPos p0 = new BlockPos(0, 64, 0);
+		BlockPos p1 = new BlockPos(1, 64, 0);
+		BuildSequencer.BuildInstance instance = sequencer.createInstanceForTest(
+			"ev_export_chunk", List.of(p0, p1), Blocks.STONE.getDefaultState(), null, 10.0, 12.0, false);
+		sequencer.enqueueBuildInstance(instance);
+
+		InfluenceFrame frame = new InfluenceFrame();
+		sequencer.contributeExistenceMutations(frame, 12.0, pos -> Blocks.AIR.getDefaultState(), pos -> false);
+
+		assertEquals(0, instance.getPlacedCount());
+		assertFalse(instance.isFinished());
+		assertTrue(frame.getWorldMutations().isEmpty());
+		assertEquals(1, sequencer.getActiveInstances().size());
 	}
 
 	@Test
