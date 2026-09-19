@@ -1,7 +1,9 @@
 package com.beatblock.timeline.playback;
 
+import com.beatblock.client.camera.TimelineCameraEvaluator;
 import com.beatblock.engine.BlockAnimationEngine;
 import com.beatblock.engine.RuntimeStageObject;
+import com.beatblock.engine.camera.CameraViewMath;
 import com.beatblock.engine.layer.BuildLayer;
 import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.timeline.EventType;
@@ -12,7 +14,9 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.TimelineMarker;
 import com.beatblock.timeline.Track;
+import com.beatblock.timeline.generation.StepBurstEventFactory;
 import com.beatblock.timeline.payload.StageEventPayload;
+import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 import java.lang.reflect.Array;
@@ -32,7 +36,8 @@ import java.util.Set;
  */
 public final class TimelineCompiler {
 
-	public static final int COMPILER_VERSION = 1;
+	/** Bumped when compile output semantics change (e.g. STEP freeze into BURST). */
+	public static final int COMPILER_VERSION = 2;
 
 	private TimelineCompiler() {}
 
@@ -112,16 +117,20 @@ public final class TimelineCompiler {
 
 		double bpm = document.getBpm() > 0 ? document.getBpm() : 120.0;
 		double duration = Math.max(0, document.getDurationSeconds());
+		double[] referenceBeats = ReferenceBeatResolver.resolveBeatTimesSeconds(document);
+		CompiledCameraTrack cameraTrack =
+			compileCameraTrack(document.getTrack(Timeline.TRACK_ID_CAMERA), skipSelection.eventIds());
+		events = expandUnresolvedStepEvents(events, engine, cameraTrack, bpm, referenceBeats);
 
 		CompiledTimelineSnapshot snapshot = new CompiledTimelineSnapshot(
 			events,
 			compileStageEvents(events, engine),
-			compileCameraTrack(document.getTrack(Timeline.TRACK_ID_CAMERA), skipSelection.eventIds()),
+			cameraTrack,
 			compileBuildLayers(layerManager),
 			compileMarkers(document),
 			compileGlobalEvents(document),
 			compileAudio(document),
-			ReferenceBeatResolver.resolveBeatTimesSeconds(document),
+			referenceBeats,
 			bpm,
 			duration,
 			shouldRestoreWorldMutations(document),
@@ -192,6 +201,83 @@ public final class TimelineCompiler {
 			return new SkipSelection(Set.of(), Set.of(), Map.of());
 		}
 	}
+
+	/**
+	 * Freeze unresolved STEP into BURST events inside the compiled program.
+	 * Camera-dependent ordering uses the compiled camera track at the STEP event time —
+	 * never the live runtime camera.
+	 */
+	private static List<TimelineAnimationEvent> expandUnresolvedStepEvents(
+		List<TimelineAnimationEvent> events,
+		@Nullable BlockAnimationEngine engine,
+		CompiledCameraTrack cameraTrack,
+		double bpm,
+		double[] referenceBeats
+	) {
+		if (engine == null || events == null || events.isEmpty()) {
+			return events;
+		}
+		List<TimelineAnimationEvent> out = new ArrayList<>(events.size());
+		boolean expandedAny = false;
+		for (TimelineAnimationEvent event : events) {
+			if (event == null) {
+				continue;
+			}
+			if (!StepBurstEventFactory.isStepDispatch(event)) {
+				out.add(event);
+				continue;
+			}
+			RuntimeStageObject target = engine.getStageObjectSystem().get(event.getTargetObjectId());
+			if (target == null || target.getBlocks().isEmpty()) {
+				out.add(event);
+				continue;
+			}
+
+			Vec3d cameraPos = null;
+			Vec3d cameraForward = null;
+			TimelineCameraEvaluator.CameraSample sample = TimelineCameraEvaluator.evaluate(
+				cameraTrack,
+				bpm,
+				event.getTimeSeconds(),
+				target.getCenter(),
+				0f,
+				0f
+			);
+			if (sample != null && sample.position() != null) {
+				cameraPos = sample.position();
+				cameraForward = CameraViewMath.forwardFromRotation(sample.yawDeg(), sample.pitchDeg());
+			}
+
+			List<TimelineAnimationEvent> bursts = StepBurstEventFactory.expand(
+				event, target, referenceBeats, bpm, cameraPos, cameraForward);
+			if (bursts.isEmpty()) {
+				out.add(event);
+				continue;
+			}
+			expandedAny = true;
+			String baseId = event.getEventId().isBlank() ? "step" : event.getEventId();
+			for (int i = 0; i < bursts.size(); i++) {
+				TimelineAnimationEvent burst = bursts.get(i);
+				out.add(copyEvent(new TimelineAnimationEvent(
+					baseId + "#burst#" + i,
+					burst.getTimeSeconds(),
+					burst.getDurationSeconds(),
+					burst.getAnimationTypeId(),
+					burst.getTargetObjectId(),
+					burst.getEnergy(),
+					burst.getParameters()
+				)));
+			}
+		}
+		if (!expandedAny) {
+			return events;
+		}
+		out.sort(Comparator
+			.comparingDouble(TimelineAnimationEvent::getTimeSeconds)
+			.thenComparing(TimelineAnimationEvent::getEventId));
+		return List.copyOf(out);
+	}
+
 	private static List<CompiledStageEvent> compileStageEvents(
 		List<TimelineAnimationEvent> events,
 		@Nullable BlockAnimationEngine engine

@@ -24,7 +24,7 @@ public record CompiledStageEvent(
 			return PlaybackSemantics.TRANSIENT;
 		}
 		PlaybackSemantics explicit = PlaybackSemantics.fromValue(
-			event.getParameters().get("playbackSemantics")).orElse(null);
+			event.getPayload().extensions().get("playbackSemantics")).orElse(null);
 		if (explicit != null) {
 			return explicit;
 		}

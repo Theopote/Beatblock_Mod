@@ -134,14 +134,6 @@ public final class BuildSequencer {
 			buildModeRaw = build.buildMode();
 			dissolveFlag = build.dissolve();
 			placeBlockId = build.placeBlockId();
-		} else {
-			Map<String, Object> params = event.getParameters();
-			layerId = readLayerId(params);
-			buildModeRaw = String.valueOf(params.getOrDefault("buildMode", "wall"));
-			dissolveFlag = "true".equalsIgnoreCase(String.valueOf(params.get("buildDissolve")));
-			Object place = params.get("placeBlock");
-			if (place == null) place = params.get("placeBlockId");
-			if (place != null) placeBlockId = String.valueOf(place).trim();
 		}
 		BuildLayer layer = layerId != null && buildLayerManager != null ? buildLayerManager.get(layerId) : null;
 
@@ -313,14 +305,6 @@ public final class BuildSequencer {
 		boolean dissolve
 	) {
 		return new BuildInstance(eventId, orderedBlocks, targetState, perBlockTargets, startTime, endTime, dissolve, null);
-	}
-
-	private static String readLayerId(Map<String, Object> params) {
-		if (params == null) return null;
-		Object raw = params.get("layerId");
-		if (raw == null) return null;
-		String id = String.valueOf(raw).trim();
-		return id.isEmpty() ? null : id;
 	}
 
 	static int computeTargetCount(BuildInstance inst, double currentTime) {

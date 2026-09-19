@@ -89,10 +89,6 @@ public record BuildProgressDigest(
 		if (payload instanceof com.beatblock.timeline.payload.StageEventPayload.Build build) {
 			buildModeRaw = build.buildMode();
 			dissolve = build.dissolve();
-		} else {
-			Object mode = event.getParameters().get("buildMode");
-			if (mode != null) buildModeRaw = String.valueOf(mode);
-			dissolve = "true".equalsIgnoreCase(String.valueOf(event.getParameters().get("buildDissolve")));
 		}
 
 		List<BlockPos> ordered = BlockBuildOrder.sortBlocks(

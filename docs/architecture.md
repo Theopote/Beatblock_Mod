@@ -88,7 +88,7 @@
 STEP 序列有两种落地方式（均无 `StepSequenceState` 运行时状态机）：
 
 1. **推荐（持久化）**：工具栏「烘焙 STEP」→ `StepSequenceBaker` 将一条 `dispatchModel=STEP` 事件展开为 N 个 `BURST` 普通事件（`singleBlockX/Y/Z`），经 `TimelineDraftWriter` 写入第 2 层；保存后播放器只看到 N 个带绝对时间戳的事件。
-2. **过渡（未烘焙）**：Timeline 仍存 `dispatchModel=STEP` 时，`BlockAnimationEngine.scheduleExpandedStepSequence` 在**首次调度**时用 `StepSequencePlanner` + `PacingStrategy`（含 `DistancePacing`）一次性展开。
+2. **编译冻结（默认播放路径）**：Timeline 仍存 `dispatchModel=STEP` 时，`TimelineCompiler` 在编译期用 `StepBurstEventFactory` + `StepSequencePlanner` 展开进 `CompiledTimelineSnapshot`。镜头相关排序（`cameraEdgePriority` / frustum gating / adaptive timing）按**编译期相机轨在 STEP 时间点的采样**冻结，不得读取播放中的 live camera。运行时若仍遇到未展开 STEP（例如无 engine 的编译），只做无相机依赖的确定性展开。
 
 规划/算时间戳：`timeline/generation/PacingStrategy`、`StepSequencePlanner`、`StepBurstEventFactory`。
 

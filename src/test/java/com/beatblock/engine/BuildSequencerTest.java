@@ -60,7 +60,7 @@ class BuildSequencerTest {
 
 		var event = new TimelineAnimationEvent(
 			"ev_dissolve", 0.0, 3.0, "build", "stage1", 1f,
-			Map.of("buildMode", "wall", "buildDissolve", "true"));
+			Map.of("actionMode", "BUILD", "buildMode", "wall", "buildDissolve", "true"));
 		sequencer.schedule(event);
 
 		Map<BlockPos, BlockState> world = new HashMap<>();
@@ -87,7 +87,7 @@ class BuildSequencerTest {
 		stageObjectSystem.register(StageObjectSystem.fromBlocks("stage1", "Stage", blocks));
 
 		var event = new TimelineAnimationEvent(
-			"ev1", 10.0, 2.0, "build", "stage1", 1f, Map.of("buildMode", "wall"));
+			"ev1", 10.0, 2.0, "build", "stage1", 1f, Map.of("actionMode", "BUILD", "buildMode", "wall"));
 		BuildSequencer.BuildInstance instance = sequencer.schedule(event);
 
 		assertNotNull(instance);
@@ -141,7 +141,8 @@ class BuildSequencerTest {
 		buildLayerManager.registerRestored(layer);
 
 		var event = new TimelineAnimationEvent(
-			"ev_layer", 5.0, 1.0, "build", "layer_stage", 1f, Map.of("layerId", "layer1"));
+			"ev_layer", 5.0, 1.0, "build", "layer_stage", 1f,
+			Map.of("actionMode", "BUILD", "layerId", "layer1"));
 		sequencer.schedule(event);
 
 		Map<BlockPos, BlockState> world = new HashMap<>();

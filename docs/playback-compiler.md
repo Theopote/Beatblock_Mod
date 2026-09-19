@@ -9,7 +9,7 @@ Timeline (+ BuildLayerManager + BlockAnimationEngine)
         ↓
 TimelineValidator
         ↓
-TimelineCompiler  (COMPILER_VERSION = 1)
+TimelineCompiler  (COMPILER_VERSION = 2)
         ↓
 CompiledTimelineSnapshot
         ├── stageEvents / compiledStageEvents
@@ -56,6 +56,7 @@ TimelineCompiler.compile(timeline, engine, layerManager); // 播放推荐
 
 - 编译后修改 live `Timeline` **不会**改变已加载快照
 - 摄像机正式路径只读 `CompiledCameraTrack`，不采样 live 文档
+- 未烘焙 `dispatchModel=STEP` 在编译期展开为 BURST；镜头相关排序冻结自编译相机轨，不读 live camera
 - 视频导出通过 `prepareExportFrameFromSnapshot` 冻结同一快照
 
 ## 线程模型

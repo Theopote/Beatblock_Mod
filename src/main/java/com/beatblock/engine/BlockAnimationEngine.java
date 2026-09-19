@@ -16,7 +16,6 @@ import java.util.Objects;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -179,12 +178,20 @@ public final class BlockAnimationEngine {
 	private void scheduleAnimateEvent(TimelineAnimationEvent event, AnimationDefinition definition,
 		CompiledStageTarget target, double[] referenceBeatTimesSeconds, double timelineBpm) {
 		if (com.beatblock.timeline.generation.StepBurstEventFactory.isStepDispatch(event)) {
+			// Compile should have frozen STEP → BURST. Leftover STEP expands without live camera
+			// so Play / Seek / Export stay deterministic.
 			scheduleExpandedStepSequence(event, definition, target, referenceBeatTimesSeconds, timelineBpm);
 			return;
 		}
 		scheduleFromTimelineEventWithSpatial(event, definition, target);
 	}
 
+	/**
+	 * Safety-net expansion for STEP that escaped compile (e.g. compile without engine).
+	 * Does <strong>not</strong> read {@link #runtimeCameraPosition} — camera modulation only
+	 * applies when {@link com.beatblock.timeline.playback.TimelineCompiler} freezes camera
+	 * from the compiled camera track.
+	 */
 	private void scheduleExpandedStepSequence(
 		TimelineAnimationEvent event,
 		AnimationDefinition def,
@@ -195,28 +202,15 @@ public final class BlockAnimationEngine {
 		if (event == null) return;
 		if (def == null || target == null || target.blocks().isEmpty()) return;
 
-		Map<String, Object> params = event.getParameters();
 		List<BlockPos> ordered = sortBlocksForSpatialMode(target, resolveSpatialMode(event, target), event);
-		double edgePriority = 0.0;
-		if (event.getPayload() instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate) {
-			edgePriority = animate.step().cameraEdgePriority();
-		} else {
-			edgePriority = readDouble(params.get("cameraEdgePriority"), 0.0);
-		}
-		if (edgePriority > 0.0 && !ordered.isEmpty()) {
-			ordered = applyEdgePrioritization(ordered, target.blocks(), edgePriority, runtimeCameraPosition, target.center());
-		}
-		ordered = com.beatblock.timeline.generation.CameraStepModulation.reorderForFrustumGating(
-			ordered, runtimeCameraPosition, runtimeCameraForward, params);
-
+		// Camera-dependent reorder/timing intentionally omitted: live camera must not alter the program.
 		List<com.beatblock.timeline.generation.StepSequencePlanner.PlannedStep> planned =
 			com.beatblock.timeline.generation.StepSequencePlanner.plan(
 				ordered, event, referenceBeatTimesSeconds, timelineBpm);
-		planned = com.beatblock.timeline.generation.CameraStepModulation.applyAdaptiveTiming(
-			planned, ordered, runtimeCameraPosition, params);
 		double duration = Math.max(0.01, event.getDurationSeconds());
 		float energy = event.getEnergy();
 		Vec3d center = target.center();
+		Map<String, Object> influenceParams = influenceParams(event);
 		for (int i = 0; i < planned.size(); i++) {
 			var step = planned.get(i);
 			RuntimeStageObject perBlockTarget = new RuntimeStageObject(
@@ -228,7 +222,7 @@ public final class BlockAnimationEngine {
 			);
 			double end = step.startTimeSeconds() + duration;
 			animationPlayer.addInstance(new EngineAnimationInstance(
-				def, perBlockTarget, step.startTimeSeconds(), end, energy, params));
+				def, perBlockTarget, step.startTimeSeconds(), end, energy, influenceParams));
 		}
 	}
 
@@ -237,24 +231,17 @@ public final class BlockAnimationEngine {
 		if (event == null) return;
 		if (def == null || target == null) return;
 
-		Map<String, Object> params = event.getParameters();
 		var payload = event.getPayload();
-		if (payload instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate) {
+		if (payload instanceof com.beatblock.timeline.payload.StageEventPayload.Animate animate
+			&& animate.singleBlock() != null) {
 			var ref = animate.singleBlock();
-			if (ref != null) {
-				scheduleSingleBlockBurst(event, target, def, new BlockPos(ref.x(), ref.y(), ref.z()));
-				return;
-			}
-		}
-		net.minecraft.util.math.BlockPos singleBlock =
-			com.beatblock.timeline.generation.StepBurstEventFactory.readSingleBlockPos(params);
-		if (singleBlock != null) {
-			scheduleSingleBlockBurst(event, target, def, singleBlock);
+			scheduleSingleBlockBurst(event, target, def, new BlockPos(ref.x(), ref.y(), ref.z()));
 			return;
 		}
 
 		SpatialDispatchMode spatialMode = resolveSpatialMode(event, target);
 		double stepDelay = resolveSpatialStepDelay(event, target, spatialMode, event.getDurationSeconds(), target.blocks().size());
+		Map<String, Object> influenceParams = influenceParams(event);
 		if (spatialMode == SpatialDispatchMode.ALL || stepDelay <= 0.0 || target.blocks().size() <= 1) {
 			double endTime = event.getTimeSeconds() + Math.max(0.01, event.getDurationSeconds());
 			RuntimeStageObject allBlocksTarget = new RuntimeStageObject(
@@ -265,7 +252,7 @@ public final class BlockAnimationEngine {
 				new GroupSpec("manual_snapshot", Map.of(), target.sorting(), target.staggerDelaySeconds())
 			);
 			animationPlayer.addInstance(new EngineAnimationInstance(
-				def, allBlocksTarget, event.getTimeSeconds(), endTime, event.getEnergy(), params));
+				def, allBlocksTarget, event.getTimeSeconds(), endTime, event.getEnergy(), influenceParams));
 			return;
 		}
 
@@ -285,7 +272,8 @@ public final class BlockAnimationEngine {
 				center,
 				new GroupSpec("manual_snapshot", Map.of(), target.sorting(), target.staggerDelaySeconds())
 			);
-			animationPlayer.addInstance(new EngineAnimationInstance(def, perBlockTarget, start, end, energy, params));
+			animationPlayer.addInstance(new EngineAnimationInstance(
+				def, perBlockTarget, start, end, energy, influenceParams));
 		}
 	}
 
@@ -304,7 +292,15 @@ public final class BlockAnimationEngine {
 		);
 		double endTime = event.getTimeSeconds() + Math.max(0.01, event.getDurationSeconds());
 		animationPlayer.addInstance(new EngineAnimationInstance(
-			def, perBlockTarget, event.getTimeSeconds(), endTime, event.getEnergy(), event.getParameters()));
+			def, perBlockTarget, event.getTimeSeconds(), endTime, event.getEnergy(), influenceParams(event)));
+	}
+
+	/**
+	 * Influence evaluation still consumes a parameter map (flash / vfx / trajectory extras).
+	 * Dispatch decisions above use {@link TimelineAnimationEvent#getPayload()} only.
+	 */
+	private static Map<String, Object> influenceParams(TimelineAnimationEvent event) {
+		return event != null ? event.getPayload().toParameterMap() : Map.of();
 	}
 
 	private static SpatialDispatchMode resolveSpatialMode(TimelineAnimationEvent event, CompiledStageTarget target) {
@@ -316,13 +312,6 @@ public final class BlockAnimationEngine {
 			if (target != null && target.sorting() != null) {
 				return target.sorting().toSpatialDispatchMode();
 			}
-			return SpatialDispatchMode.ALL;
-		}
-		Map<String, Object> params = event != null ? event.getParameters() : null;
-		if (params != null && params.containsKey("spatialMode")) {
-			return SpatialDispatchMode.fromValue(params.get("spatialMode"));
-		}
-		if (!readBoolean(params != null ? params.get("inheritGroupSpatial") : null, true)) {
 			return SpatialDispatchMode.ALL;
 		}
 		if (target == null || target.sorting() == null) return SpatialDispatchMode.ALL;
@@ -349,16 +338,6 @@ public final class BlockAnimationEngine {
 			double byDuration = duration / Math.max(2.0, Math.min(28.0, blockCount * 0.6));
 			return Math.max(0.01, Math.min(0.06, byDuration));
 		}
-		Map<String, Object> params = event != null ? event.getParameters() : null;
-		if (params != null && params.containsKey("sequentialDelaySeconds")) {
-			double explicit = readDouble(params.get("sequentialDelaySeconds"), -1.0);
-			if (explicit >= 0.0) return explicit;
-		}
-		if (!readBoolean(params != null ? params.get("inheritGroupSpatial") : null, true)) {
-			double duration = Math.max(0.05, durationSeconds);
-			double byDuration = duration / Math.max(2.0, Math.min(28.0, blockCount * 0.6));
-			return Math.max(0.01, Math.min(0.06, byDuration));
-		}
 		if (target != null && target.staggerDelaySeconds() > 0.0) {
 			return target.staggerDelaySeconds();
 		}
@@ -366,96 +345,6 @@ public final class BlockAnimationEngine {
 		double duration = Math.max(0.05, durationSeconds);
 		double byDuration = duration / Math.max(2.0, Math.min(28.0, blockCount * 0.6));
 		return Math.max(0.01, Math.min(0.06, byDuration));
-	}
-
-	private List<BlockPos> applyEdgePrioritization(List<BlockPos> orderedBlocks, List<BlockPos> allBlocks, double edgeStrength, Vec3d cameraPos, Vec3d groupCenter) {
-		if (orderedBlocks.isEmpty() || edgeStrength <= 0.0) return orderedBlocks;
-		
-		// Create a set for O(1) lookup
-		java.util.Set<BlockPos> blockSet = new java.util.HashSet<>(allBlocks);
-		
-		// Detect edge blocks and compute camera visibility weight
-		class EdgeBlockScore implements Comparable<EdgeBlockScore> {
-			BlockPos pos;
-			int exposedFaces;
-			double cameraVisibility;
-			
-			EdgeBlockScore(BlockPos pos, int exposed, double visibility) {
-				this.pos = pos;
-				this.exposedFaces = exposed;
-				this.cameraVisibility = visibility;
-			}
-			
-			@Override
-			public int compareTo(@NotNull EdgeBlockScore other) {
-				// Higher exposed faces = higher priority
-				if (this.exposedFaces != other.exposedFaces) {
-					return Integer.compare(other.exposedFaces, this.exposedFaces);
-				}
-				// Higher camera visibility = higher priority (among same face count)
-				return Double.compare(other.cameraVisibility, this.cameraVisibility);
-			}
-
-			@Override
-			public boolean equals(Object obj) {
-				if (!(obj instanceof EdgeBlockScore other)) {
-					return false;
-				}
-				return exposedFaces == other.exposedFaces
-					&& Double.compare(cameraVisibility, other.cameraVisibility) == 0
-					&& pos.equals(other.pos);
-			}
-
-			@Override
-			public int hashCode() {
-				return java.util.Objects.hash(pos, exposedFaces, cameraVisibility);
-			}
-		}
-		
-		java.util.List<EdgeBlockScore> scores = new java.util.ArrayList<>();
-		Vec3d cameraDir = groupCenter.subtract(cameraPos).normalize();
-		
-		for (BlockPos block : orderedBlocks) {
-			// Count exposed faces (neighbors that don't exist in blockSet)
-			int exposedFaces = 0;
-			for (net.minecraft.util.math.Direction dir : net.minecraft.util.math.Direction.values()) {
-				BlockPos neighbor = block.offset(dir);
-				if (!blockSet.contains(neighbor)) {
-					exposedFaces++;
-				}
-			}
-			
-			// Calculate camera visibility: dot product of (block->camera) with camera direction
-			Vec3d blockPos = new Vec3d(block.getX() + 0.5, block.getY() + 0.5, block.getZ() + 0.5);
-			Vec3d blockToCamera = cameraPos.subtract(blockPos).normalize();
-			double visibility = Math.max(0.0, blockToCamera.dotProduct(cameraDir));
-			
-			scores.add(new EdgeBlockScore(block, exposedFaces, visibility));
-		}
-		
-		// Sort by edge priority
-		java.util.Collections.sort(scores);
-		
-		// Create edge-prioritized list
-		java.util.List<BlockPos> edgePrioritized = new java.util.ArrayList<>();
-		for (EdgeBlockScore score : scores) {
-			edgePrioritized.add(score.pos);
-		}
-		
-		// Blend: take first (strength * size) from edge-prioritized, rest from original
-		double t = Math.max(0.0, Math.min(1.0, edgeStrength));
-		int blendPoint = (int) Math.round(edgePrioritized.size() * t);
-		java.util.List<BlockPos> result = new java.util.ArrayList<>(edgePrioritized.subList(0, blendPoint));
-		
-		// Add remaining blocks from original in their original order
-		java.util.Set<BlockPos> added = new java.util.HashSet<>(result);
-		for (BlockPos block : orderedBlocks) {
-			if (!added.contains(block)) {
-				result.add(block);
-			}
-		}
-		
-		return result;
 	}
 
 	private List<BlockPos> sortBlocksForSpatialMode(CompiledStageTarget target, SpatialDispatchMode mode, TimelineAnimationEvent event) {
@@ -520,26 +409,6 @@ public final class BlockAnimationEngine {
 		h *= 0xc4ceb9fe1a85ec53L;
 		h ^= (h >>> 33);
 		return h;
-	}
-
-	private static double readDouble(@Nullable Object raw, double fallback) {
-		if (raw instanceof Number n) return n.doubleValue();
-		if (raw == null) return fallback;
-		try {
-			return Double.parseDouble(String.valueOf(raw).trim());
-		} catch (Exception ex) {
-			return fallback;
-		}
-	}
-
-	private static boolean readBoolean(@Nullable Object raw, boolean fallback) {
-		if (raw instanceof Boolean b) return b;
-		if (raw instanceof Number n) return n.intValue() != 0;
-		if (raw == null) return fallback;
-		String s = String.valueOf(raw).trim();
-		if ("true".equalsIgnoreCase(s) || "1".equals(s) || "yes".equalsIgnoreCase(s)) return true;
-		if ("false".equalsIgnoreCase(s) || "0".equals(s) || "no".equalsIgnoreCase(s)) return false;
-		return fallback;
 	}
 
 	public List<BlockControlExecutor.BlockMutation> planControlMutations(TimelineAnimationEvent event, World world) {
