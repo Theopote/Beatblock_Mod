@@ -18,6 +18,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -140,6 +141,59 @@ class CompiledStepFreezeContractTest {
 		assertFalse(snapshot.stageEvents().stream().anyMatch(StepBurstEventFactory::isStepDispatch));
 		assertTrue(timeline.getStageEvents().stream().anyMatch(StepBurstEventFactory::isStepDispatch));
 		assertNotEquals(timeline.getStageEvents().size(), snapshot.stageEvents().size());
+	}
+
+	@Test
+	void unresolvedStepAtRuntimeThrowsInsteadOfExpanding() {
+		BlockAnimationEngine engine = new BlockAnimationEngine();
+		String animationId = engine.getAnimationLibrary().getAll().keySet().iterator().next();
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"tower", "Tower", List.of(new BlockPos(0, 64, 0), new BlockPos(1, 64, 0))));
+
+		TimelineAnimationEvent step = new TimelineAnimationEvent(
+			"raw-step",
+			1.0,
+			0.25,
+			animationId,
+			"tower",
+			1f,
+			stepParams()
+		);
+		assertTrue(StepBurstEventFactory.isStepDispatch(step));
+
+		IllegalStateException thrown = assertThrows(
+			IllegalStateException.class,
+			() -> engine.scheduleTimelineEvent(step, new double[0], 120.0)
+		);
+		assertTrue(thrown.getMessage().contains("Unresolved STEP"));
+		assertEquals(0, engine.getAnimationPlayer().getActiveInstances().size());
+	}
+
+	@Test
+	void compileWithoutEngineMayRetainStepButPlaybackLoadRejectsIt() {
+		BlockAnimationEngine engine = new BlockAnimationEngine();
+		String animationId = engine.getAnimationLibrary().getAll().keySet().iterator().next();
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"tower", "Tower", List.of(new BlockPos(0, 64, 0), new BlockPos(1, 64, 0))));
+
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"step-a", 1.0, 0.25, animationId, "tower", 1f, stepParams()));
+
+		CompiledTimelineSnapshot inspection = TimelineCompiler.compile(timeline);
+		assertTrue(inspection.stageEvents().stream().anyMatch(StepBurstEventFactory::isStepDispatch));
+
+		PlaybackEngine pe = new PlaybackEngine();
+		IllegalStateException thrown = assertThrows(
+			IllegalStateException.class,
+			() -> pe.load(inspection)
+		);
+		assertTrue(thrown.getMessage().contains("Unresolved STEP"));
+
+		CompiledTimelineSnapshot playback = TimelineCompiler.compileForPlayback(timeline, engine, null);
+		assertFalse(playback.stageEvents().stream().anyMatch(StepBurstEventFactory::isStepDispatch));
+		pe.load(playback);
+		assertTrue(pe.isLoaded());
 	}
 
 	private static Map<String, Object> stepParams() {

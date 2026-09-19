@@ -94,7 +94,7 @@ public final class StagePlaybackCoordinator {
 	public void compileAndLoadFormal(CompilePolicy policy) {
 		CompilePolicy resolved = policy != null ? policy : CompilePolicy.STRICT;
 		host.setDrivingCompilePolicy(resolved);
-		formalProgram = TimelineCompiler.compile(
+		formalProgram = TimelineCompiler.compileForPlayback(
 			host.ctx().timeline(),
 			host.ctx().blockAnimationEngine(),
 			host.ctx().buildLayerManager(),
@@ -123,7 +123,7 @@ public final class StagePlaybackCoordinator {
 		}
 		CompiledTimelineSnapshot next;
 		try {
-			CompileResult result = TimelineCompiler.compile(
+			CompileResult result = TimelineCompiler.compileForPlayback(
 				host.ctx().timeline(),
 				host.ctx().blockAnimationEngine(),
 				host.ctx().buildLayerManager(),
@@ -245,7 +245,7 @@ public final class StagePlaybackCoordinator {
 		}
 		CompiledTimelineSnapshot playback = formalProgram;
 		if (playback == null) {
-			playback = TimelineCompiler.compile(timeline, engine, host.ctx().buildLayerManager());
+			playback = TimelineCompiler.compileForPlayback(timeline, engine, host.ctx().buildLayerManager());
 			formalProgram = playback;
 			formalEngine.load(playback);
 		}
@@ -285,7 +285,7 @@ public final class StagePlaybackCoordinator {
 
 		CompiledTimelineSnapshot playback = previewProgram;
 		if (playback == null) {
-			playback = TimelineCompiler.compile(timeline, engine, host.ctx().buildLayerManager());
+			playback = TimelineCompiler.compileForPlayback(timeline, engine, host.ctx().buildLayerManager());
 			previewProgram = playback;
 			previewEngine.load(playback);
 		}

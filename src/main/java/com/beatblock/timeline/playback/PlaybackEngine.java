@@ -46,6 +46,9 @@ public final class PlaybackEngine {
 
 	public void load(@Nullable CompiledTimelineSnapshot snapshot) {
 		reset();
+		if (snapshot != null) {
+			TimelineCompiler.requireNoUnresolvedStep(snapshot);
+		}
 		this.program = snapshot;
 		if (snapshot == null) {
 			return;

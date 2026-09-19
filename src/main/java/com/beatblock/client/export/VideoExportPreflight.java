@@ -149,7 +149,7 @@ public final class VideoExportPreflight {
 		CompiledTimelineSnapshot snapshot = null;
 		TimelineValidationReport report;
 		try {
-			var result = TimelineCompiler.compile(
+			var result = TimelineCompiler.compileForPlayback(
 				request.timeline(),
 				request.engine(),
 				request.layers(),

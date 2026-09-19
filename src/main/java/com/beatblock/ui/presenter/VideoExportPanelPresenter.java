@@ -338,9 +338,13 @@ public final class VideoExportPanelPresenter {
 		CompiledTimelineSnapshot program = preflight.compiledSnapshot();
 		if (program == null || !VideoExportPreflight.isSnapshotCurrent(program, ctx != null ? ctx.timeline() : null)) {
 			try {
-				program = TimelineCompiler.compile(
+				var engine = ctx != null ? ctx.blockAnimationEngine() : null;
+				if (engine == null) {
+					throw new IllegalStateException("export compile requires BlockAnimationEngine");
+				}
+				program = TimelineCompiler.compileForPlayback(
 					ctx != null ? ctx.timeline() : null,
-					ctx != null ? ctx.blockAnimationEngine() : null,
+					engine,
 					ctx != null ? ctx.buildLayerManager() : null
 				);
 			} catch (RuntimeException ex) {

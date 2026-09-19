@@ -87,4 +87,126 @@ class CompiledProgramSemanticsContractTest {
 		assertEquals(1, engine.getAnimationPlayer().getActiveInstances().size());
 		assertTrue(engine.getAnimationPlayer().getActiveInstances().getFirst().isActiveAt(1.05));
 	}
+
+	@Test
+	void previewAndFormalAnimateBothUseFrozenCompiledTarget() {
+		BlockAnimationEngine engine = new BlockAnimationEngine();
+		String animationId = engine.getAnimationLibrary().getAll().keySet().iterator().next();
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"tower", "Tower", List.of(
+				new BlockPos(0, 64, 0),
+				new BlockPos(1, 64, 0),
+				new BlockPos(2, 64, 0)
+			)));
+
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"pulse",
+			1.0,
+			0.5,
+			animationId,
+			"tower",
+			1f,
+			Map.of(
+				"actionMode", TimelineAnimationActionMode.ANIMATE.name(),
+				"dispatchModel", "BURST",
+				"spatialMode", "ALL"
+			)
+		));
+
+		CompiledTimelineSnapshot snapshot = TimelineCompiler.compileForPlayback(timeline, engine, null);
+		CompiledStageEvent compiled = snapshot.compiledStageEvents().getFirst();
+		assertEquals(3, compiled.target().blocks().size());
+
+		// Live catalog mutates without bumping Timeline documentGeneration.
+		engine.getStageObjectSystem().remove("tower");
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"tower", "Tower", List.of(new BlockPos(9, 64, 9))));
+		assertEquals(1, engine.getStageObjectSystem().get("tower").getBlocks().size());
+
+		engine.clear();
+		engine.scheduleTimelineEvent(compiled, snapshot.referenceBeatTimesSeconds(), snapshot.bpm());
+		assertEquals(
+			java.util.Set.of(new BlockPos(0, 64, 0), new BlockPos(1, 64, 0), new BlockPos(2, 64, 0)),
+			scheduledBlocks(engine)
+		);
+	}
+
+	@Test
+	void stageEventDispatcherPreviewUsesCompiledWhenPresent() {
+		BlockAnimationEngine engine = new BlockAnimationEngine();
+		String animationId = engine.getAnimationLibrary().getAll().keySet().iterator().next();
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"tower", "Tower", List.of(
+				new BlockPos(0, 64, 0),
+				new BlockPos(1, 64, 0)
+			)));
+
+		Timeline timeline = Timeline.createDefault();
+		timeline.addAutoAnimationEvent(new TimelineAnimationEvent(
+			"pulse",
+			1.0,
+			0.5,
+			animationId,
+			"tower",
+			1f,
+			Map.of(
+				"actionMode", TimelineAnimationActionMode.ANIMATE.name(),
+				"dispatchModel", "BURST",
+				"spatialMode", "ALL"
+			)
+		));
+		CompiledTimelineSnapshot snapshot = TimelineCompiler.compileForPlayback(timeline, engine, null);
+		CompiledStageEvent compiled = snapshot.compiledStageEvents().getFirst();
+		assertEquals(2, compiled.target().blocks().size());
+
+		engine.getStageObjectSystem().remove("tower");
+		engine.getStageObjectSystem().register(StageObjectSystem.fromBlocks(
+			"tower", "Tower", List.of(new BlockPos(5, 64, 5))));
+		assertEquals(1, engine.getStageObjectSystem().get("tower").getBlocks().size());
+
+		com.beatblock.runtime.BeatBlockContext context = com.beatblock.runtime.BeatBlockContext.builder()
+			.blockAnimationEngine(engine)
+			.build();
+		var dispatcher = new com.beatblock.client.StageEventDispatcher(
+			new com.beatblock.client.StageEventDispatcher.Host() {
+				@Override
+				public com.beatblock.runtime.BeatBlockContext ctx() {
+					return context;
+				}
+
+				@Override
+				public CompiledStageEvent resolveCompiled(TimelineAnimationEvent event) {
+					return compiled;
+				}
+
+				@Override
+				public void recordActionReport(
+					TimelineAnimationEvent event, int mutationCount, String status, String detail
+				) {}
+
+				@Override
+				public void captureTimelineMutationOriginalState(
+					net.minecraft.world.World world,
+					BlockPos pos,
+					net.minecraft.block.BlockState currentState
+				) {}
+			},
+			() -> false
+		);
+
+		dispatcher.apply(compiled.event(), compiled, true, snapshot.referenceBeatTimesSeconds(), snapshot.bpm());
+		assertEquals(
+			java.util.Set.of(new BlockPos(0, 64, 0), new BlockPos(1, 64, 0)),
+			scheduledBlocks(engine)
+		);
+	}
+
+	private static java.util.Set<BlockPos> scheduledBlocks(BlockAnimationEngine engine) {
+		java.util.Set<BlockPos> blocks = new java.util.LinkedHashSet<>();
+		for (var instance : engine.getAnimationPlayer().getActiveInstances()) {
+			blocks.addAll(instance.getTarget().getBlocks());
+		}
+		return blocks;
+	}
 }

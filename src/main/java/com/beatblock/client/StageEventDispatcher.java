@@ -62,7 +62,7 @@ public final class StageEventDispatcher {
 		TimelineAnimationActionMode actionMode = event.getActionMode();
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
 			var compiled = compiledHint != null ? compiledHint : host.resolveCompiled(event);
-			if (!previewOnly && compiled != null) {
+			if (compiled != null) {
 				engine.scheduleTimelineEvent(compiled, referenceBeats, bpm);
 			} else {
 				engine.scheduleTimelineEvent(event, referenceBeats, bpm);

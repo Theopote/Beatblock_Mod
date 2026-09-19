@@ -102,11 +102,11 @@ public final class TimelineCameraController {
 			);
 		}
 		if (sample == null) {
-			var snapshot = com.beatblock.timeline.playback.TimelineCompiler.compile(
-				timeline,
-				ctx().blockAnimationEngine(),
-				ctx().buildLayerManager()
-			);
+			var engine = ctx().blockAnimationEngine();
+			var snapshot = engine != null
+				? com.beatblock.timeline.playback.TimelineCompiler.compileForPlayback(
+					timeline, engine, ctx().buildLayerManager())
+				: com.beatblock.timeline.playback.TimelineCompiler.compile(timeline);
 			sample = TimelineCameraEvaluator.evaluate(
 				snapshot.cameraTrack(),
 				snapshot.bpm(),

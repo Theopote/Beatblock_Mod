@@ -25,12 +25,12 @@ CompiledTimelineSnapshot
 ## 编译 API
 
 ```java
-TimelineCompiler.compile(timeline);
-TimelineCompiler.compile(timeline, engine);
-TimelineCompiler.compile(timeline, engine, layerManager); // 播放推荐
+TimelineCompiler.compile(timeline);                          // 静态检查 / 无舞台上下文
+TimelineCompiler.compile(timeline, engine, layerManager);    // 通用编译（无 engine 时可能残留 STEP）
+TimelineCompiler.compileForPlayback(timeline, engine, layers); // Preview / Play / Export
 ```
 
-`BeatBlockClientDriver.startDriving()` 使用三参数形式并 `playbackEngine.load(snapshot)`。
+`StagePlaybackCoordinator` 与导出路径使用 `compileForPlayback`；`PlaybackEngine.load` 拒绝仍含 unresolved STEP 的快照。
 
 ## 校验策略
 

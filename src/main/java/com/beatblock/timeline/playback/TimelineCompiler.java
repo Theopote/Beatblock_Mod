@@ -55,6 +55,9 @@ public final class TimelineCompiler {
 	/**
 	 * Full compile with optional engine (stage/preset resolve) and layer manager (build layers).
 	 * Always runs {@link TimelineValidator} and attaches the report to the snapshot.
+	 * <p>
+	 * Without an engine, unresolved {@code STEP} events may remain in the snapshot
+	 * (inspection / static compile). Prefer {@link #compileForPlayback} for Preview / Play / Export.
 	 */
 	public static CompiledTimelineSnapshot compile(
 		@Nullable Timeline document,
@@ -62,6 +65,51 @@ public final class TimelineCompiler {
 		@Nullable BuildLayerManager layerManager
 	) {
 		return compile(document, engine, layerManager, CompilePolicy.STRICT).snapshot();
+	}
+
+	/**
+	 * Executable playback compile: freezes unresolved STEP when {@code engine} is present,
+	 * then rejects any snapshot that still contains STEP.
+	 * <p>
+	 * Prefer a non-null engine for Preview / Play / Export so STEP can expand. Static
+	 * {@link #compile(Timeline)} without engine remains for inspection only.
+	 */
+	public static CompiledTimelineSnapshot compileForPlayback(
+		@Nullable Timeline document,
+		@Nullable BlockAnimationEngine engine,
+		@Nullable BuildLayerManager layerManager
+	) {
+		return compileForPlayback(document, engine, layerManager, CompilePolicy.STRICT).snapshot();
+	}
+
+	/**
+	 * @see #compileForPlayback(Timeline, BlockAnimationEngine, BuildLayerManager)
+	 */
+	public static CompileResult compileForPlayback(
+		@Nullable Timeline document,
+		@Nullable BlockAnimationEngine engine,
+		@Nullable BuildLayerManager layerManager,
+		CompilePolicy policy
+	) {
+		CompileResult result = compile(document, engine, layerManager, policy);
+		requireNoUnresolvedStep(result.snapshot());
+		return result;
+	}
+
+	/**
+	 * Rejects a snapshot that still contains unresolved STEP (must not be loaded for playback).
+	 */
+	public static void requireNoUnresolvedStep(@Nullable CompiledTimelineSnapshot snapshot) {
+		if (snapshot == null) {
+			return;
+		}
+		for (TimelineAnimationEvent event : snapshot.stageEvents()) {
+			if (event != null && StepBurstEventFactory.isStepDispatch(event)) {
+				throw new IllegalStateException(
+					"Unresolved STEP in compiled program (eventId=" + event.getEventId()
+						+ "); use TimelineCompiler.compileForPlayback with stage context");
+			}
+		}
 	}
 
 	public static CompileResult compile(

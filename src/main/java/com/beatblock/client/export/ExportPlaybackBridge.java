@@ -244,7 +244,7 @@ public final class ExportPlaybackBridge {
 			return null;
 		}
 		try {
-			CompiledTimelineSnapshot program = TimelineCompiler.compile(
+			CompiledTimelineSnapshot program = TimelineCompiler.compileForPlayback(
 				timeline,
 				host.ctx().blockAnimationEngine(),
 				host.ctx().buildLayerManager()

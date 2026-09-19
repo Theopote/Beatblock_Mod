@@ -167,9 +167,13 @@ public final class VideoExportCoordinator {
 		if (preflightProgram != null && VideoExportPreflight.isSnapshotCurrent(preflightProgram, timeline)) {
 			return preflightProgram;
 		}
-		return TimelineCompiler.compile(
+		var engine = context != null ? context.blockAnimationEngine() : null;
+		if (engine == null) {
+			throw new IllegalStateException("export compile requires BlockAnimationEngine");
+		}
+		return TimelineCompiler.compileForPlayback(
 			timeline,
-			context != null ? context.blockAnimationEngine() : null,
+			engine,
 			context != null ? context.buildLayerManager() : null
 		);
 	}

@@ -139,7 +139,7 @@ public final class BlockAnimationEngine {
 		if (event == null) return;
 		TimelineAnimationActionMode actionMode = event.getActionMode();
 		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
-			scheduleAnimateEvent(event, referenceBeatTimesSeconds, timelineBpm);
+			scheduleAnimateEvent(event);
 		}
 	}
 
@@ -151,8 +151,7 @@ public final class BlockAnimationEngine {
 		if (compiled == null || compiled.event() == null) return;
 		TimelineAnimationEvent event = compiled.event();
 		if (event.getActionMode() == TimelineAnimationActionMode.ANIMATE) {
-			scheduleAnimateEvent(event, compiled.animationDefinition(), compiled.target(),
-				referenceBeatTimesSeconds, timelineBpm);
+			scheduleAnimateEvent(event, compiled.animationDefinition(), compiled.target());
 		}
 	}
 
@@ -169,61 +168,21 @@ public final class BlockAnimationEngine {
 		);
 	}
 
-	private void scheduleAnimateEvent(TimelineAnimationEvent event, double[] referenceBeatTimesSeconds, double timelineBpm) {
+	private void scheduleAnimateEvent(TimelineAnimationEvent event) {
 		if (event == null) return;
 		scheduleAnimateEvent(event, animationLibrary.get(event.getAnimationTypeId()),
-			toCompiledStageTarget(stageObjectSystem.get(event.getTargetObjectId())), referenceBeatTimesSeconds, timelineBpm);
+			toCompiledStageTarget(stageObjectSystem.get(event.getTargetObjectId())));
 	}
 
 	private void scheduleAnimateEvent(TimelineAnimationEvent event, AnimationDefinition definition,
-		CompiledStageTarget target, double[] referenceBeatTimesSeconds, double timelineBpm) {
+		CompiledStageTarget target) {
 		if (com.beatblock.timeline.generation.StepBurstEventFactory.isStepDispatch(event)) {
-			// Compile should have frozen STEP → BURST. Leftover STEP expands without live camera
-			// so Play / Seek / Export stay deterministic.
-			scheduleExpandedStepSequence(event, definition, target, referenceBeatTimesSeconds, timelineBpm);
-			return;
+			throw new IllegalStateException(
+				"Unresolved STEP reached runtime (eventId="
+					+ (event != null ? event.getEventId() : "")
+					+ "); compile with TimelineCompiler.compileForPlayback first");
 		}
 		scheduleFromTimelineEventWithSpatial(event, definition, target);
-	}
-
-	/**
-	 * Safety-net expansion for STEP that escaped compile (e.g. compile without engine).
-	 * Does <strong>not</strong> read {@link #runtimeCameraPosition} — camera modulation only
-	 * applies when {@link com.beatblock.timeline.playback.TimelineCompiler} freezes camera
-	 * from the compiled camera track.
-	 */
-	private void scheduleExpandedStepSequence(
-		TimelineAnimationEvent event,
-		AnimationDefinition def,
-		CompiledStageTarget target,
-		double[] referenceBeatTimesSeconds,
-		double timelineBpm
-	) {
-		if (event == null) return;
-		if (def == null || target == null || target.blocks().isEmpty()) return;
-
-		List<BlockPos> ordered = sortBlocksForSpatialMode(target, resolveSpatialMode(event, target), event);
-		// Camera-dependent reorder/timing intentionally omitted: live camera must not alter the program.
-		List<com.beatblock.timeline.generation.StepSequencePlanner.PlannedStep> planned =
-			com.beatblock.timeline.generation.StepSequencePlanner.plan(
-				ordered, event, referenceBeatTimesSeconds, timelineBpm);
-		double duration = Math.max(0.01, event.getDurationSeconds());
-		float energy = event.getEnergy();
-		Vec3d center = target.center();
-		Map<String, Object> influenceParams = influenceParams(event);
-		for (int i = 0; i < planned.size(); i++) {
-			var step = planned.get(i);
-			RuntimeStageObject perBlockTarget = new RuntimeStageObject(
-				target.id() + "#step#" + i,
-				target.name(),
-				List.of(step.block()),
-				center,
-				GroupSpec.fromSelectionSnapshot(List.of(step.block()), target.sorting(), target.staggerDelaySeconds())
-			);
-			double end = step.startTimeSeconds() + duration;
-			animationPlayer.addInstance(new EngineAnimationInstance(
-				def, perBlockTarget, step.startTimeSeconds(), end, energy, influenceParams));
-		}
 	}
 
 	private void scheduleFromTimelineEventWithSpatial(TimelineAnimationEvent event,
