@@ -2,6 +2,7 @@ package com.beatblock.automap.vfx;
 
 import com.beatblock.audio.analysis.FrequencyBands;
 import com.beatblock.automap.camera.CameraSubject;
+import com.beatblock.automap.cast.StageCast;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyVfx;
 import com.beatblock.automap.choreography.ChoreographyVfxFactory;
@@ -59,9 +60,10 @@ public final class VfxPlanner {
 		}
 
 		List<String> targets = settings.getTargetObjectIds();
+		StageCast cast = StageCast.fromTargetIds(targets);
 		List<ChoreographyVfx> out = new ArrayList<>();
 		out.addAll(sectionEdgeVfx(plan, intensity));
-		out.addAll(heroVfx(plan, targets, intensity));
+		out.addAll(heroVfx(plan, cast, intensity));
 		out.addAll(environmentVfx(plan, intensity));
 		if (intensity.keepRatio() >= 0.3) {
 			out.addAll(accentVfx(plan, bands, targets, intensity));
@@ -94,13 +96,13 @@ public final class VfxPlanner {
 
 	static List<ChoreographyVfx> heroVfx(
 		ChoreographyPlan plan,
-		List<String> targets,
+		StageCast cast,
 		LayerIntensity intensity
 	) {
 		if (intensity.keepRatio() < 0.2) {
 			return List.of();
 		}
-		CameraSubject subject = resolveTarget(targets);
+		CameraSubject subject = resolveHeroSubject(cast);
 		List<ChoreographyVfx> out = new ArrayList<>();
 		for (ChoreographyPhrase phrase : plan.choreographyPhrases()) {
 			if (phrase == null || !phrase.isHero()) {
@@ -208,15 +210,23 @@ public final class VfxPlanner {
 		);
 	}
 
-	private static CameraSubject resolveTarget(List<String> targets) {
-		if (targets != null) {
-			for (String id : targets) {
-				if (id != null && !id.isBlank()) {
-					return CameraSubject.stageObject(id);
-				}
+	private static CameraSubject resolveHeroSubject(@Nullable StageCast cast) {
+		if (cast != null) {
+			String heroId = cast.primaryHeroId();
+			if (heroId != null && !heroId.isBlank()) {
+				return CameraSubject.stageObject(heroId);
+			}
+			List<String> focusable = cast.choreographyParticipantIds();
+			if (!focusable.isEmpty()) {
+				return CameraSubject.stageObject(focusable.getFirst());
 			}
 		}
 		return CameraSubject.allStageObjects();
+	}
+
+	private static CameraSubject resolveTarget(List<String> targets) {
+		StageCast cast = StageCast.fromTargetIds(targets);
+		return resolveHeroSubject(cast);
 	}
 
 	private static SectionType sectionTypeAt(ChoreographyPlan plan, double timeSeconds) {

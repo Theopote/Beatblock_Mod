@@ -397,7 +397,7 @@ public final class ChoreographyPlanCompiler {
 		);
 		int cameras = compileCameraEvents(timeline, plan, compileOptions.cameraMode(), session);
 		int vfx = compileVfxEvents(timeline, plan, compileOptions.vfxMode(), session);
-		int builds = BuildSequenceCompiler.compile(timeline, plan);
+		int builds = BuildSequenceCompiler.compile(timeline, plan, null, session);
 		return new SmartAutoMapCompileResult(animations, cameras, vfx, builds, session.generationId());
 	}
 

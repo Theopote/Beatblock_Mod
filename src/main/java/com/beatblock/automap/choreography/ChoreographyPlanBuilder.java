@@ -12,6 +12,7 @@ import com.beatblock.automap.engine.AnimationMapper;
 import com.beatblock.automap.engine.AutoMapStyle;
 import com.beatblock.automap.camera.CameraShot;
 import com.beatblock.automap.camera.CameraShotCodec;
+import com.beatblock.automap.cast.StageCast;
 import com.beatblock.automap.engine.ParticleEvent;
 import com.beatblock.automap.engine.RhythmEvent;
 import com.beatblock.automap.engine.StructuralSection;
@@ -219,16 +220,29 @@ public final class ChoreographyPlanBuilder {
 		List<ChoreographyPlan.SectionPlan> sections,
 		List<ChoreographyPlan.StageRoleAssignment> roles
 	) {
-		List<String> participants = uniqueParticipantIds(roles);
+		List<String> allIds = uniqueParticipantIds(roles);
+		StageCast cast = StageCast.fromTargetIds(allIds);
+		List<String> participants = cast.choreographyParticipantIds();
 		if (participants.size() < 2 || sections.isEmpty()) return List.of();
+
+		TargetSet phraseTargets = TargetSet.of(participants.toArray(String[]::new));
+		List<String> heroIds = new ArrayList<>();
+		if (cast.primaryHeroId() != null) {
+			heroIds.add(cast.primaryHeroId());
+		}
+		for (String id : participants) {
+			if (!heroIds.contains(id)) {
+				heroIds.add(id);
+			}
+		}
+		TargetSet heroTargets = TargetSet.of(heroIds.toArray(String[]::new));
 
 		List<ChoreographyPhrase> phrases = new ArrayList<>(sections.size());
 		for (int i = 0; i < sections.size(); i++) {
 			ChoreographyPlan.SectionPlan section = sections.get(i);
-			TargetSet targets = TargetSet.of(participants.toArray(String[]::new));
 			phrases.add(new ChoreographyPhrase(
 				ChoreographyGrammarSelection.defaultTrigger(section.sectionType()),
-				targets,
+				phraseTargets,
 				ChoreographyGrammarSelection.spatialPattern(section.sectionType()),
 				ChoreographyGrammarSelection.motion(section.sectionType()),
 				ChoreographyGrammarSelection.timing(section.sectionType()),
@@ -237,7 +251,7 @@ public final class ChoreographyPlanBuilder {
 				i
 			));
 			ChoreographyPhrase hero = ChoreographyHeroSelection.phraseForSection(
-				i, section.sectionType(), targets);
+				i, section.sectionType(), heroTargets);
 			if (hero != null) {
 				phrases.add(hero);
 			}

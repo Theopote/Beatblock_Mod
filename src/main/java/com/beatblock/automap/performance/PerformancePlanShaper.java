@@ -14,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 按 {@link PerformanceProfile} 整形编舞计划，拉开预设气质。
@@ -145,11 +146,40 @@ public final class PerformancePlanShaper {
 			List<ChoreographyPhrase> nonHero = out.stream().filter(p -> !p.isHero()).toList();
 			List<ChoreographyPhrase> heroes = out.stream().filter(ChoreographyPhrase::isHero).toList();
 			int keep = Math.max(0, (int) Math.round(nonHero.size() * profile.phrase().keepRatio()));
-			List<ChoreographyPhrase> trimmed = new ArrayList<>(nonHero.subList(0, Math.min(keep, nonHero.size())));
+			List<ChoreographyPhrase> trimmed = stratifiedSample(nonHero, keep);
 			trimmed.addAll(heroes);
 			return List.copyOf(trimmed);
 		}
 		return List.copyOf(out);
+	}
+
+	/** 按 sectionIndex 分层均匀抽样，避免只保留列表前部。 */
+	private static List<ChoreographyPhrase> stratifiedSample(List<ChoreographyPhrase> phrases, int keep) {
+		if (phrases == null || phrases.isEmpty() || keep <= 0) {
+			return new ArrayList<>();
+		}
+		if (keep >= phrases.size()) {
+			return new ArrayList<>(phrases);
+		}
+		Map<Integer, List<ChoreographyPhrase>> bySection = new java.util.LinkedHashMap<>();
+		for (ChoreographyPhrase phrase : phrases) {
+			bySection.computeIfAbsent(phrase.sectionIndex(), ignored -> new ArrayList<>()).add(phrase);
+		}
+		List<ChoreographyPhrase> selected = new ArrayList<>(keep);
+		// Round-robin across sections so later choruses survive
+		boolean progressed = true;
+		while (selected.size() < keep && progressed) {
+			progressed = false;
+			for (List<ChoreographyPhrase> bucket : bySection.values()) {
+				if (bucket.isEmpty() || selected.size() >= keep) {
+					continue;
+				}
+				selected.add(bucket.removeFirst());
+				progressed = true;
+			}
+		}
+		selected.sort(Comparator.comparingInt(ChoreographyPhrase::sectionIndex));
+		return selected;
 	}
 
 	private static List<ChoreographyPhrase> keepSectionEntranceHeroes(

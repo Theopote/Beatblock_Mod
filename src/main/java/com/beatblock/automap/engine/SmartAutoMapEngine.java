@@ -68,8 +68,10 @@ public final class SmartAutoMapEngine {
 		rhythmEvents = PatternGenerator.filter(rhythmEvents, settings, musicStructure);
 
 		PerformanceProfile performanceProfile = settings.getPerformanceProfile();
+		com.beatblock.automap.cast.StageCast stageCast =
+			com.beatblock.automap.cast.StageCast.fromTargetIds(settings.getTargetObjectIds());
 		CameraPlanningContext cameraContext = new CameraPlanningContext(
-			bpm, duration, settings.getStyle(), settings.getTargetObjectIds());
+			bpm, duration, settings.getStyle(), settings.getTargetObjectIds(), stageCast, List.of());
 		List<CameraShot> cameraShots = settings.isCameraEnabled()
 			? CameraContinuityPlanner.plan(CameraDirector.generateShots(sections, cameraContext, true))
 			: List.of();

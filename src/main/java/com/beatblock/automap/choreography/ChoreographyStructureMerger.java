@@ -380,18 +380,20 @@ public final class ChoreographyStructureMerger {
 		}
 		List<double[]> protectedRanges = protectedTimeRanges(sections);
 		List<BuildSequencePlan> merged = new ArrayList<>();
-		for (BuildSequencePlan sequence : existingSeq) {
-			if (sequence != null && timeInProtectedRange(sequence.startSeconds(), protectedRanges)) {
-				merged.add(sequence);
+			for (BuildSequencePlan sequence : existingSeq) {
+				if (sequence != null && overlapsProtectedRange(
+					sequence.startSeconds(), sequence.endSeconds(), protectedRanges)) {
+					merged.add(sequence);
+				}
 			}
-		}
-		for (BuildSequencePlan sequence : analyzedSeq) {
-			if (sequence != null && !timeInProtectedRange(sequence.startSeconds(), protectedRanges)) {
-				merged.add(sequence);
+			for (BuildSequencePlan sequence : analyzedSeq) {
+				if (sequence != null && !overlapsProtectedRange(
+					sequence.startSeconds(), sequence.endSeconds(), protectedRanges)) {
+					merged.add(sequence);
+				}
 			}
+			return List.copyOf(merged);
 		}
-		return List.copyOf(merged);
-	}
 
 	/**
 	 * Grammar Phrase 没有单点时间，不能用 fake {@code 0.0s} 做 protected 判断。
@@ -516,16 +518,31 @@ public final class ChoreographyStructureMerger {
 		return section != null && section.isProtected();
 	}
 
-	private static boolean timeInProtectedRange(double timeSeconds, List<double[]> protectedRanges) {
-		for (double[] range : protectedRanges) {
-			if (timeSeconds >= range[0] && timeSeconds < range[1]) {
-				return true;
+		private static boolean timeInProtectedRange(double timeSeconds, List<double[]> protectedRanges) {
+			for (double[] range : protectedRanges) {
+				if (timeSeconds >= range[0] && timeSeconds < range[1]) {
+					return true;
+				}
 			}
+			return false;
 		}
-		return false;
-	}
 
-	private static DensityCurve rebuildDensityCurve(List<ChoreographyPlan.SectionPlan> sections) {
+		/** BuildSequence 是时间窗：与 protected 区间有交集即受保护。 */
+		static boolean overlapsProtectedRange(double startSeconds, double endSeconds, List<double[]> protectedRanges) {
+			if (protectedRanges == null || protectedRanges.isEmpty()) {
+				return false;
+			}
+			double start = Math.min(startSeconds, endSeconds);
+			double end = Math.max(startSeconds, endSeconds);
+			for (double[] range : protectedRanges) {
+				if (start < range[1] && end > range[0]) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private static DensityCurve rebuildDensityCurve(List<ChoreographyPlan.SectionPlan> sections) {
 		if (sections.isEmpty()) return DensityCurve.uniform(1.0);
 		List<DensityCurve.Point> points = new ArrayList<>();
 		for (ChoreographyPlan.SectionPlan section : sections) {

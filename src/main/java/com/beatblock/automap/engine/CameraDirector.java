@@ -2,6 +2,7 @@ package com.beatblock.automap.engine;
 
 import com.beatblock.automap.camera.CameraPlanningContext;
 import com.beatblock.automap.camera.CameraShot;
+import com.beatblock.automap.camera.CameraSubjectPlanner;
 import com.beatblock.automap.camera.CameraShotBeatAlignment;
 import com.beatblock.automap.camera.CameraShotEasing;
 import com.beatblock.automap.camera.CameraShotFraming;
@@ -41,10 +42,22 @@ public final class CameraDirector {
 		if (!enabled || sections == null || sections.isEmpty() || context == null) return out;
 
 		double beat = context.beatDurationSeconds();
+		String lastFocus = null;
 		for (int i = 0; i < sections.size(); i++) {
 			StructuralSection sec = sections.get(i);
-			CameraSubject primary = context.subjectForSection(i, false);
+			CameraSubjectPlanner.Resolution resolution = CameraSubjectPlanner.resolve(
+				sec,
+				i,
+				context.stageCast(),
+				context.buildSequences(),
+				lastFocus,
+				context
+			);
+			CameraSubject primary = resolution.primary();
 			CameraSubject overview = context.overviewSubject();
+			if (resolution.focusedObjectId() != null) {
+				lastFocus = resolution.focusedObjectId();
+			}
 			double sectionDuration = sec.getDurationSeconds();
 
 			switch (sec.getType()) {

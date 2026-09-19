@@ -1,6 +1,7 @@
 package com.beatblock.automap;
 
 import com.beatblock.BeatBlock;
+import com.beatblock.automap.cast.StageCast;
 import com.beatblock.automap.engine.AutoMapSettings;
 import com.beatblock.automap.engine.AutoMapSettingsStore;
 import com.beatblock.automap.engine.Complexity;
@@ -59,9 +60,17 @@ public final class AutoMapConfigFactory {
 	}
 
 	private static void applyTargetIds(AutoMapConfig.Builder builder, List<String> ids) {
-		if (ids.size() >= 1) builder.targetForFeature("low", ids.get(0));
-		if (ids.size() >= 2) builder.targetForFeature("mid", ids.get(1));
-		if (ids.size() >= 3) builder.targetForFeature("high", ids.get(2));
+		StageCast cast = StageCast.fromTargetIds(ids);
+		for (var entry : cast.featureTargetMap().entrySet()) {
+			builder.targetForFeature(entry.getKey(), entry.getValue());
+		}
+		// Ensure every cast member appears as a stage role for Phrase/Hero participants
+		for (String id : cast.allObjectIds()) {
+			if (id == null || id.isBlank()) continue;
+			if (!cast.featureTargetMap().containsValue(id)) {
+				builder.targetForFeature("cast:" + id, id);
+			}
+		}
 	}
 
 	private static AutoMapRule withMinGap(AutoMapRule rule, double minGapSeconds) {
@@ -84,8 +93,12 @@ public final class AutoMapConfigFactory {
 		var sys = engine.getStageObjectSystem();
 		if (sys == null) return;
 		List<RuntimeStageObject> stages = new ArrayList<>(sys.getAll());
-		if (stages.size() >= 1) builder.targetForFeature("low", stages.get(0).getId());
-		if (stages.size() >= 2) builder.targetForFeature("mid", stages.get(1).getId());
-		if (stages.size() >= 3) builder.targetForFeature("high", stages.get(2).getId());
+		List<String> ids = new ArrayList<>();
+		for (RuntimeStageObject stage : stages) {
+			if (stage != null && stage.getId() != null && !stage.getId().isBlank()) {
+				ids.add(stage.getId());
+			}
+		}
+		applyTargetIds(builder, ids);
 	}
 }

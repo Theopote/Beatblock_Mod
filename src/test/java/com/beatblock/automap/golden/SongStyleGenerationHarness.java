@@ -54,7 +54,9 @@ public final class SongStyleGenerationHarness {
 			timeline.getBpm(),
 			timeline.getDurationSeconds(),
 			settings.getStyle(),
-			settings.getTargetObjectIds()
+			settings.getTargetObjectIds(),
+			com.beatblock.automap.cast.StageCast.fromTargetIds(settings.getTargetObjectIds()),
+			List.of()
 		);
 		List<CameraShot> cameraShots = settings.isCameraEnabled()
 			? CameraContinuityPlanner.plan(CameraDirector.generateShots(structure.sections(), cameraContext, true))
