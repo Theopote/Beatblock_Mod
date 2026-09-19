@@ -22,6 +22,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -388,5 +389,72 @@ class TimelineGenerationMetadataTest {
 		);
 
 		assertEquals(1, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+	}
+
+	@Test
+	void replaceGeneratedDoesNotRemoveUserEditedOrLockedContent() {
+		Timeline timeline = Timeline.createDefault();
+		TimelineGenerationMetadata userEdited = new TimelineGenerationMetadata(
+			TimelineEventOrigin.USER_EDITED,
+			TimelineGeneratorIds.SMART_AUTOMAP,
+			"gen-edited",
+			0,
+			-1,
+			""
+		);
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 1.0, 2.0,
+			0, 64, 0,
+			8, 4, 0, 90,
+			userEdited,
+			null
+		);
+		var lockedMeta = new TimelineGenerationMetadata(
+			TimelineEventOrigin.GENERATED,
+			TimelineGeneratorIds.SMART_AUTOMAP,
+			"gen-locked",
+			0,
+			-1,
+			""
+		);
+		CameraTrackFactory.addOrbitSegment(
+			timeline, 4.0, 2.0,
+			0, 64, 0,
+			8, 4, 0, 90,
+			lockedMeta,
+			null
+		);
+		var lockedClip = timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().get(1);
+		var head = com.beatblock.timeline.camera.CameraTrackFactory.findSegmentHeadEvent(lockedClip);
+		assertNotNull(head);
+		head.setParameters(TimelineEventOwnership.setLocked(head.getParameters(), true));
+
+		timeline.applyContentReplacePolicy(
+			Timeline.TRACK_ID_CAMERA,
+			ContentReplacePolicy.replaceGenerated()
+		);
+
+		assertEquals(2, timeline.getTrack(Timeline.TRACK_ID_CAMERA).getClips().size());
+	}
+
+	@Test
+	void promoteOnUserEditKeepsGeneratorProvenance() {
+		Map<String, Object> params = TimelineGenerationMetadataSupport.apply(
+			Map.of("animationType", "Pulse"),
+			new TimelineGenerationMetadata(
+				TimelineEventOrigin.GENERATED,
+				TimelineGeneratorIds.SMART_AUTOMAP,
+				"gen-1",
+				2,
+				1,
+				"plan"
+			)
+		);
+		Map<String, Object> promoted = TimelineEventOwnership.promoteOnUserEdit(params);
+		assertEquals(TimelineEventOrigin.USER_EDITED.name(), promoted.get("eventOrigin"));
+		assertEquals(TimelineGeneratorIds.SMART_AUTOMAP, promoted.get(TimelineGenerationMetadataSupport.PARAM_GENERATOR_ID));
+		assertEquals("gen-1", promoted.get(TimelineGenerationMetadataSupport.PARAM_GENERATION_ID));
+		assertFalse(TimelineEventOwnership.isProtectedFromGeneration(params));
+		assertTrue(TimelineEventOwnership.isProtectedFromGeneration(promoted));
 	}
 }

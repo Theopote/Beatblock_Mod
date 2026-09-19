@@ -98,6 +98,9 @@ public final class CommandDescriptions {
 		if (command instanceof QuickStartGenerateCommand) {
 			return BBTexts.get("beatblock.undo.quick_start_generate");
 		}
+		if (command instanceof SmartAutoMapGenerateCommand) {
+			return BBTexts.get("beatblock.undo.smart_automap_generate");
+		}
 		if (command instanceof PasteTimelineEventsCommand) {
 			return BBTexts.get("beatblock.undo.paste_events");
 		}

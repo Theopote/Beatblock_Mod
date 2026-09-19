@@ -5,12 +5,17 @@ import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
 import com.beatblock.timeline.Track;
 import com.beatblock.timeline.editing.AnimationEventSnapshot;
+import com.beatblock.timeline.generation.TimelineEventOwnership;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Map;
+
 /**
  * 更新时间线事件属性、片段时间与相关元数据；支持 Undo/Redo。
+ * <p>
+ * Applying a user edit promotes {@code GENERATED} → {@code USER_EDITED}.
  */
 public final class UpdateAnimationEventCommand implements MergeableCommand {
 
@@ -76,15 +81,15 @@ public final class UpdateAnimationEventCommand implements MergeableCommand {
 
 	@Override
 	public void execute() {
-		apply(after);
+		apply(after, true);
 	}
 
 	@Override
 	public void undo() {
-		apply(before);
+		apply(before, false);
 	}
 
-	private void apply(@Nullable AnimationEventSnapshot snapshot) {
+	private void apply(@Nullable AnimationEventSnapshot snapshot, boolean promoteOnEdit) {
 		if (timeline == null || snapshot == null) return;
 		Track track = timeline.getTrack(trackId);
 		if (track == null) return;
@@ -92,7 +97,22 @@ public final class UpdateAnimationEventCommand implements MergeableCommand {
 		if (clip == null) return;
 		TimelineEvent event = clip.getEvent(eventId);
 		if (event == null) return;
-		snapshot.applyTo(event, clip, timeline);
+		Map<String, Object> parameters = snapshot.parameters();
+		if (promoteOnEdit && !parameters.isEmpty()) {
+			parameters = TimelineEventOwnership.promoteOnUserEdit(parameters);
+		}
+		AnimationEventSnapshot toApply = parameters == snapshot.parameters()
+			? snapshot
+			: new AnimationEventSnapshot(
+				snapshot.timeSeconds(),
+				parameters,
+				snapshot.clipStartSeconds(),
+				snapshot.clipEndSeconds(),
+				snapshot.clipEventTimesById(),
+				snapshot.timelineMetadata(),
+				snapshot.timelineDurationSeconds()
+			);
+		toApply.applyTo(event, clip, timeline);
 		if (isAnimationTrack(trackId)) {
 			timeline.markAnimationEventsDirty(trackId);
 		}

@@ -66,7 +66,9 @@ public final class TimelineGenerationMetadataSupport {
 			? metadata
 			: TimelineGenerationMetadata.manual();
 		copy.put(PARAM_ORIGIN, resolved.origin().name());
-		if (resolved.origin().isGenerated() || resolved.origin().isImported()) {
+		if (resolved.origin().isGenerated()
+			|| resolved.origin().isImported()
+			|| resolved.origin().isUserEdited()) {
 			putIfPresent(copy, PARAM_GENERATOR_ID, resolved.generatorId());
 			putIfPresent(copy, PARAM_GENERATION_ID, resolved.generationId());
 			if (resolved.sectionIndex() >= 0) {

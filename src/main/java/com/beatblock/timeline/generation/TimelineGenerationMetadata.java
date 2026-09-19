@@ -34,6 +34,9 @@ public record TimelineGenerationMetadata(
 		if (origin != null && origin.isGenerated()) {
 			return new TimelineGenerationMetadata(origin, "", "", -1, -1, "");
 		}
+		if (origin != null && origin.isUserEdited()) {
+			return new TimelineGenerationMetadata(origin, "", "", -1, -1, "");
+		}
 		if (origin != null && origin.isImported()) {
 			return new TimelineGenerationMetadata(origin, "", "", -1, -1, "");
 		}

@@ -6,8 +6,11 @@ import com.beatblock.audio.analysis.AudioFeatureTimeline;
 import com.beatblock.audio.analysis.MusicAnalysisAsset;
 import com.beatblock.audio.analysis.MusicAnalysisAssetResolver;
 import com.beatblock.engine.StageObjectSystem;
+import com.beatblock.engine.layer.BuildLayerManager;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.command.CommandManager;
+import com.beatblock.timeline.command.SmartAutoMapGenerateCommand;
 import com.beatblock.timeline.generation.GenerationReapplyGuard;
 import com.beatblock.ui.i18n.BBTexts;
 
@@ -86,9 +89,24 @@ public final class AutoMapSettingsPanelPresenter {
 			return new GenerateOutcome(PresenterResult.failure(blocked), null);
 		}
 		MusicAnalysisAsset analysis = resolveMusicAnalysis();
-		SmartAutoMapEngine.AutoMapResult result = SmartAutoMapEngine.generate(
-			analysis.featureTimeline(), settings, timeline());
-		var editor = context.get().timelineEditor();
+		BeatBlockContext ctx = context.get();
+		Timeline timeline = timeline();
+		BuildLayerManager layers = null;
+		var engine = ctx.blockAnimationEngine();
+		if (engine != null) {
+			layers = engine.getBuildLayerManager();
+		}
+		SmartAutoMapEngine.AutoMapResult result;
+		CommandManager commands = ctx.commandManager();
+		if (commands != null) {
+			SmartAutoMapGenerateCommand command = SmartAutoMapGenerateCommand.runAndCapture(
+				analysis.featureTimeline(), settings, timeline, layers);
+			commands.execute(command);
+			result = command.result();
+		} else {
+			result = SmartAutoMapEngine.generate(analysis.featureTimeline(), settings, timeline);
+		}
+		var editor = ctx.timelineEditor();
 		if (editor != null) {
 			editor.syncClockDuration();
 		}

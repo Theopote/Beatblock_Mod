@@ -12,6 +12,7 @@ class TimelineEventOriginTest {
 	void fromValueParsesCanonicalValues() {
 		assertEquals(TimelineEventOrigin.MANUAL, TimelineEventOrigin.fromValue("MANUAL"));
 		assertEquals(TimelineEventOrigin.GENERATED, TimelineEventOrigin.fromValue("generated"));
+		assertEquals(TimelineEventOrigin.USER_EDITED, TimelineEventOrigin.fromValue("USER_EDITED"));
 		assertEquals(TimelineEventOrigin.IMPORTED, TimelineEventOrigin.fromValue("imported"));
 	}
 
@@ -22,6 +23,12 @@ class TimelineEventOriginTest {
 		assertEquals(TimelineEventOrigin.GENERATED, TimelineEventOrigin.fromValue("AI_GENERATED"));
 		assertEquals(TimelineEventOrigin.GENERATED, TimelineEventOrigin.fromValue("template"));
 		assertEquals(TimelineEventOrigin.GENERATED, TimelineEventOrigin.fromValue("SCRIPT"));
+	}
+
+	@Test
+	void fromValueMapsUserEditedAliases() {
+		assertEquals(TimelineEventOrigin.USER_EDITED, TimelineEventOrigin.fromValue("EDITED"));
+		assertEquals(TimelineEventOrigin.USER_EDITED, TimelineEventOrigin.fromValue("generated_edited"));
 	}
 
 	@Test
@@ -44,8 +51,9 @@ class TimelineEventOriginTest {
 	}
 
 	@Test
-	void replaceableByGenerationExcludesImported() {
+	void replaceableByGenerationOnlyIncludesGenerated() {
 		assertTrue(TimelineEventOrigin.GENERATED.isReplaceableByGeneration());
+		assertFalse(TimelineEventOrigin.USER_EDITED.isReplaceableByGeneration());
 		assertFalse(TimelineEventOrigin.IMPORTED.isReplaceableByGeneration());
 		assertFalse(TimelineEventOrigin.MANUAL.isReplaceableByGeneration());
 	}

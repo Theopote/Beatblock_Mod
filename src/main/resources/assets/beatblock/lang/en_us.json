@@ -1997,5 +1997,6 @@
   "beatblock.wizard.generating.vfx": "Adding effects…",
   "beatblock.wizard.generating.drop": "Creating drop impacts…",
   "beatblock.wizard.generating.finalize": "Finishing up…",
-  "beatblock.undo.quick_start_generate": "Create first performance"
+  "beatblock.undo.quick_start_generate": "Create first performance",
+  "beatblock.undo.smart_automap_generate": "Smart AutoMap"
 }

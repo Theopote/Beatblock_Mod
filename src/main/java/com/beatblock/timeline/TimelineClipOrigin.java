@@ -2,8 +2,10 @@ package com.beatblock.timeline;
 
 import com.beatblock.timeline.camera.CameraTrackFactory;
 import com.beatblock.timeline.generation.ContentReplacePolicy;
+import com.beatblock.timeline.generation.TimelineEventOwnership;
 import com.beatblock.timeline.generation.TimelineGenerationMetadata;
 import com.beatblock.timeline.generation.TimelineGenerationMetadataSupport;
+import com.beatblock.timeline.layer.BuildLayerTrackSupport;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
@@ -25,6 +27,16 @@ public final class TimelineClipOrigin {
 		return TimelineGenerationMetadata.fromParameters(params);
 	}
 
+	public static TimelineGenerationMetadata metadataFromClip(@Nullable Clip clip, @Nullable Track track) {
+		if (clip == null || track == null) {
+			return TimelineGenerationMetadata.manual();
+		}
+		if (BuildLayerTrackSupport.isBuildLayerTrack(track)) {
+			return metadataFromAnimationClip(clip);
+		}
+		return metadataFromClip(clip, track.getId());
+	}
+
 	public static TimelineGenerationMetadata metadataFromClip(@Nullable Clip clip, @Nullable String trackId) {
 		if (clip == null || trackId == null) {
 			return TimelineGenerationMetadata.manual();
@@ -37,7 +49,8 @@ public final class TimelineClipOrigin {
 		}
 		if (Timeline.TRACK_ID_ANIMATION_AUTO.equals(trackId)
 			|| Timeline.TRACK_ID_ANIMATION_BLOCK.equals(trackId)
-			|| Timeline.isBlockAnimationFeatureTrackId(trackId)) {
+			|| Timeline.isBlockAnimationFeatureTrackId(trackId)
+			|| BuildLayerTrackSupport.isBuildLayerTrackId(trackId)) {
 			return metadataFromAnimationClip(clip);
 		}
 		return TimelineGenerationMetadata.manual();
@@ -51,7 +64,46 @@ public final class TimelineClipOrigin {
 		if (clip == null || trackId == null || policy == null) {
 			return false;
 		}
+		if (isClipLocked(clip, trackId)) {
+			return false;
+		}
 		return metadataFromClip(clip, trackId).matches(policy);
+	}
+
+	/** True when replace-generated policies must leave this clip alone. */
+	public static boolean isProtectedFromGeneration(@Nullable Clip clip, @Nullable Track track) {
+		if (clip == null || track == null) {
+			return true;
+		}
+		String trackId = track.getId();
+		if (isClipLocked(clip, trackId)) {
+			return true;
+		}
+		return TimelineEventOwnership.isProtectedFromGeneration(metadataFromClip(clip, track));
+	}
+
+	private static boolean isClipLocked(Clip clip, String trackId) {
+		if (Timeline.TRACK_ID_CAMERA.equals(trackId)) {
+			TimelineEvent segment = CameraTrackFactory.findSegmentHeadEvent(clip);
+			if (segment != null) {
+				return TimelineEventOwnership.isLocked(segment.getParameters());
+			}
+		}
+		for (TimelineEvent event : clip.getEvents()) {
+			if (event == null) continue;
+			if (Timeline.TRACK_ID_GLOBAL.equals(trackId) && event.getType() != EventType.GLOBAL) {
+				continue;
+			}
+			if ((Timeline.TRACK_ID_ANIMATION_AUTO.equals(trackId)
+				|| Timeline.TRACK_ID_ANIMATION_BLOCK.equals(trackId)
+				|| Timeline.isBlockAnimationFeatureTrackId(trackId)
+				|| BuildLayerTrackSupport.isBuildLayerTrackId(trackId))
+				&& event.getType() != EventType.ANIMATION) {
+				continue;
+			}
+			return TimelineEventOwnership.isLocked(event.getParameters());
+		}
+		return false;
 	}
 
 	private static TimelineGenerationMetadata metadataFromCameraClip(Clip clip) {

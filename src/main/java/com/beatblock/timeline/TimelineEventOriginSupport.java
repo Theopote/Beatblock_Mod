@@ -33,6 +33,10 @@ public final class TimelineEventOriginSupport {
 		return generatedOrigin(params);
 	}
 
+	public static Map<String, Object> userEditedOrigin(@Nullable Map<String, Object> params) {
+		return withOrigin(params, TimelineEventOrigin.USER_EDITED);
+	}
+
 	public static Map<String, Object> importedOrigin(@Nullable Map<String, Object> params) {
 		return withOrigin(params, TimelineEventOrigin.IMPORTED);
 	}

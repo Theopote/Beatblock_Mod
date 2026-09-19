@@ -1997,5 +1997,6 @@
   "beatblock.wizard.generating.vfx": "正在添加特效…",
   "beatblock.wizard.generating.drop": "正在生成高潮冲击…",
   "beatblock.wizard.generating.finalize": "正在完成…",
-  "beatblock.undo.quick_start_generate": "创建首次表演"
+  "beatblock.undo.quick_start_generate": "创建首次表演",
+  "beatblock.undo.smart_automap_generate": "Smart AutoMap 生成"
 }

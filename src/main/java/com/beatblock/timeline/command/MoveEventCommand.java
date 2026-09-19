@@ -3,11 +3,17 @@ package com.beatblock.timeline.command;
 import com.beatblock.timeline.Clip;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineEvent;
+import com.beatblock.timeline.generation.TimelineEventOwnership;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Map;
 
 /**
  * 移动事件时间：execute 设为 newTime，undo 恢复 oldTime。
+ * <p>
+ * Forward apply promotes {@code GENERATED} → {@code USER_EDITED}; undo restores prior parameters.
  */
 public final class MoveEventCommand implements MergeableCommand {
 
@@ -20,6 +26,7 @@ public final class MoveEventCommand implements MergeableCommand {
 	private final double oldTimeSeconds;
 	private final double newTimeSeconds;
 	private final long mergeAnchorMs;
+	private @Nullable Map<String, Object> parametersBeforePromote;
 
 	public MoveEventCommand(
 		@NonNull Timeline timeline,
@@ -72,32 +79,41 @@ public final class MoveEventCommand implements MergeableCommand {
 	@Override
 	public @NonNull Command mergeWith(@NonNull Command other) {
 		MoveEventCommand cmd = (MoveEventCommand) other;
-		return new MoveEventCommand(
+		MoveEventCommand merged = new MoveEventCommand(
 			timeline, trackId, clipId, eventId, oldTimeSeconds, cmd.newTimeSeconds, mergeAnchorMs);
+		merged.parametersBeforePromote = this.parametersBeforePromote;
+		return merged;
 	}
 
 	@Override
 	public void execute() {
-		apply(newTimeSeconds);
+		apply(newTimeSeconds, true);
 	}
 
 	@Override
 	public void undo() {
-		apply(oldTimeSeconds);
+		apply(oldTimeSeconds, false);
 	}
 
-	private void apply(double timeSeconds) {
+	private void apply(double timeSeconds, boolean promote) {
 		if (timeline == null) return;
 		var track = timeline.getTrack(trackId);
 		if (track == null) return;
 		Clip clip = track.getClip(clipId);
 		if (clip == null) return;
 		TimelineEvent e = clip.getEvent(eventId);
-		if (e != null) {
-			e.setTimeSeconds(timeSeconds);
-			if (isAnimationTrack(trackId)) {
-				timeline.markAnimationEventsDirty(trackId);
+		if (e == null) return;
+		e.setTimeSeconds(timeSeconds);
+		if (promote) {
+			if (parametersBeforePromote == null) {
+				parametersBeforePromote = Map.copyOf(e.getParameters());
 			}
+			e.setParameters(TimelineEventOwnership.promoteOnUserEdit(e.getParameters()));
+		} else if (parametersBeforePromote != null) {
+			e.setParameters(parametersBeforePromote);
+		}
+		if (isAnimationTrack(trackId)) {
+			timeline.markAnimationEventsDirty(trackId);
 		}
 	}
 
