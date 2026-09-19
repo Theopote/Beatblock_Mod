@@ -2,6 +2,7 @@ package com.beatblock.timeline.editing;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.client.BeatBlockClientDriver;
+import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.project.ProjectSessionState;
 
 import java.util.List;
@@ -50,6 +51,17 @@ public final class TimelineDocumentChangeNotifier {
 			BeatBlockClientDriver.reloadCompiledPlaybackIfDriving();
 		} catch (Throwable error) {
 			BeatBlock.LOGGER.debug("Skip timeline document-change playback refresh", error);
+		}
+		try {
+			var context = BeatBlock.getContext();
+			if (context != null) {
+				Timeline timeline = context.timeline();
+				if (timeline != null) {
+					timeline.bumpDocumentGeneration();
+				}
+			}
+		} catch (Throwable error) {
+			BeatBlock.LOGGER.debug("Skip timeline document-generation bump", error);
 		}
 		for (Listener listener : LISTENERS) {
 			try {

@@ -16,11 +16,11 @@ import net.minecraft.util.math.Vec3d;
 import java.util.Map;
 
 /** 视频导出同步回归用的确定性演出工程。 */
-final class VideoExportSyncFixtures {
+public final class VideoExportSyncFixtures {
 
 	private VideoExportSyncFixtures() {}
 
-	static CompiledTimelineSnapshot tenSecondShowcase() {
+	public static CompiledTimelineSnapshot tenSecondShowcase() {
 		Timeline timeline = Timeline.createDefault();
 		timeline.setDurationSeconds(20.0);
 		timeline.setMetadata("audioPath", "golden://audio/export-sync.wav");
@@ -75,7 +75,7 @@ final class VideoExportSyncFixtures {
 		return TimelineCompiler.compile(timeline, engine, null);
 	}
 
-	static Vec3d cameraAnchor() {
+	public static Vec3d cameraAnchor() {
 		return new Vec3d(0.0, 64.0, 0.0);
 	}
 }

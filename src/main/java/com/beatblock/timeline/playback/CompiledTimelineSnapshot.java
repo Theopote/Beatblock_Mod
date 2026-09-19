@@ -26,7 +26,7 @@ public final class CompiledTimelineSnapshot {
 	private final double bpm;
 	private final double durationSeconds;
 	private final boolean restoreWorldMutations;
-	private final int sourceGeneration;
+	private final long sourceDocumentGeneration;
 	private final @Nullable TimelineValidationReport validationReport;
 	private CompiledProgramMetadata metadata = CompiledProgramMetadata.unknown();
 
@@ -42,7 +42,7 @@ public final class CompiledTimelineSnapshot {
 		double bpm,
 		double durationSeconds,
 		boolean restoreWorldMutations,
-		int sourceGeneration,
+		long sourceDocumentGeneration,
 		@Nullable TimelineValidationReport validationReport
 	) {
 		this.stageEvents = List.copyOf(stageEvents != null ? stageEvents : List.of());
@@ -58,7 +58,7 @@ public final class CompiledTimelineSnapshot {
 		this.bpm = bpm;
 		this.durationSeconds = durationSeconds;
 		this.restoreWorldMutations = restoreWorldMutations;
-		this.sourceGeneration = sourceGeneration;
+		this.sourceDocumentGeneration = sourceDocumentGeneration;
 		this.validationReport = validationReport;
 	}
 
@@ -126,8 +126,16 @@ public final class CompiledTimelineSnapshot {
 		return restoreWorldMutations;
 	}
 
+	public long sourceDocumentGeneration() {
+		return sourceDocumentGeneration;
+	}
+
+	/** @deprecated 使用 {@link #sourceDocumentGeneration()} */
+	@Deprecated
 	public int sourceGeneration() {
-		return sourceGeneration;
+		return sourceDocumentGeneration > Integer.MAX_VALUE
+			? Integer.MAX_VALUE
+			: (int) sourceDocumentGeneration;
 	}
 
 	/** Validation report captured at compile time; may be null for legacy empty snapshots. */

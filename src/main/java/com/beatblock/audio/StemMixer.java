@@ -156,6 +156,28 @@ public final class StemMixer implements IAudioPlayer {
 
 	// ── IAudioPlayer ─────────────────────────────────────────────────────────
 
+	/** 导出会话恢复：捕获当前各 stem 增益。 */
+	public synchronized Map<String, Float> snapshotStemGains() {
+		Map<String, Float> gains = new LinkedHashMap<>();
+		for (StemTrack track : stems.values()) {
+			gains.put(track.key, track.gain);
+		}
+		return gains;
+	}
+
+	/** 导出会话恢复：按捕获值还原 stem 增益（无 stem 时 no-op）。 */
+	public synchronized void restoreStemGains(@Nullable Map<String, Float> gains) {
+		if (gains == null || gains.isEmpty()) {
+			return;
+		}
+		for (Map.Entry<String, Float> entry : gains.entrySet()) {
+			Float volume = entry.getValue();
+			if (volume != null) {
+				setStemVolume(entry.getKey(), volume);
+			}
+		}
+	}
+
 	/** Applies immediate gain to one stem, or every stem when key is "master". */
 	public synchronized boolean setStemVolume(@Nullable String key, float volume) {
 		if (!Float.isFinite(volume)) return false;

@@ -216,7 +216,10 @@ public final class VideoExportPreflight {
 	}
 
 	/**
-	 * Preflight 快照是否仍对应当前 Timeline（以 stageEventsGeneration 为 stale 判据）。
+	 * Preflight 快照是否仍对应当前 Timeline（以 {@link Timeline#getDocumentGeneration()} 为 stale 判据）。
+	 * <p>
+	 * 比 {@link Timeline#getStageEventsGeneration()} 更广：Camera / VFX / Marker / Audio / BPM 等
+	 * 不影响 stage cache 的编辑也会使快照失效，避免 Preview ≠ Export。
 	 */
 	public static boolean isSnapshotCurrent(
 		@Nullable CompiledTimelineSnapshot snapshot,
@@ -225,7 +228,7 @@ public final class VideoExportPreflight {
 		if (snapshot == null || timeline == null) {
 			return false;
 		}
-		return snapshot.sourceGeneration() == timeline.getStageEventsGeneration();
+		return snapshot.sourceDocumentGeneration() == timeline.getDocumentGeneration();
 	}
 
 	private static Status finishStatus(

@@ -3,9 +3,13 @@ package com.beatblock.client;
 import com.beatblock.BeatBlock;
 import com.beatblock.automap.vfx.ActiveGlobalEffectState;
 import com.beatblock.automap.vfx.EnvironmentLightingRuntime;
+import com.beatblock.client.export.ExportPresentationSnapshot;
+import com.beatblock.client.export.ExportVfxState;
 import com.beatblock.client.vfx.VfxEmitter;
 import com.beatblock.client.render.GlobalVisualEffectOverlay;
+import com.beatblock.client.camera.CameraRuntime;
 import com.beatblock.engine.BlockControlExecutor;
+import com.beatblock.engine.ScrubPreviewOverlay;
 import com.beatblock.engine.WorldMutationSink;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.ReferenceBeatResolver;
@@ -78,14 +82,21 @@ public final class BeatBlockClientDriver {
 	private @org.jspecify.annotations.Nullable CompiledTimelineSnapshot compiledPlayback;
 	/** Phase C: formal play advances only over the compiled program. */
 	private final PlaybackEngine playbackEngine = new PlaybackEngine();
+	/** Scrub 预览专用：与正式播放隔离，避免游标互相污染。 */
+	private final PlaybackEngine previewPlaybackEngine = new PlaybackEngine();
+	private @org.jspecify.annotations.Nullable CompiledTimelineSnapshot previewCompiledPlayback;
+	private volatile long lastPreviewDocumentGeneration = -1L;
 	/** Compile policy chosen when driving started; reused for hot-reload. */
 	private CompilePolicy drivingCompilePolicy = CompilePolicy.STRICT;
 	private final GlobalEventExecutor globalEventExecutor;
 	private static final double TIMELINE_EVENT_EPSILON = 1e-4;
 	private volatile double lastStageEventTime;
+	/** 视频导出期间隔离 live presentation，帧捕获后再恢复 {@link #exportPresentationSnapshot}。 */
+	private volatile boolean exportPresentationIsolated;
+	private @org.jspecify.annotations.Nullable ExportPresentationSnapshot exportPresentationSnapshot;
 	/**
 	 * 播放时每帧 BUILD 世界写入上限，避免单 tick 放置海量方块卡顿。
-	 * 预览路径使用 {@link WorldMutationSink#NO_OP}，不受此预算影响。
+	 * 预览路径使用 {@link WorldMutationSink#visualPreview}，不受此预算影响。
 	 */
 	private static final int PLAYBACK_MUTATION_BUDGET_PER_TICK = 768;
 	private final Map<BlockPos, BlockState> timelineMutationSnapshot = new HashMap<>();
@@ -113,6 +124,21 @@ public final class BeatBlockClientDriver {
 
 	static int scheduledStageCountForTests() {
 		return instance != null ? instance.playbackEngine.scheduledStageCount() : 0;
+	}
+
+	/** 单元测试：驱动 scrub 预览 reconstruct（不写世界）。 */
+	static void syncPreviewStageForTests(double timeSeconds) {
+		requireInstance().syncPreviewStageForTestsInternal(timeSeconds);
+	}
+
+	private void syncPreviewStageForTestsInternal(double timeSeconds) {
+		ClientThreadGuard.assertClientThread();
+		var timeline = ctx().timeline();
+		var engine = ctx().blockAnimationEngine();
+		if (timeline == null || engine == null) {
+			return;
+		}
+		syncStageEventsPreview(timeSeconds, timeline, engine);
 	}
 
 	/** Advances formal playback to {@code timeSeconds} while driving (test helper). */
@@ -160,7 +186,13 @@ public final class BeatBlockClientDriver {
 			engine.setRuntimeCameraPosition(camera.getCameraPos());
 			engine.setRuntimeCameraOrientation(camera.getYaw(), camera.getPitch());
 		}
-		com.beatblock.client.camera.TimelineCameraController.getInstance().tick();
+		if (!exportPresentationIsolated) {
+			com.beatblock.client.camera.TimelineCameraController.getInstance().tick();
+		}
+
+		if (exportPresentationIsolated) {
+			return;
+		}
 
 		if (driving) {
 			if (world == null) return;
@@ -195,9 +227,9 @@ public final class BeatBlockClientDriver {
 		}
 		syncStageEvents(currentTime, previewOnly);
 		WorldMutationSink sink = previewOnly
-			? WorldMutationSink.NO_OP
+			? WorldMutationSink.visualPreview(engine.getAnimationPlayer())
 			: BeatBlockAuthoritativeWorldMutator.sinkFor(engine.getBlockControlExecutor(), world);
-		engine.tick(currentTime, previewOnly ? null : world, sink);
+		engine.tick(currentTime, world, sink);
 		if (!previewOnly && world != null) {
 			VfxEmitter.emit(MinecraftClient.getInstance(), engine.getLastInfluenceFrame());
 		}
@@ -289,6 +321,9 @@ public final class BeatBlockClientDriver {
 
 	/** Clear screen overlays + environment lighting before reconstruct. */
 	private void clearGlobalVfxPresentation() {
+		if (exportPresentationIsolated) {
+			return;
+		}
 		GlobalVisualEffectOverlay.clear();
 		EnvironmentLightingRuntime.clear();
 	}
@@ -298,6 +333,9 @@ public final class BeatBlockClientDriver {
 	 * (seek + forward expiry). Particle impulses are never reconstructed here.
 	 */
 	private void syncStatefulGlobalVfxAt(double timeSeconds) {
+		if (exportPresentationIsolated) {
+			return;
+		}
 		if (compiledPlayback == null) {
 			GlobalVisualEffectOverlay.clearScreenTint();
 			GlobalVisualEffectOverlay.clearScreenFlash();
@@ -372,6 +410,37 @@ public final class BeatBlockClientDriver {
 		requireInstance().stopPlaybackInternal();
 	}
 
+	/** 导出启动：仅暂停音频/驱动，不清除 Camera 与 VFX（由 {@link #beginExportPresentation()} 隔离）。 */
+	public static void stopPlaybackForExport() {
+		requireInstance().stopPlaybackForExportInternal();
+	}
+
+	public static boolean isExportPresentationIsolated() {
+		return requireInstance().exportPresentationIsolated;
+	}
+
+	/** 单帧捕获完成后恢复编辑态 presentation，供下一帧 seek 继续使用隔离路径。 */
+	public static void restoreIsolatedPresentationAfterExportFrame() {
+		requireInstance().restoreIsolatedPresentationAfterExportFrameInternal();
+	}
+
+	private void stopPlaybackForExportInternal() {
+		ClientThreadGuard.assertClientThread();
+		var musicPlayer = ctx().musicPlayer();
+		if (musicPlayer != null) {
+			musicPlayer.pause();
+		}
+		var stemMixer = ctx().stemMixer();
+		if (stemMixer != null && stemMixer.hasStems()) {
+			stemMixer.pause();
+		}
+		driving = false;
+		drivingCompilePolicy = CompilePolicy.STRICT;
+		resetTimelineAnimationScheduling();
+		playbackEngine.reset();
+		compiledPlayback = null;
+	}
+
 	private void stopPlaybackInternal() {
 		ClientThreadGuard.assertClientThread();
 		var musicPlayer = ctx().musicPlayer();
@@ -405,6 +474,33 @@ public final class BeatBlockClientDriver {
 		requireInstance().prepareExportFrameFromSnapshotInternal(snapshot, timeSeconds);
 	}
 
+	/** 导出开始前捕获客户端呈现态（世界 mutation 由 scheduling reset 恢复）。 */
+	public static ExportPresentationSnapshot beginExportPresentation() {
+		return requireInstance().beginExportPresentationInternal();
+	}
+
+	/**
+	 * 结束视频导出：恢复世界 mutation、Camera、Weather、Lighting、Overlay、AudioMix 与 seek。
+	 */
+	public static void endExportPresentation(ExportPresentationSnapshot snapshot) {
+		requireInstance().endExportPresentationInternal(snapshot);
+	}
+
+	/** @deprecated 使用 {@link #endExportPresentation(ExportPresentationSnapshot)} */
+	@Deprecated
+	public static void endExportPresentation(double restoreTimelineTimeSeconds) {
+		endExportPresentation(new ExportPresentationSnapshot(
+			restoreTimelineTimeSeconds,
+			EnvironmentLightingRuntime.State.NEUTRAL,
+			0f,
+			0f,
+			Map.of(),
+			CameraRuntime.Owner.PLAYER,
+			null,
+			null
+		));
+	}
+
 	private void prepareExportFrameInternal(double timeSeconds) {
 		ClientThreadGuard.assertClientThread();
 		stopPlaybackInternal();
@@ -415,6 +511,158 @@ public final class BeatBlockClientDriver {
 		if (world != null) {
 			tickBlockAnimationEngine(timeSeconds, true, world);
 		}
+	}
+
+	private ExportPresentationSnapshot beginExportPresentationInternal() {
+		ClientThreadGuard.assertClientThread();
+		double seekSeconds = previewTimelineTimeSeconds();
+		MinecraftClient client = MinecraftClient.getInstance();
+		World world = client != null ? client.world : null;
+		float rain = 0f;
+		float thunder = 0f;
+		if (world != null) {
+			rain = world.getRainGradient(0f);
+			thunder = world.getThunderGradient(0f);
+		}
+		Map<String, Float> stemGains = Map.of();
+		var mixer = ctx().stemMixer();
+		if (mixer != null) {
+			stemGains = mixer.snapshotStemGains();
+		}
+		CameraRuntime.Owner owner = CameraRuntime.getInstance().isTimelineOwner()
+			? CameraRuntime.Owner.TIMELINE
+			: CameraRuntime.Owner.PLAYER;
+		var snapshot = new ExportPresentationSnapshot(
+			seekSeconds,
+			EnvironmentLightingRuntime.current(),
+			rain,
+			thunder,
+			stemGains,
+			owner,
+			CameraRuntime.getInstance().getCurrentSample(),
+			captureExportVfxStateAt(seekSeconds)
+		);
+		exportPresentationIsolated = true;
+		exportPresentationSnapshot = snapshot;
+		freezeIsolatedPresentation(snapshot);
+		return snapshot;
+	}
+
+	private void freezeIsolatedPresentation(ExportPresentationSnapshot snapshot) {
+		restoreExportPresentationSnapshot(snapshot);
+		restoreExportCamera(snapshot);
+	}
+
+	private @org.jspecify.annotations.Nullable ExportVfxState captureExportVfxStateAt(double seekSeconds) {
+		var timeline = ctx().timeline();
+		if (timeline == null) {
+			return null;
+		}
+		try {
+			CompiledTimelineSnapshot program = TimelineCompiler.compile(
+				timeline,
+				ctx().blockAnimationEngine(),
+				ctx().buildLayerManager()
+			);
+			return ExportVfxState.resolve(program.globalEvents(), seekSeconds);
+		} catch (TimelineCompilationException ex) {
+			return null;
+		}
+	}
+
+	private void endExportPresentationInternal(ExportPresentationSnapshot snapshot) {
+		ClientThreadGuard.assertClientThread();
+		exportPresentationIsolated = false;
+		exportPresentationSnapshot = null;
+		if (snapshot == null) {
+			resetTimelineAnimationScheduling();
+			clearGlobalVfxPresentation();
+			com.beatblock.client.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
+			seekPreviewClock(0.0);
+			driving = false;
+			drivingCompilePolicy = CompilePolicy.STRICT;
+			compiledPlayback = null;
+			playbackEngine.reset();
+			return;
+		}
+		resetTimelineAnimationScheduling();
+		restoreExportPresentationSnapshot(snapshot);
+		com.beatblock.client.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
+		seekPreviewClock(snapshot.restoreTimelineTimeSeconds());
+		driving = false;
+		drivingCompilePolicy = CompilePolicy.STRICT;
+		compiledPlayback = null;
+		playbackEngine.reset();
+	}
+
+	private void restoreExportPresentationSnapshot(ExportPresentationSnapshot snapshot) {
+		var lighting = snapshot.environmentLighting().toPayload("export-restore");
+		EnvironmentLightingRuntime.sync(lighting);
+		GlobalVisualEffectOverlay.syncEnvironmentLighting(lighting);
+		restoreExportVfxOverlays(snapshot.vfxState(), snapshot.restoreTimelineTimeSeconds());
+		restoreClientWeather(snapshot.rainGradient(), snapshot.thunderGradient());
+		var mixer = ctx().stemMixer();
+		if (mixer != null) {
+			mixer.restoreStemGains(snapshot.stemGains());
+		}
+	}
+
+	private void restoreExportCamera(ExportPresentationSnapshot snapshot) {
+		var runtime = CameraRuntime.getInstance();
+		var sample = snapshot.preExportCameraSample();
+		if (snapshot.cameraOwner() == CameraRuntime.Owner.TIMELINE && sample != null) {
+			runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+			runtime.applyTimelineSample(sample);
+			return;
+		}
+		runtime.setOwner(CameraRuntime.Owner.PLAYER);
+		if (sample != null) {
+			runtime.syncPlayerToSample(sample);
+		}
+	}
+
+	private void restoreIsolatedPresentationAfterExportFrameInternal() {
+		if (!exportPresentationIsolated || exportPresentationSnapshot == null) {
+			return;
+		}
+		restoreTimelineMutationSnapshot();
+		var engine = ctx().blockAnimationEngine();
+		if (engine != null) {
+			engine.clear();
+		}
+		freezeIsolatedPresentation(exportPresentationSnapshot);
+	}
+
+	private void restoreExportVfxOverlays(
+		@org.jspecify.annotations.Nullable ExportVfxState vfx,
+		double timelineTimeSeconds
+	) {
+		GlobalVisualEffectOverlay.clearScreenTint();
+		GlobalVisualEffectOverlay.clearScreenFlash();
+		if (vfx == null) {
+			return;
+		}
+		if (vfx.activeTint() != null
+			&& vfx.activeTint().payload() instanceof GlobalEventPayload.ScreenTint tint) {
+			GlobalVisualEffectOverlay.syncScreenTint(tint);
+		}
+		if (vfx.activeFlash() != null
+			&& vfx.activeFlash().payload() instanceof GlobalEventPayload.ScreenFlash flash) {
+			GlobalVisualEffectOverlay.syncScreenFlash(
+				flash,
+				vfx.activeFlash().timeSeconds(),
+				timelineTimeSeconds
+			);
+		}
+	}
+
+	private void restoreClientWeather(float rainGradient, float thunderGradient) {
+		MinecraftClient client = MinecraftClient.getInstance();
+		if (client == null || client.world == null) {
+			return;
+		}
+		client.world.setRainGradient(Math.max(0f, Math.min(1f, rainGradient)));
+		client.world.setThunderGradient(Math.max(0f, Math.min(1f, thunderGradient)));
 	}
 
 	private void prepareExportFrameFromSnapshotInternal(CompiledTimelineSnapshot snapshot, double timeSeconds) {
@@ -442,6 +690,9 @@ public final class BeatBlockClientDriver {
 	}
 
 	private void seekPreviewClock(double timeSeconds) {
+		if (exportPresentationIsolated) {
+			return;
+		}
 		var editor = ctx().timelineEditor();
 		if (editor != null) {
 			editor.getPlaybackSession().seek(timeSeconds);
@@ -520,35 +771,44 @@ public final class BeatBlockClientDriver {
 
 	private void syncStageEventsPreview(double currentTime, com.beatblock.timeline.Timeline timeline,
 		com.beatblock.engine.BlockAnimationEngine engine) {
-		if (currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime) {
+		long documentGeneration = timeline.getDocumentGeneration();
+		int stageGeneration = timeline.getStageEventsGeneration();
+		boolean rewinding = currentTime + TIMELINE_EVENT_EPSILON < lastStageEventTime;
+		if (rewinding
+			|| documentGeneration != lastPreviewDocumentGeneration
+			|| stageGeneration != lastStageEventsGeneration) {
 			resetTimelineAnimationScheduling();
+			previewCompiledPlayback = null;
+			lastPreviewDocumentGeneration = documentGeneration;
 		}
-		List<TimelineAnimationEvent> events = timeline.getStageEvents();
-		double[] referenceBeats = readReferenceBeatTimes();
-		double bpm = timeline.getBpm() > 0 ? timeline.getBpm() : 120.0;
-		int generation = timeline.getStageEventsGeneration();
-		if (generation != lastStageEventsGeneration) {
-			stageEventCursor.set(0);
-			lastStageEventsGeneration = generation;
+
+		CompiledTimelineSnapshot playback = previewCompiledPlayback;
+		if (playback == null) {
+			playback = TimelineCompiler.compile(timeline, engine, ctx().buildLayerManager());
+			previewCompiledPlayback = playback;
+			previewPlaybackEngine.load(playback);
 		}
-		int cursor = stageEventCursor.get();
-		if (cursor < 0 || cursor > events.size()) {
-			cursor = 0;
-			stageEventCursor.set(0);
+
+		engine.clear();
+		var buildSequencer = engine.getBuildSequencer();
+		if (buildSequencer != null) {
+			buildSequencer.setTimeline(timeline);
+			buildSequencer.setMutationBudgetPerTick(Integer.MAX_VALUE);
 		}
-		while (cursor < events.size()) {
-			TimelineAnimationEvent event = events.get(cursor);
-			if (event.getTimeSeconds() > currentTime + TIMELINE_EVENT_EPSILON) {
-				break;
-			}
-			String key = scheduleKey(event);
-			if (scheduledStageEventIds.add(key)) {
-				applyTimelineActionEvent(event, null, true, referenceBeats, bpm);
-			}
-			cursor++;
-		}
-		stageEventCursor.set(cursor);
+
+		double[] referenceBeats = playback.referenceBeatTimesSeconds();
+		double bpm = playback.bpm();
+		PlaybackEngine.StageEventHandler stageHandler =
+			(compiled, event) -> applyTimelineActionEvent(event, compiled, true, referenceBeats, bpm);
+		previewPlaybackEngine.seek(
+			currentTime,
+			SeekMode.RECONSTRUCT_STATE,
+			stageHandler,
+			ignored -> {}
+		);
+
 		lastStageEventTime = currentTime;
+		lastStageEventsGeneration = stageGeneration;
 	}
 
 	private GlobalEventExecutor createGlobalEventExecutor() {
@@ -574,7 +834,7 @@ public final class BeatBlockClientDriver {
 	}
 
 	private void onCompiledGlobalEvent(CompiledGlobalEvent event) {
-		if (event == null) return;
+		if (event == null || exportPresentationIsolated) return;
 		GlobalEventExecutor.ExecutionResult execution = globalEventExecutor.execute(event);
 		lastTimelineActionExecutionReport = new TimelineActionExecutionReport(
 			System.currentTimeMillis(), event.id(), "", TimelineAnimationActionMode.ANIMATE, 0,
@@ -648,11 +908,8 @@ public final class BeatBlockClientDriver {
 			recordActionReport(event, 0, "SKIPPED", "energy-below-threshold");
 			return;
 		}
-		TimelineAnimationActionMode actionMode = event.getActionMode();
-		if (previewOnly && actionMode != TimelineAnimationActionMode.ANIMATE) {
-			return;
-		}
-		if (actionMode == TimelineAnimationActionMode.ANIMATE) {
+			TimelineAnimationActionMode actionMode = event.getActionMode();
+			if (actionMode == TimelineAnimationActionMode.ANIMATE) {
 			var compiled = compiledHint != null ? compiledHint : compiledStageEvent(event);
 			if (!previewOnly && compiled != null) {
 				engine.scheduleTimelineEvent(compiled, referenceBeats, bpm);
@@ -663,39 +920,47 @@ public final class BeatBlockClientDriver {
 			return;
 		}
 
-		if (actionMode == TimelineAnimationActionMode.BUILD) {
-			var inst = engine.getBuildSequencer().schedule(event);
-			if (inst != null) {
-				recordActionReport(event, inst.getTotalBlocks(), "BUILD", "scheduled-" + inst.getTotalBlocks() + "-blocks");
-			} else {
-				recordActionReport(event, 0, "SKIPPED", "build-no-target");
+			if (actionMode == TimelineAnimationActionMode.BUILD) {
+				var inst = engine.getBuildSequencer().schedule(event);
+				if (inst != null) {
+					String detail = previewOnly
+						? "preview-scheduled-" + inst.getTotalBlocks() + "-blocks"
+						: "scheduled-" + inst.getTotalBlocks() + "-blocks";
+					recordActionReport(event, inst.getTotalBlocks(), "BUILD", detail);
+				} else {
+					recordActionReport(event, 0, "SKIPPED", "build-no-target");
+				}
+				return;
 			}
-			return;
-		}
 
-		MinecraftClient mc = MinecraftClient.getInstance();
-		World world = mc != null ? mc.world : null;
-		if (world == null) {
-			recordActionReport(event, 0, "SKIPPED", "no-world");
-			return;
+			MinecraftClient mc = MinecraftClient.getInstance();
+			World world = mc != null ? mc.world : null;
+			if (world == null) {
+				recordActionReport(event, 0, "SKIPPED", "no-world");
+				return;
+			}
+			var plan = engine.planControl(event, world);
+			var mutations = plan.mutations();
+			if (mutations.isEmpty()) {
+				String detail = plan.skipReason() != null
+					? "skip-" + plan.skipReason().name().toLowerCase(Locale.ROOT)
+					: "skip-no-change";
+				recordActionReport(event, 0, "SKIPPED", detail);
+				return;
+			}
+			if (previewOnly) {
+				ScrubPreviewOverlay.applyMutations(engine.getAnimationPlayer(), mutations);
+				recordActionReport(event, mutations.size(), "PREVIEW", "overlay");
+				return;
+			}
+			for (BlockControlExecutor.BlockMutation mutation : mutations) {
+				captureTimelineMutationOriginalState(world, mutation.pos(), mutation.fromState());
+			}
+			WorldMutationSink sink = BeatBlockAuthoritativeWorldMutator.sinkFor(
+				engine.getBlockControlExecutor(), world);
+			engine.applyControlMutations(mutations, sink);
+			recordActionReport(event, mutations.size(), "APPLIED", "ok");
 		}
-		var plan = engine.planControl(event, world);
-		var mutations = plan.mutations();
-		if (mutations.isEmpty()) {
-			String detail = plan.skipReason() != null
-				? "skip-" + plan.skipReason().name().toLowerCase(Locale.ROOT)
-				: "skip-no-change";
-			recordActionReport(event, 0, "SKIPPED", detail);
-			return;
-		}
-		for (BlockControlExecutor.BlockMutation mutation : mutations) {
-			captureTimelineMutationOriginalState(world, mutation.pos(), mutation.fromState());
-		}
-		WorldMutationSink sink = BeatBlockAuthoritativeWorldMutator.sinkFor(
-			engine.getBlockControlExecutor(), world);
-		engine.applyControlMutations(mutations, sink);
-		recordActionReport(event, mutations.size(), "APPLIED", "ok");
-	}
 
 	private @org.jspecify.annotations.Nullable CompiledStageEvent compiledStageEvent(
 		TimelineAnimationEvent event) {
@@ -797,6 +1062,9 @@ public final class BeatBlockClientDriver {
 			// Soft rewind path: re-load same program to clear engine cursors without dropping snapshot
 			playbackEngine.load(compiledPlayback);
 		}
+		previewCompiledPlayback = null;
+		lastPreviewDocumentGeneration = -1L;
+		previewPlaybackEngine.reset();
 		var engine = ctx().blockAnimationEngine();
 		if (engine != null) {
 			engine.clear();

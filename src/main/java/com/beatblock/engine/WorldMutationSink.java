@@ -24,6 +24,16 @@ public interface WorldMutationSink {
 	WorldMutationSink NO_OP = mutations -> {};
 
 	/**
+	 * Scrub 预览：mutation 转为 {@link AnimatedBlock} 外观覆盖，不写世界。
+	 */
+	static WorldMutationSink visualPreview(@org.jspecify.annotations.Nullable AnimationPlayer animationPlayer) {
+		if (animationPlayer == null) {
+			return NO_OP;
+		}
+		return mutations -> ScrubPreviewOverlay.applyMutations(animationPlayer, mutations);
+	}
+
+	/**
 	 * 兜底实现：同步直接写入给定 World，不做权威世界解析，不保证线程安全或持久化。
 	 * 仅用于离线测试，或尚未迁移到 {@code BeatBlockAuthoritativeWorldMutator} 的旧调用路径
 	 * （见各处标记 {@code @Deprecated} 的兼容重载）。

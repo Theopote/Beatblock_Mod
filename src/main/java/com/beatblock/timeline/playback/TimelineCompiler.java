@@ -125,14 +125,14 @@ public final class TimelineCompiler {
 			bpm,
 			duration,
 			shouldRestoreWorldMutations(document),
-			document.getStageEventsGeneration(),
+			document.getDocumentGeneration(),
 			report
 		);
 		String sourceFingerprint = CompiledProgramFingerprint.compute(snapshot);
 		snapshot.attachMetadata(new CompiledProgramMetadata(
 			COMPILER_VERSION,
 			String.valueOf(document.getMetadata("projectId") != null ? document.getMetadata("projectId") : ""),
-			document.getStageEventsGeneration(),
+			document.getDocumentGeneration(),
 			sourceFingerprint,
 			presetCatalogFingerprint(engine)
 		));

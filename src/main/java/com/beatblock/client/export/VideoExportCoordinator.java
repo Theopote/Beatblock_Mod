@@ -51,6 +51,7 @@ public final class VideoExportCoordinator {
 	private VideoExportFrameState pendingFrameState;
 	private CompiledTimelineSnapshot exportProgram;
 	private ExportRenderTarget exportRenderTarget;
+	private ExportPresentationSession presentationSession;
 
 	private VideoExportCoordinator() {}
 
@@ -98,6 +99,8 @@ public final class VideoExportCoordinator {
 		this.cancelRequested = false;
 		this.pendingWarmupFrames = 2;
 		this.phase = Phase.PREPARING;
+		this.presentationSession = ExportPresentationSession.begin();
+		BeatBlockClientDriver.stopPlaybackForExport();
 
 		int nativeWidth = Math.max(1, client.getWindow().getFramebufferWidth());
 		int nativeHeight = Math.max(1, client.getWindow().getFramebufferHeight());
@@ -141,7 +144,6 @@ public final class VideoExportCoordinator {
 				audioPath != null ? exportSettings.startTimeSeconds() : 0.0,
 				(message, percent) -> updateProgress(VideoExportProgress.State.RUNNING, message, percent)
 			);
-			BeatBlockClientDriver.stopPlayback();
 			var context = BeatBlock.getContext();
 			this.exportProgram = resolveExportProgram(preflightProgram, context);
 			scheduleNextFrame();
@@ -206,6 +208,7 @@ public final class VideoExportCoordinator {
 				);
 			}
 			encoder.writeFrame(rgba);
+			BeatBlockClientDriver.restoreIsolatedPresentationAfterExportFrame();
 			nextFrameIndex++;
 			updateProgress(
 				VideoExportProgress.State.RUNNING,
@@ -322,6 +325,7 @@ public final class VideoExportCoordinator {
 	}
 
 	private void cleanup() {
+		closePresentationSession();
 		if (exportRenderTarget != null) {
 			exportRenderTarget.close();
 			exportRenderTarget = null;
@@ -338,6 +342,19 @@ public final class VideoExportCoordinator {
 		outputPath = null;
 		nextFrameIndex = 0;
 		cancelRequested = false;
+	}
+
+	private void closePresentationSession() {
+		if (presentationSession == null) {
+			return;
+		}
+		try {
+			presentationSession.close();
+		} catch (RuntimeException e) {
+			LOGGER.warn("Failed to restore editor presentation after video export", e);
+		} finally {
+			presentationSession = null;
+		}
 	}
 
 	private void updateProgress(VideoExportProgress.State state, String message, int percent) {

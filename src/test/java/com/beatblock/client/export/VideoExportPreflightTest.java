@@ -1,6 +1,7 @@
 package com.beatblock.client.export;
 
 import com.beatblock.engine.BlockAnimationEngine;
+import com.beatblock.timeline.CameraKeyframe;
 import com.beatblock.timeline.Timeline;
 import com.beatblock.timeline.TimelineAnimationEvent;
 import com.beatblock.timeline.playback.TimelineDiagnostic;
@@ -81,7 +82,24 @@ class VideoExportPreflightTest {
 		));
 		assertTrue(status.canExport());
 		assertNotNull(status.compiledSnapshot());
-		assertEquals(timeline.getStageEventsGeneration(), status.compiledSnapshot().sourceGeneration());
+		assertEquals(timeline.getDocumentGeneration(), status.compiledSnapshot().sourceDocumentGeneration());
+	}
+
+	@Test
+	void cameraEditInvalidatesPreflightSnapshotWithoutStageGenerationChange() {
+		Timeline timeline = Timeline.createDefault();
+		timeline.setDurationSeconds(10);
+		var status = VideoExportPreflight.evaluate(timeline, null, null);
+		assertNotNull(status.compiledSnapshot());
+		int stageGeneration = timeline.getStageEventsGeneration();
+		long documentGeneration = timeline.getDocumentGeneration();
+		assertTrue(VideoExportPreflight.isSnapshotCurrent(status.compiledSnapshot(), timeline));
+
+		timeline.addCameraKeyframe(new CameraKeyframe(2.0));
+
+		assertEquals(stageGeneration, timeline.getStageEventsGeneration());
+		assertTrue(timeline.getDocumentGeneration() > documentGeneration);
+		assertFalse(VideoExportPreflight.isSnapshotCurrent(status.compiledSnapshot(), timeline));
 	}
 
 	@Test
