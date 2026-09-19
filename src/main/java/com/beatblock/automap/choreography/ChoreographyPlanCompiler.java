@@ -397,7 +397,8 @@ public final class ChoreographyPlanCompiler {
 		);
 		int cameras = compileCameraEvents(timeline, plan, compileOptions.cameraMode(), session);
 		int vfx = compileVfxEvents(timeline, plan, compileOptions.vfxMode(), session);
-		return new SmartAutoMapCompileResult(animations, cameras, vfx, session.generationId());
+		int builds = BuildSequenceCompiler.compile(timeline, plan);
+		return new SmartAutoMapCompileResult(animations, cameras, vfx, builds, session.generationId());
 	}
 
 	/**
@@ -409,7 +410,7 @@ public final class ChoreographyPlanCompiler {
 		int sectionIndex
 	) {
 		if (timeline == null || plan == null || sectionIndex < 0) {
-			return new SmartAutoMapCompileResult(0, 0, 0, "");
+			return new SmartAutoMapCompileResult(0, 0, 0, 0, "");
 		}
 		return compileAll(
 			timeline,
@@ -429,18 +430,44 @@ public final class ChoreographyPlanCompiler {
 			plan.sectionEdits(),
 			plan.musicalStructure(),
 			ChoreographyPlanEditor.spatialMotifPhrasesInSection(plan, sectionIndex),
-			ChoreographyPlanEditor.choreographyPhrasesInSection(plan, sectionIndex)
+			ChoreographyPlanEditor.choreographyPhrasesInSection(plan, sectionIndex),
+			buildSequencesInSection(plan, sectionIndex)
 		);
+	}
+
+	private static List<BuildSequencePlan> buildSequencesInSection(ChoreographyPlan plan, int sectionIndex) {
+		if (plan == null || plan.buildSequences().isEmpty()) {
+			return List.of();
+		}
+		List<BuildSequencePlan> out = new ArrayList<>();
+		for (BuildSequencePlan sequence : plan.buildSequences()) {
+			if (sequence != null && sequence.sectionIndex() == sectionIndex) {
+				out.add(sequence);
+			}
+		}
+		return List.copyOf(out);
 	}
 
 	public record SmartAutoMapCompileResult(
 		int animationEvents,
 		int cameraEvents,
 		int vfxEvents,
+		int buildEvents,
 		String generationId
 	) {
 		public SmartAutoMapCompileResult {
 			generationId = generationId != null ? generationId : "";
+			buildEvents = Math.max(0, buildEvents);
+		}
+
+		/** 兼容旧调用：无 BUILD 计数。 */
+		public SmartAutoMapCompileResult(
+			int animationEvents,
+			int cameraEvents,
+			int vfxEvents,
+			String generationId
+		) {
+			this(animationEvents, cameraEvents, vfxEvents, 0, generationId);
 		}
 	}
 }

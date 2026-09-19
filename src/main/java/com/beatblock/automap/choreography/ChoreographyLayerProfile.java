@@ -62,7 +62,8 @@ public enum ChoreographyLayerProfile {
 			plan.sectionEdits(),
 			plan.musicalStructure(),
 			spatial,
-			grammar
+			grammar,
+			plan.buildSequences()
 		);
 	}
 

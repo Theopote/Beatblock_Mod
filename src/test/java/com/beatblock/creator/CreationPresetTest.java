@@ -92,4 +92,16 @@ class CreationPresetTest {
 		assertNull(CreationPreset.RHYTHM_PATH.buildAutoMapSettings("stage_a"));
 		assertNull(CreationPreset.DROP_IMPACT.buildAutoMapSettings("stage_a"));
 	}
+
+	@Test
+	void smartAutoMapPresetsExposeDistinctPerformanceProfiles() {
+		assertNotNull(CreationPreset.RHYTHM_PULSE.performanceProfile());
+		assertNotNull(CreationPreset.FULL_CHOREOGRAPHY.performanceProfile());
+		assertNotNull(CreationPreset.BUILD_REVEAL.performanceProfile());
+		assertNull(CreationPreset.RHYTHM_PATH.performanceProfile());
+
+		assertNotNull(CreationPreset.RHYTHM_PULSE.buildAutoMapSettings("a").getPerformanceProfile());
+		assertTrue(CreationPreset.BUILD_REVEAL.performanceProfile().wantsBuildPrimary());
+		assertFalse(CreationPreset.RHYTHM_PULSE.performanceProfile().wantsBuildPrimary());
+	}
 }

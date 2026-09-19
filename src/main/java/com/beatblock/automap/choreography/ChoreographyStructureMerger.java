@@ -39,7 +39,8 @@ public final class ChoreographyStructureMerger {
 			existing.sectionEdits(),
 			mergedMusic,
 			mergeSpatialMotifPhrases(existing, analyzed, mergedSections),
-			mergeChoreographyPhrases(existing, analyzed, mergedSections)
+			mergeChoreographyPhrases(existing, analyzed, mergedSections),
+			mergeBuildSequences(existing, analyzed)
 		);
 		return ChoreographyPlanEditor.rebindSectionIndices(merged);
 	}
@@ -66,7 +67,8 @@ public final class ChoreographyStructureMerger {
 			existing.sectionEdits(),
 			mergedMusic,
 			existing.spatialMotifPhrases(),
-			existing.choreographyPhrases()
+			existing.choreographyPhrases(),
+			existing.buildSequences()
 		);
 	}
 
@@ -358,6 +360,37 @@ public final class ChoreographyStructureMerger {
 			analyzed.sections(),
 			analyzed.choreographyPhrases()
 		);
+	}
+
+	/**
+	 * Build 序列按起止时间做 protected 合并：无 protected 段落时采用 analyzed。
+	 */
+	static List<BuildSequencePlan> mergeBuildSequences(
+		ChoreographyPlan existing,
+		ChoreographyPlan analyzed
+	) {
+		List<BuildSequencePlan> existingSeq =
+			existing != null ? existing.buildSequences() : List.of();
+		List<BuildSequencePlan> analyzedSeq =
+			analyzed != null ? analyzed.buildSequences() : List.of();
+		List<ChoreographyPlan.SectionPlan> sections =
+			existing != null ? existing.sections() : List.of();
+		if (!hasProtectedSection(sections)) {
+			return List.copyOf(analyzedSeq);
+		}
+		List<double[]> protectedRanges = protectedTimeRanges(sections);
+		List<BuildSequencePlan> merged = new ArrayList<>();
+		for (BuildSequencePlan sequence : existingSeq) {
+			if (sequence != null && timeInProtectedRange(sequence.startSeconds(), protectedRanges)) {
+				merged.add(sequence);
+			}
+		}
+		for (BuildSequencePlan sequence : analyzedSeq) {
+			if (sequence != null && !timeInProtectedRange(sequence.startSeconds(), protectedRanges)) {
+				merged.add(sequence);
+			}
+		}
+		return List.copyOf(merged);
 	}
 
 	/**

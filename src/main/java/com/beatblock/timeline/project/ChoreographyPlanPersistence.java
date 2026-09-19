@@ -2,6 +2,7 @@ package com.beatblock.timeline.project;
 
 import com.beatblock.automap.AutoMapConfig;
 import com.beatblock.automap.AutoMapRule;
+import com.beatblock.automap.choreography.BuildSequencePlan;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.choreography.ChoreographyTimingSnap;
@@ -15,7 +16,9 @@ import com.beatblock.automap.choreography.SectionEditProfile;
 import com.beatblock.automap.choreography.SectionPlanSource;
 import com.beatblock.automap.choreography.TimingSnapDefaults;
 import com.beatblock.automap.engine.SectionType;
+import com.beatblock.engine.BuildSequenceMode;
 import com.beatblock.timeline.Timeline;
+import com.beatblock.timeline.generation.PacingMode;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -70,6 +73,9 @@ public final class ChoreographyPlanPersistence {
 		if (!plan.musicalStructure().isEmpty()) {
 			root.add("musicalStructure", musicalStructureToJson(plan.musicalStructure()));
 		}
+		if (!plan.buildSequences().isEmpty()) {
+			root.add("buildSequences", buildSequencesToJson(plan.buildSequences()));
+		}
 		return root;
 	}
 
@@ -86,7 +92,8 @@ public final class ChoreographyPlanPersistence {
 			sectionEditsFromJson(root.get("sectionEdits")),
 			musicalStructureFromJson(root.get("musicalStructure")),
 			spatialMotifPhrasesFromJson(root.get("spatialMotifPhrases")),
-			com.beatblock.automap.choreography.grammar.ChoreographyPhrasePersistence.fromJson(root.get("choreographyPhrases"))
+			com.beatblock.automap.choreography.grammar.ChoreographyPhrasePersistence.fromJson(root.get("choreographyPhrases")),
+			buildSequencesFromJson(root.get("buildSequences"))
 		);
 	}
 
@@ -475,6 +482,55 @@ public final class ChoreographyPlanPersistence {
 		return out;
 	}
 
+	private static JsonArray buildSequencesToJson(List<BuildSequencePlan> sequences) {
+		JsonArray arr = new JsonArray();
+		for (BuildSequencePlan sequence : sequences) {
+			if (sequence == null || !sequence.isValid()) {
+				continue;
+			}
+			JsonObject obj = new JsonObject();
+			obj.addProperty("layerId", sequence.layerId());
+			obj.addProperty("targetObjectId", sequence.targetObjectId());
+			obj.addProperty("startSeconds", sequence.startSeconds());
+			obj.addProperty("endSeconds", sequence.endSeconds());
+			obj.addProperty("mode", sequence.mode().name());
+			obj.addProperty("pacing", sequence.pacing().name());
+			obj.addProperty("dissolve", sequence.dissolve());
+			if (sequence.trackId() != null) {
+				obj.addProperty("trackId", sequence.trackId());
+			}
+			obj.addProperty("sectionIndex", sequence.sectionIndex());
+			arr.add(obj);
+		}
+		return arr;
+	}
+
+	private static List<BuildSequencePlan> buildSequencesFromJson(@Nullable JsonElement element) {
+		List<BuildSequencePlan> out = new ArrayList<>();
+		if (element == null || !element.isJsonArray()) {
+			return out;
+		}
+		JsonArray arr = element.getAsJsonArray();
+		for (int i = 0; i < arr.size(); i++) {
+			if (!arr.get(i).isJsonObject()) {
+				continue;
+			}
+			JsonObject obj = arr.get(i).getAsJsonObject();
+			out.add(new BuildSequencePlan(
+				getString(obj, "layerId", ""),
+				getString(obj, "targetObjectId", ""),
+				getDouble(obj, "startSeconds", 0.0),
+				getDouble(obj, "endSeconds", 2.0),
+				BuildSequenceMode.fromValue(getString(obj, "mode", "WALL")),
+				PacingMode.fromValue(getString(obj, "pacing", "FIXED_INTERVAL")),
+				getBool(obj, "dissolve", false),
+				obj.has("trackId") ? blankToNull(getString(obj, "trackId", "")) : null,
+				getInt(obj, "sectionIndex", -1)
+			));
+		}
+		return out;
+	}
+
 	private static JsonArray cameraPhrasesToJson(List<ChoreographyPlan.CameraPhrase> phrases) {
 		JsonArray arr = new JsonArray();
 		for (ChoreographyPlan.CameraPhrase phrase : phrases) {
@@ -693,5 +749,12 @@ public final class ChoreographyPlanPersistence {
 	private static boolean getBool(JsonObject obj, String key, boolean def) {
 		if (obj == null || !obj.has(key) || obj.get(key).isJsonNull()) return def;
 		return obj.get(key).getAsBoolean();
+	}
+
+	private static @Nullable String blankToNull(@Nullable String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return value;
 	}
 }

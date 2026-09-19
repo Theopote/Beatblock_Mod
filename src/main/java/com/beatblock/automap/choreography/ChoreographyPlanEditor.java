@@ -1098,7 +1098,8 @@ VariationSpec fallback,
 			edits,
 			source.musicalStructure(),
 			spatialMotifPhrases,
-			choreographyPhrases
+			choreographyPhrases,
+			source.buildSequences()
 		);
 	}
 }

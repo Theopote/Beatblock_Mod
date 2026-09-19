@@ -15,6 +15,7 @@ import java.util.List;
  *   <li>{@link com.beatblock.automap.choreography.grammar.ChoreographyPhrase} — Phrase：段内重复的跨对象编舞</li>
  *   <li>{@link com.beatblock.automap.choreography.grammar.ChoreographyPhrase#isHero()} — Hero：段落入口/高潮一次性爆发</li>
  *   <li>{@link SpatialMotifPhrase} — Phrase（legacy，由 Grammar 取代）</li>
+ *   <li>{@link BuildSequencePlan} — Build：图层揭示序列（BUILD），与动画 Phrase 分离</li>
  * </ul>
  */
 public record ChoreographyPlan(
@@ -27,7 +28,8 @@ public record ChoreographyPlan(
 	List<SectionEditProfile> sectionEdits,
 	MusicalStructure musicalStructure,
 	List<SpatialMotifPhrase> spatialMotifPhrases,
-	List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> choreographyPhrases
+	List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> choreographyPhrases,
+	List<BuildSequencePlan> buildSequences
 ) {
 
 	public ChoreographyPlan(
@@ -80,6 +82,24 @@ public record ChoreographyPlan(
 		this(sections, stageRoles, motionPhrases, cameraPhrases, vfxPhrases, densityCurve, sectionEdits, musicalStructure, spatialMotifPhrases, List.of());
 	}
 
+	public ChoreographyPlan(
+		List<SectionPlan> sections,
+		List<StageRoleAssignment> stageRoles,
+		List<MotionPhrase> motionPhrases,
+		List<CameraPhrase> cameraPhrases,
+		List<ChoreographyVfx> vfxPhrases,
+		DensityCurve densityCurve,
+		List<SectionEditProfile> sectionEdits,
+		MusicalStructure musicalStructure,
+		List<SpatialMotifPhrase> spatialMotifPhrases,
+		List<com.beatblock.automap.choreography.grammar.ChoreographyPhrase> choreographyPhrases
+	) {
+		this(
+			sections, stageRoles, motionPhrases, cameraPhrases, vfxPhrases, densityCurve,
+			sectionEdits, musicalStructure, spatialMotifPhrases, choreographyPhrases, List.of()
+		);
+	}
+
 	public ChoreographyPlan {
 		sections = sections != null ? List.copyOf(sections) : List.of();
 		stageRoles = stageRoles != null ? List.copyOf(stageRoles) : List.of();
@@ -91,12 +111,21 @@ public record ChoreographyPlan(
 		musicalStructure = musicalStructure != null ? musicalStructure : MusicalStructure.empty();
 		spatialMotifPhrases = spatialMotifPhrases != null ? List.copyOf(spatialMotifPhrases) : List.of();
 		choreographyPhrases = choreographyPhrases != null ? List.copyOf(choreographyPhrases) : List.of();
+		buildSequences = buildSequences != null ? List.copyOf(buildSequences) : List.of();
 	}
 
 	public static ChoreographyPlan empty() {
 		return new ChoreographyPlan(
 			List.of(), List.of(), List.of(), List.of(), List.of(), DensityCurve.uniform(1.0), List.of(),
-			MusicalStructure.empty(), List.of(), List.of());
+			MusicalStructure.empty(), List.of(), List.of(), List.of());
+	}
+
+	/** 替换建造序列车道，保留其余计划字段。 */
+	public ChoreographyPlan withBuildSequences(List<BuildSequencePlan> sequences) {
+		return new ChoreographyPlan(
+			sections, stageRoles, motionPhrases, cameraPhrases, vfxPhrases, densityCurve,
+			sectionEdits, musicalStructure, spatialMotifPhrases, choreographyPhrases, sequences
+		);
 	}
 
 	/** Bar / Phrase / Section / Repeat hierarchy attached to this plan (structure v2). */

@@ -186,6 +186,7 @@ public final class QuickStartWizardPresenter {
 	private float generationFraction;
 	private @Nullable QuickStartGenerationTransaction activeTx;
 	private @Nullable String pendingObjectId;
+	private @Nullable String pendingLayerId;
 	private @Nullable String pendingObjectName;
 	private SmartAutoMapEngine.@Nullable AutoMapResult pendingAutoMapResult;
 	private boolean pendingCamera;
@@ -558,6 +559,7 @@ public final class QuickStartWizardPresenter {
 
 		pendingObjectName = resolvedStageObjectName();
 		pendingObjectId = null;
+		pendingLayerId = null;
 		pendingAutoMapResult = null;
 		pendingCamera = creationPreset.wantsCamera();
 		pendingVfx = creationPreset.wantsVfx();
@@ -700,8 +702,10 @@ public final class QuickStartWizardPresenter {
 				failGeneration(PresenterResult.failure(BBTexts.get("beatblock.message.create_layer_failed")), null);
 				return;
 			}
+			pendingLayerId = layer.getId();
 			pendingObjectId = layer.getStageObjectId();
 		} else {
+			pendingLayerId = null;
 			ToolPanelPresenter.StageObjectCreateRequest createRequest = new ToolPanelPresenter.StageObjectCreateRequest(
 				pendingObjectName,
 				false,
@@ -732,7 +736,7 @@ public final class QuickStartWizardPresenter {
 			runBindingTemplateChoreography();
 			return;
 		}
-		AutoMapSettings settings = creationPreset.buildAutoMapSettings(pendingObjectId);
+		AutoMapSettings settings = creationPreset.buildAutoMapSettings(pendingObjectId, pendingLayerId);
 		if (settings == null) {
 			failGeneration(PresenterResult.failure(BBTexts.get("beatblock.wizard.unknown_type")), null);
 			return;
@@ -939,6 +943,7 @@ public final class QuickStartWizardPresenter {
 		generationMessage = "";
 		generationFraction = 0f;
 		pendingObjectId = null;
+		pendingLayerId = null;
 		pendingObjectName = null;
 		pendingAutoMapResult = null;
 		pendingCamera = false;

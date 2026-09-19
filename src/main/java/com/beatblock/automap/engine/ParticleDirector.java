@@ -8,7 +8,8 @@ import java.util.List;
 /**
  * 自动粒子：根据高频能量峰值生成粒子事件（Spark / Dust / Flash）。
  * <p>
- * 仅处理单一高频粒子流，全局 minGap 合理；多频段动画间隔见
+ * 作为 {@link com.beatblock.automap.vfx.VfxPlanner} Accent 车道的峰值源；
+ * 结构/Hero/环境 VFX 由 VfxPlanner 负责。多频段动画间隔见
  * {@link com.beatblock.automap.AutoMapCandidateResolver}。
  */
 public final class ParticleDirector {

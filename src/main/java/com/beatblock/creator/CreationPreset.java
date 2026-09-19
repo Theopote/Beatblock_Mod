@@ -1,15 +1,11 @@
 package com.beatblock.creator;
 
-import com.beatblock.automap.choreography.ChoreographyLayerProfile;
 import com.beatblock.automap.engine.AutoMapSettings;
-import com.beatblock.automap.engine.AutoMapStyle;
-import com.beatblock.automap.engine.Complexity;
+import com.beatblock.automap.performance.PerformanceProfile;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.ui.presenter.ProjectTemplatePresenter;
 
 import org.jspecify.annotations.Nullable;
-
-import java.util.List;
 
 /**
  * 用户可见的创作预设：统一 Quick Start 视频类型与工程模板的产品概念。
@@ -68,16 +64,30 @@ public enum CreationPreset {
 	}
 
 	public boolean wantsCamera() {
-		return this == BUILD_REVEAL || this == FULL_CHOREOGRAPHY;
+		PerformanceProfile profile = performanceProfile();
+		return profile != null ? profile.wantsCamera() : (this == BUILD_REVEAL || this == FULL_CHOREOGRAPHY);
 	}
 
 	public boolean wantsVfx() {
-		return this == FULL_CHOREOGRAPHY;
+		PerformanceProfile profile = performanceProfile();
+		return profile != null ? profile.wantsVfx() : this == FULL_CHOREOGRAPHY;
 	}
 
 	/** Build Reveal 预设应创建带显隐能力的 BuildLayer，而非裸 StageObject。 */
 	public boolean wantsBuildLayer() {
 		return this == BUILD_REVEAL;
+	}
+
+	/**
+	 * SMART_AUTO_MAP 预设的表演导演配置；非 AutoMap 策略返回 null。
+	 */
+	public @Nullable PerformanceProfile performanceProfile() {
+		return switch (this) {
+			case RHYTHM_PULSE -> PerformanceProfile.rhythmPulse();
+			case FULL_CHOREOGRAPHY -> PerformanceProfile.fullChoreography();
+			case BUILD_REVEAL -> PerformanceProfile.buildReveal();
+			default -> null;
+		};
 	}
 
 	public String titleKey() {
@@ -173,24 +183,18 @@ public enum CreationPreset {
 	}
 
 	public @Nullable AutoMapSettings buildAutoMapSettings(String objectId) {
+		return buildAutoMapSettings(objectId, null);
+	}
+
+	public @Nullable AutoMapSettings buildAutoMapSettings(String objectId, @Nullable String buildLayerId) {
 		if (generationStrategy() != GenerationStrategy.SMART_AUTO_MAP || objectId == null || objectId.isBlank()) {
 			return null;
 		}
-		return switch (this) {
-			case BUILD_REVEAL -> buildAutoMapSettings(
-				AutoMapStyle.CINEMATIC, Complexity.MEDIUM, true, false,
-				ChoreographyLayerProfile.PHRASE, objectId
-			);
-			case RHYTHM_PULSE -> buildAutoMapSettings(
-				AutoMapStyle.EDM, Complexity.MEDIUM, false, false,
-				ChoreographyLayerProfile.PHRASE, objectId
-			);
-			case FULL_CHOREOGRAPHY -> buildAutoMapSettings(
-				AutoMapStyle.EDM, Complexity.MEDIUM, true, true,
-				ChoreographyLayerProfile.HERO_FULL, objectId
-			);
-			default -> null;
-		};
+		PerformanceProfile profile = performanceProfile();
+		if (profile != null) {
+			return profile.toAutoMapSettings(objectId, buildLayerId);
+		}
+		return null;
 	}
 
 	/** {@link com.beatblock.ui.presenter.TimelineBindingEditorPresenter} 模板索引。 */
@@ -253,23 +257,5 @@ public enum CreationPreset {
 			case BUILD_REVEAL -> ProjectTemplatePresenter.TemplateId.ARCHITECTURAL_SHOW;
 			default -> null;
 		};
-	}
-
-	private static AutoMapSettings buildAutoMapSettings(
-		AutoMapStyle style,
-		Complexity complexity,
-		boolean camera,
-		boolean particles,
-		ChoreographyLayerProfile layerProfile,
-		String objectId
-	) {
-		AutoMapSettings settings = new AutoMapSettings();
-		settings.setStyle(style);
-		settings.setComplexity(complexity);
-		settings.setCameraEnabled(camera);
-		settings.setParticlesEnabled(particles);
-		settings.setLayerProfile(layerProfile);
-		settings.setTargetObjectIds(List.of(objectId));
-		return settings;
 	}
 }

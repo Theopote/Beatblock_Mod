@@ -9,12 +9,18 @@ import com.beatblock.automap.AutoMapConfigFactory;
 import com.beatblock.automap.camera.CameraContinuityPlanner;
 import com.beatblock.automap.camera.CameraPlanningContext;
 import com.beatblock.automap.camera.CameraShot;
+import com.beatblock.automap.choreography.BuildRevealCameraPlanner;
+import com.beatblock.automap.choreography.BuildRevealPlanner;
+import com.beatblock.automap.choreography.BuildSequencePlan;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanBuilder;
 import com.beatblock.automap.choreography.ChoreographyCompileOptions;
 import com.beatblock.automap.choreography.ChoreographyPlanCompiler;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.choreography.ChoreographyStructureMerger;
+import com.beatblock.automap.performance.PerformancePlanShaper;
+import com.beatblock.automap.performance.PerformanceProfile;
+import com.beatblock.automap.vfx.VfxPlanner;
 import com.beatblock.timeline.generation.ContentReplacePolicy;
 import com.beatblock.timeline.generation.TimelineGeneratorIds;
 import com.beatblock.timeline.Timeline;
@@ -59,16 +65,18 @@ public final class SmartAutoMapEngine {
 		MusicStructure musicStructure = MusicStructureAnalyzer.analyze(featureTimeline);
 		List<StructuralSection> sections = musicStructure.sections();
 		List<RhythmEvent> rhythmEvents = RhythmClassifier.classify(beats, bands);
-		rhythmEvents = PatternGenerator.filter(rhythmEvents, settings);
+		rhythmEvents = PatternGenerator.filter(rhythmEvents, settings, musicStructure);
 
+		PerformanceProfile performanceProfile = settings.getPerformanceProfile();
 		CameraPlanningContext cameraContext = new CameraPlanningContext(
 			bpm, duration, settings.getStyle(), settings.getTargetObjectIds());
 		List<CameraShot> cameraShots = settings.isCameraEnabled()
 			? CameraContinuityPlanner.plan(CameraDirector.generateShots(sections, cameraContext, true))
 			: List.of();
-		List<ParticleEvent> particleEvents = settings.isParticlesEnabled()
-			? ParticleDirector.generate(bands, true)
-			: List.of();
+		if (performanceProfile != null) {
+			cameraShots = PerformancePlanShaper.filterShots(cameraShots, performanceProfile.camera());
+		}
+		List<ParticleEvent> particleEvents = List.of();
 
 		AutoMapConfig config = AutoMapConfigFactory.fromSettings(settings);
 		ChoreographyPlan analyzed = ChoreographyPlanBuilder.fromMusicStructure(
@@ -80,6 +88,10 @@ public final class SmartAutoMapEngine {
 			config
 		);
 		analyzed = settings.getLayerProfile().apply(analyzed);
+		analyzed = VfxPlanner.apply(analyzed, bands, settings);
+		analyzed = PerformancePlanShaper.apply(analyzed, performanceProfile);
+		analyzed = applyBuildRevealSemantics(analyzed, settings);
+		analyzed = BuildRevealCameraPlanner.apply(analyzed);
 		ChoreographyPlan existing = ChoreographyPlanStore.loadPlan(timeline);
 		ChoreographyPlan plan = ChoreographyStructureMerger.merge(existing, analyzed);
 
@@ -94,13 +106,45 @@ public final class SmartAutoMapEngine {
 			compiled.cameraEvents(),
 			compiled.vfxEvents(),
 			sections.size(),
-			compiled.generationId()
+			compiled.generationId(),
+			compiled.buildEvents()
 		);
 		LOGGER.info(
-			"BeatBlock Smart Auto-Map: 动画 {} 个, 镜头 {} 个, 粒子 {} 个, 段落 {} 个, 小节 {} 个, 乐句 {} 个",
-			compiled.animationEvents(), compiled.cameraEvents(), compiled.vfxEvents(), sections.size(),
+			"BeatBlock Smart Auto-Map: 动画 {} 个, 镜头 {} 个, 粒子 {} 个, BUILD {} 个, 段落 {} 个, 小节 {} 个, 乐句 {} 个",
+			compiled.animationEvents(), compiled.cameraEvents(), compiled.vfxEvents(), compiled.buildEvents(),
+			sections.size(),
 			plan.musicalStructure().bars().size(), plan.musicalStructure().phrases().size());
 		return result;
+	}
+
+	/**
+	 * BUILD_REVEAL：附加 {@link BuildSequencePlan}，并剥离会冒充 reveal 的动画 Phrase。
+	 * 镜头由后续 {@link BuildRevealCameraPlanner} 按建造进度重写。
+	 */
+	public static ChoreographyPlan applyBuildRevealSemantics(ChoreographyPlan plan, AutoMapSettings settings) {
+		if (plan == null || settings == null || !settings.hasBuildLayerId()) {
+			return plan != null ? plan : ChoreographyPlan.empty();
+		}
+		String targetObjectId = settings.getTargetObjectIds().isEmpty()
+			? ""
+			: settings.getTargetObjectIds().getFirst();
+		BuildSequencePlan sequence = BuildRevealPlanner.plan(plan, settings.getBuildLayerId(), targetObjectId);
+		if (sequence == null) {
+			return plan;
+		}
+		return new ChoreographyPlan(
+			plan.sections(),
+			plan.stageRoles(),
+			List.of(),
+			plan.cameraPhrases(),
+			List.of(),
+			plan.densityCurve(),
+			plan.sectionEdits(),
+			plan.musicalStructure(),
+			List.of(),
+			List.of(),
+			List.of(sequence)
+		);
 	}
 
 	/** 生成结果统计 */
@@ -110,9 +154,10 @@ public final class SmartAutoMapEngine {
 		private final int particleEvents;
 		private final int sections;
 		private final String generationId;
+		private final int buildEvents;
 
 		public AutoMapResult(int animationEvents, int cameraEvents, int particleEvents, int sections) {
-			this(animationEvents, cameraEvents, particleEvents, sections, "");
+			this(animationEvents, cameraEvents, particleEvents, sections, "", 0);
 		}
 
 		public AutoMapResult(
@@ -122,11 +167,23 @@ public final class SmartAutoMapEngine {
 			int sections,
 			String generationId
 		) {
+			this(animationEvents, cameraEvents, particleEvents, sections, generationId, 0);
+		}
+
+		public AutoMapResult(
+			int animationEvents,
+			int cameraEvents,
+			int particleEvents,
+			int sections,
+			String generationId,
+			int buildEvents
+		) {
 			this.animationEvents = animationEvents;
 			this.cameraEvents = cameraEvents;
 			this.particleEvents = particleEvents;
 			this.sections = sections;
 			this.generationId = generationId != null ? generationId : "";
+			this.buildEvents = Math.max(0, buildEvents);
 		}
 
 		public int getAnimationEvents() { return animationEvents; }
@@ -134,5 +191,6 @@ public final class SmartAutoMapEngine {
 		public int getParticleEvents() { return particleEvents; }
 		public int getSections() { return sections; }
 		public String getGenerationId() { return generationId; }
+		public int getBuildEvents() { return buildEvents; }
 	}
 }

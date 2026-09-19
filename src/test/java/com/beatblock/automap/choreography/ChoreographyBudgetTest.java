@@ -22,10 +22,12 @@ class ChoreographyBudgetTest {
 
 	@Test
 	void sectionVisualDensityMatchesProductAnchors() {
-		assertEquals(0.20, ChoreographyBudget.sectionVisualDensity(SectionType.INTRO), 1e-9);
-		assertEquals(0.40, ChoreographyBudget.sectionVisualDensity(SectionType.VERSE), 1e-9);
-		assertEquals(0.75, ChoreographyBudget.sectionVisualDensity(SectionType.CHORUS), 1e-9);
+		assertEquals(0.25, ChoreographyBudget.sectionVisualDensity(SectionType.INTRO), 1e-9);
+		assertEquals(0.55, ChoreographyBudget.sectionVisualDensity(SectionType.VERSE), 1e-9);
+		assertEquals(0.90, ChoreographyBudget.sectionVisualDensity(SectionType.CHORUS), 1e-9);
 		assertEquals(1.00, ChoreographyBudget.sectionVisualDensity(SectionType.DROP), 1e-9);
+		assertEquals(0.30, ChoreographyBudget.sectionVisualDensity(SectionType.BREAK), 1e-9);
+		assertEquals(0.20, ChoreographyBudget.sectionVisualDensity(SectionType.OUTRO), 1e-9);
 	}
 
 	@Test

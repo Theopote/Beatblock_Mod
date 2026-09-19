@@ -1,6 +1,9 @@
 package com.beatblock.automap.engine;
 
 import com.beatblock.automap.choreography.ChoreographyLayerProfile;
+import com.beatblock.automap.performance.PerformanceProfile;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +19,9 @@ public final class AutoMapSettings {
 	private boolean particlesEnabled;
 	private ChoreographyLayerProfile layerProfile;
 	private List<String> targetObjectIds;
+	/** 非空时触发 BUILD_REVEAL：生成 {@link com.beatblock.automap.choreography.BuildSequencePlan}。 */
+	private String buildLayerId;
+	private @Nullable PerformanceProfile performanceProfile;
 	private double minGapLow;
 	private double minGapMid;
 	private double minGapHigh;
@@ -27,6 +33,8 @@ public final class AutoMapSettings {
 		this.particlesEnabled = true;
 		this.layerProfile = ChoreographyLayerProfile.HERO_FULL;
 		this.targetObjectIds = new ArrayList<>();
+		this.buildLayerId = null;
+		this.performanceProfile = null;
 		this.minGapLow = 0.0;
 		this.minGapMid = 0.0;
 		this.minGapHigh = 0.0;
@@ -51,6 +59,19 @@ public final class AutoMapSettings {
 
 	public List<String> getTargetObjectIds() { return new ArrayList<>(targetObjectIds); }
 	public void setTargetObjectIds(List<String> ids) { this.targetObjectIds = ids != null ? new ArrayList<>(ids) : new ArrayList<>(); }
+
+	public String getBuildLayerId() { return buildLayerId; }
+	public void setBuildLayerId(String buildLayerId) {
+		this.buildLayerId = buildLayerId != null && !buildLayerId.isBlank() ? buildLayerId.trim() : null;
+	}
+	public boolean hasBuildLayerId() {
+		return buildLayerId != null && !buildLayerId.isBlank();
+	}
+
+	public @Nullable PerformanceProfile getPerformanceProfile() { return performanceProfile; }
+	public void setPerformanceProfile(@Nullable PerformanceProfile performanceProfile) {
+		this.performanceProfile = performanceProfile;
+	}
 
 	/** &lt;= 0 表示使用复杂度默认 per-feature minGap。 */
 	public double getMinGapLow() { return minGapLow; }

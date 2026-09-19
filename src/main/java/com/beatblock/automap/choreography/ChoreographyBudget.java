@@ -43,17 +43,23 @@ public record ChoreographyBudget(
 	}
 
 	/**
-	 * 段落默认视觉密度（生成预算的锚点，与 {@link DensityCurve} 构建一致）。
+	 * 段落默认视觉密度（生成预算与 Accent 结构筛选的共用锚点）。
+	 * <p>
+	 * INTRO 0.25 · VERSE 0.55 · PRE_CHORUS 0.70 · BUILD 0.80 ·
+	 * DROP 1.00 · CHORUS 0.90 · BREAK 0.30 · OUTRO 0.20 · BRIDGE 0.45
 	 */
 	public static double sectionVisualDensity(@Nullable SectionType sectionType) {
 		if (sectionType == null) return 0.5;
 		return switch (sectionType) {
-			case INTRO, OUTRO -> 0.20;
-			case VERSE, BREAK, BRIDGE -> 0.40;
-			case PRE_CHORUS -> 0.55;
-			case BUILD -> 0.65;
-			case CHORUS -> 0.75;
+			case INTRO -> 0.25;
+			case VERSE -> 0.55;
+			case PRE_CHORUS -> 0.70;
+			case BUILD -> 0.80;
 			case DROP -> 1.00;
+			case CHORUS -> 0.90;
+			case BREAK -> 0.30;
+			case OUTRO -> 0.20;
+			case BRIDGE -> 0.45;
 		};
 	}
 }

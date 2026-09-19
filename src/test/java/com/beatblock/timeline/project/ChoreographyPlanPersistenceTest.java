@@ -40,7 +40,20 @@ class ChoreographyPlanPersistenceTest {
 				List.of(new ChoreographyPlan.BarPlan(0, 3, 0, 0)),
 				List.of(new ChoreographyPlan.MusicalPhrasePlan(0, 12, 0, 0, 0.3, -1)),
 				List.of(new ChoreographyPlan.RepeatGroup(0, 0, List.of(0, 1), 0.7))
-			)
+			),
+			List.of(),
+			List.of(),
+			List.of(new com.beatblock.automap.choreography.BuildSequencePlan(
+				"layer-1",
+				"stage-kick",
+				12.0,
+				20.0,
+				com.beatblock.engine.BuildSequenceMode.WALL,
+				com.beatblock.timeline.generation.PacingMode.FIXED_INTERVAL,
+				false,
+				null,
+				1
+			))
 		);
 		AutoMapConfig config = AutoMapConfig.builder()
 			.targetForFeature("low", "stage-kick")
@@ -69,5 +82,8 @@ class ChoreographyPlanPersistenceTest {
 		assertEquals(1, loadedPlan.musicalStructure().bars().size());
 		assertEquals(1, loadedPlan.musicalStructure().phrases().size());
 		assertEquals(1, loadedPlan.musicalStructure().repeats().size());
+		assertEquals(1, loadedPlan.buildSequences().size());
+		assertEquals("layer-1", loadedPlan.buildSequences().getFirst().layerId());
+		assertEquals(12.0, loadedPlan.buildSequences().getFirst().startSeconds(), 1e-6);
 	}
 }

@@ -3,6 +3,8 @@ package com.beatblock.ui.presenter;
 import com.beatblock.automap.engine.AutoMapSettings;
 import com.beatblock.automap.engine.SmartAutoMapEngine;
 import com.beatblock.audio.analysis.AudioFeatureTimeline;
+import com.beatblock.audio.analysis.MusicAnalysisAsset;
+import com.beatblock.audio.analysis.MusicAnalysisAssetResolver;
 import com.beatblock.engine.StageObjectSystem;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.timeline.Timeline;
@@ -28,9 +30,16 @@ public final class AutoMapSettingsPanelPresenter {
 		this.context = context;
 	}
 
+	/** @deprecated 使用 {@link #resolveMusicAnalysis()}；保留供测试过渡读取。 */
+	@Deprecated
 	public AudioFeatureTimeline lastFeatureTimeline() {
-		var engine = context.get().audioAnalysisEngine();
-		return engine != null ? engine.getLastFeatureTimeline() : null;
+		MusicAnalysisAsset asset = resolveMusicAnalysis();
+		return asset != null ? asset.featureTimeline() : null;
+	}
+
+	public MusicAnalysisAsset resolveMusicAnalysis() {
+		BeatBlockContext ctx = context.get();
+		return MusicAnalysisAssetResolver.resolve(ctx.timeline(), ctx.audioAnalysisEngine());
 	}
 
 	public Timeline timeline() {
@@ -50,7 +59,7 @@ public final class AutoMapSettingsPanelPresenter {
 	}
 
 	public String generateBlockedReason() {
-		if (lastFeatureTimeline() == null) {
+		if (resolveMusicAnalysis() == null) {
 			return BBTexts.get("beatblock.message.import_music_first");
 		}
 		if (timeline() == null) {
@@ -76,8 +85,9 @@ public final class AutoMapSettingsPanelPresenter {
 		if (blocked != null) {
 			return new GenerateOutcome(PresenterResult.failure(blocked), null);
 		}
+		MusicAnalysisAsset analysis = resolveMusicAnalysis();
 		SmartAutoMapEngine.AutoMapResult result = SmartAutoMapEngine.generate(
-			lastFeatureTimeline(), settings, timeline());
+			analysis.featureTimeline(), settings, timeline());
 		var editor = context.get().timelineEditor();
 		if (editor != null) {
 			editor.syncClockDuration();

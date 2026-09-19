@@ -5,6 +5,7 @@ import com.beatblock.automap.AutoMapRule;
 import com.beatblock.automap.camera.CameraSegmentSemantics;
 import com.beatblock.automap.camera.CameraSubject;
 import com.beatblock.automap.camera.CameraSubjectKind;
+import com.beatblock.automap.choreography.BuildSequencePlan;
 import com.beatblock.automap.choreography.ChoreographyPlan;
 import com.beatblock.automap.choreography.ChoreographyPlanStore;
 import com.beatblock.automap.choreography.ChoreographyVfx;
@@ -699,6 +700,11 @@ public final class StageObjectReferenceService {
 			vfxList.add(vfx);
 		}
 
+		List<BuildSequencePlan> buildSequences = remapBuildSequences(plan.buildSequences(), fromIds, toId);
+		if (buildSequences != plan.buildSequences()) {
+			changed = true;
+		}
+
 		if (!changed) return new PlanMutation(null, false);
 		ChoreographyPlan remapped = new ChoreographyPlan(
 			plan.sections(),
@@ -710,10 +716,46 @@ public final class StageObjectReferenceService {
 			plan.sectionEdits(),
 			plan.musicalStructure(),
 			plan.spatialMotifPhrases(),
-			phrases
+			phrases,
+			buildSequences
 		);
 		timeline.setMetadata(ChoreographyPlanStore.KEY_PLAN, remapped);
 		return new PlanMutation(plan, true);
+	}
+
+	private static List<BuildSequencePlan> remapBuildSequences(
+		List<BuildSequencePlan> sequences,
+		Set<String> fromIds,
+		@Nullable String toId
+	) {
+		if (sequences == null || sequences.isEmpty()) {
+			return sequences != null ? sequences : List.of();
+		}
+		List<BuildSequencePlan> out = new ArrayList<>(sequences.size());
+		boolean changed = false;
+		for (BuildSequencePlan sequence : sequences) {
+			if (sequence == null) {
+				continue;
+			}
+			if (!fromIds.contains(sequence.targetObjectId())) {
+				out.add(sequence);
+				continue;
+			}
+			changed = true;
+			String newTarget = toId != null && !toId.isBlank() ? toId : "";
+			out.add(new BuildSequencePlan(
+				sequence.layerId(),
+				newTarget,
+				sequence.startSeconds(),
+				sequence.endSeconds(),
+				sequence.mode(),
+				sequence.pacing(),
+				sequence.dissolve(),
+				sequence.trackId(),
+				sequence.sectionIndex()
+			));
+		}
+		return changed ? List.copyOf(out) : sequences;
 	}
 
 	private record ConfigMutation(@Nullable AutoMapConfig previous, boolean changed) {}

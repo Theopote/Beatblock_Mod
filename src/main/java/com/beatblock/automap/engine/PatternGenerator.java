@@ -1,6 +1,11 @@
 package com.beatblock.automap.engine;
 
+import com.beatblock.audio.analysis.structure.MusicStructure;
 import com.beatblock.automap.AutoMapGenerator;
+import com.beatblock.automap.performance.PatternDensity;
+import com.beatblock.automap.performance.SectionActivity;
+
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -9,10 +14,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 节奏模式生成：根据段落类型与复杂度决定是否采纳某节奏事件、最小间隔等。
+ * 节奏模式生成：按全局复杂度 / 预设密度与<strong>段落活动度</strong>筛选节奏事件。
  * <p>
  * 过滤阶段按归一化频段（Kick→low、Snare→mid、HiHat→high）分别维护 lastTime，
  * 与 {@link com.beatblock.automap.AutoMapCandidateResolver} 的 per-feature minGap 策略一致。
+ * 若提供 {@link MusicStructure}，则按
+ * {@code effective = sectionActivity × phraseActivity} 缩放 gap 并抬高稀疏段能量门槛。
  */
 public final class PatternGenerator {
 
@@ -83,29 +90,72 @@ public final class PatternGenerator {
 		};
 	}
 
-	/** 按 per-feature 间隔与能量阈值过滤节奏事件。 */
+	/** 按 per-feature 间隔与能量阈值过滤节奏事件（无结构时全曲均匀）。 */
 	public static List<RhythmEvent> filter(List<RhythmEvent> events, Complexity complexity) {
 		if (complexity == null) complexity = Complexity.MEDIUM;
-		return filter(events, featureMinGaps(complexity), getEnergyThreshold(complexity));
+		return filter(events, featureMinGaps(complexity), getEnergyThreshold(complexity), null);
 	}
 
-	/** 使用 Smart Auto Map 设置中的 per-feature minGap 过滤节奏事件。 */
+	/** 使用 Smart Auto Map 设置中的 per-feature minGap 过滤节奏事件（无结构）。 */
 	public static List<RhythmEvent> filter(List<RhythmEvent> events, AutoMapSettings settings) {
-		if (settings == null) return filter(events, Complexity.MEDIUM);
-		return filter(events, featureMinGaps(settings), getEnergyThreshold(settings.getComplexity()));
+		return filter(events, settings, null);
 	}
 
-	private static List<RhythmEvent> filter(List<RhythmEvent> events, FeatureMinGaps gaps, float minEnergy) {
+	/**
+	 * 结构感知过滤：全局 preset 密度 × 段落活动度 × 乐句活动度。
+	 */
+	public static List<RhythmEvent> filter(
+		List<RhythmEvent> events,
+		AutoMapSettings settings,
+		@Nullable MusicStructure structure
+	) {
+		if (settings == null) return filter(events, Complexity.MEDIUM);
+		float energyThreshold = getEnergyThreshold(settings.getComplexity());
+		if (settings.getPerformanceProfile() != null) {
+			energyThreshold = PatternDensity
+				.gapsFor(settings.getPerformanceProfile().density())
+				.energyThreshold();
+		}
+		return filter(events, featureMinGaps(settings), energyThreshold, structure);
+	}
+
+	/**
+	 * 结构感知过滤（仅 Complexity，无 AutoMapSettings）。
+	 */
+	public static List<RhythmEvent> filter(
+		List<RhythmEvent> events,
+		Complexity complexity,
+		@Nullable MusicStructure structure
+	) {
+		if (complexity == null) complexity = Complexity.MEDIUM;
+		return filter(events, featureMinGaps(complexity), getEnergyThreshold(complexity), structure);
+	}
+
+	private static List<RhythmEvent> filter(
+		List<RhythmEvent> events,
+		FeatureMinGaps gaps,
+		float minEnergy,
+		@Nullable MusicStructure structure
+	) {
 		if (events == null) return List.of();
 		List<RhythmEvent> sorted = new ArrayList<>(events);
 		sorted.sort(Comparator.comparingDouble(RhythmEvent::getTimeSeconds));
 
+		boolean sectionAware = structure != null && !structure.sections().isEmpty();
 		Map<String, Double> lastTimeByFeature = new HashMap<>();
 		List<RhythmEvent> out = new ArrayList<>(sorted.size());
 		for (RhythmEvent event : sorted) {
-			if (event.getEnergy() < minEnergy) continue;
+			double activity = 1.0;
+			float energyFloor = minEnergy;
+			if (sectionAware) {
+				double sectionAct = SectionActivity.sectionActivityAt(structure, event.getTimeSeconds());
+				activity = SectionActivity.effectiveAt(structure, event.getTimeSeconds());
+				energyFloor = minEnergy + SectionActivity.energyLift(sectionAct);
+			}
+			if (event.getEnergy() < energyFloor) continue;
 			String feature = AutoMapGenerator.normalizedFeatureKey(event.getType());
-			double minGap = minGapForFeature(feature, gaps);
+			double baseGap = minGapForFeature(feature, gaps);
+			double minGap = baseGap / activity;
 			double lastTime = lastTimeByFeature.getOrDefault(feature, -minGap - 1);
 			if (event.getTimeSeconds() < lastTime + minGap) continue;
 			out.add(event);

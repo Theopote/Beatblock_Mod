@@ -2,6 +2,9 @@ package com.beatblock.audio.assets;
 
 import com.beatblock.BeatBlock;
 import com.beatblock.audio.AudioAnalysisService;
+import com.beatblock.audio.analysis.AudioAnalysisEngine;
+import com.beatblock.audio.analysis.AudioFeatureTimeline;
+import com.beatblock.audio.analysis.BeatmapFeatureTimelineAdapter;
 import com.beatblock.runtime.BeatBlockContext;
 import com.beatblock.ui.i18n.BBTexts;
 import com.beatblock.audio.beatmap.Beatmap;
@@ -364,6 +367,7 @@ public final class AudioAssetManager {
 		asset.setAnalysisProgressPercent(0);
 		asset.setProcessingStatusText(BBTexts.get("beatblock.audio.queued"));
 		asset.setBeatmap(null); // 新一轮解析期间避免继续使用旧 beatmap/stem
+		asset.setFeatureTimeline(null);
 		asset.getFinishedSteps().clear();
 		asset.setErrorMessage(null);
 		asset.setInfoMessage(null);
@@ -455,6 +459,8 @@ public final class AudioAssetManager {
 				if (asset.getCacheSource() == null || asset.getCacheSource().isBlank()) {
 					asset.setCacheSource("unknown");
 				}
+
+				syncMusicAnalysisFromBeatmap(asset, beatmap);
 
 				asset.setStatus(AudioAssetStatus.COMPLETED);
 				asset.setAnalysisPhase(AudioAnalysisPhase.COMPLETED);
@@ -578,6 +584,26 @@ public final class AudioAssetManager {
 		int idx = name.lastIndexOf('.');
 		if (idx < 0 || idx >= name.length() - 1) return "";
 		return name.substring(idx + 1).toLowerCase(Locale.ROOT);
+	}
+
+	/**
+	 * Python Beatmap 完成后写入 FeatureTimeline，并绑定到 AudioAnalysisEngine，
+	 * 闭合 Quick Start / Smart AutoMap 对分析资产的硬依赖。
+	 */
+	private void syncMusicAnalysisFromBeatmap(AudioAsset asset, Beatmap beatmap) {
+		AudioFeatureTimeline features = BeatmapFeatureTimelineAdapter.fromBeatmap(beatmap);
+		if (features == null) {
+			return;
+		}
+		asset.setFeatureTimeline(features);
+		try {
+			AudioAnalysisEngine engine = ctx().audioAnalysisEngine();
+			if (engine != null) {
+				engine.bindLastFeatureTimeline(features);
+			}
+		} catch (RuntimeException ex) {
+			LOGGER.debug("BeatBlock AudioAssetManager: bind feature timeline skipped: {}", ex.toString());
+		}
 	}
 
 	@FunctionalInterface
